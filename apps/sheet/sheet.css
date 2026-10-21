@@ -1410,7 +1410,8 @@ tr.is-filtered-out {
 .vno-pivot-dialog > label { display:flex; flex-direction:column; gap:5px; font-weight:600; }
 .vno-pivot-dialog input { padding:7px 9px; border:1px solid var(--vno-border-default); border-radius:5px; }
 .vno-pivot-fields { max-height:300px; overflow:auto; border:1px solid var(--vno-border-default); border-radius:6px; padding:8px; }
-.vno-pivot-field { display:grid; grid-template-columns:minmax(120px,1fr) repeat(4,auto) 105px; gap:10px; align-items:center; padding:7px; border-bottom:1px solid var(--vno-border-default); }
+.vno-pivot-field { display:grid; grid-template-columns:minmax(70px,1fr) repeat(4,auto) 82px; gap:5px; align-items:center; padding:7px; border-bottom:1px solid var(--vno-border-default); }
+.vno-pivot-field > label { white-space:nowrap; }
 .vno-pivot-field:last-child { border-bottom:0; }
 .vno-pivot-filter-values { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:7px 12px; max-height:100px; overflow:auto; padding:6px 8px; border:1px solid var(--vno-border-default); border-radius:4px; }
 .vno-pivot-filter-values[hidden] { display:none; }

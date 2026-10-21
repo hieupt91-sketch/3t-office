@@ -43,9 +43,11 @@ try {
   await mouseClick(session.cdp, pivotButton.x, pivotButton.y);
   await sleep(250);
   await session.cdp.evaluate(`(() => { const input=document.querySelector('.vno-sheet-rule-dialog #vno-pivot-range'); input.value="A1:A2"; input.dispatchEvent(new Event("input",{bubbles:true})); })()`);
-  const valid = await session.cdp.evaluate(`(() => { const d=document.querySelector('.vno-sheet-rule-dialog'); const b=d?.querySelector('.vno-rule-apply'); const host=d?.querySelector('.vno-pivot-fields'); return {dialog:!!d, error:d?.querySelector('.vno-rule-error')?.textContent?.trim(), disabled:b?.disabled, ariaDisabled:b?.getAttribute('aria-disabled'), headers:host?.dataset.headers}; })()`);
+  const valid = await session.cdp.evaluate(`(() => { const d=document.querySelector('.vno-sheet-rule-dialog'); const b=d?.querySelector('.vno-rule-apply'); const host=d?.querySelector('.vno-pivot-fields'); const row=host?.querySelector('.vno-pivot-field'); const h=host?.getBoundingClientRect(); const r=row?.getBoundingClientRect(); return {dialog:!!d, error:d?.querySelector('.vno-rule-error')?.textContent?.trim(), disabled:b?.disabled, ariaDisabled:b?.getAttribute('aria-disabled'), headers:host?.dataset.headers, hostClientWidth:host?.clientWidth, hostScrollWidth:host?.scrollWidth, rowRightRelative:r&&h?(r.right-h.left):null, overflow:!!host&&host.scrollWidth>host.clientWidth || !!r&&!!h&&r.right>h.right+1}; })()`);
   if (!valid.dialog || valid.disabled || valid.ariaDisabled !== "false") failed = true;
   console.log(`${!valid.disabled && valid.ariaDisabled === "false" ? "PASS" : "FAIL"} | pivot valid range re-enables create | ${JSON.stringify(valid)}`);
+  if (valid.overflow) failed = true;
+  console.log(`${valid.overflow ? "FAIL" : "PASS"} | pivot field row fits without horizontal overflow | ${JSON.stringify(valid)}`);
   for (const theme of ["light", "dark"]) {
     await session.cdp.evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)}`);
     const shot = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
