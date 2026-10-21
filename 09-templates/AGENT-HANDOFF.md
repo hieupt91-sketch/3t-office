@@ -969,3 +969,26 @@ RISKS: Thay CSS ở shared UI Kit; smoke CDP cả ba app 6/6. Ba audit ribbon kh
 DEPENDENCIES/BLOCKERS: `CODEX-COMMON-RULES.md` không có trong worktree; đã dùng các quy tắc UI đính kèm phiếu. Không có thay đổi định dạng, core patch hay external AI data flow.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Xem lại các commit Q40 và chuyển ticket tiếp theo sau khi tạo `E:\VNOffice-briefs\logs\Q40.DONE`.
+
+
+---
+
+# Agent Handoff
+TASK: Q41 — Đo tốc độ mở tệp Writer/Slides
+AGENT/ROLE: Codex / Performance + desktop QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Đo 24 tệp DOCX + MYTIME và các PPTX được yêu cầu qua CDP/Office COM; giảm phần khởi động thừa an toàn nếu có trường hợp chậm; ghi báo cáo và rà ảnh UI.
+FINDINGS: 23 tệp numbered DOCX hợp lệ và MYTIME đo được; d10.docx thực chất là PDF, app báo lỗi, Word COM bị treo; PPTX thứ hai không có trong thư mục. Median editable chậm nhất trước tối ưu: MYTIME 38.672 s, sample-3 28.753 s, d24 27.069 s. Writer/Slides chậm đáng kể so với Word/PowerPoint COM. Worker startup chiếm ~44% MYTIME; d24 dùng CLI fallback nhưng startup worker không cần thiết; Slides PPTX cũng không dùng worker đó.
+IMPLEMENTATION SUMMARY: Tránh prewarm worker cho DOCX Writer cần CLI và PPTX/ODP Slides; có cờ môi trường rollback. d24 editable median giảm 27.069→24.770 s; sample-3 giảm 28.753→26.342 s. Sửa banner mở tài liệu còn treo sau khi Slides nạp thành công hoặc Writer mở lỗi. Không sửa document model, file nguồn hay LibreOffice Core.
+FILES CHANGED: main.py; tests/test_print_worker_prewarm.py; index.html; adapters/libreoffice/slides/slides-adapter.js; docs/PERF-OPEN-WRITER-SLIDES-21-10.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge main`; CDP benchmark 3 lượt/tệp với profile riêng; Word/PowerPoint hidden COM tuần tự; CDP screenshot + xem ảnh; CDP hộp lỗi Writer/Slides và viewport 1366×768; `node tests/run-tests.js`; i18n_parity; verify_checklist_evidence; pytest chọn lọc; batch dirty-save 8 DOCX; `git diff --check`; `git diff --stat --ignore-cr-at-eol`.
+BUILD RESULT: NOT RUN — không thay đổi build system.
+TEST RESULTS: PASS — node 3789/3789; i18n VI=3153/EN=3153, missing=0; checklist 0 dòng bị hạ; pytest 477 passed, 646 deselected; dirty-save 8/8 PASS, page delta 0. CDP cuối: Slides 10 slide, progress 0×0, app overflow ngang=0; Writer lỗi d10 progress 0×0 và hộp thoại vừa viewport 1366×768.
+GIAO DIỆN ĐÃ XEM: 3 ảnh cho từng d01–d24 và MYTIME, 3 ảnh sample-3, hộp lỗi d10 trước/sau sửa, hộp lỗi ở viewport 1366×768, Slides sample-3 sau nạp. Giao diện ribbon/trang/slide không bị cắt/chồng trong khung app; banner lỗi/hoàn tất đã sửa. Bìa d24 tự chồng chữ/hình trong nội dung file mẫu, ghi nhận là hiện tượng có sẵn trong tài liệu. Ảnh lưu ở `E:\VNOffice-briefs\q41-shots\` và phần kết luận trong báo cáo.
+KNOWN FAILURES: Tốc độ mở vẫn cao hơn Office: MYTIME 180.7× Word, sample-3 147.8× PowerPoint, d24 96.4× Word sau tối ưu. Timeline chưa tách sâu parse/import/render; thời gian dư được ghi là ước lượng. d10 COM BLOCKED do treo; tệp PPTX thứ hai BLOCKED do không tồn tại. Đối chiếu hash/trang/ảnh đầu ra sau lưu NOT RUN (benchmark mở không lưu); dirty-save 8 DOCX riêng đạt page delta 0.
+RISKS: Cờ rollback `VNO_WRITER_SKIP_UNSAFE_PREWARM=0`, `VNO_SLIDES_SKIP_UNUSED_PREWARM=0`. Các kết quả tốc độ phụ thuộc cấu hình máy/profile và chưa chứng minh round-trip cho mọi tài liệu. Office COM Excel BLOCKED theo quy tắc chung.
+DEPENDENCIES/BLOCKERS: Thiếu `BAO CAO KET QUA KINH DOANH NAM 2021.pptx`; helper batch không nằm checkout, dùng batch audit snapshot nhưng gắn Node CDP runner tới checkout Q41.
+CORE PATCH ID (if any): None.
+COMMITS: 369f9cad (skip unused workers); c15da763 (clear progress UI). Báo cáo + handoff commit được thêm khi hoàn tất.
+NEXT ACTION: Xem báo cáo `docs/PERF-OPEN-WRITER-SLIDES-21-10.md`; tạo `E:\VNOffice-briefs\logs\Q41.DONE` sau commit báo cáo.
