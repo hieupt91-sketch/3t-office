@@ -175,7 +175,7 @@ Tổng: 4 mục ưu tiên 1.
 | Chỉnh sửa | Tìm kiếm (Ctrl+F / Find) | ✅ | - | FIX-L8: common.edit.find tìm chuỗi ROAD TRIP đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:48) |
 | Chỉnh sửa | Thay thế (Ctrl+H / Replace) | ✅ | - | FIX-L8: common.edit.replace thay thế văn bản đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:49) |
 | Chỉnh sửa | Chọn: Chọn tất cả (Ctrl+A) | 🟢 | - | common.edit.selectAll; chọn toàn bộ đối tượng trên slide |
-| Chỉnh sửa | Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane) | 🟢 | - | slides.edit.selectionPane (Alt+F10): danh sách, chọn, đổi thứ tự lớp, đổi tên (nhấp đúp/F2) và ẩn/hiện từng hình ngoài nhóm; tên và trạng thái ẩn lưu vào PPTX, PowerPoint 2016 đọc Shape.Name đúng và Visible=0 (tests/live/cdp/slides-shape-names.desktop.mjs; apps/slides/slides-canvas.js:2679 đổi tên/ẩn, adapters/libreoffice/common/ooxml_zip_patch.py:12455 hidden) |
+| Chỉnh sửa | Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane) | 🟢 | - | slides.edit.selectionPane (Alt+F10): danh sách, chọn, đổi thứ tự lớp, đổi tên (nhấp đúp/F2) và ẩn/hiện từng hình ngoài nhóm; tên và trạng thái ẩn lưu vào PPTX, PowerPoint 2016 đọc Shape.Name đúng và Visible=0 (tests/live/cdp/slides-shape-names.desktop.mjs; apps/slides/slides-canvas.js:2679 đổi tên/ẩn, adapters/libreoffice/common/ooxml_zip_patch.py:12456 hidden) |
 
 ### Chèn
 
@@ -238,7 +238,7 @@ Tổng: 4 mục ưu tiên 1.
 | Xem trước | Xem trước hiệu ứng chuyển tiếp (Preview) | 🟢 | - | slides.transition.preview chạy hiệu ứng trên khung soạn (CDP slides-transition-tab 9/9) |
 | Chuyển tiếp sang slide | Hiệu ứng chuyển tiếp (Transitions Gallery) | ✅ | - | FIX-L4/L7: slides.transition.apply áp Push Right (3854) và Fade (3849) đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:68, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:20) |
 | Chuyển tiếp sang slide | Hiệu ứng Morph (Biến đổi hình thái) | 🟡 | 1 | Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365 |
-| Chuyển tiếp sang slide | Hiệu ứng Fade / Push / Wipe / Split / Cover | ✅ | - | Q8: PPTX lưu hiệu ứng native và PowerPoint 2016 COM đọc EntryEffect lần lượt Push=3853, Wipe=2817, Split=3585, Cover=1281; adapters/libreoffice/slides/slides-adapter.js:2316 ánh xạ từ mô hình, adapters/libreoffice/common/ooxml_zip_patch.py:13105 ghi OOXML. Hiệu ứng Lật cho kết quả COM=0 nên không cung cấp trong gallery. |
+| Chuyển tiếp sang slide | Hiệu ứng Fade / Push / Wipe / Split / Cover | ✅ | - | Q8: PPTX lưu hiệu ứng native và PowerPoint 2016 COM đọc EntryEffect lần lượt Push=3853, Wipe=2817, Split=3585, Cover=1281; adapters/libreoffice/slides/slides-adapter.js:2316 ánh xạ từ mô hình, adapters/libreoffice/common/ooxml_zip_patch.py:13106 ghi OOXML. Hiệu ứng Lật cho kết quả COM=0 nên không cung cấp trong gallery. |
 | Chuyển tiếp sang slide | Hiệu ứng 3D phức tạp (Curtains, Wind, Fracture, Origami) | 🔴 | 2 | Chưa hỗ trợ các hiệu ứng chuyển tiếp 3D dựng hình chuyên sâu |
 | Chuyển tiếp sang slide | Tùy chọn hiệu ứng (Effect Options: Hướng chuyển động) | 🟢 | - | slides.transition.apply; apps/slides/slides-canvas.js lưu hướng (apps/slides/slides-canvas.js:10187); adapters/libreoffice/slides/slides-adapter.js ghi smil:subtype (adapters/libreoffice/slides/slides-adapter.js:1925, adapters/libreoffice/slides/slides-adapter.js:2246); PPTX dir (adapters/libreoffice/common/ooxml_zip_patch.py:12466) |
 | Thời gian | Âm thanh chuyển tiếp (Sound) | 🔴 | 3 | Chưa hỗ trợ gán âm thanh khi chuyển tiếp trang chiếu |
@@ -424,7 +424,7 @@ Tổng: 4 mục ưu tiên 1.
 | Chỉnh sửa | Cắt tỉa thời lượng media (Trim Video / Audio) | 🔴 | 2 | Chưa có công cụ cắt ngắn điểm đầu và điểm kết thúc video/audio |
 | Tùy chọn | Mức âm lượng media (Low, Medium, High, Mute) | 🟡 | 2 | Điều chỉnh âm lượng qua thanh trượt volume native của media trên canvas (apps/slides/slides-canvas.js:4312); chưa có nút âm lượng trên ribbon |
 | Tùy chọn | Bắt đầu phát: Tự động / Khi nhấp chuột | 🟢 | - | slides.media.autoplay bật tắt tự phát; lưu thành lệnh play trong dãy chính như PowerPoint ghi (COM đọc 1 hiệu ứng chính), mở lại nhận đúng; chưa đọc được PlayOnEntry của tệp do LibreOffice ghi (tests/live/cdp/slides-media-playback.desktop.mjs; apps/slides/slides-canvas.js:3720 toggleMediaOption) |
-| Tùy chọn | Lặp lại cho đến khi dừng (Loop until Stopped) | 🟢 | - | slides.media.loop; lưu thêm p:audio cMediaNode repeatCount indefinite đúng cấu trúc PowerPoint (bù phần LibreOffice bỏ), mở lại nhận đúng; COM chưa đọc được LoopUntilStopped của tệp này (tests/test_slides_media_loops.py; adapters/libreoffice/common/ooxml_zip_patch.py:12491 media loops) |
+| Tùy chọn | Lặp lại cho đến khi dừng (Loop until Stopped) | 🟢 | - | slides.media.loop; lưu thêm p:audio cMediaNode repeatCount indefinite đúng cấu trúc PowerPoint (bù phần LibreOffice bỏ), mở lại nhận đúng; COM chưa đọc được LoopUntilStopped của tệp này (tests/test_slides_media_loops.py; adapters/libreoffice/common/ooxml_zip_patch.py:12492 media loops) |
 
 ### Không thuộc ribbon
 
