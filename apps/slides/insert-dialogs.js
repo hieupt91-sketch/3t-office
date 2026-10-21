@@ -50,11 +50,12 @@ export function showSlideTableDialog(options = {}) {
         </div>
         <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
           <label for="vno-slide-table-rows" style="font-size:13px;font-weight:500;">${isEn ? "Number of rows" : "Số hàng"}</label>
-          <input id="vno-slide-table-rows" type="number" min="1" max="12" value="${defaultRows}"
+          <input id="vno-slide-table-rows" type="number" min="1" max="12" step="1" required value="${defaultRows}"
             style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;" />
           <label for="vno-slide-table-cols" style="font-size:13px;font-weight:500;">${isEn ? "Number of columns" : "Số cột"}</label>
-          <input id="vno-slide-table-cols" type="number" min="1" max="12" value="${defaultCols}"
+          <input id="vno-slide-table-cols" type="number" min="1" max="12" step="1" required value="${defaultCols}"
             style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;" />
+          <p id="vno-slide-table-error" class="vno-rule-error" role="alert" aria-live="polite" hidden></p>
         </div>
         <div class="vno-dialog-footer">
           <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
@@ -66,6 +67,41 @@ export function showSlideTableDialog(options = {}) {
     const dialogBox = overlay.querySelector(".vno-dialog-box");
     const rowsInput = overlay.querySelector("#vno-slide-table-rows");
     const colsInput = overlay.querySelector("#vno-slide-table-cols");
+    const error = overlay.querySelector("#vno-slide-table-error");
+    const insertButton = overlay.querySelector(".vno-dialog-ok-btn");
+    const isDimensionValid = (input, defaultValue) => {
+      const rawValue = String(input.value ?? defaultValue).trim();
+      const value = Number(rawValue);
+      const min = Number(input.min || 1);
+      const max = Number(input.max || 12);
+      const nativeValid = typeof input.checkValidity === "function"
+        ? input.checkValidity()
+        : input.validity ? input.validity.valid : true;
+      return rawValue !== "" && Number.isInteger(value) && value >= min && value <= max && nativeValid;
+    };
+    const syncValidity = () => {
+      const rowsValid = isDimensionValid(rowsInput, defaultRows);
+      const colsValid = isDimensionValid(colsInput, defaultCols);
+      const valid = rowsValid && colsValid;
+      const invalidInput = !rowsValid ? rowsInput : !colsValid ? colsInput : null;
+      insertButton.disabled = !valid;
+      insertButton.setAttribute("aria-disabled", String(!valid));
+      insertButton.setAttribute("aria-describedby", error.id);
+      if (invalidInput) {
+        invalidInput.setAttribute("aria-invalid", "true");
+        error.textContent = t("slidesDialogs.tableSizeInputError", "Nhập số hàng và số cột nguyên từ 1 đến 12.");
+        error.hidden = false;
+      } else {
+        rowsInput.removeAttribute?.("aria-invalid");
+        colsInput.removeAttribute?.("aria-invalid");
+        error.textContent = "";
+        error.hidden = true;
+      }
+      return valid;
+    };
+    rowsInput.addEventListener("input", syncValidity);
+    colsInput.addEventListener("input", syncValidity);
+    syncValidity();
     rowsInput.focus();
 
     const cleanup = (value) => {
@@ -76,6 +112,7 @@ export function showSlideTableDialog(options = {}) {
     };
 
     const commit = () => {
+      if (!syncValidity()) return;
       const rows = Math.max(1, Math.min(12, parseInt(rowsInput.value, 10) || defaultRows));
       const cols = Math.max(1, Math.min(12, parseInt(colsInput.value, 10) || defaultCols));
       cleanup({ rows, cols });

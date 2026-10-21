@@ -10683,12 +10683,38 @@ const startEditing = (initialText) => {
           <div class="vno-dialog-body">
             <p class="vno-diagram-hint" style="color:var(--vno-text-secondary, #475569);">${t("slidesDialogs.diagramHint")}</p>
             <div class="vno-diagram-type-grid" role="radiogroup" aria-labelledby="vno-diagram-title">${types.map(([id, key, preview], index) => `<button type="button" role="radio" class="vno-diagram-type ${index === 0 ? "is-selected" : ""}" data-diagram-type="${id}" aria-checked="${index === 0}" aria-pressed="${index === 0}" tabindex="${index === 0 ? "0" : "-1"}"><span class="vno-diagram-type-preview" aria-hidden="true">${preview.replace(/\n/g, "<br>")}</span><strong>${t(`slidesDialogs.${key}`)}</strong></button>`).join("")}</div>
-            <label class="vno-diagram-count" for="vno-diagram-count">${t("slidesDialogs.diagramNodeCount")}<input id="vno-diagram-count" aria-label="${t("slidesDialogs.diagramNodeCount")}" type="number" min="3" max="6" value="4" /></label>
+            <label class="vno-diagram-count" for="vno-diagram-count">${t("slidesDialogs.diagramNodeCount")}<input id="vno-diagram-count" aria-label="${t("slidesDialogs.diagramNodeCount")}" type="number" min="3" max="6" step="1" required value="4" /></label>
+            <p id="vno-diagram-count-error" class="vno-rule-error" role="alert" aria-live="polite" hidden></p>
           </div>
           <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-diagram-cancel">${t("slidesDialogs.cancel")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-diagram-insert">${t("slidesDialogs.diagramInsert")}</button></div>
         </div>`;
       document.body.appendChild(overlay);
       const dialogBox = overlay.querySelector(".vno-dialog-box");
+      const countInput = overlay.querySelector("#vno-diagram-count");
+      const countError = overlay.querySelector("#vno-diagram-count-error");
+      const insertButton = overlay.querySelector("#vno-diagram-insert");
+      const syncCountValidity = () => {
+        const rawCount = String(countInput.value ?? "4").trim();
+        const numericCount = Number(rawCount);
+        const nativeValid = typeof countInput.checkValidity === "function"
+          ? countInput.checkValidity()
+          : countInput.validity ? countInput.validity.valid : true;
+        const valid = rawCount !== "" && Number.isInteger(numericCount) && numericCount >= 3 && numericCount <= 6 && nativeValid;
+        insertButton.disabled = !valid;
+        insertButton.setAttribute("aria-disabled", String(!valid));
+        insertButton.setAttribute("aria-describedby", countError.id);
+        countInput.setAttribute("aria-invalid", String(!valid));
+        countError.textContent = valid ? "" : t("slidesDialogs.diagram.countError", "Vui lòng nhập số nguyên từ 3 đến 6.");
+        countError.hidden = valid;
+        return valid;
+      };
+      const commitDiagram = () => {
+        if (!syncCountValidity()) return false;
+        close(!!this.insertDiagram(selectedType, Number(countInput.value)));
+        return true;
+      };
+      countInput.addEventListener("input", syncCountValidity);
+      syncCountValidity();
       let selectedType = "process";
       const cards = overlay.querySelectorAll(".vno-diagram-type");
       const selectCard = (card) => {
@@ -10737,8 +10763,7 @@ const startEditing = (initialText) => {
           close(false);
         } else if (e.key === "Enter" && e.target?.id !== "vno-diagram-cancel") {
           e.preventDefault();
-          const count = overlay.querySelector("#vno-diagram-count")?.value || 4;
-          close(!!this.insertDiagram(selectedType, count));
+          commitDiagram();
         } else if (e.key === "Tab") {
           trapFocus(dialogBox, e);
         }
@@ -10747,10 +10772,7 @@ const startEditing = (initialText) => {
       overlay.addEventListener("click", e => { if (e.target === overlay) close(false); });
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
       overlay.querySelector("#vno-diagram-cancel")?.addEventListener("click", () => close(false));
-      overlay.querySelector("#vno-diagram-insert")?.addEventListener("click", () => {
-        const count = overlay.querySelector("#vno-diagram-count")?.value || 4;
-        close(!!this.insertDiagram(selectedType, count));
-      });
+      overlay.querySelector("#vno-diagram-insert")?.addEventListener("click", commitDiagram);
       const activeCard = overlay.querySelector(".vno-diagram-type.is-selected") || overlay.querySelector(".vno-diagram-type");
       activeCard?.focus?.();
     });

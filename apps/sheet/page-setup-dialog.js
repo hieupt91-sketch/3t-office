@@ -31,7 +31,7 @@ function field(label, control, cls = "") {
 }
 
 function numberInput(id, value, min, max, step = "1") {
-  return `<input id="${id}" class="vno-dialog-input" type="number" min="${min}" max="${max}" step="${step}" value="${esc(value)}">`;
+  return `<input id="${id}" class="vno-dialog-input" type="number" min="${min}" max="${max}" step="${step}" required value="${esc(value)}">`;
 }
 
 function picker(id, value, label) {
