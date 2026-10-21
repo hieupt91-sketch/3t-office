@@ -64,7 +64,7 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 | Nhập rỗng, âm, >1e9, chữ, 5000 ký tự, ký tự đặc biệt | KIỂM TRA MỘT PHẦN — hộp Chèn Bảng | Ô số hàng cho phép rỗng (`valid=true`), âm và >1e9 (range invalid) nhưng nút Chèn vẫn bật; chữ bị ô số bỏ qua. 5000 chữ số tạo `badInput=true`, không crash; ô cuộn ngang trong khung nhưng nút Chèn vẫn bật. Không bấm Chèn ở giá trị sai; ký tự đặc biệt và các hộp khác NOT RUN. [Giá trị >1e9 sáng](assets/q49-ui/slides-table-invalid-large-light.png), [tối](assets/q49-ui/slides-table-invalid-large-dark.png), [5000 ký tự tối](assets/q49-ui/slides-table-5000-input-dark.png). |
 | Tooltip 3 nút đầu mỗi tab | NOT RUN. |
 | Toast vị trí/thời lượng/che nút | NOT RUN có hệ thống. Đã nhìn thấy toast “Đang tải…” ở góc dưới phải trong vài ảnh; không đo thời gian hoặc che khuất. |
-| Chụp và xem | Đã xem 117 ảnh trong `docs/assets/q49-ui/`, toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
+| Chụp và xem | Đã xem 130 ảnh trong `docs/assets/q49-ui/`, toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
 
 ### Bổ sung kiểm tra trực tiếp qua chuột — Slides
 
@@ -100,7 +100,24 @@ Chạy `tests/live/cdp/q49-sheet-visual-review.desktop.mjs` với profile riêng
 
 Kiểm tra này chỉ xác nhận bố cục hai theme và Esc. Không chạy Tab/Shift+Tab/Enter/focus hoặc các bộ giá trị sai; các trạng thái đó vẫn NOT RUN.
 
+### Bổ sung kiểm tra trực tiếp qua chuột — Writer
+
+Chạy `tests/live/cdp/q49-writer-visual-review.desktop.mjs` với profile riêng. Bài mở sáu hộp bằng chuột, chụp hai theme 1366×768, kiểm viewport và đóng bằng Esc. **12/12** hộp nằm trong viewport. Từng ảnh đã được mở và xem.
+
+| Màn hình | Sáng | Tối | Kết luận |
+|---|---|---|---|
+| Phương trình | [ảnh](assets/q49-ui/writer-equation-light-1366x768.png) | [ảnh sau sửa](assets/q49-ui/writer-equation-dark-1366x768.png) | Trước sửa vùng xem trước có nền trắng và chữ `rgb(203, 213, 225)`, tương phản **1.48:1**. Sau sửa nền tối theo theme và chữ đạt **15.22:1**; ảnh trước [tại đây](assets/q49-ui/writer-equation-contrast-before-dark.png). CDP trước **FAIL**, sau **PASS**. |
+| Ký hiệu | [ảnh](assets/q49-ui/writer-symbol-light-1366x768.png) | [ảnh](assets/q49-ui/writer-symbol-dark-1366x768.png) | Đạt về bố cục. Nút ký hiệu giữ nền trắng ở dark, chữ vẫn rõ. |
+| Tham chiếu chéo | [ảnh](assets/q49-ui/writer-cross-reference-light-1366x768.png) | [ảnh](assets/q49-ui/writer-cross-reference-dark-1366x768.png) | Cảnh báo chưa có tiêu đề/đánh dấu rõ; nút Chèn bị khóa đúng trạng thái. |
+| Chú thích ảnh | [ảnh](assets/q49-ui/writer-caption-light-1366x768.png) | [ảnh](assets/q49-ui/writer-caption-dark-1366x768.png) | Đạt về bố cục; các trường, gợi ý và nút vừa khung. |
+| Đếm từ | [ảnh](assets/q49-ui/writer-wordcount-light-1366x768.png) | [ảnh](assets/q49-ui/writer-wordcount-dark-1366x768.png) | Đạt; năm số liệu và nút Đóng hiển thị đủ. |
+| Nguồn Trộn thư | [ảnh](assets/q49-ui/writer-mailmerge-source-light-1366x768.png) | [ảnh](assets/q49-ui/writer-mailmerge-source-dark-1366x768.png) | Đạt; trạng thái chưa có dữ liệu và các phương thức nhập nằm trong khung. |
+
+Các hộp Trang bìa, Chú thích trang, Hoàn tất Trộn thư và Soát lỗi vẫn dựa trên ảnh một theme/ảnh trước-sau đã nêu trong phần trên; chúng chưa được đưa vào bài hai theme này. Tab/Shift+Tab/Enter/focus, nhập sai, tooltip và toast vẫn NOT RUN.
+
 ## Phát hiện và sửa
+
+- **Writer — tương phản vùng xem trước phương trình ở theme tối:** CDP trước sửa đọc nền `rgb(255, 255, 255)`, chữ `rgb(203, 213, 225)`, tương phản 1.48:1 (**FAIL**). CSS tối dùng màu nền cửa sổ và màu chữ chính; sau sửa tương phản 15.22:1 (**PASS**). Bố cục hộp giữ nguyên 820×504 px. Ảnh trước/sau tại nhóm `writer-equation-contrast-*`.
 
 - **Sheet — dịch tiêu đề Định dạng thành Bảng:** trước sửa CDP thấy `Format as Table` trong tiêu đề (**FAIL**); sửa chuỗi tiếng Việt và ảnh sau sửa không còn chuỗi tiếng Anh (**PASS**). Commit riêng `143cc50e` (`fix(sheet): translate format as table title`). Ảnh trước/sau trong thư mục trên.
 - **Writer — độ tương phản nút xác nhận Trộn thư:** trạng thái vô hiệu hóa ban đầu có opacity 0.45 (**FAIL**, khó đọc trên nền tối); CSS riêng của hộp đặt opacity 0.7, vẫn khóa nút cho tới khi xác nhận (**PASS**). CDP ghi nhận `disabled=true`, opacity 0.45 trước và 0.7 sau; ảnh sáng/tối trước/sau ở nhóm `writer-mailmerge-finish-*`. Commit riêng `70993ad5` (`fix(writer): improve mail merge confirmation contrast`).

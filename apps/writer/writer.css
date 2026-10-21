@@ -3700,6 +3700,10 @@ p.vno-style-list-paragraph {
   background: var(--vno-surface, #fff);
   font-size: 20px;
 }
+[data-theme="dark"] .vno-equation-preview {
+  background: var(--vno-bg-window, #1e1e1e);
+  color: var(--vno-text-primary, #f1f5f9);
+}
 .vno-equation-preview math {
   max-width: 100%;
 }
