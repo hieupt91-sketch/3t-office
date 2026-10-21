@@ -12224,8 +12224,8 @@ const startEditing = (initialText) => {
       <button type="button" data-show-control="pen" title="${this._escapeHtml(t("slidesDialogs.showPen", "Bút vẽ (Ctrl+P)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showPen", "Bút vẽ (Ctrl+P)"))}">${this._escapeHtml(t("slidesDialogs.showPenShort", "Bút"))}</button>
       <button type="button" data-show-control="laser" title="${this._escapeHtml(t("slidesDialogs.showLaser", "Con trỏ laser (Ctrl+L)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showLaser", "Con trỏ laser (Ctrl+L)"))}">${this._escapeHtml(t("slidesDialogs.showLaserShort", "Laser"))}</button>
       <button type="button" data-show-control="exit" title="${this._escapeHtml(t("slidesDialogs.showExit", "Kết thúc (Esc)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showExit", "Kết thúc (Esc)"))}">${this._escapeHtml(t("slidesDialogs.showExitShort", "Kết thúc"))}</button>`;
-    showCounterEl = showControlsEl.querySelector(".vno-slideshow-control-counter");
-    showCounterEl.textContent = t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length });
+    showCounterEl = showControlsEl.querySelector?.(".vno-slideshow-control-counter") || null;
+    if (showCounterEl) showCounterEl.textContent = t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length });
     showControlsEl.addEventListener("click", (event) => {
       const control = event.target?.closest?.("[data-show-control]");
       if (!control) return;
