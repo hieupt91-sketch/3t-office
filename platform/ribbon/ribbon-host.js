@@ -300,6 +300,7 @@ export class RibbonHost {
             iconOnly: item.iconOnly,
             customLabel: item.label,
             customIcon: item.icon,
+            customAriaLabel: item.ariaLabelKey ? t(item.ariaLabelKey) : item.ariaLabel,
             isCheckbox: item.isCheckbox || item.type === "checkbox" || isShowGroup
           }));
         } else if (item.type === "dropdown") {

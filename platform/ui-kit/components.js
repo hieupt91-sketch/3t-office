@@ -196,7 +196,7 @@ export function resolveIcon(commandId, iconName) {
 /**
  * Tạo nút Ribbon Button với Icon chuẩn hóa
  */
-export function createCommandButton({ commandId, isLarge = false, iconOnly = false, isCheckbox = false, customIcon, customLabel }) {
+export function createCommandButton({ commandId, isLarge = false, iconOnly = false, isCheckbox = false, customIcon, customLabel, customAriaLabel }) {
   const btn = document.createElement("button");
   btn.setAttribute("type", "button");
   if (commandId) btn.setAttribute("data-command-id", commandId);
@@ -208,7 +208,7 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
   const iconKey = customIcon || (state && state.icon ? state.icon : (def && def.icon ? def.icon : ""));
   const iconSvg = resolveIcon(commandId, iconKey);
   const shortcut = state ? state.shortcut : (def ? def.shortcut : "");
-  const accessibleName = shortcut ? `${label} (${shortcut})` : label;
+  const accessibleName = customAriaLabel || (shortcut ? `${label} (${shortcut})` : label);
 
   btn.setAttribute("aria-label", accessibleName);
 

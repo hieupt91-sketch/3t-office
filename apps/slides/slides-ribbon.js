@@ -402,7 +402,7 @@ export const SLIDES_RIBBON_TABS = [
         label: "Liên kết",
         labelKey: "slidesRibbon.group.links",
         items: [
-          { type: "button", commandId: "slides.insert.hyperlink", isLarge: true }
+          { type: "button", commandId: "slides.insert.hyperlink", isLarge: true, ariaLabelKey: "slidesRibbon.hyperlinkShortcut" }
         ]
       },
       {

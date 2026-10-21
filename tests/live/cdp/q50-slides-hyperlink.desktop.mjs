@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { launchApp } from "./session.mjs";
-import { mouseClick, sleep } from "./actions.mjs";
+import { mouseClick, press, sleep } from "./actions.mjs";
 
 const localAppData = process.env.VNO_CDP_LOCALAPPDATA;
 if (!localAppData) throw new Error("Set VNO_CDP_LOCALAPPDATA to a unique profile path before running.");
@@ -35,6 +35,11 @@ try {
     console.log(`${dialog.open && dialog.textInput && dialog.urlInput ? "PASS" : "FAIL"} | hyperlink command opens dialog ${theme} | ${JSON.stringify(dialog)}`);
     if (!dialog.open || !dialog.textInput || !dialog.urlInput) failed = true;
   }
+  await press(session.cdp, "Escape");
+  await press(session.cdp, "K", { ctrl: true });
+  const shortcutOpens = await session.cdp.evaluate(`Boolean(document.querySelector('.vno-hyperlink-dialog'))`);
+  if (!shortcutOpens) failed = true;
+  console.log(`${shortcutOpens ? "PASS" : "FAIL"} | Ctrl+K opens the Slides hyperlink dialog`);
 } finally {
   await session.close();
 }
