@@ -291,6 +291,7 @@ export class SheetApp {
     if (!this.grid || this.mountElement?.getAttribute("data-app") !== "sheet") return false;
     if (document.querySelector(".vno-dialog-overlay")) return false;
     const active = document.activeElement;
+    if (active?.matches?.(".vno-ribbon-content [data-command-id]")) return false;
     if (active?.isContentEditable || active?.matches?.("input,textarea,select")) return false;
     const container = this.grid.container;
     if (!container || !document.body.contains(container)) return false;
