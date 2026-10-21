@@ -137,7 +137,7 @@ export function showFormatAsTableDialog(gridController) {
 
     const titleText = (typeof t === "function" && t("sheetDialogs.formatAsTableTitle") !== "sheetDialogs.formatAsTableTitle")
       ? t("sheetDialogs.formatAsTableTitle")
-      : "Định dạng theo bảng (Format as Table)";
+      : "Định dạng thành Bảng";
     const hintText = (typeof t === "function" && t("sheetDialogs.formatAsTableHint") !== "sheetDialogs.formatAsTableHint")
       ? t("sheetDialogs.formatAsTableHint")
       : "Chọn kiểu bảng để áp dụng màu tiêu đề và hàng xen kẽ (banded rows):";
