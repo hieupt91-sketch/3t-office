@@ -1103,3 +1103,21 @@ DEPENDENCIES/BLOCKERS: Automatic review rejected recursive pilot cleanup. First 
 CORE PATCH ID (if any): None.
 GIAO DIEN DA XEM: Writer open/saved/reopened screenshots — ribbon/document visible and fit; Sheet open/saved/reopened — ghost-like text repeats on reopen; Slides open/saved/reopened — 10-slide deck and ribbon visible, lower slide content remains scrollable. All nine captured screenshots are in `docs/assets/q48/` and were visually inspected.
 NEXT ACTION: Claude removes pilot-build after reviewing the final report; track/follow up the >12 s Sheet/Slides first-open timings and the Sheet reopened overlay in separate scoped work.
+
+# Agent Handoff
+TASK: Q49 — Rà soát giao diện phần 4
+AGENT/ROLE: Codex / UI QA (Slides, Sheet, Writer)
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Rà các mục NOT RUN của Q35/Q37/Q38/Q39 bằng app desktop qua CDP, chụp/xem ảnh 1366×768 và lập báo cáo từng mục.
+FINDINGS: Đã mở/xem 54 ảnh ở ba app. Có các hộp đủ điều kiện thị giác; một số hạng mục còn NOT RUN. F5 không hiện thanh điều khiển sau rê chuột. Pivot vẫn bật nút tạo dù vùng A1 báo lỗi.
+IMPLEMENTATION SUMMARY: Sửa nhãn tiếng Việt “Định dạng thành Bảng” trong fallback và strings-vi; CDP FAIL trước/PASS sau. Tạo báo cáo `docs/UI-SWEEP-PART4-21-10.md` và 54 ảnh `docs/assets/q49-ui/`.
+FILES CHANGED: `apps/sheet/cell-styles.js`; `platform/i18n/strings-vi.js`; `docs/UI-SWEEP-PART4-21-10.md`; `docs/assets/q49-ui/*`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; 3 checklist generators; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer or sheet or slides or dialog or ribbon"`; desktop CDP via `scripts/audit-0610/app_session_server.mjs`.
+BUILD RESULT: NOT RUN — chỉ có sửa chuỗi UI và không đổi build system.
+TEST RESULTS: PASS — npm 3791/3791; pytest 794 passed, 346 deselected; i18n missing=0; checklist evidence lowered=0; generators Excel 217, Slides 269, Writer 279.
+KNOWN FAILURES: Phiếu Q49 chưa hoàn tất: còn nhiều mục được ghi NOT RUN trong báo cáo, gồm tab ngữ cảnh Slides, liên kết/tác vụ cần đối tượng, pane ghi chú, nhiều hộp Writer và toàn bộ ma trận keyboard/invalid-input/tooltip/toast.
+RISKS: Không kiểm giao diện ở 1280×720; phần lớn dialog chỉ chụp một theme theo phạm vi sweep cụ thể. Không chạy Office COM/OS dialog.
+DEPENDENCIES/BLOCKERS: Tiếp tục lượt rà CDP để đóng các dòng NOT RUN trước khi tạo `E:\VNOffice-briefs\logs\Q49.DONE`.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Tiếp tục các mục NOT RUN trong `docs/UI-SWEEP-PART4-21-10.md`; chụp và xem ảnh sáng/tối, hoàn tất bàn phím/nhập sai, sau đó chạy lại gate và tạo Q49.DONE.

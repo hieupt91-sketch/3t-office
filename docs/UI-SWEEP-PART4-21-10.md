@@ -1,0 +1,85 @@
+# Q49 — Rà soát giao diện phần 4 (21-10)
+
+## Phạm vi và kết quả
+
+Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366×768. Đã chụp và xem ảnh ở các trạng thái liệt kê bên dưới. Vì nhiều hạng mục yêu cầu chưa được chạy trong phiên này, chúng được giữ **NOT RUN**; báo cáo không kết luận toàn bộ Q49 đạt.
+
+### Slides
+
+| Mục | Trạng thái | Nhận xét / ảnh |
+|---|---|---|
+| Chèn Bảng | ĐẠT về hiển thị, sáng và tối | Hộp giữa cửa sổ, hai ô số và hai nút rõ; [sáng](assets/q49-ui/slides-table-light.png), [tối](assets/q49-ui/slides-table-dark.png). |
+| Sơ đồ (Diagram) | ĐẠT về hiển thị, sáng và tối | Bốn lựa chọn, số hộp và nút dưới cùng hiển thị; [sáng](assets/q49-ui/slides-diagram-light.png), [tối](assets/q49-ui/slides-diagram-dark.png). |
+| Đầu trang & Chân trang | ĐẠT về hiển thị, tối | Hộp gọn; các lựa chọn và nút Áp dụng/Hủy nằm trong khung. [Ảnh](assets/q49-ui/slides-header-footer-dark.png). |
+| Ngày & Giờ | ĐẠT về hiển thị, tối | Năm kiểu ngày/giờ có thể chọn; nút nằm trong khung. [Ảnh](assets/q49-ui/slides-date-time-dark.png). |
+| Ký hiệu | ĐẠT về hiển thị, tối | Các nhóm Ký hiệu thường dùng/Toán học/Mũi tên hiển thị đủ. [Ảnh](assets/q49-ui/slides-symbol-dark.png). |
+| Liên kết | NOT RUN | Chưa mở trong lượt này. |
+| Tác vụ (Action) | NOT RUN — chưa chọn đối tượng | Bấm nút trên slide trống không mở hộp. [Ảnh trạng thái](assets/q49-ui/slides-action-dark.png). |
+| Soát lỗi chính tả | ĐẠT về hiển thị, tối | Hộp thông báo hoàn tất kiểm tra trang chiếu và nút Đóng hiển thị rõ. [Ảnh](assets/q49-ui/slides-spellcheck-dark.png). |
+| Chữ nghệ thuật | ĐẠT về hiển thị, tối | Ô nhập, 8 kiểu và hai nút nằm trong hộp. [Ảnh](assets/q49-ui/slides-wordart-dark.png). |
+| Tab ngữ cảnh Định dạng hình/ảnh/bảng/biểu đồ | NOT RUN | Chưa tạo và chọn các đối tượng tương ứng; không kết luận đạt. |
+| F5 — thanh điều khiển | CẦN XEM LẠI (trung bình) | Sau F5 chỉ thấy trang chiếu và dòng “Space hoặc Click để tiếp / Esc để thoát”; rê chuột không hiện thanh điều khiển. [F5](assets/q49-ui/slides-f5-dark.png), [sau rê chuột](assets/q49-ui/slides-f5-controls-dark.png). |
+| Chế độ tác giả ghi chú | NOT RUN | Chưa mở được khung ghi chú trong lượt này. |
+
+### Sheet
+
+| Mục | Trạng thái | Nhận xét / ảnh |
+|---|---|---|
+| Xác thực dữ liệu (hộp dài, tối) | ĐẠT về hiển thị | Hộp cao, có cuộn nội bộ và nút Hủy/Áp dụng cố định trong khung; chưa thử giá trị sai. [Ảnh](assets/q49-ui/sheet-validation-dark.png). |
+| Goal seek (Dò tìm mục tiêu) | ĐẠT về hiển thị, tối | Ba ô và hai nút rõ. [Ảnh](assets/q49-ui/sheet-goalseek-dark.png). |
+| Data table (Bảng dữ liệu) | ĐẠT về hiển thị, tối | Hai ô đầu vào và nút cố định hiển thị. [Ảnh](assets/q49-ui/sheet-datatable-dark.png). |
+| Scenario (Trình quản lý kịch bản) | ĐẠT về hiển thị, tối | Danh sách, trường nhập và nhóm nút vừa trong hộp. [Ảnh](assets/q49-ui/sheet-scenario-dark.png). |
+| Pivot (Bảng tổng hợp) | CẦN XEM LẠI (trung bình) | Khi vùng mặc định A1 không hợp lệ, có thông báo đỏ nhưng nút tạo vẫn bật. Không bấm nút; cần xác nhận quy tắc vô hiệu hóa. [Ảnh](assets/q49-ui/sheet-pivot-dark.png). |
+| Định dạng có điều kiện (hộp dài, tối) | ĐẠT về hiển thị | Nội dung cuộn riêng, nút Đóng/Thêm quy tắc luôn thấy; chưa thử dữ liệu sai. [Ảnh](assets/q49-ui/sheet-conditional-dark.png). |
+| Định dạng Bảng (hộp dài, tối) | ĐẠT sau sửa dịch | Trước sửa tiêu đề còn “Format as Table”; CDP FAIL. Sau sửa còn tiếng Việt; CDP PASS. [Trước](assets/q49-ui/sheet-format-as-table-dark.png), [sau](assets/q49-ui/sheet-format-as-table-after-dark.png). |
+| Chiều cao hàng | ĐẠT về hiển thị, tối | Một ô số và hai nút cân đối. [Ảnh](assets/q49-ui/sheet-row-height-dark.png). |
+| Launcher Font / Căn chỉnh / Số | ĐẠT về hiển thị, tối | Launcher Font và Số mở tab Số; launcher Căn chỉnh mở đúng tab. Các hộp vừa cửa sổ. [Font](assets/q49-ui/sheet-font-launcher-dark.png), [Căn chỉnh](assets/q49-ui/sheet-alignment-launcher-dark.png), [Số](assets/q49-ui/sheet-number-launcher-dark.png). |
+| Lề tùy chỉnh | ĐẠT về hiển thị, tối | Sáu trường lề, căn giữa và nút dưới cùng đều thấy. [Ảnh](assets/q49-ui/sheet-custom-margins-dark.png). |
+| Khổ giấy tùy chỉnh | ĐẠT về hiển thị, tối | Hộp có thanh cuộn nội bộ và nút Hủy/Áp dụng cố định. [Ảnh](assets/q49-ui/sheet-custom-paper-size-dark.png). |
+| Tab/Enter/Esc từng hộp; thử nhập sai; light mode của các hộp dài | NOT RUN | Chưa chạy ma trận bàn phím/giá trị lỗi; không kết luận đạt. |
+
+### Writer
+
+| Mục | Trạng thái | Nhận xét / ảnh |
+|---|---|---|
+| Trang bìa | ĐẠT về hiển thị, sáng | Thư viện 4 mẫu, trường thông tin và nút cố định; nội dung cuộn bên trong. [Ảnh](assets/q49-ui/writer-cover-library-light.png). |
+| Phương trình | ĐẠT về hiển thị, sáng | Khu nhập và xem trước song song, nút Hủy/Chèn nằm trong khung. [Ảnh](assets/q49-ui/writer-equation-light.png). |
+| Ký hiệu | ĐẠT về hiển thị, sáng | Các nhóm và nút Hủy nằm trong khung. [Ảnh](assets/q49-ui/writer-symbol-light.png). |
+| Tham chiếu chéo | ĐẠT về hiển thị, sáng | Khi không có tiêu đề/đánh dấu, cảnh báo rõ và nút Chèn bị khóa. [Ảnh](assets/q49-ui/writer-cross-reference-light.png). |
+| Mục lục tùy chỉnh | NOT RUN | Lệnh Mục lục tự động đã chèn khung trạng thái rỗng trực tiếp; chưa tìm thấy hộp tùy chỉnh. [Trạng thái sau lệnh](assets/q49-ui/writer-toc-light.png). |
+| Chú thích ảnh | ĐẠT về hiển thị, sáng | Nhãn, vị trí, nội dung và nút hiển thị rõ; hộp nhắc chưa chọn ảnh/bảng. [Ảnh](assets/q49-ui/writer-caption-light.png). |
+| Đầu trang/Chân trang tùy chọn | NOT RUN | Nút Đầu trang chèn mẫu trực tiếp, không mở hộp cấu hình. Ảnh thao tác [tại đây](assets/q49-ui/writer-header-menu-light.png). |
+| Chú thích cuối trang | NOT RUN | Chưa mở; lệnh có thể chèn nội dung trực tiếp. |
+| Ngăn chọn | NOT RUN | Chưa mở trong lượt này. |
+| Nguồn Trộn thư | ĐẠT về hiển thị, sáng | Hộp nguồn có các lựa chọn tệp/CSV/thủ công/dữ liệu mẫu, không gọi bộ chọn hệ điều hành. [Ảnh](assets/q49-ui/writer-mailmerge-source-light.png). |
+| Hoàn tất Trộn thư | NOT RUN | Chưa có nguồn nhận để mở luồng hoàn tất. |
+| Soát lỗi chính tả | ĐẠT về hiển thị, sáng | Mở panel kiểm tra cục bộ; panel cuộn và thông báo kết quả nằm trong khung. [Ảnh](assets/q49-ui/writer-spellcheck-light.png). |
+| Đếm từ | ĐẠT về hiển thị, sáng | Năm chỉ số và nút Đóng hiển thị đầy đủ. [Ảnh](assets/q49-ui/writer-wordcount-light.png). |
+
+## Các hạng mục chung
+
+| Hạng mục | Trạng thái |
+|---|---|
+| Tab/Shift+Tab, Esc, Enter, focus trả về nút kích hoạt trên mọi hộp | NOT RUN có hệ thống; Esc đã đóng một số hộp nhưng chưa đo focus vòng lại. |
+| Nhập rỗng, âm, >1e9, chữ, 5000 ký tự, ký tự đặc biệt | NOT RUN. |
+| Tooltip 3 nút đầu mỗi tab | NOT RUN. |
+| Toast vị trí/thời lượng/che nút | NOT RUN có hệ thống. Đã nhìn thấy toast “Đang tải…” ở góc dưới phải trong vài ảnh; không đo thời gian hoặc che khuất. |
+| Chụp và xem | Đã xem 54 ảnh (liệt kê trong `docs/assets/q49-ui/`), toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
+
+## Phát hiện và sửa
+
+- **Sheet — dịch tiêu đề Định dạng thành Bảng:** trước sửa CDP thấy `Format as Table` trong tiêu đề (**FAIL**); sửa chuỗi tiếng Việt và ảnh sau sửa không còn chuỗi tiếng Anh (**PASS**). Commit riêng `143cc50e` (`fix(sheet): translate format as table title`). Ảnh trước/sau trong thư mục trên.
+- **Slides — thanh điều khiển trình chiếu:** rê chuột không làm hiện thanh điều khiển; ghi nhận mức trung bình, chưa sửa vì cần xem xét hành vi.
+- **Sheet — nút tạo Pivot:** nút còn bật cùng thông báo vùng không hợp lệ; ghi nhận mức trung bình, chưa sửa.
+
+## Kiểm thử và gate
+
+- `npm test`: PASS — 3791/3791, 0 lỗi.
+- `node scripts/audit-0610/i18n_parity.mjs`: PASS — 0 khóa VI/EN còn thiếu, 0 placeholder mismatch; 20 khóa được công cụ đánh dấu nghi ngờ giống VI/EN.
+- `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS — 0 dòng bị hạ trong Word/Excel/Slides.
+- Checklist generators: PASS — Excel 217 mục, Slides 269 mục, Writer 279 mục; đã sinh lại cả ba checklist.
+- `python -m pytest tests -q -k "writer or sheet or slides or dialog or ribbon"`: PASS — 794 passed, 346 deselected, 551.70s.
+
+## Tóm tắt
+
+Phiên này hoàn thành một phần rà soát trực quan và một sửa dịch nhỏ có CDP FAIL/PASS trước/sau. Nhiều hạng mục trong backlog, ma trận bàn phím và giá trị sai còn **NOT RUN**; không kết luận toàn bộ Q49 đạt.
