@@ -51,6 +51,9 @@
       requestAnimationFrame(() => requestAnimationFrame(hideDocumentOpenProgress));
       window.pywebview?.api?.report_startup_metric?.("document_open_complete", performance.now());
     });
+    window.addEventListener("vno:document-open-failed", () => {
+      requestAnimationFrame(() => requestAnimationFrame(hideDocumentOpenProgress));
+    });
 
     let lazyFeatureToast = null;
     let lazyFeatureToastTimer = null;

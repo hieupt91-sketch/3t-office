@@ -5662,6 +5662,9 @@ export class SlidesAdapter {
       // vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ được gọi ở
       // File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
       this.shell?.resetDocumentChrome?.(result.fileName || "Bản trình bày 1.pptx", null, true, this.sourceFilePath);
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+        window.dispatchEvent(new Event("vno:document-open-complete"));
+      }
       return true;
     }
     if (result.status === "cancelled") return false;
