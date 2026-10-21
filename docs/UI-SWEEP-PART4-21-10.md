@@ -64,7 +64,7 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 | Nhập rỗng, âm, >1e9, chữ, 5000 ký tự, ký tự đặc biệt | KIỂM TRA MỘT PHẦN — hộp Chèn Bảng | Ô số hàng cho phép rỗng (`valid=true`), âm và >1e9 (range invalid) nhưng nút Chèn vẫn bật; chữ bị ô số bỏ qua. 5000 chữ số tạo `badInput=true`, không crash; ô cuộn ngang trong khung nhưng nút Chèn vẫn bật. Không bấm Chèn ở giá trị sai; ký tự đặc biệt và các hộp khác NOT RUN. [Giá trị >1e9 sáng](assets/q49-ui/slides-table-invalid-large-light.png), [tối](assets/q49-ui/slides-table-invalid-large-dark.png), [5000 ký tự tối](assets/q49-ui/slides-table-5000-input-dark.png). |
 | Tooltip 3 nút đầu mỗi tab | NOT RUN. |
 | Toast vị trí/thời lượng/che nút | NOT RUN có hệ thống. Đã nhìn thấy toast “Đang tải…” ở góc dưới phải trong vài ảnh; không đo thời gian hoặc che khuất. |
-| Chụp và xem | Đã xem 130 ảnh trong `docs/assets/q49-ui/`, toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
+| Chụp và xem | Đã xem 136 ảnh trong `docs/assets/q49-ui/`, toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
 
 ### Bổ sung kiểm tra trực tiếp qua chuột — Slides
 
@@ -86,7 +86,7 @@ Kiểm tra bổ sung này chỉ xác nhận bố cục hai theme và Esc cho b�
 
 ### Bổ sung kiểm tra trực tiếp qua chuột — Sheet
 
-Chạy `tests/live/cdp/q49-sheet-visual-review.desktop.mjs` với profile riêng. Bài mở bảy hộp bằng chuột ở các tab Trang đầu/Dữ liệu, mở menu Phân tích What-If trước ba lệnh con, chụp hai theme 1366×768 và đóng bằng Esc. **14/14** hộp nằm trong viewport; ảnh đều đã mở và xem.
+Chạy `tests/live/cdp/q49-sheet-visual-review.desktop.mjs` với profile riêng. Bài mở mười hộp bằng chuột ở các tab Trang đầu/Dữ liệu/Bố trí trang, mở menu Phân tích What-If trước ba lệnh con, mở đúng các nhánh menu cho Chiều cao hàng/lề/khổ giấy, chụp hai theme 1366×768 và đóng bằng Esc. **20/20** hộp nằm trong viewport; ảnh đều đã mở và xem.
 
 | Màn hình | Sáng | Tối | Kết luận |
 |---|---|---|---|
@@ -97,8 +97,11 @@ Chạy `tests/live/cdp/q49-sheet-visual-review.desktop.mjs` với profile riêng
 | Tạo Bảng tổng hợp | [ảnh](assets/q49-ui/sheet-pivot-light-1366x768.png) | [ảnh](assets/q49-ui/sheet-pivot-dark-1366x768.png) | Lỗi trung bình đã ghi nhận: vùng nguồn A1 không hợp lệ nhưng nút Tạo Bảng tổng hợp vẫn bật. Không bấm nút. |
 | Định dạng có điều kiện | [ảnh](assets/q49-ui/sheet-conditional-light-1366x768.png) | [ảnh](assets/q49-ui/sheet-conditional-dark-1366x768.png) | Hộp vừa khung, nội dung cuộn được; một số dòng cuối bị cắt ở mép vùng cuộn hiện tại, cần cuộn để xem tiếp. |
 | Định dạng thành Bảng | [ảnh](assets/q49-ui/sheet-format-as-table-light-1366x768.png) | [ảnh](assets/q49-ui/sheet-format-as-table-dark-1366x768.png) | Đạt về bố cục; tiêu đề tiếng Việt, bảng mẫu cuộn được. Dải điều khiển đầu hộp còn nền trắng ở theme tối. |
+| Chiều cao hàng | [ảnh](assets/q49-ui/sheet-row-height-light-1366x768.png) | [ảnh](assets/q49-ui/sheet-row-height-dark-1366x768.png) | Đạt; trường số và Hủy/Áp dụng hiển thị rõ. |
+| Lề tùy chỉnh | [ảnh](assets/q49-ui/sheet-custom-margins-light-1366x768.png) | [ảnh](assets/q49-ui/sheet-custom-margins-dark-1366x768.png) | Đạt; sáu trường, tùy chọn căn giữa và nút nằm trong khung. |
+| Khổ giấy tùy chỉnh | [ảnh](assets/q49-ui/sheet-custom-paper-size-light-1366x768.png) | [ảnh](assets/q49-ui/sheet-custom-paper-size-dark-1366x768.png) | Đạt; tab, trường, vùng cuộn và nút đều trong khung. |
 
-Kiểm tra này chỉ xác nhận bố cục hai theme và Esc. Không chạy Tab/Shift+Tab/Enter/focus hoặc các bộ giá trị sai; các trạng thái đó vẫn NOT RUN.
+Kiểm tra này xác nhận bố cục hai theme và Esc cho mười hộp. Không chạy Tab/Shift+Tab/Enter/focus hoặc các bộ giá trị sai; các trạng thái đó vẫn NOT RUN.
 
 ### Bổ sung kiểm tra trực tiếp qua chuột — Writer
 

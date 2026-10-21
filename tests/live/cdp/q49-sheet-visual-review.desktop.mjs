@@ -9,12 +9,15 @@ const outputDir = path.resolve("docs/assets/q49-ui");
 mkdirSync(outputDir, { recursive: true });
 const targets = [
   { id: "sheet.data.validation", name: "validation", tab: "Dữ liệu" },
-  { id: "sheet.data.goalSeek", name: "goalseek", tab: "Dữ liệu", menu: "Phân tích What-If" },
-  { id: "sheet.data.dataTable", name: "datatable", tab: "Dữ liệu", menu: "Phân tích What-If" },
-  { id: "sheet.data.scenarioManager", name: "scenario", tab: "Dữ liệu", menu: "Phân tích What-If" },
+  { id: "sheet.data.goalSeek", name: "goalseek", tab: "Dữ liệu", menuId: "sheet-what-if-analysis" },
+  { id: "sheet.data.dataTable", name: "datatable", tab: "Dữ liệu", menuId: "sheet-what-if-analysis" },
+  { id: "sheet.data.scenarioManager", name: "scenario", tab: "Dữ liệu", menuId: "sheet-what-if-analysis" },
   { id: "sheet.data.pivotTable", name: "pivot", tab: "Dữ liệu" },
   { id: "sheet.format.conditional", name: "conditional", tab: "Trang đầu" },
   { id: "sheet.style.formatAsTable", name: "format-as-table", tab: "Trang đầu" },
+  { id: "sheet.row.height", name: "row-height", tab: "Trang đầu", menuId: "sheet.cells.format" },
+  { id: "sheet.page.margins", name: "custom-margins", tab: "Bố trí trang", menuId: "sheet.page.margins", menuItem: "Căn lề tùy chỉnh" },
+  { id: "sheet.page.size", name: "custom-paper-size", tab: "Bố trí trang", menuId: "sheet.page.size", menuItem: "Thêm khổ giấy" },
 ];
 const session = await launchApp("sheet", { localAppData });
 const results = [];
@@ -33,13 +36,13 @@ try {
     await sleep(150);
     for (const theme of ["light", "dark"]) {
       await session.cdp.evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)}`);
-      if (target.menu) {
-        const menuButton = await session.cdp.evaluate(`(() => [...document.querySelectorAll('button')].find(e => e.innerText.trim().includes(${JSON.stringify(target.menu)}))?.getBoundingClientRect().toJSON())()`);
-        if (!menuButton) throw new Error(`Dropdown not found: ${target.menu}`);
+      if (target.menuId) {
+        const menuButton = await session.cdp.evaluate(`(() => document.querySelector('[data-dropdown-id=${JSON.stringify(target.menuId)}]')?.getBoundingClientRect().toJSON())()`);
+        if (!menuButton) throw new Error(`Dropdown not found: ${target.menuId}`);
         await mouseClick(session.cdp, menuButton.x + menuButton.width / 2, menuButton.y + menuButton.height / 2);
         await sleep(120);
       }
-      const button = await session.cdp.evaluate(`(() => { const e=[...document.querySelectorAll('[data-command-id]')].find(x=>x.dataset.commandId===${JSON.stringify(target.id)}); if(!e) return null; e.scrollIntoView({block:'nearest',inline:'nearest'}); const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; })()`);
+      const button = await session.cdp.evaluate(`(() => { const e=[...document.querySelectorAll('[data-command-id]')].find(x=>x.dataset.commandId===${JSON.stringify(target.id)}${target.menuItem ? `&&x.innerText.includes(${JSON.stringify(target.menuItem)})` : ""}); if(!e) return null; e.scrollIntoView({block:'nearest',inline:'nearest'}); const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; })()`);
       if (!button) throw new Error(`Command button not found: ${target.id}`);
       await mouseClick(session.cdp, button.x, button.y);
       await sleep(300);
