@@ -50,10 +50,15 @@ class SheetFormatCellsNativeTests(unittest.TestCase):
         metadata = patcher._xlsx_cells_with_metadata_p1(
             make_xlsx(sheet), include_xf=True, parallel=False
         )
+        with mock.patch.dict("os.environ", {"VNO_XLSX_LAZY_METADATA_CELL_BODY": "0"}):
+            fallback_metadata = patcher._xlsx_cells_with_metadata_p1(
+                make_xlsx(sheet), include_xf=True, parallel=False
+            )
         self.assertEqual(
             {"Sheet1": {(1, 1): "Hello & world", (1, 3): "direct"}},
             metadata[1],
         )
+        self.assertEqual(metadata, fallback_metadata)
 
     def test_repeated_native_cell_format_configs_reuse_serialized_attribute(self):
         config = {"horizontalAlignment": "centerContinuous", "indentLevel": 3}

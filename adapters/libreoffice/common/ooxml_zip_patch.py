@@ -16369,8 +16369,8 @@ def _p1_coordinate_key(coordinate: str) -> tuple[int, int] | None:
     return int(row_text), column
 
 
-def _iter_xlsx_cell_parts_p1(sheet_xml: str):
-    """Yield XLSX cell attributes/body with one forward string scan."""
+def _iter_xlsx_cell_parts_p1(sheet_xml: str, *, body_as_span: bool = False):
+    """Yield XLSX cell attributes and either body text or body offsets."""
     cursor = 0
     length = len(sheet_xml)
     while cursor < length:
@@ -16388,14 +16388,25 @@ def _iter_xlsx_cell_parts_p1(sheet_xml: str):
         while attrs_end > boundary and sheet_xml[attrs_end - 1] in " \t\r\n":
             attrs_end -= 1
         if attrs_end > boundary and sheet_xml[attrs_end - 1] == "/":
-            yield sheet_xml[boundary : attrs_end - 1], ""
+            if body_as_span:
+                yield sheet_xml[boundary : attrs_end - 1], opening_end + 1, opening_end + 1
+            else:
+                yield sheet_xml[boundary : attrs_end - 1], ""
             cursor = opening_end + 1
             continue
         close = sheet_xml.find("</c>", opening_end + 1)
         if close < 0:
             return
-        yield sheet_xml[boundary:opening_end], sheet_xml[opening_end + 1 : close]
+        if body_as_span:
+            yield sheet_xml[boundary:opening_end], opening_end + 1, close
+        else:
+            yield sheet_xml[boundary:opening_end], sheet_xml[opening_end + 1 : close]
         cursor = close + 4
+
+
+def _iter_xlsx_cell_spans_p1(sheet_xml: str):
+    """Yield cell attribute text plus source offsets without copying cell bodies."""
+    yield from _iter_xlsx_cell_parts_p1(sheet_xml, body_as_span=True)
 
 
 def _p1_split_xlsx_cell_chunks(sheet_xml: str, count: int) -> list[str]:
@@ -16430,7 +16441,14 @@ def _p1_parse_metadata_chunk(args):
     shared_refs: dict[tuple[int, int], int] = {}
     direct_strings: dict[tuple[int, int], str] = {}
     xfs: dict[tuple[int, int], int] = {}
-    for attrs_text, body in _iter_xlsx_cell_parts_p1(sheet_xml):
+    lazy_body = os.environ.get("VNO_XLSX_LAZY_METADATA_CELL_BODY") != "0"
+    cell_parts = (
+        _iter_xlsx_cell_spans_p1(sheet_xml)
+        if lazy_body
+        else ((attrs, body, None) for attrs, body in _iter_xlsx_cell_parts_p1(sheet_xml))
+    )
+    for attrs_text, body_start, body_end in cell_parts:
+        body = None if lazy_body else body_start
         coordinate_text, style_index, kind = _p1_cell_attributes(attrs_text)
         key = _p1_coordinate_key(coordinate_text)
         if key is None:
@@ -16443,6 +16461,8 @@ def _p1_parse_metadata_chunk(args):
                 formats[key] = code
         if kind not in {"s", "str", "inlinestr"}:
             continue
+        if lazy_body:
+            body = sheet_xml[body_start:body_end]
         if kind == "s":
             raw = _P1_VALUE_RE.search(body)
             shared_refs[key] = int(raw.group(1)) if raw else -1
@@ -16762,7 +16782,13 @@ def _xlsx_cells_with_xf_indices_p1(
             continue
         cells = {}
         sheet_xml = entry.decode("utf-8", errors="replace")
-        for attrs_text, _body in _iter_xlsx_cell_parts_p1(sheet_xml):
+        lazy_body = os.environ.get("VNO_XLSX_LAZY_METADATA_CELL_BODY") != "0"
+        cell_parts = (
+            _iter_xlsx_cell_spans_p1(sheet_xml)
+            if lazy_body
+            else ((attrs, body, None) for attrs, body in _iter_xlsx_cell_parts_p1(sheet_xml))
+        )
+        for attrs_text, _body_start, _body_end in cell_parts:
             coordinate_text, style_index, _kind = _p1_cell_attributes(attrs_text)
             key = _p1_coordinate_key(coordinate_text)
             if key is None:
