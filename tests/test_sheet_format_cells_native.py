@@ -77,6 +77,22 @@ class SheetFormatCellsNativeTests(unittest.TestCase):
         self.assertEqual(0, stamp.call_count, "new metadata should be inserted without regex replacement")
         self.assertIn('vno:cell-format="{&quot;horizontalAlignment&quot;:&quot;centerContinuous&quot;}"', actual)
 
+    def test_cell_metadata_fast_path_matches_regex_fallback_without_replacement(self):
+        cell = '<table:table-cell table:style-name="ce1"><text:p>1</text:p></table:table-cell>'
+        patterns = (
+            ("_VNO_NUMFMT_RE", patcher._VNO_NUMFMT_RE),
+            ("_VNO_STRING_RE", patcher._VNO_STRING_RE),
+            ("_VNO_XF_RE", patcher._VNO_XF_RE),
+        )
+        wrappers = {name: mock.Mock(sub=mock.Mock(side_effect=pattern.sub)) for name, pattern in patterns}
+        with mock.patch.dict("os.environ", {"VNO_XLSX_FAST_METADATA_ATTRIBUTES": "1"}), mock.patch.multiple(
+            patcher, **wrappers
+        ):
+            fast = patcher._p1_stamp_cell_metadata(cell, 1, "0.00", "sample", 7)
+        expected = patcher._p1_stamp_cell_metadata(cell, 1, "0.00", "sample", 7)
+        self.assertEqual(expected, fast)
+        self.assertEqual(0, sum(pattern.sub.call_count for pattern in wrappers.values()))
+
     def test_structured_formula_candidate_check_ignores_brackets_outside_formula_tags(self):
         self.assertTrue(
             patcher._has_structured_formula_candidate(
