@@ -2,7 +2,7 @@
 
 ## Phạm vi và kết quả
 
-Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366×768. Đã chụp và xem ảnh ở các trạng thái liệt kê bên dưới. Vì nhiều hạng mục yêu cầu chưa được chạy trong phiên này, chúng được giữ **NOT RUN**; báo cáo không kết luận toàn bộ Q49 đạt.
+Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366×768. `CODEX-COMMON-RULES.md` không có trong checkout; áp dụng quy tắc giao diện Q49 do người giao phiếu cung cấp. Đã chụp và xem ảnh ở các trạng thái liệt kê bên dưới. Vì nhiều hạng mục yêu cầu chưa được chạy trong phiên này, chúng được giữ **NOT RUN**; báo cáo không kết luận toàn bộ Q49 đạt.
 
 ### Slides
 
