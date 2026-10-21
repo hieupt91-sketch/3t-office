@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import copy
 import difflib
+import hashlib
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 import html
@@ -14188,6 +14189,153 @@ def _slides_document_properties_replacements(pptx_bytes: bytes, fodp_xml: str | 
     return {name: value for name, value in replacements.items() if read_zip_entry(pptx_bytes, name) != value}
 
 
+def _restore_slides_embedded_fonts(pptx_bytes: bytes, source_pptx: bytes | None) -> bytes:
+    """Restore embedded-font parts dropped by soffice when the source PPTX listed them."""
+    if not source_pptx:
+        return pptx_bytes
+
+    presentation_path = "ppt/presentation.xml"
+    rels_path = "ppt/_rels/presentation.xml.rels"
+    content_types_path = "[Content_Types].xml"
+    presentation_ns = "http://schemas.openxmlformats.org/presentationml/2006/main"
+    office_rel_ns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    package_rel_ns = "http://schemas.openxmlformats.org/package/2006/relationships"
+    content_types_ns = "http://schemas.openxmlformats.org/package/2006/content-types"
+    font_rel_type = office_rel_ns + "/font"
+    with zipfile.ZipFile(io.BytesIO(source_pptx), "r") as source_zip:
+        source_names = set(source_zip.namelist())
+        source_presentation = source_zip.read(presentation_path) if presentation_path in source_names else None
+        source_rels = source_zip.read(rels_path) if rels_path in source_names else None
+        source_content_types = source_zip.read(content_types_path) if content_types_path in source_names else None
+        if not source_presentation or not source_rels or not source_content_types:
+            return pptx_bytes
+        try:
+            source_root = ET.fromstring(source_presentation)
+            source_relationships = ET.fromstring(source_rels)
+            source_types = ET.fromstring(source_content_types)
+        except ET.ParseError:
+            return pptx_bytes
+        font_list = source_root.find(f"{{{presentation_ns}}}embeddedFontLst")
+        if font_list is None:
+            return pptx_bytes
+        rel_by_id = {
+            rel.attrib.get("Id", ""): rel
+            for rel in source_relationships
+            if rel.attrib.get("Type", "").endswith("/font")
+        }
+        referenced_ids = {
+            value
+            for child in font_list.iter()
+            for key, value in child.attrib.items()
+            if key == f"{{{office_rel_ns}}}id"
+        }
+        source_font_rels = [rel_by_id[rid] for rid in referenced_ids if rid in rel_by_id]
+        if not source_font_rels:
+            return pptx_bytes
+        source_font_parts: dict[str, bytes] = {}
+        for rel in source_font_rels:
+            target = rel.attrib.get("Target", "")
+            part = target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join("ppt", url_unquote(target)))
+            if part.startswith("ppt/") and part in source_names:
+                source_font_parts[part] = source_zip.read(part)
+        if not source_font_parts:
+            return pptx_bytes
+        font_default = next(
+            (item for item in source_types if item.tag.endswith("}Default") and item.attrib.get("Extension", "").lower() == "fntdata"),
+            None,
+        )
+
+    output_presentation = read_zip_entry(pptx_bytes, presentation_path)
+    output_rels = read_zip_entry(pptx_bytes, rels_path)
+    output_types = read_zip_entry(pptx_bytes, content_types_path)
+    if not output_presentation or not output_rels or not output_types:
+        return pptx_bytes
+    try:
+        output_root = ET.fromstring(output_presentation)
+        output_relationships = ET.fromstring(output_rels)
+        output_content_types = ET.fromstring(output_types)
+    except ET.ParseError:
+        return pptx_bytes
+    if output_root.find(f"{{{presentation_ns}}}embeddedFontLst") is not None:
+        return pptx_bytes
+
+    existing_by_id = {rel.attrib.get("Id", ""): rel for rel in output_relationships}
+    numeric_ids = [
+        int(match.group(1))
+        for rid in existing_by_id
+        if (match := re.fullmatch(r"rId(\d+)", rid))
+    ]
+    next_id = max(numeric_ids, default=0) + 1
+    id_map: dict[str, str] = {}
+    replacements: dict[str, bytes] = {}
+    for rel in source_font_rels:
+        old_id = rel.attrib.get("Id", "")
+        target = rel.attrib.get("Target", "")
+        source_part = target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join("ppt", url_unquote(target)))
+        if source_part not in source_font_parts:
+            continue
+        part = source_part
+        payload = source_font_parts[source_part]
+        existing_payload = read_zip_entry(pptx_bytes, part)
+        if existing_payload is not None and existing_payload != payload:
+            part = f"ppt/fonts/vno-preserved-{hashlib.sha256(payload).hexdigest()[:16]}.fntdata"
+        replacements[part] = payload
+        new_target = posixpath.relpath(part, "ppt")
+        current = existing_by_id.get(old_id)
+        if current is not None and current.attrib.get("Type") == font_rel_type and current.attrib.get("Target") == new_target:
+            new_id = old_id
+        else:
+            new_id = old_id
+            if current is not None:
+                while f"rId{next_id}" in existing_by_id:
+                    next_id += 1
+                new_id = f"rId{next_id}"
+                next_id += 1
+            new_rel = ET.Element(f"{{{package_rel_ns}}}Relationship", dict(rel.attrib))
+            new_rel.attrib["Id"] = new_id
+            new_rel.attrib["Target"] = new_target
+            output_relationships.append(new_rel)
+            existing_by_id[new_id] = new_rel
+        id_map[old_id] = new_id
+
+    if not id_map:
+        return pptx_bytes
+    for child in font_list.iter():
+        rid_key = f"{{{office_rel_ns}}}id"
+        if rid_key in child.attrib and child.attrib[rid_key] in id_map:
+            child.attrib[rid_key] = id_map[child.attrib[rid_key]]
+    font_xml = ET.tostring(font_list, encoding="unicode")
+    presentation_xml = output_presentation.decode("utf-8")
+    closing = re.search(r"</(?P<tag>(?:[\w.-]+:)?presentation)\s*>", presentation_xml)
+    if not closing:
+        return pptx_bytes
+    presentation_xml = presentation_xml[:closing.start()] + font_xml + presentation_xml[closing.start():]
+
+    if font_default is not None:
+        existing_default = next(
+            (item for item in output_content_types if item.tag.endswith("}Default") and item.attrib.get("Extension", "").lower() == "fntdata"),
+            None,
+        )
+        if existing_default is None:
+            output_content_types.append(ET.Element(f"{{{content_types_ns}}}Default", dict(font_default.attrib)))
+        elif existing_default.attrib.get("ContentType") != font_default.attrib.get("ContentType"):
+            raise ValueError("PPTX embedded-font content type conflicts with the source package")
+
+    def serialize_package_xml(root: ET.Element, namespace: str) -> bytes:
+        xml = ET.tostring(root, encoding="unicode")
+        prefix = re.search(rf'xmlns:(ns\d+)="{re.escape(namespace)}"', xml)
+        if prefix:
+            name = prefix.group(1)
+            xml = xml.replace(f'xmlns:{name}="{namespace}"', f'xmlns="{namespace}"')
+            xml = xml.replace(f"<{name}:", "<").replace(f"</{name}:", "</")
+        return xml.encode("utf-8")
+
+    replacements[presentation_path] = presentation_xml.encode("utf-8")
+    replacements[rels_path] = serialize_package_xml(output_relationships, package_rel_ns)
+    replacements[content_types_path] = serialize_package_xml(output_content_types, content_types_ns)
+    return patch_ooxml_zip(pptx_bytes, replacements)
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -14204,6 +14352,7 @@ def postprocess_slides_pptx(
     """Return patched PPTX bytes, or the original buffer when no patch is needed."""
     if enabled is False:
         return pptx_bytes
+    pptx_bytes = _restore_slides_embedded_fonts(pptx_bytes, source_pptx)
     logo = {"logoText": "", "accentColor": accent_color or "", "fontFamily": font_family or ""}
     if logo_text and _normalize_logo_text(logo_text):
         logo["logoText"] = _normalize_logo_text(logo_text)
