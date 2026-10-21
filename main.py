@@ -5038,9 +5038,14 @@ class VnOfficeApi:
                     metadata_prefetch.start()
                 if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
                     _notify_sheet_open_progress("Đang chuyển workbook Excel sang dữ liệu bảng tính…", api=self)
+                convert_started = time.perf_counter()
                 try:
                     out_path = _run_soffice_convert(convert_src_path, target_ext, tmp, app_kind=app_kind)
                 finally:
+                    _open_perf_log(
+                        "document_open_stage", (time.perf_counter() - convert_started) * 1000,
+                        phase="soffice_convert", app=app_kind, target=target_ext,
+                    )
                     if metadata_prefetch is not None:
                         prefetch_started = time.perf_counter()
                         metadata_prefetch.join()
@@ -5063,6 +5068,7 @@ class VnOfficeApi:
                         phase="read_fods", chars=len(content),
                     )
                 if app_kind == "writer":
+                    writer_overlay_started = time.perf_counter()
                     # Quy ước W9: font/cỡ mặc định từ docDefaults + theme khi LibreOffice không ghi p.western.
                     if convert_src_path.lower().endswith(".docx"):
                         try:
@@ -5102,6 +5108,10 @@ class VnOfficeApi:
                         writer_ooxml_metadata["ooxmlHeaders"] = all_hdrs
                         writer_ooxml_metadata["ooxmlFooters"] = all_ftrs
                         writer_ooxml_metadata["ooxmlRels"] = all_rels
+                    _open_perf_log(
+                        "document_open_stage", (time.perf_counter() - writer_overlay_started) * 1000,
+                        phase="writer_overlay_and_metadata", app="writer",
+                    )
                 elif app_kind == "sheet":
                     # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
                     # must see table:structure-protected when the original XLSX is locked.
@@ -5174,8 +5184,13 @@ class VnOfficeApi:
                     # must see vno:section-*, vno:master-theme, and Set Up Show vno:*
                     # when the original PTTX has p14:sectionLst / VNOfficeMasterLogo /
                     # p:showPr showNarration=0 or p:penClr.
+                    slides_overlay_started = time.perf_counter()
                     content = _apply_native_import_overlay(
                         src_path, content, app_kind, source_bytes=original_ooxml_bytes
+                    )
+                    _open_perf_log(
+                        "document_open_stage", (time.perf_counter() - slides_overlay_started) * 1000,
+                        phase="slides_native_overlay", app="slides",
                     )
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
