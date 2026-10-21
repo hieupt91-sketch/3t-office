@@ -16470,6 +16470,7 @@ def _p1_stamp_cell_metadata(
     native_cell_format: dict | None = None,
 ) -> str:
     """Apply repeat and metadata while scanning the opening tag only once."""
+    fast_attributes = os.environ.get("VNO_XLSX_FAST_METADATA_ATTRIBUTES") != "0"
     opening_end = cell_xml.find(">")
     if opening_end < 0:
         return cell_xml
@@ -16481,10 +16482,12 @@ def _p1_stamp_cell_metadata(
             opening, f' table:number-columns-repeated="{repeat}"'
         )
     tail = cell_xml[opening_end + 1 :]
-    covered = opening.lower().startswith("<table:covered-table-cell")
-    covered_formula = covered and "table:formula=" in opening.lower()
+    opening_lower = opening.lower()
+    covered = opening_lower.startswith("<table:covered-table-cell")
+    covered_formula = covered and "table:formula=" in opening_lower
     if number_format is not None and not covered:
-        opening = _VNO_NUMFMT_RE.sub("", opening, count=1)
+        if not fast_attributes or "vno:number-format" in opening_lower:
+            opening = _VNO_NUMFMT_RE.sub("", opening, count=1)
         opening = _p1_append_opening_attr(
             opening, f' vno:number-format="{_escape_xml(number_format)}"'
         )
@@ -16502,12 +16505,14 @@ def _p1_stamp_cell_metadata(
             .replace("\n", "&#10;")
             .replace("\t", "&#9;")
         )
-        opening = _VNO_STRING_RE.sub("", opening, count=1)
+        if not fast_attributes or "vno:original-string" in opening_lower:
+            opening = _VNO_STRING_RE.sub("", opening, count=1)
         opening = _p1_append_opening_attr(
             opening, f' vno:original-string="{attr_value}"'
         )
     if xf_index is not None and not covered:
-        opening = _VNO_XF_RE.sub("", opening, count=1)
+        if not fast_attributes or "vno:xf" in opening_lower:
+            opening = _VNO_XF_RE.sub("", opening, count=1)
         opening = _p1_append_opening_attr(opening, f' vno:xf="{xf_index}"')
     stamped = opening + ">" + tail
     if native_cell_format and not covered:

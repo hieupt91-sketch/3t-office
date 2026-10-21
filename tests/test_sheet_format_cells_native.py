@@ -89,7 +89,8 @@ class SheetFormatCellsNativeTests(unittest.TestCase):
             patcher, **wrappers
         ):
             fast = patcher._p1_stamp_cell_metadata(cell, 1, "0.00", "sample", 7)
-        expected = patcher._p1_stamp_cell_metadata(cell, 1, "0.00", "sample", 7)
+        with mock.patch.dict("os.environ", {"VNO_XLSX_FAST_METADATA_ATTRIBUTES": "0"}):
+            expected = patcher._p1_stamp_cell_metadata(cell, 1, "0.00", "sample", 7)
         self.assertEqual(expected, fast)
         self.assertEqual(0, sum(pattern.sub.call_count for pattern in wrappers.values()))
 
