@@ -15645,7 +15645,8 @@ def _set_native_cell_format_attr(cell_xml: str, config: dict) -> str:
     """Stamp exact OOXML-only cell properties that LibreOffice normalizes on import."""
     if not config or cell_xml.startswith("<table:covered-table-cell"):
         return cell_xml
-    if os.environ.get("VNO_XLSX_CACHE_NATIVE_CELL_FORMAT_ATTR") == "0":
+    use_fast_path = os.environ.get("VNO_XLSX_CACHE_NATIVE_CELL_FORMAT_ATTR") != "0"
+    if not use_fast_path:
         value = _escape_xml(json.dumps(config, ensure_ascii=False, separators=(",", ":")))
     else:
         key = id(config)
@@ -15658,6 +15659,23 @@ def _set_native_cell_format_attr(cell_xml: str, config: dict) -> str:
             _NATIVE_CELL_FORMAT_ATTR_CACHE[key] = (config, value)
         else:
             value = cached[1]
+    if use_fast_path and cell_xml.startswith("<table:table-cell"):
+        opening_end = cell_xml.find(">")
+        if opening_end < 0:
+            return cell_xml
+        opening = cell_xml[:opening_end]
+        if "vno:cell-format" not in opening.lower():
+            slash = ""
+            if opening.endswith("/"):
+                opening = opening[:-1]
+                slash = "/"
+            return (
+                opening
+                + f' vno:cell-format="{value}"'
+                + slash
+                + ">"
+                + cell_xml[opening_end + 1 :]
+            )
     stamped = _stamp_table_cell_attr(
         cell_xml,
         f' vno:cell-format="{value}"',
