@@ -1110,14 +1110,15 @@ AGENT/ROLE: Codex / UI QA (Slides, Sheet, Writer)
 BRANCH: codex/queue-19-10
 WORKTREE: E:\VNOffice-codex-queue
 OBJECTIVE: Rà các mục NOT RUN của Q35/Q37/Q38/Q39 bằng app desktop qua CDP, chụp/xem ảnh 1366×768 và lập báo cáo từng mục.
-FINDINGS: Đã mở/xem 70 ảnh ở ba app. Đã xác nhận tab ngữ cảnh hình/bảng/biểu đồ, pane ghi chú, hộp Tác vụ khi đối tượng được chọn. Một số hạng mục còn NOT RUN. F5 không hiện thanh điều khiển sau rê chuột; Esc khỏi hộp Bảng trả focus về canvas thay vì nút mở; Pivot vẫn bật nút tạo dù vùng A1 báo lỗi.
-IMPLEMENTATION SUMMARY: Sửa nhãn tiếng Việt “Định dạng thành Bảng” trong fallback và strings-vi; CDP FAIL trước/PASS sau. Tạo báo cáo `docs/UI-SWEEP-PART4-21-10.md` và 70 ảnh `docs/assets/q49-ui/`.
-FILES CHANGED: `apps/sheet/cell-styles.js`; `platform/i18n/strings-vi.js`; `docs/UI-SWEEP-PART4-21-10.md`; `docs/assets/q49-ui/*`; `09-templates/AGENT-HANDOFF.md`.
+FINDINGS: Đã mở/xem 78 ảnh ở ba app. Đã xác nhận tab ngữ cảnh hình/bảng/biểu đồ, pane ghi chú, hộp Tác vụ khi đối tượng được chọn. Nạp nguồn Trộn thư mẫu 3 bản ghi/5 trường và mở hộp hoàn tất ở hai theme; chưa thực thi trộn. Một số hạng mục còn NOT RUN. F5 không hiện thanh điều khiển sau rê chuột; Esc khỏi hộp Bảng trả focus về canvas thay vì nút mở; Pivot vẫn bật nút tạo dù vùng A1 báo lỗi.
+IMPLEMENTATION SUMMARY: Sửa nhãn tiếng Việt “Định dạng thành Bảng” trong fallback và strings-vi; CDP FAIL trước/PASS sau. Sửa tương phản trạng thái disabled của nút xác nhận Trộn thư từ opacity 0.45 lên 0.7, giữ disabled cho tới khi xác nhận; CDP FAIL/PASS và ảnh trước/sau. Commit riêng `70993ad5 (`fix(writer): improve mail merge confirmation contrast`)` sau gate. Tạo báo cáo `docs/UI-SWEEP-PART4-21-10.md` và 78 ảnh `docs/assets/q49-ui/`.
+FILES CHANGED: `apps/sheet/cell-styles.js`; `platform/i18n/strings-vi.js`; `apps/writer/mail-merge.js`; `apps/writer/writer.css`; `docs/UI-SWEEP-PART4-21-10.md`; `docs/assets/q49-ui/*`; `09-templates/AGENT-HANDOFF.md`.
 COMMANDS RUN: `git merge main`; 3 checklist generators; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer or sheet or slides or dialog or ribbon"`; desktop CDP via `scripts/audit-0610/app_session_server.mjs`.
-BUILD RESULT: NOT RUN — chỉ có sửa chuỗi UI và không đổi build system.
-TEST RESULTS: PASS — npm 3791/3791; pytest 794 passed, 346 deselected; i18n missing=0; checklist evidence lowered=0; generators Excel 217, Slides 269, Writer 279.
+BUILD RESULT: NOT RUN — các sửa đổi chỉ chạm UI/CSS và không đổi build system.
+TEST RESULTS: PASS — npm 3791/3791; pytest 794 passed, 346 deselected, 545.24s; i18n VI/EN 3153/3153, missing=0, placeholder mismatch=0; checklist evidence lowered=0; generators Excel 217, Slides 269, Writer 279.
 KNOWN FAILURES: Phiếu Q49 chưa hoàn tất: còn nhiều mục được ghi NOT RUN trong báo cáo, gồm Định dạng ảnh, liên kết riêng, nhiều hộp Writer và hầu hết ma trận keyboard/invalid-input/tooltip/toast.
 RISKS: Không kiểm giao diện ở 1280×720; phần lớn dialog chỉ chụp một theme theo phạm vi sweep cụ thể. Không chạy Office COM/OS dialog.
 DEPENDENCIES/BLOCKERS: Tiếp tục lượt rà CDP để đóng các dòng NOT RUN trước khi tạo `E:\VNOffice-briefs\logs\Q49.DONE`.
 CORE PATCH ID (if any): None.
+GIAO DIEN DA XEM: 78 ảnh 1366×768 trong `docs/assets/q49-ui/`; đã xem ảnh Slides, Sheet và Writer theo từng dòng báo cáo. Writer mail merge có ảnh nguồn mẫu, hộp hoàn tất sáng/tối trước/sau sửa; sau sửa nút disabled đọc rõ và hộp nằm gọn trong cửa sổ. Nhiều ảnh còn lại chỉ bao phủ một theme; các mục NOT RUN giữ nguyên trong báo cáo.
 NEXT ACTION: Tiếp tục các mục NOT RUN trong `docs/UI-SWEEP-PART4-21-10.md`; xử lý quyết định về focus Esc, hoàn tất bàn phím/nhập sai/tooltip/toast và ảnh sáng/tối, chạy lại gate rồi tạo Q49.DONE.
