@@ -5705,8 +5705,6 @@ def _system_number_separators() -> tuple[str, str]:
     """Read Windows regional number separators for Excel-compatible entry."""
     if os.name == "nt":
         try:
-            import ctypes
-
             get_locale_info = ctypes.windll.kernel32.GetLocaleInfoEx
 
             def read_field(field: int) -> str:
@@ -6014,7 +6012,6 @@ def main(argv: list[str] | None = None):
             services.launcher.show_error("3T Office — Lỗi khởi động", msg)
         elif platform.system() == "Windows":
             try:
-                import ctypes
                 ctypes.windll.user32.MessageBoxW(0, msg, "3T Office — Lỗi khởi động", 0x10)
             except Exception:
                 print(f"[3T Office] {msg}", file=sys.stderr)
