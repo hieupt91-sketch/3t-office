@@ -11,6 +11,8 @@ const session = await launchApp("sheet", { filePath });
 try {
   const expected = filePath.replace(/\\/g, "/").toLowerCase();
   await session.cdp.waitFor(`(() => { const a = window.__vnoAppInstance?.adapter; const p = String(a?._sourcePath || a?.sourceFilePath || "").replace(/\\\\/g, "/").toLowerCase(); return p === ${JSON.stringify(expected)} && !!a?.grid?.sheets?.length; })()`, { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
+  const screenshot = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }, 30000);
+  await fs.writeFile(filePath + ".reopen-cdp.png", Buffer.from(screenshot.result.data, "base64"));
   const openMs = Date.now() - started;
   const snapshot = await session.cdp.evaluate(`(() => {
     const a = window.__vnoAppInstance.adapter;
@@ -37,7 +39,7 @@ try {
     return { sourcePath: a._sourcePath || a.sourceFilePath || null, activeSheet: grid.activeSheet, sheetCount: sheets.length, counts, totalCells: counts.reduce((sum, entry) => sum + entry.cells, 0), first5000: values };
   })()`);
   const hash5000 = createHash("sha256").update(JSON.stringify(snapshot.first5000), "utf8").digest("hex");
-  const report = { status: snapshot.totalCells === 1435546 && snapshot.first5000.length === 5000 && openMs <= 93000 ? "PASS" : "FAIL", openMs, expectedOpenMaxMs: 93000, expectedCells: 1435546, actualCells: snapshot.totalCells, hashItems: snapshot.first5000.length, hash5000, sourcePath: snapshot.sourcePath, sheetCount: snapshot.sheetCount, perSheet: snapshot.counts, cdpPort: session.debugPort, profilePath: session.localAppData };
+  const report = { status: snapshot.totalCells === 1435546 && snapshot.first5000.length === 5000 && openMs <= 93000 ? "PASS" : "FAIL", openMs, expectedOpenMaxMs: 93000, expectedCells: 1435546, actualCells: snapshot.totalCells, hashItems: snapshot.first5000.length, hash5000, sourcePath: snapshot.sourcePath, sheetCount: snapshot.sheetCount, perSheet: snapshot.counts, cdpPort: session.debugPort, profilePath: session.localAppData, screenshotPath: filePath + ".reopen-cdp.png" };
   await fs.writeFile(filePath + ".reopen-cdp.json", JSON.stringify(report, null, 2), "utf8");
   console.log(JSON.stringify(report, null, 2));
   if (report.status !== "PASS") process.exitCode = 1;
