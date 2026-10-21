@@ -20,7 +20,7 @@ Các mức đếm dưới đây chỉ tính lỗi đã tái hiện và xác nh�
 
 ## Ma trận còn NOT RUN
 
-- Enter ở mọi hộp thoại đã liệt kê của Writer, Sheet và Slides: **chưa chạy đủ**. Đã kiểm Enter cho Pivot invalid, quy tắc Sheet invalid và trình chiếu; không suy rộng kết quả cho hộp khác.
+- Enter ở 23 hộp thoại đã liệt kê của Writer, Sheet và Slides: **PASS — 23/23**. Bài CDP `tests/live/cdp/q50-dialog-enter-matrix.desktop.mjs` đưa focus vào nút chính, gửi Enter rồi kiểm tra hộp đóng, giữ mở khi nút bị khóa, báo lỗi hoặc cập nhật nội dung. Riêng Trộn thư dùng bộ dữ liệu mẫu cục bộ để tránh mở hộp chọn tệp hệ điều hành.
 - Nhập sai trên mọi hộp có trường số/tên (rỗng, số âm, >1e9, chữ, 5000 ký tự, `<>&"`): **NOT RUN**. Đã kiểm riêng danh sách rỗng trong hộp Kiểm tra dữ liệu; chưa chạy các giá trị còn lại và hộp khác.
 - Tooltip ba nút đầu mọi tab ribbon × ba ứng dụng: **NOT RUN**.
 - Toast lưu thành công/lỗi/sao chép (vị trí, thời lượng, che nút, theme tối): **NOT RUN**.
@@ -42,6 +42,7 @@ Tất cả ảnh được chụp ở 1366×768; các ảnh được xem trực t
 | Writer — màn hình tài liệu mặc định, sáng/tối | Ribbon, thước, trang và thanh trạng thái hiển thị trong cửa sổ; không thấy chữ tràn/chồng. Ảnh `writer-smoke-{light,dark}-1366x768.png`. |
 | Sheet — lưới mặc định, sáng/tối | Ribbon, thanh công thức, lưới và trạng thái hiển thị trong cửa sổ; không thấy chữ tràn/chồng. Ảnh `sheet-smoke-{light,dark}-1366x768.png`. |
 | Slides — màn tác giả mặc định, sáng/tối | Ribbon, khung thumbnail, canvas và trạng thái hiển thị trong cửa sổ; không thấy chữ tràn/chồng. Ảnh `slides-smoke-{light,dark}-1366x768.png`. |
+| Writer/Sheet/Slides — 23 hộp thoại khi nhấn Enter | 6 Writer, 10 Sheet, 7 Slides; mỗi hộp có ảnh trước/sau trong `docs/assets/q50-ui/enter-*-1366x768.png`. Đã xem các contact sheet của toàn bộ 46 ảnh; hộp không bị cắt khỏi viewport. 23/23 hành vi khớp trạng thái nút và nội dung. |
 
 ## Kiểm thử và gate
 
@@ -50,7 +51,7 @@ Tất cả ảnh được chụp ở 1366×768; các ảnh được xem trực t
 - `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: **PASS — 0 dòng bị hạ** (Writer 279, Excel 217, Slides 269).
 - Sinh lại ba checklist: **PASS — Writer 279, Excel 217, Slides 269 mục**.
 - `python -m pytest tests -q -k "writer or sheet or slides or dialog or ribbon or show"`: **PASS — 795 passed, 345 deselected, 553.02s**.
-- CDP Pivot, dialog lỗi Sheet, Liên kết Slides, F5 và smoke ba ứng dụng: **PASS** theo số liệu chi tiết trong log phiên; các script ở `tests/live/cdp/q50-*.desktop.mjs`.
+- CDP Pivot, dialog lỗi Sheet, Liên kết Slides, F5, smoke ba ứng dụng và Enter 23 hộp thoại: **PASS** theo số liệu chi tiết trong log phiên; các script ở `tests/live/cdp/q50-*.desktop.mjs`.
 
 ## Commit trong phiếu
 
@@ -72,3 +73,4 @@ Phiếu vẫn mở vì các ma trận trong “Ma trận còn NOT RUN” chưa �
 - Chụp lại và xem ảnh Pivot invalid/valid, Kiểm tra dữ liệu, tab Chèn/hộp Liên kết, F5 idle/controls ở theme sáng/tối tại 1366×768. Hộp và nút không bị cắt; điều khiển F5 cách chân trang 5 px. Không phát hiện lỗi UI mới trong các ảnh này.
 - Gate vừa chạy: `npm test` **3792/3792 PASS**; i18n **3166/3166 VI/EN, missing 0/0, placeholder mismatch 0**; checklist evidence **0 dòng bị hạ** (279/217/269); pytest **795 passed, 345 deselected, 544.79s**.
 - Các mục chưa hoàn tất vẫn là **NOT RUN**: Enter trên toàn bộ hộp thoại, ma trận nhập sai toàn bộ trường số/tên, tooltip ba nút đầu mỗi tab × ba app, toast lưu/lỗi/sao chép, focus khi mở hộp bằng Tab, và rà từng hộp Sheet có xử lý thông báo lỗi. Chưa tạo `Q50.DONE`.
+- Enter matrix vừa hoàn tất: **23/23 PASS**; đã chụp/xem 46 ảnh trước/sau. Vì vậy Enter không còn thuộc nhóm NOT RUN.
