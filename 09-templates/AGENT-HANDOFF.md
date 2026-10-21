@@ -992,3 +992,25 @@ DEPENDENCIES/BLOCKERS: Thiếu `BAO CAO KET QUA KINH DOANH NAM 2021.pptx`; helpe
 CORE PATCH ID (if any): None.
 COMMITS: 369f9cad (skip unused workers); c15da763 (clear progress UI). Báo cáo + handoff commit được thêm khi hoàn tất.
 NEXT ACTION: Xem báo cáo `docs/PERF-OPEN-WRITER-SLIDES-21-10.md`; tạo `E:\VNOffice-briefs\logs\Q41.DONE` sau commit báo cáo.
+
+---
+
+# Agent Handoff
+TASK: Q42 — Đo tốc độ mở tệp với hồ sơ ấm và tìm stage chậm nhất
+AGENT/ROLE: Codex / Performance + desktop QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Đo riêng startup, nội dung hiện, model sửa được và tổng thời gian cho Writer/Slides/Sheet; đo profile mới và lượt ấm 2–4; tìm stage chậm nhất; đề xuất tối ưu an toàn.
+FINDINGS: 23 DOCX numbered hợp lệ và MYTIME đo được; d10 là PDF mang đuôi DOCX. Chỉ có sample-3.pptx. MYTIME warm editable median 23.235 s; d24 8.153 s; sample-3 10.294 s. Sheet lan01/09 warm 51.726/42.033 s; lan28 3.499 s. Word COM và PowerPoint COM đều đo ẩn; Excel COM BLOCKED, đối chiếu chuyển đổi FODS bằng LibreOffice.
+IMPLEMENTATION SUMMARY: Thêm harness CDP đo content, editable và ảnh quick-view/full Sheet; thêm log stage cho soffice convert và import overlay dưới VNO_PERF_DEBUG. Sửa Sheet status hiển thị 99% sau khi model đã nạp thành 100%, kèm unit regression. Không áp dụng tối ưu tốc độ vì chưa chứng minh được đầu ra tương đương có fallback an toàn.
+FILES CHANGED: apps/sheet/sheet-quick-view.js; tests/unit/sheet-quick-view.test.js; scripts/perf-q42-open-warm.mjs; main.py; docs/PERF-OPEN-WARM-21-10.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge main` (Already up to date); CDP benchmark d01–d24, MYTIME, sample-3, lan01/09/28; Word/PowerPoint hidden COM tuần tự; LibreOffice FODS conversion; i18n parity; checklist evidence; `node tests/run-tests.js`; `npm test`; pytest chọn lọc; dirty-save DOCX 8 tệp; batch Sheet lan01–lan27 qua CDP/diff/lint với Excel COM bị chặn; `git diff --stat --ignore-cr-at-eol`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — node và npm 3790/3790; i18n 0 missing; checklist 0 dòng hạ; pytest 818 passed, 305 deselected; dirty-save DOCX 8/8 page delta 0. Sheet 26/27 có bản lưu, diffs=0 và lint sạch; lan14 FAIL sau 562.8 s không phản hồi CDP. Excel COM BLOCKED.
+GIAO DIỆN ĐÃ XEM: Đã xem ảnh lượt 1 của màn hình Writer d01–d24 và MYTIME, Slides sample-3, Sheet lan01/09/28, hộp lỗi d10, cùng ảnh Sheet 100% ổn định. Ghi nhận đè/chật trong nội dung tệp d03/d23, d12/d22, d20 và bìa d24; không phải lớp chrome app. lan14 không có ảnh ổn định vì renderer không phản hồi CDP.
+KNOWN FAILURES: lan14 dirty-save không hoàn tất, không có bản lưu; app/renderer không trả lời CDP sau 562.8 s và lượt test đã dừng theo PID sở hữu. d10 là PDF, không thể benchmark như DOCX. Không có PPTX thứ hai. Lượt Node đầu chạy chồng pytest cho 3789/3790; chạy lại tuần tự PASS 3790/3790.
+RISKS: Chưa đo before/after hoặc so hash FODS/trang/ảnh cho tối ưu hiệu năng vì không áp dụng tối ưu. Nội dung hiển thị một số DOCX có chỗ chồng/chật đã ghi trong báo cáo. Kết quả phụ thuộc máy và profile.
+DEPENDENCIES/BLOCKERS: Excel COM bị chặn theo quy tắc chung; đã dùng LibreOffice để đo convert-to FODS cho lan01/09/28. Không có core patch hay thay format.
+CORE PATCH ID (if any): None.
+COMMITS: `6000e3d7` (Sheet status 100%); `9d1be0a7` (benchmark harness); `b463bed0` (warm measurement correction); `976f72a1` (stage logging). Báo cáo và handoff sẽ được commit riêng.
+NEXT ACTION: Xem `docs/PERF-OPEN-WARM-21-10.md`; sau commit báo cáo/handoff tạo `E:\VNOffice-briefs\logs\Q42.DONE`.
