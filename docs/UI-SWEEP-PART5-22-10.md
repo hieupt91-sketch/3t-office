@@ -64,3 +64,11 @@ Tất cả ảnh được chụp ở 1366×768; các ảnh được xem trực t
 ## Handoff
 
 Phiếu vẫn mở vì các ma trận trong “Ma trận còn NOT RUN” chưa được thực hiện. Không tạo tệp Q50.DONE trước khi hoàn tất chúng, ghi số liệu pytest cuối, chạy lại gate sau mọi sửa đổi, rồi cập nhật báo cáo và handoff.
+
+### Xác nhận lại trong lượt tiếp nối — 22/10/2026
+
+- `git merge main`: **PASS — Already up to date**. Giữ nguyên thay đổi có trước của `tests/unit/writer-tables-import.test.js` và `.tmp/`.
+- Lần chạy CDP đầu thiếu `--experimental-websocket` nên dừng trước khi kết nối app (**FAIL môi trường chạy, không phải lỗi giao diện**). Chạy lại với cờ này: Pivot **5/5 PASS**; Kiểm tra dữ liệu lỗi **3/3 PASS**; Liên kết Slides **5/5 PASS**; trình chiếu F5 **14/14 PASS**. Mỗi lần chạy dùng `VNO_CDP_LOCALAPPDATA` riêng và chỉ đóng PID do `launchApp` tạo.
+- Chụp lại và xem ảnh Pivot invalid/valid, Kiểm tra dữ liệu, tab Chèn/hộp Liên kết, F5 idle/controls ở theme sáng/tối tại 1366×768. Hộp và nút không bị cắt; điều khiển F5 cách chân trang 5 px. Không phát hiện lỗi UI mới trong các ảnh này.
+- Gate vừa chạy: `npm test` **3792/3792 PASS**; i18n **3166/3166 VI/EN, missing 0/0, placeholder mismatch 0**; checklist evidence **0 dòng bị hạ** (279/217/269); pytest **795 passed, 345 deselected, 544.79s**.
+- Các mục chưa hoàn tất vẫn là **NOT RUN**: Enter trên toàn bộ hộp thoại, ma trận nhập sai toàn bộ trường số/tên, tooltip ba nút đầu mỗi tab × ba app, toast lưu/lỗi/sao chép, focus khi mở hộp bằng Tab, và rà từng hộp Sheet có xử lý thông báo lỗi. Chưa tạo `Q50.DONE`.
