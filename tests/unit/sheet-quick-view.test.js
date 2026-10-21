@@ -301,6 +301,17 @@ export async function runSheetQuickViewTests() {
     assert(status.children.length === 0 && /chép lại nội dung sửa/.test(status.textContent), "no button, preserve temporary edits before reopening");
   });
 
+  await test("P8 quick view reports 100 percent after full model load", () => {
+    let shellStatus = "";
+    const view = new SheetQuickView({ shell: { setStatus: text => { shellStatus = text; } } });
+    view.active = true;
+    view.root = {};
+    view.status = { textContent: "" };
+    view.updateProgress("Đã nạp đầy đủ", 100);
+    assert(view.status.textContent === "Đã nạp đầy đủ 100%", `quick-view status: ${view.status.textContent}`);
+    assert(shellStatus === "Đã nạp đầy đủ 100%", `application status: ${shellStatus}`);
+  });
+
   return results;
 }
 

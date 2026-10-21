@@ -762,7 +762,7 @@ export class SheetQuickView {
 
   updateProgress(message, percent) {
     if (!this.active && !this.root) return false;
-    const suffix = Number.isFinite(Number(percent)) ? ` ${Math.max(0, Math.min(99, Math.round(Number(percent))))}%` : "";
+    const suffix = Number.isFinite(Number(percent)) ? ` ${Math.max(0, Math.min(100, Math.round(Number(percent))))}%` : "";
     const text = `${String(message || "Chỉ đọc · đang nạp đầy đủ…").replace(/\s+\d+%\s*$/, "")}${suffix}`;
     if (this.status) this.status.textContent = text;
     this.shell?.setStatus?.(text);
