@@ -133,7 +133,7 @@ Các hộp Trang bìa, Chú thích trang, Hoàn tất Trộn thư và Soát lỗ
 - `node scripts/audit-0610/i18n_parity.mjs`: PASS — 0 khóa VI/EN còn thiếu, 0 placeholder mismatch; 20 khóa được công cụ đánh dấu nghi ngờ giống VI/EN.
 - `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS — 0 dòng bị hạ trong Word/Excel/Slides.
 - Checklist generators: PASS — Excel 217 mục, Slides 269 mục, Writer 279 mục; đã sinh lại cả ba checklist.
-- `python -m pytest tests -q -k "writer or sheet or slides or dialog or ribbon"`: PASS — 794 passed, 346 deselected, 558.17s.
+- `python -m pytest tests -q -k "writer or sheet or slides or dialog or ribbon"`: PASS — 794 passed, 346 deselected, 554.29s after the equation contrast fix.
 
 ## Tóm tắt
 
