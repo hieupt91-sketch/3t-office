@@ -6,6 +6,7 @@ import io
 import unittest
 import xml.etree.ElementTree as ET
 import zipfile
+from unittest import mock
 
 from adapters.libreoffice.common import ooxml_zip_patch as patcher
 
@@ -33,6 +34,25 @@ def fods(cell_xml: str) -> str:
 
 
 class SheetFormatCellsNativeTests(unittest.TestCase):
+    def test_repeated_native_cell_format_configs_reuse_serialized_attribute(self):
+        config = {"horizontalAlignment": "centerContinuous", "indentLevel": 3}
+        cells = [
+            '<table:table-cell table:style-name="ce1"><text:p>1</text:p></table:table-cell>',
+            '<table:table-cell table:style-name="ce1"><text:p>2</text:p></table:table-cell>',
+            '<table:table-cell table:style-name="ce1"><text:p>3</text:p></table:table-cell>',
+        ]
+        original_dumps = patcher.json.dumps
+        with mock.patch.dict("os.environ", {"VNO_XLSX_CACHE_NATIVE_CELL_FORMAT_ATTR": "1"}), mock.patch.object(
+            patcher.json, "dumps", wraps=original_dumps
+        ) as dumps:
+            actual = [patcher._set_native_cell_format_attr(cell, config) for cell in cells]
+        expected = [
+            patcher._set_native_cell_format_attr(cell, config)
+            for cell in cells
+        ]
+        self.assertEqual(expected, actual)
+        self.assertEqual(1, dumps.call_count, "identical style objects should serialize once")
+
     def test_structured_formula_candidate_check_ignores_brackets_outside_formula_tags(self):
         self.assertTrue(
             patcher._has_structured_formula_candidate(
