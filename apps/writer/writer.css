@@ -2761,6 +2761,28 @@ sup.vno-endnote-ref:hover {
   pointer-events: none;
 }
 
+[data-theme="dark"] .vno-footnote-item,
+[data-theme="dark"] .vno-endnote-item {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .vno-footnote-item:hover,
+[data-theme="dark"] .vno-endnote-item:hover {
+  background-color: #292929;
+}
+
+[data-theme="dark"] .vno-footnote-item .vno-note-num {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .vno-endnote-item .vno-note-num {
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .vno-note-text:empty:before {
+  color: #cbd5e1;
+}
+
 .vno-note-delete-btn {
   flex-shrink: 0;
   opacity: 0;
