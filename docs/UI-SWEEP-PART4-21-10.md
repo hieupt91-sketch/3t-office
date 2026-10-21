@@ -13,7 +13,7 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 | Đầu trang & Chân trang | ĐẠT về hiển thị, tối | Hộp gọn; các lựa chọn và nút Áp dụng/Hủy nằm trong khung. [Ảnh](assets/q49-ui/slides-header-footer-dark.png). |
 | Ngày & Giờ | ĐẠT về hiển thị, tối | Năm kiểu ngày/giờ có thể chọn; nút nằm trong khung. [Ảnh](assets/q49-ui/slides-date-time-dark.png). |
 | Ký hiệu | ĐẠT về hiển thị, tối | Các nhóm Ký hiệu thường dùng/Toán học/Mũi tên hiển thị đủ. [Ảnh](assets/q49-ui/slides-symbol-dark.png). |
-| Liên kết | NOT RUN | Chưa mở trong lượt này. |
+| Liên kết | NOT RUN — không mở được bằng chuột | Tab Chèn không có nút Liên kết; tìm “hyperlink” trong ô tìm tính năng cũng không trả kết quả. Không thể mở hộp thoại bằng chuột trong giao diện hiện có. [Sáng](assets/q49-ui/slides-link-search-light.png), [tối](assets/q49-ui/slides-link-search-dark.png). |
 | Tác vụ (Action) | ĐẠT về hiển thị, tối | Trên slide trống nút không mở hộp; sau khi chọn biểu đồ hộp Tác vụ khi nhấp mở đủ lựa chọn hành động, trang chiếu và địa chỉ web. [Ảnh](assets/q49-ui/slides-action-selected-context-dark.png). |
 | Soát lỗi chính tả | ĐẠT về hiển thị, tối | Hộp thông báo hoàn tất kiểm tra trang chiếu và nút Đóng hiển thị rõ. [Ảnh](assets/q49-ui/slides-spellcheck-dark.png). |
 | Chữ nghệ thuật | ĐẠT về hiển thị, tối | Ô nhập, 8 kiểu và hai nút nằm trong hộp. [Ảnh](assets/q49-ui/slides-wordart-dark.png). |
@@ -64,13 +64,14 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 | Nhập rỗng, âm, >1e9, chữ, 5000 ký tự, ký tự đặc biệt | NOT RUN. |
 | Tooltip 3 nút đầu mỗi tab | NOT RUN. |
 | Toast vị trí/thời lượng/che nút | NOT RUN có hệ thống. Đã nhìn thấy toast “Đang tải…” ở góc dưới phải trong vài ảnh; không đo thời gian hoặc che khuất. |
-| Chụp và xem | Đã xem 82 ảnh (liệt kê trong `docs/assets/q49-ui/`), toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
+| Chụp và xem | Đã xem 84 ảnh (liệt kê trong `docs/assets/q49-ui/`), toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
 
 ## Phát hiện và sửa
 
 - **Sheet — dịch tiêu đề Định dạng thành Bảng:** trước sửa CDP thấy `Format as Table` trong tiêu đề (**FAIL**); sửa chuỗi tiếng Việt và ảnh sau sửa không còn chuỗi tiếng Anh (**PASS**). Commit riêng `143cc50e` (`fix(sheet): translate format as table title`). Ảnh trước/sau trong thư mục trên.
-- **Writer — độ tương phản nút xác nhận Trộn thư:** trạng thái vô hiệu hóa ban đầu có opacity 0.45 (**FAIL**, khó đọc trên nền tối); CSS riêng của hộp đặt opacity 0.7, vẫn khóa nút cho tới khi xác nhận (**PASS**). CDP ghi nhận `disabled=true`, opacity 0.45 trước và 0.7 sau; ảnh sáng/tối trước/sau ở nhóm `writer-mailmerge-finish-*`. Commit riêng sau gate.
+- **Writer — độ tương phản nút xác nhận Trộn thư:** trạng thái vô hiệu hóa ban đầu có opacity 0.45 (**FAIL**, khó đọc trên nền tối); CSS riêng của hộp đặt opacity 0.7, vẫn khóa nút cho tới khi xác nhận (**PASS**). CDP ghi nhận `disabled=true`, opacity 0.45 trước và 0.7 sau; ảnh sáng/tối trước/sau ở nhóm `writer-mailmerge-finish-*`. Commit riêng `70993ad5` (`fix(writer): improve mail merge confirmation contrast`).
 - **Writer — placeholder Chú thích trang trong theme tối:** CDP trước sửa thấy màu `rgb(71, 85, 105)`, tương phản 2.20:1 trên giấy `rgb(30, 30, 30)` (**FAIL**); bounding box 562×22 px nằm trong vùng cha và không tràn. CSS tối đặt màu placeholder `rgb(203, 213, 225)` và màu nội dung rõ hơn; CDP sau sửa tương phản 11.23:1, cùng bounding box nằm gọn, `overflow=false` (**PASS**). Ảnh trước/sau sáng/tối ở nhóm `writer-footnote-*`. Commit riêng `8d125703` (`fix(writer): improve dark footnote contrast`).
+- **Slides — liên kết:** không thấy nút Liên kết trong tab Chèn; ô tìm tính năng với từ khóa “hyperlink” cũng không cho kết quả. Không thực hiện được kiểm tra dialog bằng chuột; ghi nhận thiếu điểm truy cập UI, chưa sửa vì cần xác định vị trí ribbon theo đúng phạm vi task. Ảnh sáng/tối tại `slides-link-search-*`.
 - **Slides — thanh điều khiển trình chiếu:** rê chuột không làm hiện thanh điều khiển; ghi nhận mức trung bình, chưa sửa vì cần xem xét hành vi.
 - **Sheet — nút tạo Pivot:** nút còn bật cùng thông báo vùng không hợp lệ; ghi nhận mức trung bình, chưa sửa.
 
