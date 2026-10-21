@@ -49,7 +49,7 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 | Mục lục tùy chỉnh | NOT RUN | Lệnh Mục lục tự động đã chèn khung trạng thái rỗng trực tiếp; chưa tìm thấy hộp tùy chỉnh. [Trạng thái sau lệnh](assets/q49-ui/writer-toc-light.png). |
 | Chú thích ảnh | ĐẠT về hiển thị, sáng | Nhãn, vị trí, nội dung và nút hiển thị rõ; hộp nhắc chưa chọn ảnh/bảng. [Ảnh](assets/q49-ui/writer-caption-light.png). |
 | Đầu trang/Chân trang tùy chọn | NOT RUN | Nút Đầu trang chèn mẫu trực tiếp, không mở hộp cấu hình. Ảnh thao tác [tại đây](assets/q49-ui/writer-header-menu-light.png). |
-| Chú thích cuối trang | NOT RUN | Chưa mở; lệnh có thể chèn nội dung trực tiếp. |
+| Chú thích cuối trang | ĐẠT về hiển thị, sáng và tối | Bấm Chú thích trang chèn số mốc và vùng nhập chú thích trực tiếp, không mở hộp thoại. Placeholder ban đầu có tương phản thấp trong theme tối; đã sửa và kiểm lại. [Sáng trước sửa](assets/q49-ui/writer-footnote-after-light.png), [tối trước sửa](assets/q49-ui/writer-footnote-after-dark.png), [sáng sau sửa](assets/q49-ui/writer-footnote-after-fix-light.png), [tối sau sửa](assets/q49-ui/writer-footnote-after-fix-dark.png). |
 | Ngăn chọn | ĐẠT về hiển thị, sáng | Panel bên phải có Hiện tất cả/Ẩn tất cả/Nhóm/Bỏ nhóm và trạng thái rỗng rõ. [Ảnh](assets/q49-ui/writer-selection-pane-light.png). |
 | Nguồn Trộn thư | ĐẠT về hiển thị, sáng | Hộp nguồn có các lựa chọn tệp/CSV/thủ công/dữ liệu mẫu, không gọi bộ chọn hệ điều hành. [Ảnh](assets/q49-ui/writer-mailmerge-source-light.png). |
 | Hoàn tất Trộn thư | ĐẠT về hiển thị, sáng và tối | Nạp bộ dữ liệu mẫu (3 bản ghi/5 trường), lưu nguồn và chèn trường HọTên để mở hộp hoàn tất. Hộp yêu cầu xác nhận trước khi thay tài liệu; chưa thực thi trộn. [Nguồn mẫu](assets/q49-ui/writer-mailmerge-sample-light.png), [hộp sáng](assets/q49-ui/writer-mailmerge-finish-with-field-light.png), [hộp tối trước sửa](assets/q49-ui/writer-mailmerge-finish-dark.png), [hộp tối sau sửa](assets/q49-ui/writer-mailmerge-finish-after-dark.png), [sáng sau sửa](assets/q49-ui/writer-mailmerge-finish-after-light.png). |
@@ -64,12 +64,13 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 | Nhập rỗng, âm, >1e9, chữ, 5000 ký tự, ký tự đặc biệt | NOT RUN. |
 | Tooltip 3 nút đầu mỗi tab | NOT RUN. |
 | Toast vị trí/thời lượng/che nút | NOT RUN có hệ thống. Đã nhìn thấy toast “Đang tải…” ở góc dưới phải trong vài ảnh; không đo thời gian hoặc che khuất. |
-| Chụp và xem | Đã xem 78 ảnh (liệt kê trong `docs/assets/q49-ui/`), toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
+| Chụp và xem | Đã xem 82 ảnh (liệt kê trong `docs/assets/q49-ui/`), toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
 
 ## Phát hiện và sửa
 
 - **Sheet — dịch tiêu đề Định dạng thành Bảng:** trước sửa CDP thấy `Format as Table` trong tiêu đề (**FAIL**); sửa chuỗi tiếng Việt và ảnh sau sửa không còn chuỗi tiếng Anh (**PASS**). Commit riêng `143cc50e` (`fix(sheet): translate format as table title`). Ảnh trước/sau trong thư mục trên.
 - **Writer — độ tương phản nút xác nhận Trộn thư:** trạng thái vô hiệu hóa ban đầu có opacity 0.45 (**FAIL**, khó đọc trên nền tối); CSS riêng của hộp đặt opacity 0.7, vẫn khóa nút cho tới khi xác nhận (**PASS**). CDP ghi nhận `disabled=true`, opacity 0.45 trước và 0.7 sau; ảnh sáng/tối trước/sau ở nhóm `writer-mailmerge-finish-*`. Commit riêng sau gate.
+- **Writer — placeholder Chú thích trang trong theme tối:** CDP trước sửa thấy màu `rgb(71, 85, 105)`, tương phản 2.20:1 trên giấy `rgb(30, 30, 30)` (**FAIL**); bounding box 562×22 px nằm trong vùng cha và không tràn. CSS tối đặt màu placeholder `rgb(203, 213, 225)` và màu nội dung rõ hơn; CDP sau sửa tương phản 11.23:1, cùng bounding box nằm gọn, `overflow=false` (**PASS**). Ảnh trước/sau sáng/tối ở nhóm `writer-footnote-*`. Commit riêng `8d125703` (`fix(writer): improve dark footnote contrast`).
 - **Slides — thanh điều khiển trình chiếu:** rê chuột không làm hiện thanh điều khiển; ghi nhận mức trung bình, chưa sửa vì cần xem xét hành vi.
 - **Sheet — nút tạo Pivot:** nút còn bật cùng thông báo vùng không hợp lệ; ghi nhận mức trung bình, chưa sửa.
 
@@ -79,8 +80,8 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 - `node scripts/audit-0610/i18n_parity.mjs`: PASS — 0 khóa VI/EN còn thiếu, 0 placeholder mismatch; 20 khóa được công cụ đánh dấu nghi ngờ giống VI/EN.
 - `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS — 0 dòng bị hạ trong Word/Excel/Slides.
 - Checklist generators: PASS — Excel 217 mục, Slides 269 mục, Writer 279 mục; đã sinh lại cả ba checklist.
-- `python -m pytest tests -q -k "writer or sheet or slides or dialog or ribbon"`: PASS — 794 passed, 346 deselected, 545.24s.
+- `python -m pytest tests -q -k "writer or sheet or slides or dialog or ribbon"`: PASS — 794 passed, 346 deselected, 558.17s.
 
 ## Tóm tắt
 
-Phiên này hoàn thành một phần rà soát trực quan, một sửa dịch Sheet và một sửa tương phản nhỏ cho nút xác nhận Trộn thư; cả hai có CDP FAIL/PASS trước/sau. Nhiều hạng mục trong backlog, ma trận bàn phím và giá trị sai còn **NOT RUN**; không kết luận toàn bộ Q49 đạt.
+Phiên này hoàn thành một phần rà soát trực quan, một sửa dịch Sheet và hai sửa tương phản nhỏ cho nút xác nhận Trộn thư và vùng nhập chú thích tối; cả ba sửa có CDP FAIL/PASS trước/sau. Nhiều hạng mục trong backlog, ma trận bàn phím và giá trị sai còn **NOT RUN**; không kết luận toàn bộ Q49 đạt.
