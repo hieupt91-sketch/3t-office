@@ -43,7 +43,14 @@ try {
       const contrastPass = target.name !== "equation" || theme !== "dark" || state.contrast >= 4.5;
       results.push({ target: target.name, theme, inBounds, contrastPass, pass: inBounds && contrastPass, ...state, filename });
       console.log(`${inBounds && contrastPass ? "PASS" : "FAIL"} | ${target.name} | ${theme} | ${JSON.stringify(state)} | ${filename}`);
+      const focusBefore = await session.cdp.evaluate(`(() => { const e=document.activeElement; return {tag:e?.tagName||null,id:e?.id||null,label:(e?.getAttribute('aria-label')||e?.innerText||e?.value||'').trim().slice(0,80)}; })()`);
+      await press(session.cdp, "Tab");
+      const focusAfterTab = await session.cdp.evaluate(`(() => { const e=document.activeElement; return {tag:e?.tagName||null,id:e?.id||null,label:(e?.getAttribute('aria-label')||e?.innerText||e?.value||'').trim().slice(0,80)}; })()`);
+      await press(session.cdp, "Tab", { shift: true });
+      const focusAfterShiftTab = await session.cdp.evaluate(`(() => { const e=document.activeElement; return {tag:e?.tagName||null,id:e?.id||null,label:(e?.getAttribute('aria-label')||e?.innerText||e?.value||'').trim().slice(0,80)}; })()`);
       await press(session.cdp, "Escape");
+      const keyboardState = await session.cdp.evaluate(`(() => ({dialogOpen:[...document.querySelectorAll('[role="dialog"],.vno-dialog-overlay,.vno-modal')].some(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0}), focus:(()=>{const e=document.activeElement;return {tag:e?.tagName||null,id:e?.id||null,label:(e?.getAttribute('aria-label')||e?.innerText||e?.value||'').trim().slice(0,80)}})()}))()`);
+      console.log(`KEYBOARD | ${target.name} | ${theme} | ${JSON.stringify({focusBefore,focusAfterTab,focusAfterShiftTab,...keyboardState})}`);
       await sleep(150);
     }
   }

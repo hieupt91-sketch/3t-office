@@ -36,7 +36,7 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 | Launcher Font / Căn chỉnh / Số | ĐẠT về hiển thị, tối | Launcher Font và Số mở tab Số; launcher Căn chỉnh mở đúng tab. Các hộp vừa cửa sổ. [Font](assets/q49-ui/sheet-font-launcher-dark.png), [Căn chỉnh](assets/q49-ui/sheet-alignment-launcher-dark.png), [Số](assets/q49-ui/sheet-number-launcher-dark.png). |
 | Lề tùy chỉnh | ĐẠT về hiển thị, tối | Sáu trường lề, căn giữa và nút dưới cùng đều thấy. [Ảnh](assets/q49-ui/sheet-custom-margins-dark.png). |
 | Khổ giấy tùy chỉnh | ĐẠT về hiển thị, tối | Hộp có thanh cuộn nội bộ và nút Hủy/Áp dụng cố định. [Ảnh](assets/q49-ui/sheet-custom-paper-size-dark.png). |
-| Tab/Enter/Esc từng hộp; thử nhập sai; light mode của các hộp dài | NOT RUN | Chưa chạy ma trận bàn phím/giá trị lỗi; không kết luận đạt. |
+| Tab/Shift+Tab/Esc cho 10 hộp, hai theme | ĐÃ KIỂM MỘT BƯỚC | Tab chuyển sang control kế tiếp, Shift+Tab quay về control ban đầu, Esc đóng hộp ở 20/20 trạng thái. Focus sau đóng nằm ở lưới, không về nút kích hoạt. Enter và nhập sai vẫn NOT RUN. |
 
 ### Writer
 
@@ -60,11 +60,21 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 
 | Hạng mục | Trạng thái |
 |---|---|
-| Tab/Shift+Tab, Esc, Enter, focus trả về nút kích hoạt trên mọi hộp | NOT RUN có hệ thống; đã lấy mẫu hộp Chèn Bảng: Tab chuyển hàng→cột→Hủy→Chèn, Shift+Tab quay lại; Enter xác nhận và Esc đóng hộp nhưng focus đều ở canvas (`.vno-slide-canvas`) thay vì nút mở (**FAIL**). Chưa kiểm trên các hộp khác. [Sau Enter sáng](assets/q49-ui/slides-table-enter-confirm-light.png), [tối](assets/q49-ui/slides-table-enter-confirm-dark.png). |
+| Enter/focus trở về nút kích hoạt trên mọi hộp | Chưa đạt đủ; hộp Chèn Bảng đã lấy mẫu: Tab chuyển hàng→cột→Hủy→Chèn, Shift+Tab quay lại; Enter xác nhận và Esc đóng hộp nhưng focus đều ở canvas (`.vno-slide-canvas`) thay vì nút mở (**FAIL**). Bài bổ sung đã thử một bước Tab/Shift+Tab và Esc trên 7 hộp × 2 theme: vòng một bước đúng, Esc đóng 14/14, focus vẫn ở canvas (**FAIL**). Enter các hộp còn lại NOT RUN. [Sau Enter sáng](assets/q49-ui/slides-table-enter-confirm-light.png), [tối](assets/q49-ui/slides-table-enter-confirm-dark.png). |
 | Nhập rỗng, âm, >1e9, chữ, 5000 ký tự, ký tự đặc biệt | KIỂM TRA MỘT PHẦN — hộp Chèn Bảng | Ô số hàng cho phép rỗng (`valid=true`), âm và >1e9 (range invalid) nhưng nút Chèn vẫn bật; chữ bị ô số bỏ qua. 5000 chữ số tạo `badInput=true`, không crash; ô cuộn ngang trong khung nhưng nút Chèn vẫn bật. Không bấm Chèn ở giá trị sai; ký tự đặc biệt và các hộp khác NOT RUN. [Giá trị >1e9 sáng](assets/q49-ui/slides-table-invalid-large-light.png), [tối](assets/q49-ui/slides-table-invalid-large-dark.png), [5000 ký tự tối](assets/q49-ui/slides-table-5000-input-dark.png). |
 | Tooltip 3 nút đầu mỗi tab | NOT RUN. |
 | Toast vị trí/thời lượng/che nút | NOT RUN có hệ thống. Đã nhìn thấy toast “Đang tải…” ở góc dưới phải trong vài ảnh; không đo thời gian hoặc che khuất. |
 | Chụp và xem | Đã xem 136 ảnh trong `docs/assets/q49-ui/`, toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
+
+### Bổ sung ma trận bàn phím một bước — 22/10/2026
+
+| Ứng dụng / hộp đã mở bằng chuột | Trạng thái CDP | Kết quả focus sau Esc | Ảnh giao diện |
+|---|---:|---|---|
+| Slides: 7 hộp × sáng/tối | 14 trạng thái | Tab tới control kế; Shift+Tab quay lại control ban đầu; Esc đóng 14/14. Focus chuyển về vùng trình chiếu, không về nút mở (**FAIL**, trung bình). | Ảnh hai theme đã chụp/xem trong các bảng Slides. |
+| Sheet: 10 hộp × sáng/tối | 20 trạng thái | Tab tới control kế; Shift+Tab quay lại control ban đầu; Esc đóng 20/20. Focus chuyển về lưới, không về nút mở (**FAIL**, trung bình). | Ảnh hai theme đã chụp/xem trong các bảng Sheet. |
+| Writer: 6 hộp × sáng/tối | 12 trạng thái | Tab tới control kế; Shift+Tab quay lại control ban đầu; Esc đóng 12/12. Focus chuyển về vùng soạn thảo, không về nút mở (**FAIL**, trung bình). | Ảnh hai theme đã chụp/xem trong các bảng Writer. |
+
+Đây là phép thử một bước Tab/Shift+Tab, không xác nhận toàn bộ thứ tự focus trong hộp. Chỉ Enter trên hộp Chèn Bảng Slides đã được thử trước đó; Enter cho các hộp còn lại, bộ giá trị nhập sai, tooltip và thời lượng/toạ độ toast vẫn NOT RUN. Không sửa focus vì cần thay đổi hành vi keyboard.
 
 ### Bổ sung kiểm tra trực tiếp qua chuột — Slides
 
