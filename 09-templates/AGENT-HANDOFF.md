@@ -1141,3 +1141,25 @@ DEPENDENCIES/BLOCKERS: Tiếp tục Q50 ma trận NOT RUN; chụp và xem ảnh 
 CORE PATCH ID (if any): None.
 GIAO DIEN DA XEM: Đã xem ảnh Pivot invalid/valid, Kiểm tra dữ liệu invalid, 16 ảnh Sheet blank-Apply, thông báo Sắp xếp tùy chỉnh sáng/tối trước/sau, tab Chèn/hộp Liên kết, F5 và smoke ba app ở sáng/tối; 46 ảnh Enter qua contact sheet; contact sheet 38 tab ribbon; notification InfoBar success/error/info của ba app sáng/tối (18 ảnh); sáu ảnh focus trước/sau của hộp mở bằng Tab + Enter (ba nút ribbon có viền focus rõ). Ảnh trong `docs/assets/q50-ui/`. Không thấy cắt/tràn trong các màn hình đã xem; thanh F5 cách chân trang 5 px, InfoBar nằm dưới ribbon.
 NEXT ACTION: Tiếp tục các NOT RUN trong `docs/UI-SWEEP-PART5-22-10.md`; chỉ tạo `E:\VNOffice-briefs\logs\Q50.DONE` sau khi hoàn tất.
+
+
+## Q50 — Handoff cuối 22/10/2026
+
+TASK: Q50 — hoàn tất rà soát giao diện phần 5.
+AGENT/ROLE: Codex / Windows desktop CDP.
+BRANCH: codex/queue-19-10.
+WORKTREE: E:\VNOffice-codex-queue.
+OBJECTIVE: Xử lý các lỗi trung bình và hoàn tất các mục NOT RUN theo phạm vi phiếu.
+FINDINGS: Ma trận trước sửa FAIL 26 ca; sau sửa 27 trường/111 ca/5 kiểm tra Enter invalid PASS. Tooltip 107/107, Enter 23/23, focus 3/3, F5 14/14, Liên kết Slides 5/5.
+IMPLEMENTATION SUMMARY: Bổ sung kiểm tra định dạng, khoảng giá trị và số nguyên; hiển thị lỗi, khóa nút hành động và ngăn Enter commit khi invalid. Không có toast tạm thời Save/Copy hiện tại; thời lượng tự tắt N/A, InfoBar 18/18.
+FILES CHANGED: Sheet/Slides dialog, i18n VI/EN, CDP matrix test, 20 before/after screenshots, checklist and Q50 report.
+COMMITS: 9fecdcb0 implementation + CDP; documentation commit follows in this handoff.
+COMMANDS RUN: `git merge main`; CDP before/after; Node suite; i18n parity; checklist evidence; three checklist generators; focused pytest; `git diff --check`.
+BUILD RESULT: NOT RUN — no build gate specified for this UI validation task.
+TEST RESULTS: PASS — Node 3792/3792; CDP 27 fields/111 cases/0 failures; i18n 3170 VI/EN, 0 missing; checklist 0 downgraded rows (279/217/269); pytest 795 passed/345 deselected/549.11s.
+KNOWN FAILURES: None among Q50 requirements; transient toast timing N/A because no Save/Copy transient toast exists.
+RISKS: No upstream/core change.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: 20 invalid-input screenshots in docs/assets/q50-ui at 1366x768, light/dark, before/after; additionally 46 Enter, 38 ribbon, 18 InfoBar, 16 Sheet dialog error and 6 focus screenshots reviewed. No clipping/overflow/overlap observed. High 1/1 fixed; medium 7/7 fixed; remaining low 0; NOT RUN 0.
+NEXT ACTION: Q50 complete.
