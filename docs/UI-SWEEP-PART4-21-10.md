@@ -60,11 +60,11 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 
 | Hạng mục | Trạng thái |
 |---|---|
-| Tab/Shift+Tab, Esc, Enter, focus trả về nút kích hoạt trên mọi hộp | NOT RUN có hệ thống; đã lấy mẫu hộp Chèn Bảng: Tab chuyển từ hàng sang cột, Shift+Tab quay lại, Esc đóng hộp nhưng focus rơi vào canvas (`.vno-slide-canvas`) thay vì nút mở (FAIL). Chưa chạy Enter hoặc các hộp khác. Hộp mẫu: [ảnh](assets/q49-ui/slides-table-context-insert-light.png). |
-| Nhập rỗng, âm, >1e9, chữ, 5000 ký tự, ký tự đặc biệt | NOT RUN. |
+| Tab/Shift+Tab, Esc, Enter, focus trả về nút kích hoạt trên mọi hộp | NOT RUN có hệ thống; đã lấy mẫu hộp Chèn Bảng: Tab chuyển hàng→cột→Hủy→Chèn, Shift+Tab quay lại; Enter xác nhận và Esc đóng hộp nhưng focus đều ở canvas (`.vno-slide-canvas`) thay vì nút mở (**FAIL**). Chưa kiểm trên các hộp khác. [Sau Enter sáng](assets/q49-ui/slides-table-enter-confirm-light.png), [tối](assets/q49-ui/slides-table-enter-confirm-dark.png). |
+| Nhập rỗng, âm, >1e9, chữ, 5000 ký tự, ký tự đặc biệt | KIỂM TRA MỘT PHẦN — hộp Chèn Bảng | Ô số hàng cho phép rỗng (`valid=true`), âm và >1e9 (range invalid) nhưng nút Chèn vẫn bật; chữ bị ô số bỏ qua. 5000 chữ số tạo `badInput=true`, không crash; ô cuộn ngang trong khung nhưng nút Chèn vẫn bật. Không bấm Chèn ở giá trị sai; ký tự đặc biệt và các hộp khác NOT RUN. [Giá trị >1e9 sáng](assets/q49-ui/slides-table-invalid-large-light.png), [tối](assets/q49-ui/slides-table-invalid-large-dark.png), [5000 ký tự tối](assets/q49-ui/slides-table-5000-input-dark.png). |
 | Tooltip 3 nút đầu mỗi tab | NOT RUN. |
 | Toast vị trí/thời lượng/che nút | NOT RUN có hệ thống. Đã nhìn thấy toast “Đang tải…” ở góc dưới phải trong vài ảnh; không đo thời gian hoặc che khuất. |
-| Chụp và xem | Đã xem 84 ảnh (liệt kê trong `docs/assets/q49-ui/`), toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
+| Chụp và xem | Đã xem 89 ảnh (liệt kê trong `docs/assets/q49-ui/`), toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
 
 ## Phát hiện và sửa
 
@@ -72,6 +72,7 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 - **Writer — độ tương phản nút xác nhận Trộn thư:** trạng thái vô hiệu hóa ban đầu có opacity 0.45 (**FAIL**, khó đọc trên nền tối); CSS riêng của hộp đặt opacity 0.7, vẫn khóa nút cho tới khi xác nhận (**PASS**). CDP ghi nhận `disabled=true`, opacity 0.45 trước và 0.7 sau; ảnh sáng/tối trước/sau ở nhóm `writer-mailmerge-finish-*`. Commit riêng `70993ad5` (`fix(writer): improve mail merge confirmation contrast`).
 - **Writer — placeholder Chú thích trang trong theme tối:** CDP trước sửa thấy màu `rgb(71, 85, 105)`, tương phản 2.20:1 trên giấy `rgb(30, 30, 30)` (**FAIL**); bounding box 562×22 px nằm trong vùng cha và không tràn. CSS tối đặt màu placeholder `rgb(203, 213, 225)` và màu nội dung rõ hơn; CDP sau sửa tương phản 11.23:1, cùng bounding box nằm gọn, `overflow=false` (**PASS**). Ảnh trước/sau sáng/tối ở nhóm `writer-footnote-*`. Commit riêng `8d125703` (`fix(writer): improve dark footnote contrast`).
 - **Slides — liên kết:** không thấy nút Liên kết trong tab Chèn; ô tìm tính năng với từ khóa “hyperlink” cũng không cho kết quả. Không thực hiện được kiểm tra dialog bằng chuột; ghi nhận thiếu điểm truy cập UI, chưa sửa vì cần xác định vị trí ribbon theo đúng phạm vi task. Ảnh sáng/tối tại `slides-link-search-*`.
+- **Slides — hộp Chèn Bảng:** với `1000000001`, DOM báo `valid=false` nhưng nút Chèn vẫn bật ở cả sáng/tối; blank, âm và 5000 chữ số cũng không khóa nút. Không thử xác nhận số lớn. Ghi nhận mức trung bình vì cần đổi quy tắc validation. Bấm Enter với mặc định 3×3 chèn bảng đè lên placeholder “Bấm để thêm văn bản”; focus sau Enter/Esc ở canvas, không trở về nút kích hoạt. Ảnh trạng thái sau Enter sáng/tối. Chưa sửa vì cần thay hành vi.
 - **Slides — thanh điều khiển trình chiếu:** rê chuột không làm hiện thanh điều khiển; ghi nhận mức trung bình, chưa sửa vì cần xem xét hành vi.
 - **Sheet — nút tạo Pivot:** nút còn bật cùng thông báo vùng không hợp lệ; ghi nhận mức trung bình, chưa sửa.
 
@@ -85,4 +86,4 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 
 ## Tóm tắt
 
-Phiên này hoàn thành một phần rà soát trực quan, một sửa dịch Sheet và hai sửa tương phản nhỏ cho nút xác nhận Trộn thư và vùng nhập chú thích tối; cả ba sửa có CDP FAIL/PASS trước/sau. Nhiều hạng mục trong backlog, ma trận bàn phím và giá trị sai còn **NOT RUN**; không kết luận toàn bộ Q49 đạt.
+Phiên này hoàn thành một phần rà soát trực quan, một sửa dịch Sheet, hai sửa tương phản nhỏ cho nút xác nhận Trộn thư và vùng nhập chú thích tối; ba sửa có CDP FAIL/PASS trước/sau. Sweep còn ghi nhận validation/focus và điểm truy cập Liên kết cần xử lý riêng. Nhiều hạng mục trong backlog, ma trận bàn phím và giá trị sai còn **NOT RUN**; không kết luận toàn bộ Q49 đạt.
