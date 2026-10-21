@@ -21545,7 +21545,9 @@ export class SheetGridController {
         }
       }
     };
+    let errorObserver = null;
     const close = () => {
+      errorObserver?.disconnect();
       document.removeEventListener("keydown", onKey);
       overlay.remove();
       if (previousActive && typeof previousActive.focus === "function") {
@@ -21555,6 +21557,26 @@ export class SheetGridController {
     overlay.closeDialog = close;
     overlay.querySelector(".vno-rule-close").addEventListener("click", close);
     overlay.querySelector(".vno-rule-cancel").addEventListener("click", close);
+    const applyButton = overlay.querySelector(".vno-rule-apply");
+    const validationErrors = [...overlay.querySelectorAll('[role="alert"]')];
+    const syncValidationState = () => {
+      const firstError = validationErrors.find(error => error.textContent.trim());
+      const hasError = Boolean(firstError);
+      applyButton.disabled = hasError;
+      applyButton.setAttribute("aria-disabled", String(hasError));
+      applyButton.title = hasError ? t("sheetDialogs.resolveErrorToContinue", "Sửa lỗi trước khi áp dụng.") : "";
+      if (firstError) firstError.scrollIntoView({ block: "nearest" });
+    };
+    errorObserver = new MutationObserver(syncValidationState);
+    validationErrors.forEach(error => errorObserver.observe(error, { childList: true, characterData: true, subtree: true }));
+    overlay.addEventListener("input", () => {
+      validationErrors.forEach(error => { error.textContent = ""; error.style.color = ""; });
+      syncValidationState();
+    });
+    overlay.addEventListener("change", () => {
+      validationErrors.forEach(error => { error.textContent = ""; error.style.color = ""; });
+      syncValidationState();
+    });
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) close();
     });
