@@ -1038,3 +1038,26 @@ DEPENDENCIES/BLOCKERS: Excel COM BLOCKED theo quy tắc ticket, dùng LibreOffic
 CORE PATCH ID (if any): None.
 COMMITS: `e8b27448` plan; `181d58cf` regression đỏ; `7c014405` implementation; `cef7dd87` screenshot verifier; report/handoff commit sẽ được ghi sau.
 NEXT ACTION: Đọc `docs/PERF-Q43-OVERLAY.md`; sau commit báo cáo/handoff tạo `E:\VNOffice-briefs\logs\Q43.DONE`.
+
+---
+
+# Agent Handoff
+TASK: Q45 — kiểm thử mã hóa, tối ưu Writer normalize HTML và đo Slides sample-3
+AGENT/ROLE: Codex / Writer + Slides performance QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Đưa kiểm thử mã hóa Writer dưới 60 giây; giảm thời gian mở MYTIME.docx và sample-3.pptx bằng tối ưu có fallback, giữ nguyên đầu ra và xác minh DOCX/PPTX bằng CDP.
+FINDINGS: Mượn warm profile seed tùy chọn qua VNO_TEST_SO_PROFILE_WRITER/SHEET/SLIDES và dùng fixture scope=module đưa mã hóa 3/3 xuống 56.14 s. Writer batch các lần nối HTML lặp trong chuẩn hóa bảng; warm MYTIME editable min/median/max giảm 24.61/24.81/25.02 xuống 18.20/18.29/21.51 s, nhưng mục tiêu <=15 s chưa đạt. Slides không đổi mã; sample-3 warm 3 lượt 12.501/12.550/12.593 s, mục tiêu <=7 s chưa đạt.
+IMPLEMENTATION SUMMARY: Writer dùng batch splice cho paragraph map, cell font size và column geometry; fallback còn qua globalThis.__VNO_WRITER_BATCH_HTML=false hoặc __VNO_OPEN_LEGACY=true. Bổ sung equality coverage. Mã hóa dùng seed profile nếu được cung cấp; vẫn kiểm tra tệp đầu ra mã hóa bằng COM ẩn, nhưng bỏ hai lượt COM điều khiển plaintext không liên quan.
+FILES CHANGED: adapters/libreoffice/writer/writer-adapter.js; tests/unit/writer-tabs-tables-agy.test.js; tests/unit/writer-doc-font-spacing.test.js; tests/test_ooxml_encryption_roundtrip.py; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: git merge main (Already up to date); node tests/run-tests.js; npm test; i18n_parity; verify_checklist_evidence; pytest -k "writer or slides or docx or pptx or encryption"; encryption roundtrip; CDP warm-open Writer/Slides; batch_document_audit 8 DOCX; CDP PPTX roundtrip sample-3; screenshot capture and review.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — node/npm 3791/3791; i18n VI=3153/EN=3153, missing=0; checklist evidence 0 dòng hạ; pytest 492 passed, 639 deselected; encryption 3/3 in 56.14 s; DOCX audit 8/8 page delta=0/edit PASS; direct Slides roundtrip loaded/saved 10 slides. Slides batch audit BLOCKED: scripts/layout-audit/_batch_pptx.py:run_batch không có trong checkout. Chỉ một PPTX (sample-3) có trong thư mục nguồn.
+PERFORMANCE: MYTIME warm baseline min/median/max 24.61/24.81/25.02 s; after 18.20/18.29/21.51 s; mục tiêu <=15 s NOT MET. Slides warm measured min/median/max 12.501/12.550/12.593 s; không có thay đổi Slides nên đây không phải before/after; mục tiêu <=7 s NOT MET. So sánh hash/FODT/HTML, số trang và DOM body cho 24 DOCX + MYTIME NOT RUN; chỉ xác nhận helper HTML ba bước bằng nhau trên MYTIME. FODP output hash sample-3 ghi trong Q45.DONE, chưa so với baseline hash.
+GIAO DIỆN ĐÃ XEM: 8 ảnh DOCX (d05,d03,d23,d14,d11,d19,d02,d17) tại E:\VNOffice-briefs\runs\q45-roundtrip-docx; Slides sample-3 tại E:\VNOffice-briefs\runs\q45-slides-final-4lap và ảnh settled. Ribbon/status bar nằm trong viewport; nội dung trang chiếu ở mép dưới cần cuộn. Ảnh lap 2/3 ban đầu đen do chụp quá sớm, ảnh chờ render 2 giây hiển thị bình thường. Writer screenshots cho thấy nội dung tài liệu dài chạm vùng cuộn/status theo vị trí trang, không có lỗi chrome mới xác định.
+KNOWN FAILURES: Hai mục tiêu hiệu năng chưa đạt. Batch PPTX hook thiếu. Hash/output parity trên bộ 24 DOCX và trước/sau Slides chưa hoàn tất. Test audit batch không tạo screenshot trong lượt chạy; ảnh giao diện đã chụp lại riêng cho từng DOCX sau đó.
+RISKS: Thay đổi performance chỉ ảnh hưởng đường batch có fallback; kiểm chứng tương đương toàn bộ corpus còn thiếu. Thay phạm vi COM trong test encryption loại bỏ hai lượt đối chứng plaintext, còn bước mở đầu ra mã hóa được giữ. Benchmark phụ thuộc máy/profile. Không có core patch, format semantic change hay i18n change.
+DEPENDENCIES/BLOCKERS: Memory feedback_open_speed_bench_warm_profile không khả dụng trong phiên; dùng nội dung brief/script còn lại. PPTX audit hook CH-5 chưa có. Office COM Excel bị chặn theo quy tắc chung.
+CORE PATCH ID (if any): None.
+COMMITS: 6df7e416 (Writer paragraph batch); 635cd19f (Writer HTML normalization batches); f1a276a5 (warm profile encryption tests); handoff commit sẽ được ghi sau.
+NEXT ACTION: Nếu cần đạt ngưỡng hiệu năng, tiếp tục điều tra phần MYTIME còn lại và Slides convert stage; trước khi chấp nhận tối ưu, chạy parity full corpus 24 DOCX + MYTIME và kiểm tra FODP/slide/hash.
