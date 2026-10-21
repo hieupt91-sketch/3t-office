@@ -1458,6 +1458,25 @@ def _persistent_writer_html_safe(source_path: str, app_kind: str | None, target_
     return True
 
 
+def _writer_initial_open_requires_cli(source_path: str | None) -> bool:
+    """Avoid starting a Writer UNO worker when this DOCX must use the CLI fallback."""
+    if os.environ.get("VNO_WRITER_SKIP_UNSAFE_PREWARM", "1").strip().lower() in {"0", "false", "off", "no"}:
+        return False
+    if not source_path or Path(source_path).suffix.lower() != ".docx":
+        return False
+    return not _persistent_writer_html_safe(source_path, "writer", "html")
+
+
+def _initial_open_skips_engine_prewarm(app_kind: str | None, source_path: str | None) -> bool:
+    if app_kind == "writer":
+        return _writer_initial_open_requires_cli(source_path)
+    if app_kind == "slides" and source_path:
+        if os.environ.get("VNO_SLIDES_SKIP_UNUSED_PREWARM", "1").strip().lower() in {"0", "false", "off", "no"}:
+            return False
+        return Path(source_path).suffix.lower() in {".pptx", ".odp"}
+    return False
+
+
 _PRINT_CONTEXT = threading.local()
 
 
@@ -3263,6 +3282,17 @@ def _notify_document_open_progress(api=None) -> None:
         pass
 
 
+def _notify_document_open_failed(api=None) -> None:
+    """Clear the shared progress state when a selected file cannot be opened."""
+    window = _active_window(api)
+    if not window:
+        return
+    try:
+        window.evaluate_js("window.dispatchEvent(new Event('vno:document-open-failed'))")
+    except Exception:
+        pass
+
+
 def _notify_sheet_open_progress(message: str, start_timing: bool = False, api=None) -> None:
     """Update the Sheet status line while the desktop bridge converts a file."""
     window = _active_window(api)
@@ -3990,10 +4020,17 @@ class VnOfficeApi:
                 _ERROR_REPORT_CONTEXT.failure_reported = False
 
     def open_document_dialog(self, app_kind="writer", source_path=None, password=None):
-        self._start_document_engine()
-        return self._invoke_reported_api(
+        initial_open_path = source_path or getattr(self, "_initial_file", None)
+        if not _initial_open_skips_engine_prewarm(app_kind, initial_open_path):
+            self._start_document_engine()
+        else:
+            _open_perf_log("worker_prestart_skipped", app=app_kind, reason="open-uses-cli")
+        result = self._invoke_reported_api(
             "open_document_dialog", self._open_document_dialog_impl, app_kind, source_path, password
         )
+        if isinstance(result, dict) and result.get("status") not in {"ok", "cancelled"}:
+            _notify_document_open_failed(self)
+        return result
 
     def open_writer_reference_document(self):
         """Đọc một tài liệu tham chiếu cho So sánh/Gộp mà không đổi tài liệu hiện tại."""
@@ -4776,12 +4813,19 @@ class VnOfficeApi:
         # profile and UNO pipe setup can overlap with editing instead of blocking
         # the first print preview. Set VNO_PRINT_PREWARM_WORKER=0 to restore the
         # previous lazy-on-first-use behavior.
+        writer_cli_fallback = (
+            self._app_kind == "writer"
+            and _writer_initial_open_requires_cli(getattr(self, "_initial_file", None))
+        )
         if (
             self._app_kind == "writer"
             and os.environ.get("VNO_PRINT_PREWARM_WORKER", "1").strip().lower()
             not in {"0", "false", "off", "no"}
+            and not writer_cli_fallback
         ):
             self._start_document_engine()
+        elif writer_cli_fallback:
+            _open_perf_log("worker_prestart_skipped", app="writer", reason="docx-cli-fallback")
         return {"started": True}
 
     def _start_document_engine(self):
@@ -6000,8 +6044,10 @@ def main(argv: list[str] | None = None):
 
     # For a launch that already names a file, overlap the required document engine
     # startup with WebView2 creation. Blank launches still defer it until first paint.
-    if initial_file:
+    if initial_file and not _initial_open_skips_engine_prewarm(app_kind, initial_file):
         api._start_document_engine()
+    elif initial_file:
+        _open_perf_log("worker_prestart_skipped", app=app_kind, reason="open-uses-cli")
 
     if instance_server is not None:
         threading.Thread(
