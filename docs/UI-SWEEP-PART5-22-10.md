@@ -82,6 +82,8 @@ Tất cả ảnh được chụp ở 1366×768; các ảnh được xem trực t
 - `355e5f9b`, `e7cf48f3`, `1dcd742` — điều khiển trình chiếu và tương thích DOM kiểm thử.
 - `3ec980b3` — khóa Áp dụng khi hộp Sheet có lỗi.
 - `468312cb`, `17c36979`, `98b16ae4` — cập nhật bằng chứng checklist và ảnh smoke.
+- `9fecdcb0` — kiểm tra required/range/integer, khóa nút và chặn Enter khi dữ liệu sai trong dialog Sheet/Slides; thêm CDP trước/sau, i18n VI/EN và 20 ảnh.
+- `d957ff91` — hoàn thiện báo cáo Q50, checklist Slides và handoff chuẩn.
 
 ## Handoff
 
