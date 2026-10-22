@@ -172,7 +172,7 @@ export const PERSONAL_THEME_PRESETS = Object.freeze([
   { id: "elegant-amber", label: "Trang nhã", accent: "#854d0e", surface: "#fffbeb" },
   { id: "minimalist-slate", label: "Tối giản", accent: "#3f3f46", surface: "#fafafa" },
   { id: "creative-emerald", label: "Sáng tạo Emerald", accent: "#0f766e", surface: "#f0fdfa" },
-  { id: "teal", label: "Xanh ngọc", accent: "#0f766e", surface: "#f0fdfa" },
+  { id: "modern-gradient", label: "Hiện đại chuyển sắc", accent: "#0284c7", surface: "#eff6ff", gradient: "linear-gradient(120deg,#0284c7,#2563eb,#7c3aed,#06b6d4)" },
   { id: "indigo", label: "Chàm đêm", accent: "#4338ca", surface: "#eef2ff" },
   { id: "violet", label: "Tím violet", accent: "#6d28d9", surface: "#f5f3ff" },
   { id: "magenta", label: "Nữ tính", accent: "#db2777", surface: "#fdf2f8", gradient: "linear-gradient(135deg,#f9a8d4,#db2777)" },

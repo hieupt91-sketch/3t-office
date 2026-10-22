@@ -2,7 +2,7 @@
 
 ## Phạm vi
 
-- `platform/theme/theme-manager.js`: lưu cục bộ 20 preset gồm 6 bộ màu tương thích thư viện theme mặc định Windows/VN Writer, các phong cách cá tính và nhóm chuyển sắc động (Aurora, Nebula, Gaming neon, Cyber, Nữ tính); màu nhấn tự chọn, nền sáng/tối và preview/restore.
+- `platform/theme/theme-manager.js`: lưu cục bộ 20 preset gồm 6 bộ màu tương thích thư viện theme mặc định Windows/VN Writer, bản Hiện đại chuyển sắc và nhóm chuyển sắc động (Aurora, Nebula, Gaming neon, Cyber, Nữ tính); màu nhấn tự chọn, nền sáng/tối và preview/restore.
 - `platform/shell/app-shell.js`: Tệp → Tùy chọn → Chủ đề cá tính; lựa chọn không gửi tài liệu/hình ảnh lên mạng.
 - Hình ảnh cục bộ vẫn dùng mục Khu vực tiêu đề để phủ thanh tiêu đề + toàn bộ phần ribbon (thẻ và nội dung); có cắt vị trí và lớp phủ tối để bảo đảm độ đọc.
 - `platform/help/entries-retro-platform.js`: hướng dẫn tiếng Việt cụ thể cho luồng trên.
