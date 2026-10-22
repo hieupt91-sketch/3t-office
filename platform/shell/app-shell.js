@@ -1427,7 +1427,7 @@ export class AppShell {
     const currentPersonalTheme = themeManager.getPersonalTheme();
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 480px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-options-dialog-title">
+      <div class="vno-dialog-box" style="width: 620px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-options-dialog-title">
         <div class="vno-dialog-header">
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-weight:700;font-size:15px;" id="vno-options-dialog-title">Tùy chọn 3T Office</span>
