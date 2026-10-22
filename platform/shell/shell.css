@@ -364,7 +364,7 @@ body {
   align-items: center;
   height: var(--vno-ribbon-tabs-height);
   padding: 0 8px;
-  background-color: var(--vno-bg-subtle);
+  background-color: var(--vno-ribbon-tabs-bg, var(--vno-bg-subtle));
   border-bottom: 1px solid var(--vno-border-default);
   gap: 2px;
 }
@@ -479,7 +479,7 @@ body {
   align-items: stretch;
   height: var(--vno-ribbon-body-height);
   padding: 4px 6px;
-  background-color: var(--vno-bg-surface);
+  background-color: var(--vno-ribbon-bg, var(--vno-bg-surface));
   overflow-x: auto;
   overflow-y: hidden;
   gap: 0;
