@@ -108,23 +108,29 @@ export function extractAllControls(appKey, tabs) {
           parent: null
         });
         if (item.items && Array.isArray(item.items)) {
-          for (const sub of item.items) {
-            const subCmd = sub.commandId;
-            const subLabel = sub.label || viStrings.commands?.[subCmd]?.label || cmdDefs.get(subCmd)?.label || subCmd;
-            controls.push({
-              app: appKey,
-              tabId: tab.id,
-              tabLabel: tab.label,
-              groupId: group.id,
-              groupLabel: group.label,
-              type: "menuItem",
-              commandId: subCmd,
-              args: sub.args,
-              label: subLabel,
-              isSubItem: true,
-              parent: ddCommandId
-            });
-          }
+          const walkMenuItems = (menuItems, parent) => {
+            for (const sub of menuItems) {
+              if (sub.commandId) {
+                const subCmd = sub.commandId;
+                const subLabel = sub.label || viStrings.commands?.[subCmd]?.label || cmdDefs.get(subCmd)?.label || subCmd;
+                controls.push({
+                  app: appKey,
+                  tabId: tab.id,
+                  tabLabel: tab.label,
+                  groupId: group.id,
+                  groupLabel: group.label,
+                  type: "menuItem",
+                  commandId: subCmd,
+                  args: sub.args,
+                  label: subLabel,
+                  isSubItem: true,
+                  parent
+                });
+              }
+              if (Array.isArray(sub.items)) walkMenuItems(sub.items, sub.commandId || sub.id || parent);
+            }
+          };
+          walkMenuItems(item.items, ddCommandId);
         }
       } else if (item.commandId) {
         const def = cmdDefs.get(item.commandId);
