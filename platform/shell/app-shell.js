@@ -15,7 +15,7 @@ import { isVoiceInputSupported, startVoiceInput, stopVoiceInput, isVoiceInputAct
 import { createLazyDialogs } from "../ui-kit/lazy-dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
-import { themeManager } from "../theme/theme-manager.js";
+import { themeManager, PERSONAL_THEME_PRESETS } from "../theme/theme-manager.js";
 import { headerTheme, loadHeaderImage, HEADER_PRESET_COLORS } from "../theme/header-theme.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { NotificationBar } from "../ui-kit/notification-bar.js";
@@ -1417,6 +1417,7 @@ export class AppShell {
     overlay.className = "vno-dialog-overlay";
     const currentTheme = themeManager.getTheme();
     const currentFontSize = themeManager.getFontSize();
+    const currentPersonalTheme = themeManager.getPersonalTheme();
 
     overlay.innerHTML = `
       <div class="vno-dialog-box" style="width: 480px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-options-dialog-title">
@@ -1439,6 +1440,20 @@ export class AppShell {
                 <input type="radio" name="vno-opt-theme" value="dark" ${currentTheme === "dark" ? "checked" : ""} />
                 <span>Giao diện Tối</span>
               </label>
+            </div>
+          </fieldset>
+
+          <fieldset id="vno-opt-personal-theme" style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);padding:12px 16px;margin:0;">
+            <legend style="font-size:13px;font-weight:600;color:var(--vno-text-primary);padding:0 6px;">Chủ đề cá tính</legend>
+            <div style="font-size:12px;color:var(--vno-text-muted);margin:2px 0 9px;">Chọn bảng màu riêng cho nền ứng dụng, nút lệnh và điểm nhấn. Hình nền tiêu đề ở mục bên dưới được lưu cục bộ trên máy.</div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
+              <button type="button" class="vno-btn vno-personal-theme-reset" data-preset="none">Mặc định</button>
+              ${PERSONAL_THEME_PRESETS.map((item) => `<button type="button" class="vno-btn vno-personal-theme-preset" data-preset="${item.id}" title="${item.label}" style="display:flex;align-items:center;gap:5px;"><span aria-hidden="true" style="width:13px;height:13px;border-radius:50%;background:${item.accent};border:1px solid rgba(0,0,0,.2);"></span>${item.label}</button>`).join("")}
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-left:2px;">Màu nhấn <input type="color" id="vno-opt-personal-color" value="${currentPersonalTheme?.accent || "#2563eb"}" aria-label="Màu nhấn của chủ đề cá tính" style="width:34px;height:26px;padding:0;border:none;background:none;" /></label>
+            </div>
+            <div style="display:flex;gap:18px;margin-top:10px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="radio" name="vno-opt-personal-base" value="light" ${(!currentPersonalTheme || currentPersonalTheme.base === "light") ? "checked" : ""} /> Nền sáng</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="radio" name="vno-opt-personal-base" value="dark" ${currentPersonalTheme?.base === "dark" ? "checked" : ""} /> Nền tối</label>
             </div>
           </fieldset>
 
@@ -1505,6 +1520,8 @@ export class AppShell {
 
     // --- Khu vực tiêu đề: xem trước trực tiếp, chỉ lưu khi bấm Đồng ý ---
     let headerCommitted = false;
+    let personalCommitted = false;
+    let personalDraft = currentPersonalTheme ? { ...currentPersonalTheme } : null;
     let headerDraft = headerTheme.get();
     let headerImageSource = null;
     let headerImageLuminance = 0.35;
@@ -1592,9 +1609,41 @@ export class AppShell {
     });
     syncHeaderRows();
 
+    const syncPersonalButtons = () => {
+      overlay.querySelectorAll(".vno-personal-theme-preset").forEach((button) => {
+        button.style.outline = personalDraft && personalDraft.preset === button.dataset.preset ? "2px solid var(--vno-app-current)" : "";
+      });
+      const reset = overlay.querySelector(".vno-personal-theme-reset");
+      if (reset) reset.style.outline = !personalDraft ? "2px solid var(--vno-app-current)" : "";
+      const color = headerEl("#vno-opt-personal-color");
+      if (color && personalDraft) color.value = personalDraft.accent;
+      const baseRadio = overlay.querySelector(`input[name="vno-opt-personal-base"][value="${personalDraft?.base || "light"}"]`);
+      if (baseRadio) baseRadio.checked = true;
+    };
+    const previewPersonal = () => themeManager.previewPersonalTheme(personalDraft);
+    overlay.querySelectorAll(".vno-personal-theme-preset").forEach((button) => button.addEventListener("click", () => {
+      const preset = PERSONAL_THEME_PRESETS.find((item) => item.id === button.dataset.preset);
+      personalDraft = { preset: preset.id, accent: preset.accent, base: personalDraft?.base || "light" };
+      syncPersonalButtons(); previewPersonal();
+    }));
+    overlay.querySelector(".vno-personal-theme-reset").addEventListener("click", () => {
+      personalDraft = null; syncPersonalButtons(); previewPersonal();
+    });
+    headerEl("#vno-opt-personal-color").addEventListener("input", (event) => {
+      personalDraft = { preset: "custom", accent: event.target.value, base: personalDraft?.base || "light" };
+      syncPersonalButtons(); previewPersonal();
+    });
+    overlay.querySelectorAll('input[name="vno-opt-personal-base"]').forEach((radio) => radio.addEventListener("change", () => {
+      if (!personalDraft) personalDraft = { preset: "custom", accent: "#2563eb", base: radio.value };
+      else personalDraft = { ...personalDraft, base: radio.value };
+      syncPersonalButtons(); previewPersonal();
+    }));
+    syncPersonalButtons();
+
     const closeDialog = () => {
       document.removeEventListener("keydown", onKeyDown);
       if (!headerCommitted) headerTheme.restore();
+      if (!personalCommitted) themeManager.restorePersonalTheme();
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       if (previousFocused && typeof previousFocused.focus === "function") {
         previousFocused.focus();
@@ -1606,8 +1655,10 @@ export class AppShell {
       const selectedFontSize = overlay.querySelector('input[name="vno-opt-fontsize"]:checked')?.value || "normal";
       themeManager.setTheme(selectedTheme);
       themeManager.setFontSize(selectedFontSize);
+      themeManager.setPersonalTheme(personalDraft);
       headerTheme.save(headerDraft, headerImageLuminance);
       headerCommitted = true;
+      personalCommitted = true;
       closeDialog();
     };
 
