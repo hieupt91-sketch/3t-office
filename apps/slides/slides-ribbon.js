@@ -807,6 +807,11 @@ export const SLIDES_RIBBON_TABS = [
           { type: "button", commandId: "common.macro.manager", isLarge: true }
         ]
       }
+      ,{
+        id: "appearance",
+        label: "Giao diện",
+        items: [{ type: "button", commandId: "common.view.toggleTheme", isLarge: true }]
+      }
     ]
   },
   {

@@ -31,6 +31,7 @@ function readSource(relPath) {
 
 const sources = {
   appShell: readSource("platform/shell/app-shell.js"),
+  bootstrap: readSource("platform/bootstrap.js"),
   writerAdapter: readSource("adapters/libreoffice/writer/writer-adapter.js"),
   writerApp: readSource("apps/writer/writer-app.js"),
   writerVC: readSource("apps/writer/writer-view-controller.js"),
@@ -54,6 +55,7 @@ function checkHandlerExists(commandId, appKey) {
   const casePattern = new RegExp(`case\\s+["']${escaped}["']`);
 
   if (bindPattern.test(sources.appShell)) return { hasHandler: true, location: "appShell" };
+  if (bindPattern.test(sources.bootstrap)) return { hasHandler: true, location: "bootstrap" };
 
   if (appKey === "writer") {
     if (bindPattern.test(sources.writerApp)) return { hasHandler: true, location: "writerApp" };
