@@ -186,6 +186,9 @@ export const PERSONAL_THEME_PRESETS = Object.freeze([
 
 const PERSONAL_CSS_VARS = Object.freeze({
   "--vno-app-current": true, "--vno-app-current-hover": true, "--vno-app-current-light": true, "--vno-app-current-fg": true,
+  "--vno-writer-primary": true, "--vno-writer-hover": true, "--vno-writer-light": true, "--vno-writer-border": true, "--vno-writer-primary-fg": true,
+  "--vno-sheet-primary": true, "--vno-sheet-hover": true, "--vno-sheet-light": true, "--vno-sheet-border": true, "--vno-sheet-primary-fg": true,
+  "--vno-slides-primary": true, "--vno-slides-hover": true, "--vno-slides-light": true, "--vno-slides-border": true, "--vno-slides-primary-fg": true,
   "--vno-bg-app": true, "--vno-bg-window": true, "--vno-bg-surface": true, "--vno-bg-subtle": true, "--vno-bg-muted": true,
   "--vno-bg-hover": true, "--vno-bg-active": true, "--vno-bg-selected": true, "--vno-text-primary": true,
   "--vno-text-secondary": true, "--vno-text-muted": true, "--vno-text-subtle": true, "--vno-border-default": true,
@@ -210,10 +213,14 @@ function shift(hex, amount) {
 function buildPersonalCssVars(theme) {
   const dark = theme.base === "dark";
   const accent = theme.accent;
+  const hover = shift(accent, dark ? 0.18 : -0.18);
+  const light = dark ? shift(accent, -0.72) : shift(accent, 0.86);
+  const fg = dark ? shift(accent, 0.38) : accent;
   return {
-    "--vno-app-current": accent, "--vno-app-current-hover": shift(accent, dark ? 0.18 : -0.18),
-    "--vno-app-current-light": dark ? shift(accent, -0.72) : shift(accent, 0.86),
-    "--vno-app-current-fg": dark ? shift(accent, 0.38) : accent,
+    "--vno-app-current": accent, "--vno-app-current-hover": hover, "--vno-app-current-light": light, "--vno-app-current-fg": fg,
+    "--vno-writer-primary": accent, "--vno-writer-hover": hover, "--vno-writer-light": light, "--vno-writer-border": accent, "--vno-writer-primary-fg": fg,
+    "--vno-sheet-primary": accent, "--vno-sheet-hover": hover, "--vno-sheet-light": light, "--vno-sheet-border": accent, "--vno-sheet-primary-fg": fg,
+    "--vno-slides-primary": accent, "--vno-slides-hover": hover, "--vno-slides-light": light, "--vno-slides-border": accent, "--vno-slides-primary-fg": fg,
     "--vno-bg-app": dark ? "#171923" : "#e9eef7", "--vno-bg-window": dark ? "#202331" : "#ffffff",
     "--vno-bg-surface": dark ? "#282c3b" : "#ffffff", "--vno-bg-subtle": dark ? "#232735" : "#f8fafc",
     "--vno-bg-muted": dark ? "#303546" : "#f1f5f9", "--vno-bg-hover": dark ? "#3a4053" : "#e2e8f0",
