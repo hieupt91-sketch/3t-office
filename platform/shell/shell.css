@@ -266,6 +266,25 @@ body {
   outline: 2px solid var(--vno-border-focus);
   outline-offset: 1px;
 }
+.vno-theme-customize-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-weight: 600;
+  font-size: var(--vno-text-xs);
+  border-radius: var(--vno-radius-md);
+  cursor: pointer;
+  border: 1px solid var(--vno-border-default);
+  background-color: var(--vno-bg-subtle);
+  color: var(--vno-text-primary);
+}
+.vno-theme-customize-btn:hover { background-color: var(--vno-bg-hover); border-color: var(--vno-border-strong); }
+.vno-theme-customize-btn:focus-visible { outline: 2px solid var(--vno-border-focus); outline-offset: 1px; }
+@media (max-width: 1150px) {
+  .vno-theme-label, .vno-theme-customize-label, .vno-ai-trigger-btn > span:last-child, .vno-license-chip-label { display: none; }
+  .vno-theme-toggle-btn, .vno-theme-customize-btn, .vno-ai-trigger-btn { padding: 5px 7px; }
+}
 .vno-lang-menu {
   position: absolute;
   top: 36px;

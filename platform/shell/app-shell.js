@@ -217,6 +217,11 @@ export class AppShell {
           <span class="vno-theme-icon" aria-hidden="true" style="display:flex;">${themeManager.getTheme() === "dark" ? ICONS.themeSun : ICONS.themeMoon}</span>
           <span class="vno-theme-label">${themeManager.getTheme() === "dark" ? (getLocale() === "vi" ? "Sáng" : "Light") : (getLocale() === "vi" ? "Tối" : "Dark")}</span>
         </button>
+        <button class="vno-btn vno-theme-customize-btn" id="vno-customize-theme-btn" type="button"
+                aria-label="Tùy biến chủ đề cá tính" title="Tùy biến chủ đề cá tính">
+          <span aria-hidden="true" style="display:flex;">${ICONS.themePalette}</span>
+          <span class="vno-theme-customize-label">Chủ đề</span>
+        </button>
         <button class="vno-ai-trigger-btn" id="vno-toggle-ai-btn" aria-label="Trợ lý 3T AI (Alt+J)" title="Trợ lý 3T AI (Alt+J)">
           <span style="color:#d97706;display:flex;" aria-hidden="true">${ICONS.aiSparkle}</span>
           <span>Trợ lý 3T AI</span>
@@ -345,6 +350,8 @@ export class AppShell {
       const next = themeManager.toggleTheme();
       updateThemeBtnUI(next);
     });
+
+    bar.querySelector("#vno-customize-theme-btn")?.addEventListener("click", () => this.showOptionsDialog());
 
     themeManager.onThemeChange((theme) => {
       updateThemeBtnUI(theme);
