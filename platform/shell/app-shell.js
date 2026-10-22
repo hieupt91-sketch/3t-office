@@ -1453,11 +1453,11 @@ export class AppShell {
           <fieldset id="vno-opt-personal-theme" style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);padding:12px 16px;margin:0;">
             <legend style="font-size:13px;font-weight:600;color:var(--vno-text-primary);padding:0 6px;">Chủ đề cá tính</legend>
             <div style="font-size:12px;color:var(--vno-text-muted);margin:2px 0 9px;">Chọn bảng màu riêng cho nền ứng dụng, nút lệnh và điểm nhấn. Hình nền tiêu đề ở mục bên dưới được lưu cục bộ trên máy.</div>
-            <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
-              <button type="button" class="vno-btn vno-personal-theme-reset" data-preset="none">Mặc định</button>
-              ${PERSONAL_THEME_PRESETS.map((item) => `<button type="button" class="vno-btn vno-personal-theme-preset" data-preset="${item.id}" title="${item.label}" style="display:flex;align-items:center;gap:5px;"><span aria-hidden="true" style="width:13px;height:13px;border-radius:50%;background:${item.accent};border:1px solid rgba(0,0,0,.2);"></span>${item.label}</button>`).join("")}
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-left:2px;">Màu nhấn <input type="color" id="vno-opt-personal-color" value="${currentPersonalTheme?.accent || "#2563eb"}" aria-label="Màu nhấn của chủ đề cá tính" style="width:34px;height:26px;padding:0;border:none;background:none;" /></label>
+            <div class="vno-personal-theme-grid" role="list" aria-label="Các mẫu chủ đề cá tính">
+              <button type="button" class="vno-btn vno-personal-theme-reset" data-preset="none" role="listitem"><span aria-hidden="true" class="vno-personal-theme-swatch vno-personal-theme-swatch-default"></span>Mặc định</button>
+              ${PERSONAL_THEME_PRESETS.map((item) => `<button type="button" class="vno-btn vno-personal-theme-preset" data-preset="${item.id}" title="${item.label}" role="listitem"><span aria-hidden="true" class="vno-personal-theme-swatch" style="${item.gradient ? `background:${item.gradient};` : `--vno-preset-color:${item.accent};`}"></span><span>${item.label}</span></button>`).join("")}
             </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:10px;">Màu nhấn tùy ý <input type="color" id="vno-opt-personal-color" value="${currentPersonalTheme?.accent || "#2563eb"}" aria-label="Màu nhấn của chủ đề cá tính" style="width:34px;height:26px;padding:0;border:none;background:none;" /></label>
             <div style="display:flex;gap:18px;margin-top:10px;">
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="radio" name="vno-opt-personal-base" value="light" ${(!currentPersonalTheme || currentPersonalTheme.base === "light") ? "checked" : ""} /> Nền sáng</label>
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="radio" name="vno-opt-personal-base" value="dark" ${currentPersonalTheme?.base === "dark" ? "checked" : ""} /> Nền tối</label>

@@ -166,7 +166,22 @@ export const PERSONAL_THEME_PRESETS = Object.freeze([
   { id: "forest", label: "Rừng xanh", accent: "#15803d", surface: "#f0fdf4" },
   { id: "sunset", label: "Hoàng hôn", accent: "#c2410c", surface: "#fff7ed" },
   { id: "plum", label: "Tím mận", accent: "#7c3aed", surface: "#faf5ff" },
-  { id: "rose", label: "Hồng phấn", accent: "#be123c", surface: "#fff1f2" }
+  { id: "rose", label: "Hồng phấn", accent: "#be123c", surface: "#fff1f2" },
+  { id: "sky", label: "Bầu trời", accent: "#0284c7", surface: "#f0f9ff" },
+  { id: "teal", label: "Xanh ngọc", accent: "#0f766e", surface: "#f0fdfa" },
+  { id: "indigo", label: "Chàm đêm", accent: "#4338ca", surface: "#eef2ff" },
+  { id: "violet", label: "Tím violet", accent: "#6d28d9", surface: "#f5f3ff" },
+  { id: "magenta", label: "Nữ tính", accent: "#db2777", surface: "#fdf2f8", gradient: "linear-gradient(135deg,#f9a8d4,#db2777)" },
+  { id: "coral", label: "Kẹo ngọt", accent: "#f43f5e", surface: "#fff1f2", gradient: "linear-gradient(135deg,#fda4af,#f43f5e)" },
+  { id: "amber", label: "Hổ phách", accent: "#b45309", surface: "#fffbeb" },
+  { id: "lemon", label: "Vàng nắng", accent: "#a16207", surface: "#fefce8" },
+  { id: "olive", label: "Ô liu", accent: "#4d7c0f", surface: "#f7fee7" },
+  { id: "emerald", label: "Ngọc lục bảo", accent: "#047857", surface: "#ecfdf5" },
+  { id: "cyan", label: "Cyber xanh", accent: "#0891b2", surface: "#ecfeff", gradient: "linear-gradient(135deg,#22d3ee,#2563eb)" },
+  { id: "slate", label: "Tối giản", accent: "#475569", surface: "#f8fafc" },
+  { id: "graphite", label: "Gaming neon", accent: "#16a34a", surface: "#f0fdf4", gradient: "linear-gradient(135deg,#22c55e,#7c3aed)" },
+  { id: "coffee", label: "Vintage cà phê", accent: "#78350f", surface: "#fff7ed" },
+  { id: "midnight", label: "Đêm huyền ảo", accent: "#1e3a8a", surface: "#eff6ff" }
 ]);
 
 const PERSONAL_CSS_VARS = Object.freeze({

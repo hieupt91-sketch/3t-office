@@ -11,7 +11,8 @@ export async function runPersonalThemeTests() {
   };
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
   await test("Bộ chủ đề có preset và màu tùy chọn hợp lệ", () => {
-    assert(PERSONAL_THEME_PRESETS.length >= 5, "cần ít nhất 5 preset");
+    assert(PERSONAL_THEME_PRESETS.length >= 15 && PERSONAL_THEME_PRESETS.length <= 20, "cần 15-20 preset");
+    assert(new Set(PERSONAL_THEME_PRESETS.map((item) => item.id)).size === PERSONAL_THEME_PRESETS.length, "preset không được trùng id");
     assert(PERSONAL_THEME_PRESETS.every((item) => /^#[0-9a-f]{6}$/i.test(item.accent)), "preset phải có màu hex");
   });
   await test("ThemeManager lưu, preview và khôi phục chủ đề cá tính cục bộ", () => {
