@@ -2160,6 +2160,16 @@ body {
   border-bottom-color: var(--vno-header-border);
   color: var(--vno-header-fg);
 }
+:root[data-vno-header] .vno-ribbon-content {
+  background-color: var(--vno-header-bg-color);
+  background-image: var(--vno-header-bg-image, none);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-position: 0 calc(-1 * (var(--vno-topbar-height, 44px) + var(--vno-ribbon-tabs-height, 34px)));
+  background-size: 100vw calc(var(--vno-topbar-height, 44px) + var(--vno-ribbon-tabs-height, 34px) + var(--vno-ribbon-body-height, 126px));
+  border-bottom-color: var(--vno-header-border);
+  color: var(--vno-header-fg);
+}
 :root[data-vno-header] .vno-quick-btn,
 :root[data-vno-header] .vno-ribbon-tab:not(.is-active),
 :root[data-vno-header] .vno-ribbon-collapse-btn {

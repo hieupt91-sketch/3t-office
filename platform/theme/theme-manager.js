@@ -162,12 +162,13 @@ export class ThemeManager {
 
 export const PERSONAL_THEME_STORAGE_KEY = "vno-personal-theme";
 export const PERSONAL_THEME_PRESETS = Object.freeze([
-  { id: "ocean", label: "Đại dương", accent: "#2563eb", surface: "#eff6ff" },
-  { id: "forest", label: "Rừng xanh", accent: "#15803d", surface: "#f0fdf4" },
-  { id: "sunset", label: "Hoàng hôn", accent: "#c2410c", surface: "#fff7ed" },
-  { id: "plum", label: "Tím mận", accent: "#7c3aed", surface: "#faf5ff" },
-  { id: "rose", label: "Hồng phấn", accent: "#be123c", surface: "#fff1f2" },
-  { id: "sky", label: "Bầu trời", accent: "#0284c7", surface: "#f0f9ff" },
+  // Sáu bộ màu tương thích với thư viện theme mặc định của VN Writer/Windows.
+  { id: "office-standard", label: "Office tiêu chuẩn", accent: "#0f4c81", surface: "#eff6ff" },
+  { id: "administrative-vn", label: "Hành chính Việt Nam", accent: "#c01e17", surface: "#fff5f5" },
+  { id: "modern-office", label: "Hiện đại", accent: "#0284c7", surface: "#f0f9ff" },
+  { id: "elegant-amber", label: "Trang nhã", accent: "#854d0e", surface: "#fffbeb" },
+  { id: "minimalist-slate", label: "Tối giản", accent: "#3f3f46", surface: "#fafafa" },
+  { id: "creative-emerald", label: "Sáng tạo Emerald", accent: "#0f766e", surface: "#f0fdfa" },
   { id: "teal", label: "Xanh ngọc", accent: "#0f766e", surface: "#f0fdfa" },
   { id: "indigo", label: "Chàm đêm", accent: "#4338ca", surface: "#eef2ff" },
   { id: "violet", label: "Tím violet", accent: "#6d28d9", surface: "#f5f3ff" },
