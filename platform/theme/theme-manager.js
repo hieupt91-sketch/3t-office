@@ -153,8 +153,11 @@ export class ThemeManager {
     const root = document.documentElement;
     const keys = Object.keys(PERSONAL_CSS_VARS);
     keys.forEach((key) => root.style.removeProperty(key));
-    if (!theme) { root.removeAttribute("data-theme-profile"); return; }
+    if (!theme) { root.removeAttribute("data-theme-profile"); root.removeAttribute("data-theme-motion"); return; }
     root.setAttribute("data-theme-profile", "personal");
+    const preset = PERSONAL_THEME_PRESETS.find((item) => item.id === theme.preset);
+    if (preset?.gradient) root.setAttribute("data-theme-motion", "gradient");
+    else root.removeAttribute("data-theme-motion");
     const vars = buildPersonalCssVars(theme);
     for (const [key, value] of Object.entries(vars)) root.style.setProperty(key, value);
   }

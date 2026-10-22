@@ -26,13 +26,17 @@ export async function runPersonalThemeTests() {
       const manager = new ThemeManager();
       manager.setPersonalTheme({ preset: "office-standard", accent: "#0f4c81", base: "light" });
       assert(attributes["data-theme-profile"] === "personal" && styles["--vno-app-current"] === "#0f4c81", "áp dụng màu cá tính");
+      assert(!attributes["data-theme-motion"], "theme tĩnh không bật chuyển sắc");
       assert(JSON.parse(store.get(PERSONAL_THEME_STORAGE_KEY)).preset === "office-standard", "đã lưu localStorage");
+      manager.setPersonalTheme({ preset: "aurora", accent: "#0e7490", base: "light" });
+      assert(attributes["data-theme-motion"] === "gradient", "theme động bật chuyển sắc");
+      manager.setPersonalTheme({ preset: "office-standard", accent: "#0f4c81", base: "light" });
       manager.previewPersonalTheme({ preset: "custom", accent: "#be123c", base: "dark" });
       assert(styles["--vno-app-current"] === "#be123c" && styles["--vno-bg-window"] === "#202331", "preview đổi ngay");
       manager.restorePersonalTheme();
       assert(styles["--vno-app-current"] === "#0f4c81", "restore về chủ đề hiện tại");
       manager.resetPersonalTheme();
-      assert(!attributes["data-theme-profile"] && !store.has(PERSONAL_THEME_STORAGE_KEY), "đặt lại xóa chủ đề");
+      assert(!attributes["data-theme-profile"] && !attributes["data-theme-motion"] && !store.has(PERSONAL_THEME_STORAGE_KEY), "đặt lại xóa chủ đề");
     } finally { globalThis.localStorage = oldStorage; globalThis.document = oldDocument; }
   });
   return results;
