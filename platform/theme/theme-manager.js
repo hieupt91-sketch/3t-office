@@ -181,8 +181,8 @@ export const PERSONAL_THEME_PRESETS = Object.freeze([
   { id: "cyan", label: "Cyber xanh", accent: "#0891b2", surface: "#ecfeff", gradient: "linear-gradient(135deg,#22d3ee,#2563eb)" },
   { id: "slate", label: "Tối giản", accent: "#475569", surface: "#f8fafc" },
   { id: "graphite", label: "Gaming neon", accent: "#16a34a", surface: "#f0fdf4", gradient: "linear-gradient(135deg,#22c55e,#7c3aed)" },
-  { id: "coffee", label: "Vintage cà phê", accent: "#78350f", surface: "#fff7ed" },
-  { id: "midnight", label: "Đêm huyền ảo", accent: "#1e3a8a", surface: "#eff6ff" }
+  { id: "aurora", label: "Aurora chuyển sắc", accent: "#0e7490", surface: "#ecfeff", gradient: "linear-gradient(120deg,#0e7490,#22c55e,#a3e635,#06b6d4)" },
+  { id: "nebula", label: "Nebula tím", accent: "#6d28d9", surface: "#f5f3ff", gradient: "linear-gradient(120deg,#312e81,#7c3aed,#db2777,#f97316)" }
 ]);
 
 const PERSONAL_CSS_VARS = Object.freeze({
@@ -190,7 +190,7 @@ const PERSONAL_CSS_VARS = Object.freeze({
   "--vno-writer-primary": true, "--vno-writer-hover": true, "--vno-writer-light": true, "--vno-writer-border": true, "--vno-writer-primary-fg": true,
   "--vno-sheet-primary": true, "--vno-sheet-hover": true, "--vno-sheet-light": true, "--vno-sheet-border": true, "--vno-sheet-primary-fg": true,
   "--vno-slides-primary": true, "--vno-slides-hover": true, "--vno-slides-light": true, "--vno-slides-border": true, "--vno-slides-primary-fg": true,
-  "--vno-ribbon-bg": true, "--vno-ribbon-tabs-bg": true,
+  "--vno-ribbon-bg": true, "--vno-ribbon-tabs-bg": true, "--vno-personal-gradient": true,
   "--vno-bg-app": true, "--vno-bg-window": true, "--vno-bg-surface": true, "--vno-bg-subtle": true, "--vno-bg-muted": true,
   "--vno-bg-hover": true, "--vno-bg-active": true, "--vno-bg-selected": true, "--vno-text-primary": true,
   "--vno-text-secondary": true, "--vno-text-muted": true, "--vno-text-subtle": true, "--vno-border-default": true,
@@ -218,12 +218,14 @@ function buildPersonalCssVars(theme) {
   const hover = shift(accent, dark ? 0.18 : -0.18);
   const light = dark ? shift(accent, -0.72) : shift(accent, 0.86);
   const fg = dark ? shift(accent, 0.38) : accent;
+  const preset = PERSONAL_THEME_PRESETS.find((item) => item.id === theme.preset);
   return {
     "--vno-app-current": accent, "--vno-app-current-hover": hover, "--vno-app-current-light": light, "--vno-app-current-fg": fg,
     "--vno-writer-primary": accent, "--vno-writer-hover": hover, "--vno-writer-light": light, "--vno-writer-border": accent, "--vno-writer-primary-fg": fg,
     "--vno-sheet-primary": accent, "--vno-sheet-hover": hover, "--vno-sheet-light": light, "--vno-sheet-border": accent, "--vno-sheet-primary-fg": fg,
     "--vno-slides-primary": accent, "--vno-slides-hover": hover, "--vno-slides-light": light, "--vno-slides-border": accent, "--vno-slides-primary-fg": fg,
     "--vno-ribbon-bg": light, "--vno-ribbon-tabs-bg": dark ? shift(accent, -0.62) : shift(accent, 0.92),
+    "--vno-personal-gradient": preset?.gradient || "none",
     "--vno-bg-app": dark ? "#171923" : "#e9eef7", "--vno-bg-window": dark ? "#202331" : "#ffffff",
     "--vno-bg-surface": dark ? "#282c3b" : "#ffffff", "--vno-bg-subtle": dark ? "#232735" : "#f8fafc",
     "--vno-bg-muted": dark ? "#303546" : "#f1f5f9", "--vno-bg-hover": dark ? "#3a4053" : "#e2e8f0",

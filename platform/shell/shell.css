@@ -368,6 +368,22 @@ body {
   border-bottom: 1px solid var(--vno-border-default);
   gap: 2px;
 }
+:root[data-theme-profile="personal"] .vno-topbar,
+:root[data-theme-profile="personal"] .vno-ribbon-tabs,
+:root[data-theme-profile="personal"] .vno-ribbon-content {
+  background-image: var(--vno-personal-gradient, none);
+  background-size: 240% 240%;
+  animation: vno-personal-gradient-shift 14s ease-in-out infinite alternate;
+}
+@keyframes vno-personal-gradient-shift {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme-profile="personal"] .vno-topbar,
+  :root[data-theme-profile="personal"] .vno-ribbon-tabs,
+  :root[data-theme-profile="personal"] .vno-ribbon-content { animation: none; }
+}
 .vno-ribbon-tabs::-webkit-scrollbar { display: none; }
 
 .vno-ribbon-tab-scroll-btn {
