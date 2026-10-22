@@ -4,7 +4,7 @@
 
 - `platform/theme/theme-manager.js`: lưu cục bộ bộ màu cá nhân, 20 preset gồm 6 bộ màu tương thích thư viện theme mặc định Windows/VN Writer (Office tiêu chuẩn, Hành chính Việt Nam, Hiện đại, Trang nhã, Tối giản, Sáng tạo Emerald) cùng các phong cách cá tính (nữ tính, gaming neon, cyber, vintage và đêm), màu nhấn tự chọn, nền sáng/tối và preview/restore.
 - `platform/shell/app-shell.js`: Tệp → Tùy chọn → Chủ đề cá tính; lựa chọn không gửi tài liệu/hình ảnh lên mạng.
-- Hình ảnh cục bộ vẫn dùng mục Khu vực tiêu đề để phủ thanh tiêu đề + thẻ ribbon; có cắt vị trí và lớp phủ tối để bảo đảm độ đọc.
+- Hình ảnh cục bộ vẫn dùng mục Khu vực tiêu đề để phủ thanh tiêu đề + toàn bộ phần ribbon (thẻ và nội dung); có cắt vị trí và lớp phủ tối để bảo đảm độ đọc.
 - `platform/help/entries-retro-platform.js`: hướng dẫn tiếng Việt cụ thể cho luồng trên.
 
 ## Bằng chứng kiểm tra
