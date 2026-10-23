@@ -44,8 +44,8 @@ public final class OPCPackage {
 
     public init(archive: ZipArchive) throws {
         self.archive = archive
-        for name in archive.entryNames { zipNameByKey[name.lowercased()] = name }
-        guard let ctName = zipNameByKey["[content_types].xml"] else { throw PackageError.missingContentTypes }
+        for name in archive.entryNames { zipNameByKey[OPCPackage.key(PartName(zipName: name))] = name }
+        guard let ctName = zipNameByKey[OPCPackage.key(.contentTypes)] else { throw PackageError.missingContentTypes }
         do {
             contentTypes = ContentTypes(document: try XMLDocument(data: archive.contents(of: ctName)))
         } catch {
@@ -71,7 +71,7 @@ public final class OPCPackage {
     public func hasPart(_ part: PartName) -> Bool {
         if removed.contains(part) { return false }
         if pendingData[part] != nil || xmlCache[part] != nil && modifiedXML.contains(part) { return true }
-        return zipNameByKey[part.zipName.lowercased()] != nil
+        return zipNameByKey[OPCPackage.key(part)] != nil
     }
 
     public func contentType(of part: PartName) -> String? {
@@ -86,7 +86,7 @@ public final class OPCPackage {
         if part.isRelationshipsPart, let src = part.relationshipsSource, let r = relsCache[src], r.isModified {
             return r.document.serialized()
         }
-        guard let name = zipNameByKey[part.zipName.lowercased()] else { throw PackageError.partNotFound(part) }
+        guard let name = zipNameByKey[OPCPackage.key(part)] else { throw PackageError.partNotFound(part) }
         return try archive.contents(of: name)
     }
 
@@ -303,15 +303,14 @@ public final class OPCPackage {
             writeEntry(part, data)
         }
         for part in removed {
-            if let name = zipNameByKey[part.zipName.lowercased()] {
+            if let name = zipNameByKey[OPCPackage.key(part)] {
                 archive.removeEntry(name)
-                zipNameByKey[part.zipName.lowercased()] = nil
+                zipNameByKey[OPCPackage.key(part)] = nil
             }
         }
         if contentTypes.isModified {
-            let name = zipNameByKey["[content_types].xml"] ?? "[Content_Types].xml"
-            archive.setContents(contentTypes.document.serialized(), for: name, compression: compression)
-            zipNameByKey[name.lowercased()] = name
+            writeEntry(.contentTypes, contentTypes.document.serialized())
+            let name = zipNameByKey[OPCPackage.key(.contentTypes)] ?? "[Content_Types].xml"
             contentTypes.isModified = false
             if archive.entryNames.first != name { archive.moveEntry(name, to: 0) }
         }
@@ -322,10 +321,18 @@ public final class OPCPackage {
     }
 
     private func writeEntry(_ part: PartName, _ data: Data) {
-        let name = zipNameByKey[part.zipName.lowercased()] ?? part.zipName
+        let name = zipNameByKey[OPCPackage.key(part)] ?? part.zipName
+        // Nội dung mới trùng hệt bản trong tệp gốc → giữ nguyên byte nén gốc (không nén lại).
+        if let e = archive.entry(name), e.isPassthrough, e.uncompressedSize == data.count,
+           e.crc32 == CRC32.checksum(data), (try? archive.contents(of: e)) == data {
+            return
+        }
         archive.setContents(data, for: name, compression: compression)
-        zipNameByKey[name.lowercased()] = name
+        zipNameByKey[OPCPackage.key(part)] = name
     }
+
+    /// Khóa tra cứu: tên phần đã giải mã, không phân biệt hoa thường (gói cũ có thể ghi tên UTF-8 thô).
+    static func key(_ part: PartName) -> String { part.value.lowercased() }
 
     /// Lưu an toàn: ghi tệp tạm, mở lại và kiểm tra hợp lệ, rồi mới thay tệp đích (nguyên tử).
     /// Nếu kiểm tra thất bại, tệp gốc không bị đụng tới.

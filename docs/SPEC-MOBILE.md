@@ -87,3 +87,9 @@ Capacitor (MIT) cho phép giữ cùng mã web; Android WebView = Chromium → g�
 3. Chiến lược giá và mua trong ứng dụng; ai đứng tên tài khoản cửa hàng.
 4. Ưu tiên Android hay iOS trước (đề xuất Android).
 5. Ngân sách: máy thử, tài khoản cửa hàng, hạ tầng xử lý.
+
+## 10. Cập nhật 23/10/2026 — động cơ ngoại tuyến iOS (phương án C)
+Người phụ trách giao team mobile làm **thư viện OOXML ngoại tuyến đầy đủ bằng Swift** cho iOS/iPadOS (không LibreOffice/Python/máy chủ), thứ tự ZIP → XLSX → DOCX → PPTX, mỗi phần có fixture + test mở–sửa–lưu–đóng–mở lại và báo cáo PASS/FAIL trước khi tích hợp UI.
+- Mã: `ports/ios/OOXMLKit/` (Swift Package, chỉ Foundation). Nguyên tắc: phần không sửa chép nguyên byte, phần sửa chỉnh trên DOM giữ phần tử lạ, kiểm tra hợp lệ trước khi ghi đè.
+- Báo cáo: `docs/ios/BAO-CAO-OOXMLKIT-2310.md` (79/79 test PASS trên Linux; build trên Xcode/thiết bị: BLOCKED trong môi trường agent, cần team Mac/iOS chạy).
+- Phương án A (máy chủ) vẫn có thể dùng làm đường dự phòng cho tài liệu phức tạp, nhưng không còn là điều kiện để sửa ngoại tuyến các trường hợp thường gặp.

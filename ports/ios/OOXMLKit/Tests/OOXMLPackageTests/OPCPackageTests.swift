@@ -1,5 +1,6 @@
 import XCTest
 @testable import OOXMLPackage
+import OOXMLZip
 import OOXMLTestSupport
 
 final class OPCPackageTests: XCTestCase {
@@ -85,8 +86,27 @@ final class OPCPackageTests: XCTestCase {
         XCTAssertEqual(try reopened.xml("/customXml/item9.xml").root.textContent, "3T")
         try RoundTrip.verify(original: original, saved: try Data(contentsOf: url),
                              allowedChanges: ["[Content_Types].xml", "_rels/.rels", "word/_rels/document.xml.rels",
-                                              "word/media/ảnh mới.png", "customXml/item9.xml"],
+                                              "word/media/%E1%BA%A3nh%20m%E1%BB%9Bi.png", "customXml/item9.xml"],
                              requireChanged: ["word/_rels/document.xml.rels"], name: "opc-added.docx")
+    }
+
+    /// ECMA-376 phần 2 phụ lục A: tên mục ZIP phải là dạng ASCII mã hóa phần trăm của tên phần.
+    func testNonASCIIPartNamesArePercentEncodedInZip() throws {
+        XCTAssertEqual(PartName("/word/media/ảnh mới.png").zipName, "word/media/%E1%BA%A3nh%20m%E1%BB%9Bi.png")
+        XCTAssertEqual(PartName("/word/media/%E1%BA%A3nh%20m%E1%BB%9Bi.png"), PartName("/word/media/ảnh mới.png"))
+        XCTAssertEqual(PartName.contentTypes.zipName, "[Content_Types].xml")
+        let pkg = try OPCPackage(data: try Fixtures.data("real/sample-writer.docx"))
+        pkg.setData(Data([1, 2, 3]), for: "/word/media/ảnh mới.png", contentType: ContentType.png)
+        let saved = try pkg.save()
+        XCTAssertTrue(try ZipArchive(data: saved).contains("word/media/%E1%BA%A3nh%20m%E1%BB%9Bi.png"))
+        // Gói cũ ghi tên UTF-8 thô (không đúng chuẩn) vẫn mở và sửa được.
+        let legacy = try ZipArchive(data: try Fixtures.data("real/sample-writer.docx"))
+        legacy.setContents(Data([9]), for: "word/media/ảnh.png", compression: .stored)
+        let lp = try OPCPackage(data: legacy.serialize())
+        XCTAssertEqual(try lp.data(of: "/word/media/ảnh.png"), Data([9]))
+        lp.setData(Data([8]), for: "/word/media/ảnh.png")
+        let re = try ZipArchive(data: try lp.save())
+        XCTAssertEqual(try re.contents(of: "word/media/ảnh.png"), Data([8]), "giữ tên mục gốc khi ghi đè")
     }
 
     func testRemovePartAndGarbageCollect() throws {

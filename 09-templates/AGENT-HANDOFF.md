@@ -1,4 +1,24 @@
 # Agent Handoff
+TASK: MB-OOXML-1 — Thư viện OOXML ngoại tuyến cho iOS/iPadOS (ZIP core → XLSX → DOCX → PPTX)
+AGENT/ROLE: Claude / Mobile (iOS) engine
+BRANCH: claude/ooxml-offline-ios-library-fqqyj0
+WORKTREE: phiên cloud (Linux), /home/user/3t-office
+OBJECTIVE: Thư viện Swift thuần đọc/sửa/ghi DOCX/XLSX/PPTX ngoại tuyến, giữ ảnh/quan hệ/style/tính năng chưa sửa, round-trip không mất dữ liệu; mỗi phần có fixture, test mở–sửa–lưu–đóng–mở lại và báo cáo PASS/FAIL trước khi tích hợp UI.
+FINDINGS: Không có engine dùng được trên iOS trong repo (LibreOffice + lớp vá Python chỉ chạy desktop). Đã viết mới toàn bộ trong ports/ios/OOXMLKit (không phụ thuộc ngoài, kể cả zlib). Fixture repo tests/fixtures/real-office-samples/sample-slides-smartart.pptx có quan hệ hỏng (rId3 → slideLayout2.xml không tồn tại) — lỗi có sẵn, thư viện giữ nguyên, cần chủ Slides sửa script đóng gói.
+IMPLEMENTATION SUMMARY: OOXMLZip (DEFLATE nén/giải nén, CRC-32, ZIP64, data descriptor, chép nguyên byte mục không sửa, chống ZIP bomb/traversal); OOXMLPackage (XML không mất dữ liệu, chặn DTD, OPC content types/quan hệ/tên phần mã hóa %, nhân bản/dọn phần, kiểm tra hợp lệ trước khi ghi đè); OOXMLSpreadsheet (ô, chuỗi chia sẻ, style, công thức chia sẻ/mảng, calcChain, gộp ô, cột/hàng, thêm/đổi tên sheet cập nhật công thức/tên/biểu đồ/pivot); OOXMLWord (đoạn/run/bảng, thay chữ xuyên run mọi story, định dạng, chèn ảnh); OOXMLPresentation (hình/bảng/ghi chú, thay chữ, nhân bản/xóa/đổi thứ tự slide, phân đoạn).
+FILES CHANGED: ports/ios/OOXMLKit/** (mới); docs/ios/BAO-CAO-OOXMLKIT-2310.md (mới); docs/SPEC-MOBILE.md (§10); 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: swift test (debug) và swift test -c release -Xswiftc -enable-testing (Swift 6.0.3 Linux); scripts/run-tests.sh (test + scripts/verify_artifacts.py với zipfile/zlib, expat, openpyxl, python-docx, python-pptx); scripts/fixtures/make_all.sh (tái tạo fixture, kiểm tất định); benchmark release sheet 300.000 ô.
+BUILD RESULT: PASS trên Linux (swift build, debug + release). Xcode/iOS: BLOCKED (môi trường không có macOS/Xcode).
+TEST RESULTS: PASS — 79/79 (debug), 79/79 (release); kiểm chéo độc lập 60/60 tệp. Theo phần: ZIP 20/20, XML+OPC 17/17, XLSX 20/20, DOCX 11/11, PPTX 11/11. NOT RUN: mở tệp kết quả bằng Microsoft Office thật; test trên simulator/thiết bị.
+KNOWN FAILURES: Không có test fail. Giới hạn chức năng ghi trong README "Chưa làm" (không tính công thức; sửa DOCX không ghi theo dõi thay đổi; chưa chèn/xóa hàng-cột; chưa thêm slide từ layout).
+RISKS: Chưa có tệp do Microsoft Office tạo trong bộ test (tổng hợp viết tay + LibreOffice); hiệu năng/bộ nhớ trên iPhone chưa đo (mô hình DOM); chưa có Hướng dẫn sử dụng vì chưa có UI (bắt buộc ở bước tích hợp, AGENTS.md §10).
+DEPENDENCIES/BLOCKERS: Cần máy Mac + Xcode 15+ để chạy `swift test` và test trên simulator/thiết bị; cần bộ tệp Office thật không chứa dữ liệu cá nhân.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Người phụ trách duyệt docs/ios/BAO-CAO-OOXMLKIT-2310.md; team iOS chạy test trên Xcode/thiết bị; sau khi duyệt mới làm cầu nối WKWebView + UI + Hướng dẫn sử dụng.
+
+---
+
+# Agent Handoff
 TASK: FIX-P1b (Sheet formula regression audit and P1 edit latency)
 AGENT/ROLE: Codex / Sheet QA
 BRANCH: fix/sheet-p1b-codex

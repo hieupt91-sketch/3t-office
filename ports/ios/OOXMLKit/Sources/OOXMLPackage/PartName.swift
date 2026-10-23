@@ -11,8 +11,9 @@ public struct PartName: Hashable, Comparable, CustomStringConvertible, Expressib
 
     private init(rawRoot: Void) { value = "/" }
 
+    /// Nhận tên dạng IRI ("/word/media/ảnh.png") hoặc đã mã hóa phần trăm ("/word/media/%E1%BA%A3nh.png").
     public init(_ s: String) {
-        var v = s
+        var v = s.contains("%") ? (s.removingPercentEncoding ?? s) : s
         if !v.hasPrefix("/") { v = "/" + v }
         value = v
     }
@@ -22,7 +23,14 @@ public struct PartName: Hashable, Comparable, CustomStringConvertible, Expressib
     public init(zipName: String) { self.init("/" + zipName) }
 
     public var isRoot: Bool { value == "/" }
-    public var zipName: String { String(value.dropFirst()) }
+    /// Tên mục ZIP theo ECMA-376 phần 2 phụ lục A: ký tự ngoài ASCII/khoảng trắng được mã hóa phần trăm (UTF-8).
+    public var zipName: String {
+        let raw = String(value.dropFirst())
+        return raw.addingPercentEncoding(withAllowedCharacters: PartName.zipAllowed) ?? raw
+    }
+
+    private static let zipAllowed = CharacterSet(charactersIn:
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~!$&'()*+,;=:@/[]")
     public var description: String { value }
 
     /// Thư mục chứa, ví dụ "/word" (gốc là "").
