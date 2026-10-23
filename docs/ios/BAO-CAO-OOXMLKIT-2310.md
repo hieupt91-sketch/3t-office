@@ -12,7 +12,7 @@ Nhánh: `claude/ooxml-offline-ios-library-fqqyj0` · Mã: `ports/ios/OOXMLKit/` 
 | 3. DOCX | **PASS** | 11/11 | 11/11 tệp (python-docx đọc lại đúng chữ/bảng/ảnh/định dạng) |
 | 4. PPTX | **PASS** | 11/11 | 13/13 tệp (python-pptx đọc lại đúng slide/tiêu đề/ghi chú/bảng) |
 | **Tổng** | **PASS** | **79/79** (debug) · **79/79** (release) | **60/60** tệp |
-| Biên dịch/chạy trên iOS (Xcode, simulator, máy thật) | **BLOCKED** | — | Môi trường này là Linux, không có Xcode/macOS |
+| Biên dịch/chạy trên iOS (Xcode, simulator, máy thật) | **PASS** build + simulator (xem §8.2) · máy thật **NOT RUN** | 91/91 iPhone · 91/91 iPad | CI GitHub Actions macOS |
 | Tích hợp UI / WKWebView | **NOT RUN** (cố ý) | — | Theo yêu cầu: chỉ tích hợp sau khi duyệt báo cáo này |
 
 Môi trường chạy: Ubuntu 24.04 x86_64, Swift 6.0.3 (chế độ ngôn ngữ Swift 5, `swift-tools-version:5.9`), Python 3.13 + openpyxl, python-docx, python-pptx (chỉ để kiểm chéo, không phải phụ thuộc của thư viện).
@@ -99,3 +99,42 @@ Script sinh fixture tất định (chạy lại cho byte giống hệt; đã ki�
 
 ## 7. Quyết định ghi nhận
 SPEC-MOBILE §4 đề xuất giai đoạn 1 dùng máy chủ (phương án A). Ngày 23/10/2026 Người phụ trách yêu cầu team mobile làm **thư viện ngoại tuyến đầy đủ bằng Swift** (phương án C, không phụ thuộc LibreOffice/Python/máy chủ), theo thứ tự ZIP → XLSX → DOCX → PPTX, mỗi phần có fixture + test và báo cáo PASS/FAIL trước khi tích hợp UI. Báo cáo này là kết quả của yêu cầu đó.
+
+## 8. Cập nhật tối 23/10/2026 (20:45 – 22:00): Phase 5, kiểm offline, CI iPhone/iPad
+
+### 8.1 Kết quả
+| Hạng mục | Kết quả | Số liệu |
+|---|---|---|
+| Toàn bộ test trên Linux (debug + release) | **PASS** | 91/91 + 91/91 (79 cũ + 12 mới) |
+| Kiểm chéo độc lập toàn bộ tệp kết quả | **PASS** | 70/70 tệp (60 cũ + 10 tệp Phase 5) |
+| Bảo đảm ngoại tuyến (`OfflineGuaranteeTests`) | **PASS** | 3/3: không API mạng/tiến trình ngoài, chỉ `import Foundation` + module nội bộ, không gói phụ thuộc |
+| Phase 5 — xóa sheet | **PASS** | 3/3 test |
+| Phase 5 — chèn/xóa hàng | **PASS** | 4/4 test (gồm 7 tệp thật: chèn rồi xóa → mọi ô về như cũ) |
+| Phase 5 — thêm slide từ layout | **PASS** | 2/2 test (rich-deck + 5 tệp thật) |
+| CI macOS `swift test` | **PASS** | 91/91 |
+| CI build thiết bị iOS/iPadOS arm64 | **PASS** | Xcode 16.4 |
+| CI test simulator iPhone / iPad | **PASS** | 91/91 / 91/91 |
+| Thiết bị thật, Microsoft Office thật | **NOT RUN** | cần người có máy |
+
+### 8.2 CI trên macOS thật (GitHub Actions `macos-15`, workflow `.github/workflows/ios-ooxmlkit.yml`)
+Lần chạy 2 (commit `5b65d58`, run 39964966256), Xcode 16.4, Swift 6.1.2, macOS 15.7.9 arm64 — đã đọc log, có `pipefail`:
+
+| Bước | Kết quả | Số liệu từ log |
+|---|---|---|
+| `swift test` trên macOS | **PASS** | 91/91 |
+| Build thiết bị iOS/iPadOS arm64 (`generic/platform=iOS`, không ký) | **PASS** | biên dịch toàn bộ module cho thiết bị thật |
+| Test trên **simulator iPhone** | **PASS** | 91/91 (Package 20, Presentation 13, Spreadsheet 27, Word 11, Zip 20) |
+| Test trên **simulator iPad** | **PASS** | 91/91 (cùng phân bổ) |
+
+→ Trạng thái "BLOCKED — chưa build trên Xcode/iOS" ở mục 6 **đã gỡ** cho build + simulator. Còn NOT RUN: iPhone/iPad **thật** (đo bộ nhớ/tốc độ) và mở tệp kết quả bằng Microsoft Office thật.
+Lưu ý chi phí: runner macOS tính phút gấp 10 lần Linux (≈3,5 phút/lần chạy); workflow chỉ chạy khi `ports/ios/**` đổi.
+
+### 8.3 Lỗi phát hiện trong phiên tối
+1. **Trùng tên với Foundation trên macOS**: Foundation của macOS có sẵn `XMLElement`/`XMLDocument` (NSXML) → module khác không biên dịch được trên Mac. iOS/iPadOS không có NSXML nên build iOS không bị. Đã đổi tên kiểu nội bộ thành `XElement`, `XDocument`, `XNode`, `XAttribute`, `XParser`, `XWriter`.
+2. **CI lần 1 báo xanh sai**: bước `swift test` trên macOS thực ra lỗi biên dịch nhưng `| tail` che mã lỗi (shell macOS không bật `pipefail`). Đã bật `bash -eo pipefail`, bỏ cắt log, in đủ kết quả từng bộ test. Kết quả CI lần 1 **không được tính** là PASS.
+3. Test xóa sheet ban đầu chưa tính liên kết nội bộ `'Tổng hợp'!A1` ở sheet khác → thư viện đã đổi đúng thành `#REF!A1` như Excel; sửa kỳ vọng của test cho đúng hành vi Excel (không phải đổi để "cho xanh": kiểm tra thêm giá trị `#REF!A1`).
+
+### 8.4 Phase 5 làm gì
+- `Workbook.deleteSheet(named:)`: gỡ sheet, xóa phần chỉ sheet đó dùng (drawing, ảnh, bình luận + VML, bảng, printerSettings), tham chiếu tới sheet trong công thức, tên định nghĩa, biểu đồ, liên kết → `#REF!`, bỏ tên cục bộ và dịch `localSheetId`, sửa tab đang chọn, cập nhật `docProps/app.xml`; không cho xóa sheet hiển thị cuối cùng.
+- `Worksheet.insertRows(at:count:)` / `deleteRows(at:count:)`: dịch hàng/ô; cập nhật công thức mọi sheet (cả tham chiếu tuyệt đối, vùng nới rộng/co lại, ô bị xóa → `#REF!`), công thức chia sẻ được mở rộng trước, công thức mảng, tên định nghĩa, biểu đồ, bảng (table + autoFilter), gộp ô, định dạng có điều kiện (cả x14), xác thực, liên kết, dimension, vùng chọn/pane, ảnh neo theo ô (xdr:from/to), bình luận (comments + VML `x:Row`).
+- `Presentation.layouts` + `addSlide(layout:at:)`: tạo slide theo layout (sao chép placeholder, bỏ ngày/chân trang/số trang như PowerPoint), chèn đúng vị trí, vào phân đoạn của slide đứng trước, cập nhật app.xml.

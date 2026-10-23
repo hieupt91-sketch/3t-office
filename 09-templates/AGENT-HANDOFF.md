@@ -8,11 +8,11 @@ FINDINGS: Không có engine dùng được trên iOS trong repo (LibreOffice + l
 IMPLEMENTATION SUMMARY: OOXMLZip (DEFLATE nén/giải nén, CRC-32, ZIP64, data descriptor, chép nguyên byte mục không sửa, chống ZIP bomb/traversal); OOXMLPackage (XML không mất dữ liệu, chặn DTD, OPC content types/quan hệ/tên phần mã hóa %, nhân bản/dọn phần, kiểm tra hợp lệ trước khi ghi đè); OOXMLSpreadsheet (ô, chuỗi chia sẻ, style, công thức chia sẻ/mảng, calcChain, gộp ô, cột/hàng, thêm/đổi tên sheet cập nhật công thức/tên/biểu đồ/pivot); OOXMLWord (đoạn/run/bảng, thay chữ xuyên run mọi story, định dạng, chèn ảnh); OOXMLPresentation (hình/bảng/ghi chú, thay chữ, nhân bản/xóa/đổi thứ tự slide, phân đoạn).
 FILES CHANGED: ports/ios/OOXMLKit/** (mới); docs/ios/BAO-CAO-OOXMLKIT-2310.md (mới); docs/SPEC-MOBILE.md (§10); 09-templates/AGENT-HANDOFF.md.
 COMMANDS RUN: swift test (debug) và swift test -c release -Xswiftc -enable-testing (Swift 6.0.3 Linux); scripts/run-tests.sh (test + scripts/verify_artifacts.py với zipfile/zlib, expat, openpyxl, python-docx, python-pptx); scripts/fixtures/make_all.sh (tái tạo fixture, kiểm tất định); benchmark release sheet 300.000 ô.
-BUILD RESULT: PASS trên Linux (swift build, debug + release). Xcode/iOS: BLOCKED (môi trường không có macOS/Xcode).
-TEST RESULTS: PASS — 79/79 (debug), 79/79 (release); kiểm chéo độc lập 60/60 tệp. Theo phần: ZIP 20/20, XML+OPC 17/17, XLSX 20/20, DOCX 11/11, PPTX 11/11. NOT RUN: mở tệp kết quả bằng Microsoft Office thật; test trên simulator/thiết bị.
+BUILD RESULT: PASS trên Linux (debug + release) và trên CI macOS (Xcode 16.4): build thiết bị iOS/iPadOS arm64 PASS.
+TEST RESULTS: PASS — 91/91 Linux (debug + release), 91/91 macOS, 91/91 simulator iPhone, 91/91 simulator iPad; kiểm chéo độc lập 70/70 tệp. Theo phần: ZIP 20, XML+OPC+offline 20, XLSX 27, DOCX 11, PPTX 13. NOT RUN: iPhone/iPad thật; mở tệp kết quả bằng Microsoft Office thật.
 KNOWN FAILURES: Không có test fail. Giới hạn chức năng ghi trong README "Chưa làm" (không tính công thức; sửa DOCX không ghi theo dõi thay đổi; chưa chèn/xóa hàng-cột; chưa thêm slide từ layout).
 RISKS: Chưa có tệp do Microsoft Office tạo trong bộ test (tổng hợp viết tay + LibreOffice); hiệu năng/bộ nhớ trên iPhone chưa đo (mô hình DOM); chưa có Hướng dẫn sử dụng vì chưa có UI (bắt buộc ở bước tích hợp, AGENTS.md §10).
-DEPENDENCIES/BLOCKERS: Cần máy Mac + Xcode 15+ để chạy `swift test` và test trên simulator/thiết bị; cần bộ tệp Office thật không chứa dữ liệu cá nhân.
+DEPENDENCIES/BLOCKERS: Cần iPhone/iPad thật để đo bộ nhớ/tốc độ; cần bộ tệp Office thật không chứa dữ liệu cá nhân. CI .github/workflows/ios-ooxmlkit.yml tốn phút macOS (≈3,5 phút/lần).
 CORE PATCH ID (if any): None.
 NEXT ACTION: Người phụ trách duyệt docs/ios/BAO-CAO-OOXMLKIT-2310.md; team iOS chạy test trên Xcode/thiết bị; sau khi duyệt mới làm cầu nối WKWebView + UI + Hướng dẫn sử dụng.
 

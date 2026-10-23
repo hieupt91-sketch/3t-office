@@ -40,19 +40,20 @@ Trạng thái: ✅ xong (đã chạy, PASS) · 🟡 đang làm · ⏳ chưa làm
 - **Nghiệm thu**: chuyển cảnh p14, liên kết, cấp thụt lề giữ nguyên; phân đoạn/custShow/app.xml cập nhật đúng; python-pptx đọc đúng.
 - **Đối chiếu**: 11/11 test PASS · 13/13 tệp kiểm chéo.
 
-## Phase 5 — Bổ sung thao tác còn thiếu 🟡
+## Phase 5 — Bổ sung thao tác còn thiếu 🟡 (3/6 hạng mục xong)
 | Hạng mục | Ưu tiên | Trạng thái |
 |---|---|---|
-| XLSX xóa sheet (dọn quan hệ, tên định nghĩa cục bộ, app.xml) | Cao | xem báo cáo |
-| PPTX thêm slide mới từ layout | Cao | xem báo cáo |
-| XLSX chèn/xóa hàng (dịch ô, công thức mọi sheet, gộp ô, CF, xác thực, dimension, tên) | Cao | xem báo cáo |
-| XLSX chèn/xóa cột | Trung bình | ⏳ |
+| XLSX xóa sheet (dọn quan hệ, tên định nghĩa cục bộ, app.xml, tham chiếu → #REF!) | Cao | ✅ 3 test |
+| PPTX thêm slide mới từ layout | Cao | ✅ 2 test (rich-deck + 5 tệp thật) |
+| XLSX chèn/xóa hàng (dịch ô, công thức mọi sheet, gộp ô, CF, xác thực, dimension, tên, biểu đồ, bảng, ảnh neo, bình luận + VML) | Cao | ✅ 4 test (gồm 7 tệp thật chèn rồi xóa về như cũ) |
+| XLSX chèn/xóa cột | Trung bình | ⏳ (dùng lại hạ tầng của hàng) |
+| XLSX ngắt trang `rowBreaks` khi chèn hàng | Thấp | ⏳ |
 | DOCX sửa dưới dạng theo dõi thay đổi (w:ins/w:del có tác giả) | Trung bình | ⏳ |
 | PPTX thay ảnh | Thấp | ⏳ |
 - **Nghiệm thu**: như R3; mỗi hạng mục có test mở–sửa–lưu–đóng–mở lại + kiểm chéo bằng openpyxl/python-pptx.
 
-## Phase 6 — Kiểm trên thiết bị Apple ⛔ → 🟡
-- **6a** CI macOS (GitHub Actions `macos-15`): `swift test`, build thiết bị iOS/iPadOS arm64, test simulator iPhone + iPad — **đã thêm workflow, kết quả xem báo cáo**.
+## Phase 6 — Kiểm trên thiết bị Apple 🟡 (6a xong)
+- **6a** CI macOS (GitHub Actions `macos-15`): `swift test`, build thiết bị iOS/iPadOS arm64, test simulator iPhone + iPad — ✅ **PASS**: macOS 91/91, build arm64 OK, simulator iPhone 91/91, iPad 91/91 (Xcode 16.4).
 - **6b** iPhone/iPad thật (Xcode, người có máy): chạy test, đo thời gian mở/lưu và bộ nhớ đỉnh với tệp 1 MB / 10 MB / 50 MB — ⛔ cần người có Mac + thiết bị.
 - **6c** Mở tệp kết quả bằng Microsoft Word/Excel/PowerPoint thật: không có hộp thoại "sửa chữa" — ⛔ cần máy có Office.
 - **6d** Bộ tệp Office thật (không dữ liệu cá nhân) đưa vào fixture — ⏳ cần team cung cấp.

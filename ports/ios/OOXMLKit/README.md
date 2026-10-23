@@ -1,6 +1,6 @@
 # OOXMLKit — đọc/sửa/ghi DOCX · XLSX · PPTX ngoại tuyến cho iOS/iPadOS
 
-Thư viện Swift thuần (chỉ Foundation), **không** dùng LibreOffice, Python, máy chủ hay thư viện bên thứ ba.
+Thư viện Swift thuần (chỉ Foundation), **chạy ngoại tuyến 100 % trên iPhone (iOS) và iPad (iPadOS)** — có test `OfflineGuaranteeTests` chặn mọi API mạng, **không** dùng LibreOffice, Python, máy chủ hay thư viện bên thứ ba.
 Nền tảng: iOS 15+, iPadOS 15+, macOS 12+ (để chạy test trên máy Mac); cũng build/test được bằng toolchain Swift Linux.
 
 Báo cáo kiểm thử: [`docs/ios/BAO-CAO-OOXMLKIT-2310.md`](../../../docs/ios/BAO-CAO-OOXMLKIT-2310.md).
@@ -63,7 +63,7 @@ try deck.save(to: url)
 **XLSX** — đọc giá trị (số, chuỗi chia sẻ/rich text/inline, bool, lỗi, chuỗi công thức), công thức (mở rộng công thức chia sẻ cho ô phụ thuộc),
 style (định dạng số, nhận diện ngày, hệ 1900/1904), ô gộp, liên kết, độ rộng cột/chiều cao hàng, tên định nghĩa, sheet ẩn;
 ghi giá trị/công thức/xóa ô (giữ style), áp định dạng (đậm, nghiêng, gạch chân, màu, cỡ, nền, căn lề, xuống dòng, định dạng số — luôn tạo xf mới,
-không sửa xf đang dùng), gộp/bỏ gộp, độ rộng cột (tách vùng `<col>`), chiều cao hàng, thêm sheet, đổi tên sheet;
+không sửa xf đang dùng), gộp/bỏ gộp, độ rộng cột (tách vùng `<col>`), chiều cao hàng, thêm sheet, đổi tên sheet, **xóa sheet** (tham chiếu → `#REF!`, dọn phần chỉ sheet đó dùng), **chèn/xóa hàng** (đồng bộ công thức mọi sheet, tên định nghĩa, biểu đồ, bảng, gộp ô, định dạng có điều kiện, xác thực, liên kết, ảnh neo theo ô, bình luận + VML);
 xử lý đúng công thức chia sẻ (sửa ô chủ → mở rộng cả nhóm), công thức mảng (chặn sửa ô con), `calcChain` (xóa khi công thức đổi),
 `fullCalcOnLoad`, tệp dùng tiền tố `x:`, hàng/ô không có thuộc tính `r`, namespace Strict.
 
@@ -73,15 +73,15 @@ thay chữ xuyên run (khớp cả tiếng Việt dựng sẵn/tổ hợp), chè
 
 **PPTX** — slide theo thứ tự, phân đoạn (p14), hình (kể cả trong nhóm và `mc:AlternateContent`), placeholder, vị trí, ảnh, bảng, biểu đồ, ghi chú;
 đặt chữ hình (giữ định dạng/cấp thụt lề), thay chữ xuyên run (slide + ghi chú), sửa ô bảng, đặt/tạo ghi chú, nhân bản slide (sao chép riêng biểu đồ/SmartArt/workbook nhúng),
-xóa slide (dọn ghi chú, bình luận, ảnh/biểu đồ chỉ slide đó dùng; cập nhật phân đoạn, trình chiếu tùy chỉnh), đổi thứ tự slide.
+xóa slide (dọn ghi chú, bình luận, ảnh/biểu đồ chỉ slide đó dùng; cập nhật phân đoạn, trình chiếu tùy chỉnh), đổi thứ tự slide, **thêm slide mới từ layout** (`layouts`, `addSlide(layout:at:)`).
 
 ## Chưa làm (giữ nguyên khi lưu, nhưng chưa có API sửa)
 
-- XLSX: **không tính công thức** (ghi `cachedValue` nếu có, đặt `fullCalcOnLoad` để Excel tính lại); chèn/xóa hàng–cột; xóa sheet;
+- XLSX: **không tính công thức** (ghi `cachedValue` nếu có, đặt `fullCalcOnLoad` để Excel tính lại); chèn/xóa **cột** (hàng đã làm), ngắt trang `rowBreaks` khi chèn hàng;
   sửa định dạng có điều kiện, xác thực dữ liệu, bình luận, bảng (table), pivot, biểu đồ. Sheet/part mới trong tệp Strict dùng namespace Transitional.
 - DOCX: sửa **không ghi thành theo dõi thay đổi** kể cả khi tài liệu bật `trackRevisions`; `setText` bỏ liên kết/trường trong đoạn đó;
   chưa tạo bảng/danh sách/section/bình luận mới.
-- PPTX: chưa thêm slide mới từ layout (chỉ nhân bản); chưa thay ảnh; nhân bản không chép ghi chú/bình luận.
+- PPTX: chưa thay ảnh; nhân bản không chép ghi chú/bình luận.
 - Không hỗ trợ tệp có mật khẩu (thực chất là OLE/CFB, không phải ZIP), DOC/XLS/PPT nhị phân.
 - Mô hình DOM nạp cả phần XML vào bộ nhớ: sheet 300.000 ô mở ~1,6 s (Linux x86, release) — cần đo trên iPhone thật.
 
