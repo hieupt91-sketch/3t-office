@@ -50,12 +50,12 @@ Cần **Swift 6.x**. Thư viện chỉ dùng `Foundation`, không UIKit/AppKit.
 - **CI che lỗi:** mọi bước grep/tail trong workflow phải chạy dưới `bash -eo pipefail` — nếu không, lỗi biên dịch bị `| tail` nuốt và CI báo xanh sai.
 
 ## 5. Bố cục module (phụ thuộc một chiều)
-`OOXMLZip` (ZIP/Deflate/CRC) → `OOXMLPackage` (XML + OPC: PartName, Relationships, ContentTypes, PackageValidator) → `OOXMLSpreadsheet` / `OOXMLWord` / `OOXMLPresentation` → `OOXMLKit` (gom lại). Test dùng chung `OOXMLTestSupport` (`Fixtures`, `RoundTrip`). Fixture: `Tests/OOXMLTestSupport/Fixtures/` — `zip/ deflate/ xlsx/ docx/ pptx/` sinh bằng `scripts/fixtures/*.py`; `real/` chép từ `tests/fixtures/real-office-samples` (LibreOffice tạo). **KHÔNG commit tài liệu thật của người dùng** (`.gitignore` gốc đã chặn `/file test/`).
+`OOXMLZip` (ZIP/Deflate/CRC) → `OOXMLPackage` (XML + OPC: PartName, Relationships, ContentTypes, PackageValidator) → `OOXMLSpreadsheet` / `OOXMLWord` / `OOXMLPresentation` → `OOXMLKit` (gom lại) → `OOXMLBridge` (cầu nối JSON cho WebView, Phase 7). Test dùng chung `OOXMLTestSupport` (`Fixtures`, `RoundTrip`). Fixture: `Tests/OOXMLTestSupport/Fixtures/` — `zip/ deflate/ xlsx/ docx/ pptx/` sinh bằng `scripts/fixtures/*.py`; `real/` chép từ `tests/fixtures/real-office-samples` (LibreOffice tạo). **KHÔNG commit tài liệu thật của người dùng** (`.gitignore` gốc đã chặn `/file test/`).
 
 ## 6. Trạng thái (cập nhật khi anh làm xong việc)
-- Phase 1 ZIP, 1b XML+OPC, 2 XLSX, 3 DOCX, 4 PPTX, 5 (xóa/chèn/xóa sheet·hàng·cột, theo dõi thay đổi DOCX, thêm slide/thay ảnh PPTX): **✅ xong**, 104 test PASS (Linux debug+release, macOS, simulator iPhone/iPad).
+- Phase 1 ZIP, 1b XML+OPC, 2 XLSX, 3 DOCX, 4 PPTX, 5 (xóa/chèn/xóa sheet·hàng·cột, theo dõi thay đổi DOCX, thêm slide/thay ảnh PPTX): **✅ xong**, 111 test PASS (Linux debug+release, macOS, simulator iPhone/iPad).
 - Phase 6a CI đa nền: ✅. 6b–6d (iPhone/iPad **thật**, mở bằng Microsoft Office thật, bộ tệp Office thật): ⛔ cần người có máy.
-- Phase 7 (tích hợp WKWebView + UI cảm ứng + **Hướng dẫn sử dụng tiếng Việt** theo AGENTS.md gốc §10): ⏳ **chỉ bắt đầu sau khi Người phụ trách duyệt báo cáo**.
+- Phase 7: 🟡 **lõi cầu nối `OOXMLBridge` + `OOXMLWebViewBridge` đã xong + test** (xem `docs/ios/SPEC-MOBILE-BRIDGE.md`); còn nhúng WebView/UI cảm ứng/document picker/**Hướng dẫn tiếng Việt** (§10) cần Xcode + thiết bị.
 - Giới hạn còn lại (giữ nguyên khi lưu, chưa có API sửa): xem `README.md` mục "Chưa làm" — quan trọng: XLSX **không tính công thức**.
 
 ## 6b. Đang chờ Người phụ trách (treo lại, không chặn việc khác)

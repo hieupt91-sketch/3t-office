@@ -1,6 +1,6 @@
 # Spec — Cầu nối WKWebView ↔ OOXMLKit (chuẩn bị Phase 7, iOS/iPadOS)
 
-Trạng thái: **ĐỀ XUẤT (chuẩn bị, chưa code)** · 23/10/2026 · Liên quan: `ADR-OOXMLKIT-LOI-DUNG-CHUNG.md` (Mức B đã duyệt), `KE-HOACH-OOXMLKIT-PHASES.md` (Phase 7), `SPEC-MOBILE.md`.
+Trạng thái: **LÕI ĐÃ HIỆN THỰC + TEST (23/10)** — `OOXMLBridge` (giao thức JSON) + `OOXMLWebViewBridge` (nối WKWebView, chỉ Apple). Còn lại: nối UI/document picker thật (cần thiết bị). · 23/10/2026 · Liên quan: `ADR-OOXMLKIT-LOI-DUNG-CHUNG.md` (Mức B đã duyệt), `KE-HOACH-OOXMLKIT-PHASES.md` (Phase 7), `SPEC-MOBILE.md`.
 
 ## 1. Mục tiêu
 Giao diện web hiện có (ribbon, lưới Sheet, trình soạn Doc, canvas Slide) chạy trong **WKWebView**; **OOXMLKit** (Swift, native) lo đọc/sửa/ghi tệp — **hoàn toàn trong tiến trình app, không mạng**. Spec này định nghĩa hợp đồng nhắn tin giữa hai bên để Phase 7 code theo, không phải nghĩ lại.

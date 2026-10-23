@@ -184,3 +184,10 @@ Làm thêm (không cần thao tác của người dùng):
 - `docs/ios/SPEC-MOBILE-BRIDGE.md`: đặc tả cầu nối WKWebView ↔ OOXMLKit cho Phase 7 (giao thức JSON, ánh xạ API, tệp/quyền iOS, bộ nhớ, hướng dẫn tiếng Việt).
 
 Đang chờ Người phụ trách (treo, không chặn việc khác): (1) mở 2 file OOXMLKit lưu ra bằng Office thật — có "repair" không; (2) gửi file PowerPoint thật; (3) cấp tệp Office nội dung giả để commit fixture; (4) duyệt bắt đầu Phase 7.
+
+
+### 8.9 Bắt đầu Phase 7: lõi cầu nối WKWebView ↔ OOXMLKit (đã hiện thực + test)
+Module mới `OOXMLBridge` (Swift, chỉ `Foundation`+`OOXMLKit`): nhận JSON `{id,op,args}` từ WebView → gọi OOXMLKit → trả `{ok,result|error}`. Giữ tài liệu bằng handle; đọc ô theo vùng (tiết kiệm RAM). Các op: open/info/close/save/exportBytes; sheet.read/setValue/setFormula/clear/format/merge/insert-deleteRows-Columns/add-rename-delete; doc.read/setText/insertParagraph/appendParagraph/replace; slide.read/setText/setNotes/replace/delete/move.
+`OOXMLWebViewBridge` (`#if canImport(WebKit)`) đăng ký `WKScriptMessageHandlerWithReply` — biên dịch trên iOS/iPadOS/macOS, không mạng (chỉ bắc cầu JSON trong tiến trình).
+**Test: 7/7 qua đúng giao thức JSON** (mở→đọc→sửa→xuất/lưu→mở lại cho XLSX/DOCX/PPTX + tệp thật + lỗi có cấu trúc). Tổng: **111/111** PASS (debug + release). `OfflineGuaranteeTests` phủ cả module cầu nối (bỏ qua đúng tệp WebKit-guarded).
+Còn lại (cần thiết bị/Xcode, treo chờ): nhúng WebView thật, document picker + security-scoped bookmark, lưu tự động, bố cục cảm ứng iPhone/iPad, Hướng dẫn tiếng Việt từng thao tác.

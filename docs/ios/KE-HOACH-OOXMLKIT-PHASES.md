@@ -58,9 +58,9 @@ Trạng thái: ✅ xong (đã chạy, PASS) · 🟡 đang làm · ⏳ chưa làm
 - **6c** Mở tệp kết quả bằng Microsoft Word/Excel/PowerPoint thật: không có hộp thoại "sửa chữa" — ⛔ cần máy có Office.
 - **6d** Bộ tệp Office thật (không dữ liệu cá nhân) đưa vào fixture — ⏳ cần team cung cấp.
 
-## Phase 7 — Tích hợp ứng dụng (chỉ sau khi duyệt) ⏳
-- Cầu nối JSON `WKScriptMessageHandlerWithReply` ↔ `Workbook`/`WordDocument`/`Presentation`, chạy cục bộ trong ứng dụng (không mạng).
-- Mở/lưu qua `UIDocumentPickerViewController`, security-scoped URL, `UIDocument`/`NSFileCoordinator` (iCloud Drive/Files), lưu tự động khi vào nền.
+## Phase 7 — Tích hợp ứng dụng 🟡 (lõi cầu nối đã xong)
+- ✅ **Lõi cầu nối `OOXMLBridge`** (giao thức JSON {id,op,args}→{ok,result}) + `OOXMLWebViewBridge` (`WKScriptMessageHandlerWithReply`, `#if canImport(WebKit)`): mở/đọc theo vùng/sửa ô–công thức–định dạng/chèn-xóa hàng-cột/thêm-đổi tên-xóa sheet/đọc-sửa-chèn đoạn/thay chữ/đọc-sửa slide-ghi chú/xuất-lưu. **7 test qua đúng giao thức JSON** trên fixture thật. Chạy cục bộ, không mạng (OfflineGuaranteeTests phủ luôn).
+- ⏳ (cần thiết bị) Mở/lưu qua `UIDocumentPickerViewController`, security-scoped URL, `UIDocument`/`NSFileCoordinator`, lưu tự động khi vào nền; nhúng WebView + bố cục cảm ứng; Hướng dẫn tiếng Việt.
 - Bố cục cảm ứng iPhone (một cột) và iPad (Split View, Stage Manager, bàn phím rời, Apple Pencil).
 - Hướng dẫn sử dụng tiếng Việt cho từng thao tác (AGENTS.md §10).
 - Tính lại công thức: dùng bộ máy JS `apps/sheet/formula-engine.js` trong WKWebView để ghi giá trị đệm.
