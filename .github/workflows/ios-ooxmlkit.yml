@@ -34,6 +34,27 @@ jobs:
       - name: swift test (Linux, release)
         run: swift test -c release -Xswiftc -enable-testing 2>&1 | grep -E "error:|Executed [0-9]+ tests"
 
+  # SPIKE (Bước 1 lộ trình đa nền): chứng minh OOXMLKit build/test được trên Windows (Swift-on-Windows).
+  # continue-on-error để lần đầu dò đường không làm đỏ cả workflow; gỡ cờ này khi đã xanh ổn định.
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    continue-on-error: true
+    steps:
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          branch: swift-6.0.3-release
+          tag: 6.0.3-RELEASE
+      - uses: actions/checkout@v4
+      - name: Phiên bản Swift (Windows)
+        run: swift --version
+      - name: swift build (Windows)
+        working-directory: ports/ios/OOXMLKit
+        run: swift build
+      - name: swift test (Windows)
+        working-directory: ports/ios/OOXMLKit
+        run: swift test
+
   ios:
     runs-on: macos-15
     timeout-minutes: 45
