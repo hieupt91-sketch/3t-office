@@ -76,6 +76,45 @@ public enum FormulaRewriter {
         }
     }
 
+    /// Chèn/xóa cột tại `column` của sheet `target` (cùng quy tắc như hàng).
+    public static func adjustColumns(_ formula: String, formulaSheet: String, target: String, at column: Int, delta: Int) -> String {
+        guard delta != 0 else { return formula }
+        return transform(formula, sheet: { _ in nil }) { tok in
+            let s = tok.sheet ?? formulaSheet
+            guard s.caseInsensitiveCompare(target) == .orderedSame else { return tok.text }
+            switch tok.kind {
+            case .cell(let c):
+                guard let n = mapIndex(c.ref.column, at: column, delta: delta, max: CellReference.maxColumn) else { return "#REF!" }
+                return c.with(column: n)
+            case .cellRange(let a, let b):
+                guard let (c1, c2) = mapSpan(a.ref.column, b.ref.column, at: column, delta: delta, max: CellReference.maxColumn) else { return "#REF!" }
+                return a.with(column: c1) + ":" + b.with(column: c2)
+            case .columns(let a, let b):
+                guard let (c1, c2) = mapSpan(a.column, b.column, at: column, delta: delta, max: CellReference.maxColumn) else { return "#REF!" }
+                return a.with(c1) + ":" + b.with(c2)
+            case .rows:
+                return tok.text
+            }
+        }
+    }
+
+    static func mapIndex(_ v: Int, at: Int, delta: Int, max: Int) -> Int? {
+        if delta > 0 { return v >= at ? min(v + delta, max) : v }
+        let n = -delta
+        if v >= at && v < at + n { return nil }
+        return v >= at + n ? v - n : v
+    }
+
+    static func mapSpan(_ v1: Int, _ v2: Int, at: Int, delta: Int, max: Int) -> (Int, Int)? {
+        if delta > 0 { return (v1 >= at ? v1 + delta : v1, v2 >= at ? Swift.min(v2 + delta, max) : v2) }
+        let n = -delta
+        let end = at + n
+        if v1 >= at && v2 < end { return nil }
+        let a = v1 >= end ? v1 - n : (v1 >= at ? at : v1)
+        let b = v2 >= end ? v2 - n : (v2 >= at ? at - 1 : v2)
+        return a <= b ? (a, b) : nil
+    }
+
     /// Dòng mới của một ô đơn; nil nếu ô bị xóa.
     static func mapRow(_ r: Int, at row: Int, delta: Int) -> Int? {
         if delta > 0 { return r >= row ? min(r + delta, CellReference.maxRow) : r }
@@ -238,6 +277,7 @@ public enum FormulaRewriter {
                   let c = CellReference.columnNumber(body) else { return nil }
             column = c
         }
+        func with(_ c: Int) -> String { (absolute ? "$" : "") + CellReference.columnName(c) }
         func shifted(_ d: Int) -> String? {
             let c = absolute ? column : column + d
             guard c >= 1 && c <= CellReference.maxColumn else { return nil }
@@ -281,6 +321,9 @@ public enum FormulaRewriter {
             while i < chars.count && chars[i].isASCII && chars[i].isNumber { i += 1 }
             guard i == chars.count, i > ds, let r = CellReference(letters + String(chars[ds..<i])) else { return nil }
             ref = r
+        }
+        func with(column c: Int) -> String {
+            (colAbs ? "$" : "") + CellReference.columnName(c) + (rowAbs ? "$" : "") + String(ref.row)
         }
         func with(row r: Int) -> String {
             (colAbs ? "$" : "") + CellReference.columnName(ref.column) + (rowAbs ? "$" : "") + String(r)

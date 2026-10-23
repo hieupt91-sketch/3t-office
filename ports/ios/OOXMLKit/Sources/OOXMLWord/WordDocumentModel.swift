@@ -11,6 +11,7 @@ public struct WordStyle: Equatable, Sendable {
 public final class WordDocument {
     public let package: OPCPackage
     public let mainPart: PartName
+    var revisionCounter = 0
     private final class WeakStory { weak var story: WordStory?; init(_ s: WordStory) { story = s } }
     /// Cache yếu tránh vòng tham chiếu (story giữ tài liệu); sửa đổi nằm trong DOM của gói nên tạo lại luôn nhất quán.
     private var storyCache: [PartName: WeakStory] = [:]

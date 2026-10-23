@@ -37,10 +37,14 @@ extension Worksheet {
 
     /// Cập nhật thuộc tính dạng vùng (sqref/ref) của chính sheet này. Mục bị xóa hết thì bỏ.
     func adjustOwnRanges(at row: Int, delta: Int) {
+        adjustOwnRanges { FormulaRewriter.adjustRows($0, formulaSheet: self.name, target: self.name, at: row, delta: delta) }
+    }
+
+    func adjustOwnRanges(using transform: @escaping (String) -> String) {
         let adjust = { (text: String) -> String? in
             let items = text.split(separator: " ").map { String($0) }
             let out = items.compactMap { item -> String? in
-                let n = FormulaRewriter.adjustRows(item, formulaSheet: self.name, target: self.name, at: row, delta: delta)
+                let n = transform(item)
                 return n.contains("#REF!") ? nil : n
             }
             return out.isEmpty ? nil : out.joined(separator: " ")
