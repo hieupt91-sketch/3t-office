@@ -105,7 +105,7 @@ SPEC-MOBILE §4 đề xuất giai đoạn 1 dùng máy chủ (phương án A). N
 ### 8.1 Kết quả
 | Hạng mục | Kết quả | Số liệu |
 |---|---|---|
-| Toàn bộ test trên Linux (debug + release) | **PASS** | 102/102 + 102/102 (79 cũ + 23 mới) |
+| Toàn bộ test trên Linux (debug + release) | **PASS** | 103/103 + 103/103 (79 cũ + 24 mới) |
 | Kiểm chéo độc lập toàn bộ tệp kết quả | **PASS** | 76/76 tệp (60 cũ + 16 tệp Phase 5) |
 | Bảo đảm ngoại tuyến (`OfflineGuaranteeTests`) | **PASS** | 3/3: không API mạng/tiến trình ngoài, chỉ `import Foundation` + module nội bộ, không gói phụ thuộc |
 | Phase 5 — xóa sheet | **PASS** | 3/3 test |
@@ -114,6 +114,7 @@ SPEC-MOBILE §4 đề xuất giai đoạn 1 dùng máy chủ (phương án A). N
 | Phase 5 — chèn/xóa cột | **PASS** | 5/5 test (chặn an toàn khi cắt ngang bảng; 7 tệp thật) |
 | Phase 5 — DOCX theo dõi thay đổi + chấp nhận/từ chối tất cả | **PASS** | 3/3 test |
 | Phase 5 — PPTX thay ảnh | **PASS** | 2/2 test (không ghi đè ảnh dùng chung) |
+| Phase 5 — ngắt trang theo hàng/cột | **PASS** | 1/1 test |
 | Sửa tận gốc lỗi "phần tử tách rời mất namespace" | **PASS** | 1 test hồi quy |
 | CI macOS `swift test` | **PASS** | 91/91 |
 | CI build thiết bị iOS/iPadOS arm64 | **PASS** | Xcode 16.4 |

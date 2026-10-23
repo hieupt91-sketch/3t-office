@@ -77,7 +77,7 @@ xóa slide (dọn ghi chú, bình luận, ảnh/biểu đồ chỉ slide đó d�
 
 ## Chưa làm (giữ nguyên khi lưu, nhưng chưa có API sửa)
 
-- XLSX: **không tính công thức** (ghi `cachedValue` nếu có, đặt `fullCalcOnLoad` để Excel tính lại); chèn/xóa cột cắt ngang bảng (bị từ chối an toàn); ngắt trang `rowBreaks` khi chèn hàng;
+- XLSX: **không tính công thức** (ghi `cachedValue` nếu có, đặt `fullCalcOnLoad` để Excel tính lại); chèn/xóa cột cắt ngang bảng (bị từ chối an toàn);
   sửa định dạng có điều kiện, xác thực dữ liệu, bình luận, bảng (table), pivot, biểu đồ. Sheet/part mới trong tệp Strict dùng namespace Transitional.
 - DOCX: theo dõi thay đổi có ở `setText(_:revision:)`, `appendParagraph(_:revision:)` (+ chấp nhận/từ chối tất cả), các thao tác khác (thay chữ, định dạng, chèn ảnh) chưa ghi thành theo dõi; `setText` bỏ liên kết/trường trong đoạn đó;
   chưa tạo bảng/danh sách/section/bình luận mới.

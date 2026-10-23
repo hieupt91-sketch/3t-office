@@ -146,4 +146,17 @@ final class Phase5SheetOperationTests: XCTestCase {
             XCTAssertEqual(PackageValidator.validate(try wb.save()).filter { !PackageValidator.validate(original).contains($0) }, [], f)
         }
     }
+
+    func testPageBreaksFollowRowsAndColumns() throws {
+        let wb = try Workbook(data: try Fixtures.data(rich))
+        let ws = try wb.worksheet(named: "Dữ liệu")
+        let rb = try XDocument(string: #"<rowBreaks xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="2" manualBreakCount="2"><brk id="5" max="16383" man="1"/><brk id="9" max="16383" man="1"/></rowBreaks>"#).root
+        rb.removeAttribute("xmlns")
+        ws.document.root.insertChild(rb, schemaOrder: Worksheet.worksheetOrder)
+        try ws.insertRows(at: 3, count: 2)   // ngắt trên hàng 6 → 8, trên hàng 10 → 12
+        try ws.deleteRows(at: 12, count: 1)  // hàng 12 bị xóa → ngắt phía trên nó giữ (id 11 trỏ hàng 12 bị xóa → bỏ)
+        let xml = try RoundTrip.partString(try wb.save(), "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(xml.contains("<rowBreaks count=\"1\" manualBreakCount=\"1\"><brk id=\"7\" max=\"16383\" man=\"1\"/></rowBreaks>"), xml)
+        XCTAssertEqual(PackageValidator.validate(try wb.save()), [])
+    }
 }

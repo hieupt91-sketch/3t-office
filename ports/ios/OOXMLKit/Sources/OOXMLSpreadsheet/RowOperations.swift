@@ -35,6 +35,27 @@ extension Worksheet {
         }
     }
 
+    /// Ngắt trang thủ công: brk@id = chỉ số (từ 0) của hàng/cột đứng ngay trước chỗ ngắt
+    /// (ngắt nằm trên hàng id+1 tính từ 1). Ngắt nằm trong vùng bị xóa thì bỏ.
+    func shiftBreaks(_ container: String, at index: Int, delta: Int) {
+        guard let breaks = document.root.firstChild(NS.s, container) else { return }
+        for b in breaks.children(NS.s, "brk") {
+            guard let id = Int(b.attribute("id") ?? "") else { continue }
+            if let n = FormulaRewriter.mapIndex(id + 1, at: index, delta: delta, max: Int.max) {
+                if n != id + 1 { b.setAttribute("id", String(n - 1)) }
+            } else {
+                b.removeFromParent()
+            }
+        }
+        let all = breaks.children(NS.s, "brk")
+        if all.isEmpty {
+            breaks.removeFromParent()
+        } else {
+            breaks.setAttribute("count", String(all.count))
+            breaks.setAttribute("manualBreakCount", String(all.filter { $0.attribute("man") == "1" }.count))
+        }
+    }
+
     /// Cập nhật thuộc tính dạng vùng (sqref/ref) của chính sheet này. Mục bị xóa hết thì bỏ.
     func adjustOwnRanges(at row: Int, delta: Int) {
         adjustOwnRanges { FormulaRewriter.adjustRows($0, formulaSheet: self.name, target: self.name, at: row, delta: delta) }
@@ -99,6 +120,7 @@ extension Workbook {
         for w in all { w.expandAllSharedFormulas() }
         // Bảng (table) và sqref của chính sheet phải tính TRƯỚC khi đổi số hàng.
         ws.adjustOwnRanges(at: row, delta: delta)
+        ws.shiftBreaks("rowBreaks", at: row, delta: delta)
         ws.moveRowElements(at: row, delta: delta)
         let rewrite = { (sheetName: String) in
             { (f: String) in FormulaRewriter.adjustRows(f, formulaSheet: sheetName, target: ws.name, at: row, delta: delta) }

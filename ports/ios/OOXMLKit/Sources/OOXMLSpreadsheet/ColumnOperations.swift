@@ -83,6 +83,7 @@ extension Workbook {
         let all = try sheets.filter { $0.kind == .worksheet }.map { try worksheet(named: $0.name) }
         for w in all { w.expandAllSharedFormulas() }
         ws.adjustOwnRanges { FormulaRewriter.adjustColumns($0, formulaSheet: ws.name, target: ws.name, at: column, delta: delta) }
+        ws.shiftBreaks("colBreaks", at: column, delta: delta)
         ws.moveColumnElements(at: column, delta: delta)
         let rewrite = { (sheetName: String) in
             { (f: String) in FormulaRewriter.adjustColumns(f, formulaSheet: sheetName, target: ws.name, at: column, delta: delta) }
