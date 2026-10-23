@@ -1163,3 +1163,24 @@ DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: 20 invalid-input screenshots in docs/assets/q50-ui at 1366x768, light/dark, before/after; additionally 46 Enter, 38 ribbon, 18 InfoBar, 16 Sheet dialog error and 6 focus screenshots reviewed. No clipping/overflow/overlap observed. High 1/1 fixed; medium 7/7 fixed; remaining low 0; NOT RUN 0.
 NEXT ACTION: Q50 complete.
+
+
+## Q51 — Handoff cuối 24/10/2026
+
+TASK: Q51 — audit 20 tệp `.xls` và 20 tệp `.doc` cũ; mở, sửa thử, lưu và mở lại.
+AGENT/ROLE: Codex / Windows desktop CDP.
+BRANCH: codex/queue-19-10.
+WORKTREE: E:\VNOffice-codex-queue.
+OBJECTIVE: Xác định lỗi mở/lưu và sai khác nội dung; đối chiếu Word COM ẩn; giữ nguyên bộ mẫu LAN.
+FINDINGS: CFB legacy `.doc/.xls/.ppt` bị nhầm là OOXML mã hóa, khiến hiện hộp hỏi mật khẩu. Sau sửa 20/20 XLS mở/lưu `.xls`; 4 tệp có 17 sai khác công thức/giá trị. DOC 20/20 lưu/mở lại `.doc`; có 6 tệp sai khác nội dung/định dạng và 3 tệp giảm số trang.
+IMPLEMENTATION SUMMARY: `_is_encrypted_package()` bỏ qua phần mở rộng legacy binary; thêm regression test bảo đảm CFB `.xlsx` vẫn được nhận diện mã hóa. Commit mã `fd1f190b`.
+FILES CHANGED: `main.py`; `tests/test_ooxml_encryption_main.py`; `docs/LEGACY-OFFICE-AUDIT-24-10.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; pytest regression trước/sau; batch audit XLS/DOC; CDP open/save/reopen; Word COM readback; batch LAN XLSX/DOCX; npm; i18n; checklist evidence; focused pytest.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — pytest regression 1/1; npm 3792/3792; i18n missing=0; checklist lowered=0; `.xlsx` LAN 27/27; `.docx` LAN 8/8; CDP `.xls` 20/20 và `.doc` 20/20; Word COM readback 40/40.
+KNOWN FAILURES: Focused pytest tổng FAIL: 317 passed, 1 failed, 823 deselected do test chữ ký API `open_document_dialog` mong 1 đối số nhưng implementation có 3; không liên quan tới thay đổi Q51. Excel COM BLOCKED; `NumberFormat`, tên vùng, biểu đồ và ẩn/hiện XLS NOT RUN.
+RISKS: Bốn XLS có sai khác formula/value và không hiện cảnh báo. Chín DOC có chênh lệch nội dung/định dạng/số trang không hiện cảnh báo. Luồng DOC đi qua LibreOffice `.doc`→`.docx`→HTML và ngược lại; đề xuất xử lý ở phiếu riêng.
+DEPENDENCIES/BLOCKERS: Không có dependency mới. Follow-up độ trung thực XLS/DOC ở phiếu riêng.
+CORE PATCH ID (if any): None.
+GIAO DIEN ĐÃ XEM: 20 ảnh XLS `E:\VNOffice-briefs\logs\Q51-artifacts\xls-legacyNN.png`; 20 ảnh DOC `...\legacyNN.png`; ảnh Writer Save As trước/sau. Ribbon/status/scroll không bị cắt hoặc che. Có nội dung trong một số ô bị cắt theo cột/viewport; `legacy08.xls` hiện `#NAME?`; tiêu đề `legacy20.doc` sát liền. Hộp chọn tệp native không được ảnh CDP ghi lại.
+NEXT ACTION: Q51 complete. Báo cáo chi tiết tại `docs/LEGACY-OFFICE-AUDIT-24-10.md`.
