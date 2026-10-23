@@ -87,3 +87,5 @@ Trạng thái: ✅ xong (đã chạy, PASS) · 🟡 đang làm · ⏳ chưa làm
 | 5 Bổ sung | 7 hạng mục | ✅ 7/7 | 20 | ✅ | xem báo cáo §8.2 | xem báo cáo §8.2 |
 | 6 Thiết bị Apple | 4 bước | ✅ 6a (CI); ⛔ 6b–6d cần người/máy | — | — | — | — |
 | 7 Tích hợp app | chờ duyệt | ⏳ chưa bắt đầu (đúng yêu cầu) | — | — | — | — |
+
+> Cập nhật 23/10 22:3x: CI Windows **BLOCKED** do lỗi modulemap `ucrt` (toolchain Swift-on-Windows ↔ Windows SDK), không phải lỗi mã — đã gỡ job Windows; bằng chứng đa nền giữ qua job Linux. Xem báo cáo §8.7.

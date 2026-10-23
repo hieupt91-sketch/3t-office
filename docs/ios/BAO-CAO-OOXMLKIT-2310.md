@@ -170,3 +170,8 @@ Hai tệp do Microsoft Office thật tạo (Word 16, Excel 16.03) — **chứa d
 **Phát hiện giá trị:** `openpyxl` **không đọc được** tệp Excel thật này (nó áp ngưỡng `<font><family> ≤ 14`, trong khi Office ghi giá trị khác) — nhưng OOXMLKit mở và round-trip sạch. Minh chứng vì sao cần tệp Office thật, và OOXMLKit chịu được "góc khuất" thực tế.
 
 Còn lại để đóng hẳn mục này: **mở tệp OOXMLKit lưu ra bằng chính Microsoft Office** để xác nhận không có hộp thoại "repair" (cần máy có Office — đã gửi tệp đã sửa cho Người phụ trách kiểm). Và cần bộ tệp Office **nội dung giả** để đưa vào fixture commit được.
+
+
+### 8.7 CI Windows — BLOCKED (lỗi toolchain, không phải lỗi mã)
+Đã thử spike Swift-on-Windows trên `windows-latest` (action `compnerd/gha-setup-swift` + `ilammy/msvc-dev-cmd`): Swift **cài được**, `swift --version` chạy, nhưng `swift build` **lỗi dựng C-module `ucrt`** (`LibcOverlayShims.h: could not build module 'ucrt'`). Đây là **mâu thuẫn modulemap giữa bản Swift 6.0.3 và phiên bản Windows SDK trên runner**, một vướng mắc toolchain đã biết của Swift-on-Windows — **không liên quan mã OOXMLKit** (cùng mã này build/test sạch trên Linux/macOS/iOS/iPadOS).
+Đã **gỡ job Windows khỏi CI** để không đốt phút CI vào lỗi hạ tầng. **Bằng chứng chạy-ngoài-Apple vẫn còn** qua job `linux` (swift-corelibs-foundation — đúng nền Foundation của Windows). **Trạng thái: BLOCKED.** Xem lại khi: pin được cặp Swift toolchain ↔ Windows SDK tương thích, hoặc để team dựng/kiểm trên máy Windows thật.

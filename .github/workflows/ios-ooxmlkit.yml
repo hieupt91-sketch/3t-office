@@ -3,6 +3,10 @@
 #    — chính là bộ Foundation mà Windows và Android cũng dùng, nên đây là bằng chứng đa nền rẻ nhất (rẻ ~10x macOS).
 #  - job ios    (macOS thật): swift test, build iPhone/iPad arm64, test simulator iPhone + iPad.
 # Chỉ chạy khi mã ports/ios đổi.
+# Windows: đã thử spike (compnerd/gha-setup-swift + ilammy/msvc-dev-cmd) — BLOCKED do mâu thuẫn modulemap
+#   'ucrt' giữa Swift 6.0.3 và Windows SDK trên runner windows-latest (lỗi toolchain, KHÔNG phải lỗi mã).
+#   Bằng chứng chạy-ngoài-Apple đã có qua job linux (cùng swift-corelibs-foundation như Windows). Xem lại khi
+#   pin được Windows SDK hợp lệ, hoặc để team dựng trên máy Windows thật.
 name: iOS OOXMLKit
 
 on:
@@ -33,29 +37,6 @@ jobs:
         run: swift test 2>&1 | grep -E "error:|Test Suite '.*xctest'|Executed [0-9]+ tests"
       - name: swift test (Linux, release)
         run: swift test -c release -Xswiftc -enable-testing 2>&1 | grep -E "error:|Executed [0-9]+ tests"
-
-  # SPIKE (Bước 1 lộ trình đa nền): chứng minh OOXMLKit build/test được trên Windows (Swift-on-Windows).
-  # continue-on-error để lần đầu dò đường không làm đỏ cả workflow; gỡ cờ này khi đã xanh ổn định.
-  windows:
-    runs-on: windows-latest
-    timeout-minutes: 40
-    continue-on-error: true
-    steps:
-      # Nạp môi trường MSVC (INCLUDE/LIB/PATH cho Windows SDK + UCRT) — sửa lỗi "could not build module 'ucrt'".
-      - uses: ilammy/msvc-dev-cmd@v1
-      - uses: compnerd/gha-setup-swift@main
-        with:
-          branch: swift-6.0.3-release
-          tag: 6.0.3-RELEASE
-      - uses: actions/checkout@v4
-      - name: Phiên bản Swift (Windows)
-        run: swift --version
-      - name: swift build (Windows)
-        working-directory: ports/ios/OOXMLKit
-        run: swift build
-      - name: swift test (Windows)
-        working-directory: ports/ios/OOXMLKit
-        run: swift test
 
   ios:
     runs-on: macos-15
