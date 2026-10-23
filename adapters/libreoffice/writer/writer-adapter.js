@@ -18584,14 +18584,20 @@ export class WriterAdapter {
    * Luôn mở hộp thoại lưu native của hệ điều hành, cho phép chọn thư mục, đổi tên
    * hoặc chọn định dạng xuất (.docx, .doc, .odt, .rtf).
    */
-  async saveAs() {
+  async saveAs(targetFormatOverride = null) {
     this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
     const currentName = this.sourceFileName || "TaiLieu";
-    const suggestedName = this._sourcePath
+    const originalSuggestedName = this._sourcePath
       ? this._sourcePath.split(/[/\\]/).pop()
       : (this.shell?.documentName ? this.shell.documentName : (currentName !== "TaiLieu" ? currentName : "TaiLieu.docx"));
 
-    const targetFormat = this._sourcePath ? (this._sourcePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "docx") : "docx";
+    const requestedFormat = String(targetFormatOverride || "").toLowerCase();
+    const targetFormat = ["docx", "doc", "odt", "rtf"].includes(requestedFormat)
+      ? requestedFormat
+      : (this._sourcePath ? (this._sourcePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "docx") : "docx");
+    const suggestedName = requestedFormat
+      ? `${String(originalSuggestedName || currentName).replace(/\.[^/.]+$/, "")}.${targetFormat}`
+      : originalSuggestedName;
 
     const result = await globalUnoBridge.saveRealFile(
       "writer",
@@ -18804,6 +18810,24 @@ export class WriterAdapter {
       this._recomputeLivePagination?.();
       if (typeof requestAnimationFrame !== "undefined") {
         requestAnimationFrame(() => this._recomputeLivePagination?.());
+      }
+      if (/\.doc$/i.test(String(result.sourcePath || result.fileName || "")) && this.shell?.showNotification) {
+        const legacyWarning = t("legacyFileFormat.docWarning");
+        this.shell.showNotification({
+          type: "warning",
+          message: this.isFinal
+            ? `${t("writerDocumentProperties.finalBanner", "Tài liệu đã được đánh dấu là cuối cùng để ngăn chỉnh sửa vô ý.")} ${legacyWarning}`
+            : legacyWarning,
+          action: {
+            label: t("legacyFileFormat.saveDocx"),
+            onClick: () => this.saveAs("docx")
+          },
+          actions: this.isFinal ? [{
+            label: t("writerDocumentProperties.editAnyway"),
+            onClick: () => this.unmarkFinal()
+          }] : [],
+          dismissible: !this.isFinal
+        });
       }
       return true;
     }

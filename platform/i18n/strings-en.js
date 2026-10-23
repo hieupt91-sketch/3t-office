@@ -33,6 +33,12 @@ export const enStrings = {
     hint: "The file is encrypted when you save and needs the password to open. A forgotten password cannot be recovered.",
     unavailable: "Could not set a password for this document. Save the document first, then try again."
   },
+  legacyFileFormat: {
+    docWarning: "Legacy file format (.doc): some formatting may change when saved. Save as .docx.",
+    saveDocx: "Save as .docx",
+    xlsWarning: "Legacy file format (.xls): some formatting or formulas may change when saved. Save as .xlsx.",
+    saveXlsx: "Save as .xlsx"
+  },
   writerTableProperties: {
     table: "Table", row: "Row", column: "Column", cell: "Cell", columnWidth: "Selected column width",
     setColumnWidth: "Set column width:", cm: "cm", verticalAlign: "Cell vertical alignment",

@@ -1186,6 +1186,20 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.file.legacyFormatWarning",
+    app: "writer",
+    commandIds: ["common.file.open"],
+    title: "Cảnh báo khi mở tệp .doc",
+    summary: "Tệp .doc có thể thay đổi một số định dạng khi lưu. Thanh cảnh báo xuất hiện sau khi mở tệp và cho phép tạo bản .docx.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
+    keywords: ["doc", "docx", "định dạng cũ", "cảnh báo", "lưu thành", "chuyển đổi", "tệp cũ"],
+    steps: [
+      "Mở tab Tệp, nhóm Tài liệu, chọn Mở tệp rồi chọn tệp có đuôi .doc.",
+      "Sau khi tài liệu nạp xong, đọc thanh cảnh báo phía trên vùng soạn thảo. Cảnh báo cho biết một số định dạng có thể thay đổi khi lưu.",
+      "Chọn Lưu thành .docx trên thanh cảnh báo, chọn thư mục và tên tệp trong hộp thoại lưu, rồi xác nhận. Bản .docx mới được tạo theo định dạng hiện hành."
+    ]
+  },
+  {
     id: "writer.file.saveDocument",
     app: "writer",
     commandIds: ["common.file.save", "common.file.saveAs"],

@@ -32,6 +32,12 @@ export const viStrings = {
     hint: "Tệp được mã hóa khi bạn lưu và phải nhập mật khẩu mới mở được. Quên mật khẩu thì không khôi phục được tệp.",
     unavailable: "Không đặt được mật khẩu cho tài liệu này. Hãy thử lưu tài liệu trước rồi đặt lại."
   },
+  legacyFileFormat: {
+    docWarning: "Tệp định dạng cũ (.doc): một số định dạng có thể thay đổi khi lưu. Nên Lưu thành .docx.",
+    saveDocx: "Lưu thành .docx",
+    xlsWarning: "Tệp định dạng cũ (.xls): một số định dạng hoặc công thức có thể thay đổi khi lưu. Nên Lưu thành .xlsx.",
+    saveXlsx: "Lưu thành .xlsx"
+  },
   writerTableProperties: {
     table: "Bảng", row: "Hàng", column: "Cột", cell: "Ô", columnWidth: "Chiều rộng cột đang chọn",
     setColumnWidth: "Đặt chiều rộng cột:", cm: "cm", verticalAlign: "Căn dọc nội dung ô",
