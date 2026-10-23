@@ -27,7 +27,7 @@ public final class OPCPackage {
     public let archive: ZipArchive
     public let contentTypes: ContentTypes
     private var zipNameByKey: [String: String] = [:]
-    private var xmlCache: [PartName: XMLDocument] = [:]
+    private var xmlCache: [PartName: XDocument] = [:]
     private var modifiedXML: Set<PartName> = []
     private var relsCache: [PartName: Relationships] = [:]
     private var pendingData: [PartName: Data] = [:]
@@ -47,7 +47,7 @@ public final class OPCPackage {
         for name in archive.entryNames { zipNameByKey[OPCPackage.key(PartName(zipName: name))] = name }
         guard let ctName = zipNameByKey[OPCPackage.key(.contentTypes)] else { throw PackageError.missingContentTypes }
         do {
-            contentTypes = ContentTypes(document: try XMLDocument(data: archive.contents(of: ctName)))
+            contentTypes = ContentTypes(document: try XDocument(data: archive.contents(of: ctName)))
         } catch {
             throw PackageError.invalidPart(.contentTypes, "\(error)")
         }
@@ -91,12 +91,12 @@ public final class OPCPackage {
     }
 
     /// DOM của phần XML (được cache; mọi sửa đổi cần gọi `markModified`).
-    public func xml(_ part: PartName) throws -> XMLDocument {
+    public func xml(_ part: PartName) throws -> XDocument {
         if let d = xmlCache[part] { return d }
         let raw = try data(of: part)
-        let doc: XMLDocument
+        let doc: XDocument
         do {
-            doc = try XMLDocument(data: raw)
+            doc = try XDocument(data: raw)
         } catch {
             throw PackageError.invalidPart(part, "\(error)")
         }
@@ -115,7 +115,7 @@ public final class OPCPackage {
     }
 
     /// Tạo/ghi đè phần XML.
-    public func setXML(_ doc: XMLDocument, for part: PartName, contentType: String? = nil) {
+    public func setXML(_ doc: XDocument, for part: PartName, contentType: String? = nil) {
         xmlCache[part] = doc
         markModified(part)
         if let ct = contentType { registerContentType(ct, for: part) }
@@ -172,7 +172,7 @@ public final class OPCPackage {
         if hasPart(relsPart) {
             let raw = try data(of: relsPart)
             do {
-                r = Relationships(source: source, document: try XMLDocument(data: raw))
+                r = Relationships(source: source, document: try XDocument(data: raw))
             } catch {
                 throw PackageError.invalidPart(relsPart, "\(error)")
             }
@@ -211,7 +211,7 @@ public final class OPCPackage {
                               copied: inout [PartName: PartName]) throws {
         copied[part] = newPart
         if let doc = xmlCache[part], modifiedXML.contains(part) {
-            setXML(try XMLDocument(data: doc.serialized()), for: newPart)
+            setXML(try XDocument(data: doc.serialized()), for: newPart)
         } else {
             setData(try data(of: part), for: newPart)
         }

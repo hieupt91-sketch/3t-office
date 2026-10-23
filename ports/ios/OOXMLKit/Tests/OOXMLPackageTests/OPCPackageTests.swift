@@ -52,9 +52,9 @@ final class OPCPackageTests: XCTestCase {
             for p in pkg.partNames where p.fileExtension == "xml" || p.isRelationshipsPart {
                 let doc = try pkg.xml(p)
                 let once = doc.serialized()
-                let twice = try XMLDocument(data: once).serialized()
+                let twice = try XDocument(data: once).serialized()
                 XCTAssertEqual(once, twice, "\(f):\(p)")
-                XCTAssertEqual(canonical(try XMLDocument(data: try pkg.data(of: p)).root), canonical(try XMLDocument(data: once).root), "\(f):\(p)")
+                XCTAssertEqual(canonical(try XDocument(data: try pkg.data(of: p)).root), canonical(try XDocument(data: once).root), "\(f):\(p)")
             }
         }
     }
@@ -74,7 +74,7 @@ final class OPCPackageTests: XCTestCase {
             XCTAssertFalse(before.contains(rid), "Id mới không được trùng")
             XCTAssertEqual(rels.add(.image, to: img), rid, "thêm lại cùng đích dùng lại Id")
             let custom = PartName("/customXml/item9.xml")
-            pkg.setXML(try XMLDocument(string: "<data>3T</data>"), for: custom, contentType: ContentType.xml)
+            pkg.setXML(try XDocument(string: "<data>3T</data>"), for: custom, contentType: ContentType.xml)
             try pkg.relationships(of: .root).add(RelationshipType("http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml"), to: custom)
             try pkg.save(to: url)
         }
@@ -151,7 +151,7 @@ final class OPCPackageTests: XCTestCase {
         XCTAssertThrowsError(try OPCPackage(data: a)) { XCTAssertEqual($0 as? PackageError, .missingContentTypes) }
     }
 
-    private func canonical(_ e: XMLElement) -> String {
+    private func canonical(_ e: XElement) -> String {
         var s = "<\(e.name)"
         for a in e.attributes { s += " \(a.name)=\(a.value)" }
         s += ">"

@@ -22,7 +22,7 @@ public struct DefinedName: Equatable, Sendable {
 public final class Workbook {
     public let package: OPCPackage
     public let workbookPart: PartName
-    let document: XMLDocument
+    let document: XDocument
     public private(set) var sharedStrings: SharedStrings?
     public let styles: StyleSheet?
     private final class WeakSheet { weak var sheet: Worksheet?; init(_ s: Worksheet) { sheet = s } }
@@ -59,7 +59,7 @@ public final class Workbook {
 
     // MARK: Sheet
 
-    private var sheetsElement: XMLElement? { document.root.firstChild(NS.s, "sheets") }
+    private var sheetsElement: XElement? { document.root.firstChild(NS.s, "sheets") }
 
     public var sheets: [SheetInfo] {
         guard let rels = try? package.relationships(of: workbookPart) else { return [] }
@@ -132,23 +132,23 @@ public final class Workbook {
         }
         let part = package.uniquePartName(prefix: workbookPart.directory + "/worksheets/sheet", ext: "xml")
         let rootNS = NS.s.primaryURI
-        let doc = try XMLDocument(string: """
+        let doc = try XDocument(string: """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <worksheet xmlns="\(rootNS)" xmlns:r="\(NS.r.primaryURI)"><dimension ref="A1"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><sheetData/><pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>
         """)
         package.setXML(doc, for: part, contentType: ContentType.worksheet)
         let rid = try package.relationships(of: workbookPart).add(.worksheet, to: part, reuseExisting: false)
         let sheets = sheetsElement ?? {
-            let e = XMLElement(name: document.root.qualifiedName("sheets", in: NS.s).name)
+            let e = XElement(name: document.root.qualifiedName("sheets", in: NS.s).name)
             document.root.insertChild(e, schemaOrder: Workbook.workbookOrder)
             return e
         }()
         let nextId = (self.sheets.map(\.sheetId).max() ?? 0) + 1
         let (rName, needsDecl) = sheets.qualifiedName("id", in: NS.r)
         if needsDecl { document.root.setAttribute("xmlns:r", NS.r.primaryURI) }
-        sheets.append(XMLElement(name: sheets.qualifiedName("sheet", in: NS.s).name, attributes: [
-            XMLAttribute(name: "name", value: name), XMLAttribute(name: "sheetId", value: String(nextId)),
-            XMLAttribute(name: rName, value: rid),
+        sheets.append(XElement(name: sheets.qualifiedName("sheet", in: NS.s).name, attributes: [
+            XAttribute(name: "name", value: name), XAttribute(name: "sheetId", value: String(nextId)),
+            XAttribute(name: rName, value: rid),
         ]))
         package.markModified(workbookPart)
         try updateAppTitles(append: name)
@@ -212,8 +212,75 @@ public final class Workbook {
         try updateAppTitles(rename: oldName, to: new)
     }
 
+    /// Xóa sheet: gỡ khỏi sổ, xóa phần sheet và mọi phần chỉ sheet đó dùng (ảnh, bình luận, bảng…),
+    /// tham chiếu tới sheet trong công thức/tên/biểu đồ thành #REF! (như Excel), sửa localSheetId và tab đang chọn.
+    public func deleteSheet(named name: String) throws {
+        let all = sheets
+        guard let index = all.firstIndex(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
+            throw SpreadsheetError.sheetNotFound(name)
+        }
+        let info = all[index]
+        let visibleOthers = all.enumerated().filter { $0.offset != index && $0.element.state == "visible" }
+        guard !visibleOthers.isEmpty else { throw SpreadsheetError.cannotDeleteLastVisibleSheet }
+        let el = sheetsElement!.children(NS.s, "sheet")[index]
+        let rid = el.attribute("id", in: NS.r)
+        el.removeFromParent()
+        // Tên định nghĩa: bỏ tên cục bộ của sheet bị xóa, dịch chỉ số các sheet sau.
+        if let dns = document.root.firstChild(NS.s, "definedNames") {
+            for dn in dns.children(NS.s, "definedName") {
+                if let l = dn.attribute("localSheetId").flatMap({ Int($0) }) {
+                    if l == index { dn.removeFromParent(); continue }
+                    if l > index { dn.setAttribute("localSheetId", String(l - 1)) }
+                }
+                let t = dn.textContent
+                let n = FormulaRewriter.invalidateSheet(t, named: info.name)
+                if n != t { dn.setText(n) }
+            }
+            if dns.elements.isEmpty { dns.removeFromParent() }
+        }
+        for view in document.root.firstChild(NS.s, "bookViews")?.children(NS.s, "workbookView") ?? [] {
+            for attr in ["activeTab", "firstSheet"] {
+                if let v = view.attribute(attr).flatMap({ Int($0) }), v >= index, v > 0 {
+                    view.setAttribute(attr, String(v - 1))
+                }
+            }
+        }
+        package.markModified(workbookPart)
+        if let part = info.part {
+            var candidates = try package.partsReachable(from: part)
+            candidates.insert(part)
+            if let rid { try package.relationships(of: workbookPart).remove(id: rid) }
+            package.removePart(part)
+            loaded[part] = nil
+            try package.removeUnreachable(among: candidates)
+        }
+        let rewrite = { (f: String) in FormulaRewriter.invalidateSheet(f, named: info.name) }
+        for other in sheets where other.kind == .worksheet {
+            _ = try worksheet(other).rewriteFormulas(rewrite)
+        }
+        try rewriteCharts(rewrite)
+        try updateAppTitles(remove: info.name)
+        invalidateCalcChain()
+        requestRecalculation()
+    }
+
+    func rewriteCharts(_ rewrite: (String) -> String) throws {
+        for part in package.partNames where package.contentType(of: part) == ContentType.chart {
+            let doc = try package.xml(part)
+            var changed = false
+            doc.root.forEachDescendant { e in
+                if e.is(NS.c, "f") {
+                    let t = e.textContent
+                    let n = rewrite(t)
+                    if n != t { e.setText(n); changed = true }
+                }
+            }
+            if changed { package.markModified(part) }
+        }
+    }
+
     /// Cập nhật TitlesOfParts trong docProps/app.xml (nếu có) để Office/Finder hiển thị đúng danh sách sheet.
-    private func updateAppTitles(rename old: String? = nil, to new: String? = nil, append: String? = nil) throws {
+    private func updateAppTitles(rename old: String? = nil, to new: String? = nil, append: String? = nil, remove: String? = nil) throws {
         guard let app = try package.relatedPart(from: .root, .extendedProperties), package.hasPart(app) else { return }
         let doc = try package.xml(app)
         let vt = XMLNamespace("http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes", prefix: "vt")
@@ -228,7 +295,7 @@ public final class Workbook {
         }
         if let append {
             let existing = Set(sheetNames)
-            let e = XMLElement(name: vector.qualifiedName("lpstr", in: vt).name)
+            let e = XElement(name: vector.qualifiedName("lpstr", in: vt).name)
             e.setText(append)
             if let last = items.last(where: { existing.contains($0.textContent) && $0.textContent != append }) {
                 vector.insert(e, after: last)
@@ -241,6 +308,17 @@ public final class Workbook {
                 let variants = pairs.children(vt, "variant")
                 if variants.count >= 2, let n = variants[1].firstChild(vt, "i4"), let c = Int(n.textContent) {
                     n.setText(String(c + 1))
+                }
+            }
+            changed = true
+        }
+        if let remove, let item = items.first(where: { $0.textContent == remove }) {
+            item.removeFromParent()
+            vector.setAttribute("size", String(items.count - 1))
+            if let pairs = doc.root.elements.first(where: { $0.localName == "HeadingPairs" })?.firstChild(vt, "vector") {
+                let variants = pairs.children(vt, "variant")
+                if variants.count >= 2, let n = variants[1].firstChild(vt, "i4"), let c = Int(n.textContent), c > 0 {
+                    n.setText(String(c - 1))
                 }
             }
             changed = true
@@ -272,7 +350,7 @@ public final class Workbook {
         }
         if needsRecalculation && forceFullCalculationOnLoad {
             let calcPr = document.root.firstChild(NS.s, "calcPr") ?? {
-                let e = XMLElement(name: document.root.qualifiedName("calcPr", in: NS.s).name)
+                let e = XElement(name: document.root.qualifiedName("calcPr", in: NS.s).name)
                 document.root.insertChild(e, schemaOrder: Workbook.workbookOrder)
                 return e
             }()

@@ -29,10 +29,10 @@ enum WordText {
                            "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl", "divId", "cnfStyle",
                            "rPr", "sectPr", "pPrChange"]
 
-    static func isW(_ e: XMLElement) -> Bool { NS.w.matches(e.namespaceURI) }
+    static func isW(_ e: XElement) -> Bool { NS.w.matches(e.namespaceURI) }
 
     /// Chữ của một run (bỏ qua ảnh, instrText, delText…).
-    static func runText(_ r: XMLElement) -> String {
+    static func runText(_ r: XElement) -> String {
         var s = ""
         for c in r.elements where isW(c) {
             switch c.localName {
@@ -47,9 +47,9 @@ enum WordText {
     }
 
     /// Chữ hiển thị của một đoạn (như Word: gồm chữ chèn theo dõi và kết quả trường, không gồm chữ đã xóa).
-    static func paragraphText(_ p: XMLElement) -> String {
+    static func paragraphText(_ p: XElement) -> String {
         var s = ""
-        func visit(_ e: XMLElement) {
+        func visit(_ e: XElement) {
             for c in e.elements {
                 guard isW(c) else { continue }
                 let n = c.localName
@@ -65,9 +65,9 @@ enum WordText {
     }
 
     /// Các run có chữ theo thứ tự hiển thị.
-    static func textRuns(_ p: XMLElement) -> [XMLElement] {
-        var out: [XMLElement] = []
-        func visit(_ e: XMLElement) {
+    static func textRuns(_ p: XElement) -> [XElement] {
+        var out: [XElement] = []
+        func visit(_ e: XElement) {
             for c in e.elements where isW(c) {
                 if c.localName == "r" {
                     out.append(c)
@@ -80,7 +80,7 @@ enum WordText {
         return out
     }
 
-    static func isAnchorRun(_ r: XMLElement) -> Bool {
+    static func isAnchorRun(_ r: XElement) -> Bool {
         r.elements.contains { c in
             (isW(c) && anchorRunContent.contains(c.localName)) || c.localName == "AlternateContent"
         }
@@ -88,11 +88,11 @@ enum WordText {
 
     /// Thay toàn bộ chữ của đoạn, giữ: thuộc tính đoạn, bookmark/phạm vi chú thích, và run "neo"
     /// (ảnh, tham chiếu footnote/comment). Định dạng chữ lấy theo run chữ đầu tiên.
-    static func setParagraphText(_ p: XMLElement, _ text: String) {
+    static func setParagraphText(_ p: XElement, _ text: String) {
         let firstTextRun = textRuns(p).first { !runText($0).isEmpty && !isAnchorRun($0) }
         let rPr = firstTextRun?.firstChild(NS.w, "rPr")?.deepCopy()
-        var anchors: [XMLElement] = []
-        func collectAnchors(_ e: XMLElement) {
+        var anchors: [XElement] = []
+        func collectAnchors(_ e: XElement) {
             for c in e.elements where isW(c) {
                 if c.localName == "r", isAnchorRun(c) {
                     anchors.append(c)
@@ -138,20 +138,20 @@ enum WordText {
         }
     }
 
-    static func qn(_ ctx: XMLElement, _ local: String) -> String {
+    static func qn(_ ctx: XElement, _ local: String) -> String {
         ctx.qualifiedName(local, in: NS.w).name
     }
 
     /// Tạo run chứa `text`, tách \t → <w:tab/>, \n → <w:br/>.
-    static func makeRuns(_ text: String, rPr: XMLElement?, context: XMLElement) -> [XMLElement] {
+    static func makeRuns(_ text: String, rPr: XElement?, context: XElement) -> [XElement] {
         if text.isEmpty { return [] }
-        let r = XMLElement(name: qn(context, "r"))
+        let r = XElement(name: qn(context, "r"))
         context.append(r) // gắn tạm để tên con lấy đúng tiền tố
         if let rPr { r.append(rPr) }
         var buf = ""
         func flush() {
             guard !buf.isEmpty else { return }
-            let t = XMLElement(name: qn(context, "t"))
+            let t = XElement(name: qn(context, "t"))
             if buf.first == " " || buf.last == " " || buf.contains("  ") || buf.first?.isWhitespace == true || buf.last?.isWhitespace == true {
                 t.setAttribute("xml:space", "preserve")
             }
@@ -162,10 +162,10 @@ enum WordText {
         for ch in text {
             if ch == "\t" {
                 flush()
-                r.append(XMLElement(name: qn(context, "tab")))
+                r.append(XElement(name: qn(context, "tab")))
             } else if ch == "\n" || ch == "\r\n" || ch == "\r" {
                 flush()
-                r.append(XMLElement(name: qn(context, "br")))
+                r.append(XElement(name: qn(context, "br")))
             } else {
                 buf.append(ch)
             }
@@ -177,11 +177,11 @@ enum WordText {
 
     /// Thay chữ trong đoạn, kể cả khi từ cần tìm bị chia qua nhiều run; định dạng theo run chứa ký tự đầu.
     /// Không khớp xuyên qua tab/xuống dòng. Trả về số lần thay.
-    static func replace(in p: XMLElement, _ find: String, with replacement: String) -> Int {
+    static func replace(in p: XElement, _ find: String, with replacement: String) -> Int {
         let needle = Array(find)
         guard !needle.isEmpty else { return 0 }
         // Các đoạn chữ: (phần tử w:t hoặc nil = rào chắn, chữ).
-        var segs: [(t: XMLElement?, chars: [Character])] = []
+        var segs: [(t: XElement?, chars: [Character])] = []
         for r in textRuns(p) {
             for c in r.elements where isW(c) {
                 switch c.localName {
@@ -241,38 +241,38 @@ enum WordText {
     }
 
     /// Bật/tắt thuộc tính kiểu bật/tắt (b, i, strike…) trong rPr của run.
-    static func setToggle(_ run: XMLElement, _ local: String, _ on: Bool) {
+    static func setToggle(_ run: XElement, _ local: String, _ on: Bool) {
         let rPr = ensureRPr(run)
         for e in rPr.children(NS.w, local) { e.removeFromParent() }
-        let e = XMLElement(name: qn(rPr, local))
+        let e = XElement(name: qn(rPr, local))
         if !on { e.setAttribute(qn(rPr, "val"), "0") }
         rPr.insertChild(e, schemaOrder: rPrOrder)
     }
 
-    static func setValueProperty(_ run: XMLElement, _ local: String, _ value: String?) {
+    static func setValueProperty(_ run: XElement, _ local: String, _ value: String?) {
         let rPr = ensureRPr(run)
         for e in rPr.children(NS.w, local) { e.removeFromParent() }
         guard let value else { return }
-        let e = XMLElement(name: qn(rPr, local), attributes: [XMLAttribute(name: qn(rPr, "val"), value: value)])
+        let e = XElement(name: qn(rPr, local), attributes: [XAttribute(name: qn(rPr, "val"), value: value)])
         rPr.insertChild(e, schemaOrder: rPrOrder)
     }
 
-    static func toggle(_ run: XMLElement, _ local: String) -> Bool {
+    static func toggle(_ run: XElement, _ local: String) -> Bool {
         guard let e = run.firstChild(NS.w, "rPr")?.firstChild(NS.w, local) else { return false }
         let v = e.attribute(qn(e, "val")) ?? e.attribute("w:val")
         return v == nil || !["0", "false", "off", "none"].contains(v!)
     }
 
-    static func ensureRPr(_ run: XMLElement) -> XMLElement {
+    static func ensureRPr(_ run: XElement) -> XElement {
         if let r = run.firstChild(NS.w, "rPr") { return r }
-        let r = XMLElement(name: qn(run, "rPr"))
+        let r = XElement(name: qn(run, "rPr"))
         run.insert(r, at: 0)
         return r
     }
 
-    static func ensurePPr(_ p: XMLElement) -> XMLElement {
+    static func ensurePPr(_ p: XElement) -> XElement {
         if let r = p.firstChild(NS.w, "pPr") { return r }
-        let r = XMLElement(name: qn(p, "pPr"))
+        let r = XElement(name: qn(p, "pPr"))
         p.insert(r, at: 0)
         return r
     }

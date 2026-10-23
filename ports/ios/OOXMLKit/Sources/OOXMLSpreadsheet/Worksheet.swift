@@ -29,6 +29,8 @@ public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
     case partOfArrayFormula(cell: String, range: String)
     case overlappingMerge(String)
     case stringTooLong(Int)
+    case cannotDeleteLastVisibleSheet
+    case invalidRowOperation(String)
 
     public var description: String {
         switch self {
@@ -41,6 +43,8 @@ public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
         case .partOfArrayFormula(let c, let r): return "Ô \(c) thuộc công thức mảng \(r): chỉ sửa được ô đầu vùng"
         case .overlappingMerge(let r): return "Vùng gộp \(r) chồng lên vùng gộp khác"
         case .stringTooLong(let n): return "Chuỗi dài \(n) ký tự vượt giới hạn 32.767 của Excel"
+        case .cannotDeleteLastVisibleSheet: return "Sổ tính phải còn ít nhất một sheet hiển thị"
+        case .invalidRowOperation(let m): return "Không chèn/xóa hàng được: \(m)"
         }
     }
 }
@@ -52,10 +56,10 @@ public final class Worksheet {
     public let workbook: Workbook
     public internal(set) var name: String
     public let part: PartName
-    let document: XMLDocument
-    let sheetData: XMLElement
-    private var rows: [Int: XMLElement] = [:]
-    private var cellElements: [CellReference: XMLElement] = [:]
+    let document: XDocument
+    let sheetData: XElement
+    private var rows: [Int: XElement] = [:]
+    private var cellElements: [CellReference: XElement] = [:]
     private var hasImplicitReferences = false
     private var maxRowNumber = 0
     private var sharedMasters: [String: (ref: CellReference, formula: String)] = [:]
@@ -178,7 +182,7 @@ public final class Worksheet {
         rows[row].flatMap { Double($0.attribute("ht") ?? "") }
     }
 
-    private func makeCell(_ ref: CellReference, _ c: XMLElement) -> Cell {
+    private func makeCell(_ ref: CellReference, _ c: XElement) -> Cell {
         let t = c.attribute("t")
         let vText = c.firstChild(NS.s, "v")?.textContent
         var rich = false
@@ -285,11 +289,11 @@ public final class Worksheet {
         guard let range = CellRange(rangeText) else { throw SpreadsheetError.invalidReference(rangeText) }
         if mergedCells.contains(where: { $0.intersects(range) }) { throw SpreadsheetError.overlappingMerge(rangeText) }
         let mc = document.root.firstChild(NS.s, "mergeCells") ?? {
-            let e = XMLElement(name: q("mergeCells"))
+            let e = XElement(name: q("mergeCells"))
             document.root.insertChild(e, schemaOrder: Worksheet.worksheetOrder)
             return e
         }()
-        mc.append(XMLElement(name: q("mergeCell"), attributes: [XMLAttribute(name: "ref", value: range.description)]))
+        mc.append(XElement(name: q("mergeCell"), attributes: [XAttribute(name: "ref", value: range.description)]))
         mc.setAttribute("count", String(mc.children(NS.s, "mergeCell").count))
         workbook.package.markModified(part)
     }
@@ -307,11 +311,11 @@ public final class Worksheet {
     /// Đặt độ rộng cột (đơn vị ký tự như Excel). Tách vùng <col min max> có sẵn để giữ thuộc tính các cột khác.
     public func setColumnWidth(_ column: Int, _ width: Double) {
         let cols = document.root.firstChild(NS.s, "cols") ?? {
-            let e = XMLElement(name: q("cols"))
+            let e = XElement(name: q("cols"))
             document.root.insertChild(e, schemaOrder: Worksheet.worksheetOrder)
             return e
         }()
-        var target: XMLElement?
+        var target: XElement?
         for col in cols.children(NS.s, "col") {
             guard let a = Int(col.attribute("min") ?? ""), let b = Int(col.attribute("max") ?? ""), (a...b).contains(column) else { continue }
             if a < column {
@@ -330,8 +334,8 @@ public final class Worksheet {
             break
         }
         let col = target ?? {
-            let e = XMLElement(name: q("col"), attributes: [XMLAttribute(name: "min", value: String(column)),
-                                                            XMLAttribute(name: "max", value: String(column))])
+            let e = XElement(name: q("col"), attributes: [XAttribute(name: "min", value: String(column)),
+                                                            XAttribute(name: "max", value: String(column))])
             if let after = cols.children(NS.s, "col").first(where: { (Int($0.attribute("min") ?? "") ?? 0) > column }) {
                 cols.insert(e, before: after)
             } else {
@@ -372,15 +376,15 @@ public final class Worksheet {
         workbook.package.markModified(part)
     }
 
-    private func setAttributeFirst(_ e: XMLElement, _ name: String, _ value: String) {
+    private func setAttributeFirst(_ e: XElement, _ name: String, _ value: String) {
         if e.attribute(name) != nil { e.setAttribute(name, value); return }
-        e.attributes.insert(XMLAttribute(name: name, value: value), at: 0)
+        e.attributes.insert(XAttribute(name: name, value: value), at: 0)
     }
 
-    private func setAttributeAfterR(_ e: XMLElement, _ name: String, _ value: String) {
+    private func setAttributeAfterR(_ e: XElement, _ name: String, _ value: String) {
         if e.attribute(name) != nil { e.setAttribute(name, value); return }
         let i = (e.attributes.firstIndex { $0.name == "r" }).map { $0 + 1 } ?? 0
-        e.attributes.insert(XMLAttribute(name: name, value: value), at: i)
+        e.attributes.insert(XAttribute(name: name, value: value), at: i)
     }
 
     private func prepareForEdit(_ ref: CellReference) throws {
@@ -420,9 +424,9 @@ public final class Worksheet {
         workbook.package.markModified(part)
     }
 
-    private func rowElement(_ r: Int) -> XMLElement {
+    private func rowElement(_ r: Int) -> XElement {
         if let row = rows[r] { return row }
-        let row = XMLElement(name: q("row"), attributes: [XMLAttribute(name: "r", value: String(r))])
+        let row = XElement(name: q("row"), attributes: [XAttribute(name: "r", value: String(r))])
         if r > maxRowNumber {
             // Nhanh: thêm vào cuối, nhưng vẫn trước phần tử không phải <row> (nếu có).
             if let lastRow = rows[maxRowNumber] {
@@ -440,10 +444,10 @@ public final class Worksheet {
         return row
     }
 
-    private func cellElement(_ ref: CellReference) -> XMLElement {
+    private func cellElement(_ ref: CellReference) -> XElement {
         if let c = cellElements[ref] { return c }
         let row = rowElement(ref.row)
-        let c = XMLElement(name: q("c"), attributes: [XMLAttribute(name: "r", value: ref.a1)])
+        let c = XElement(name: q("c"), attributes: [XAttribute(name: "r", value: ref.a1)])
         var inserted = false
         for (i, node) in row.children.enumerated() {
             guard let e = node.element else { continue }
@@ -467,7 +471,7 @@ public final class Worksheet {
         return c
     }
 
-    private func write(_ value: CellValue, formula: String?, into c: XMLElement) throws {
+    private func write(_ value: CellValue, formula: String?, into c: XElement) throws {
         c.removeChildren { node in
             guard let e = node.element else { return false }
             return e.is(NS.s, "f") || e.is(NS.s, "v") || e.is(NS.s, "is")
@@ -475,14 +479,14 @@ public final class Worksheet {
         c.removeAttribute("t")
         c.removeAttribute("cm")
         c.removeAttribute("vm")
-        var newChildren: [XMLElement] = []
+        var newChildren: [XElement] = []
         if let formula {
-            let f = XMLElement(name: q("f"))
+            let f = XElement(name: q("f"))
             f.setText(formula)
             newChildren.append(f)
         }
-        func v(_ s: String) -> XMLElement {
-            let e = XMLElement(name: q("v"))
+        func v(_ s: String) -> XElement {
+            let e = XElement(name: q("v"))
             e.setText(s)
             return e
         }
@@ -517,7 +521,7 @@ public final class Worksheet {
         if let s = c.attribute("s"), let ti = c.attributes.firstIndex(where: { $0.name == "t" }),
            let si = c.attributes.firstIndex(where: { $0.name == "s" }), ti < si {
             c.removeAttribute("s")
-            c.attributes.insert(XMLAttribute(name: "s", value: s), at: ti)
+            c.attributes.insert(XAttribute(name: "s", value: s), at: ti)
         }
         for e in newChildren { c.insertChild(e, schemaOrder: Worksheet.cellChildOrder) }
     }
@@ -530,7 +534,7 @@ public final class Worksheet {
 
     private func updateDimension(_ ref: CellReference) {
         let dim = document.root.firstChild(NS.s, "dimension") ?? {
-            let e = XMLElement(name: q("dimension"), attributes: [XMLAttribute(name: "ref", value: ref.a1)])
+            let e = XElement(name: q("dimension"), attributes: [XAttribute(name: "ref", value: ref.a1)])
             document.root.insertChild(e, schemaOrder: Worksheet.worksheetOrder)
             return e
         }()
@@ -545,6 +549,13 @@ public final class Worksheet {
         }
         return "\(d)".replacingOccurrences(of: "e", with: "E")
     }
+
+    /// Đổi mọi nhóm công thức chia sẻ của sheet thành công thức thường.
+    func expandAllSharedFormulas() {
+        for si in Array(sharedMasters.keys) { expandSharedFormula(si) }
+    }
+
+    func reindex() { buildIndex() }
 
     /// Áp hàm đổi văn bản công thức cho mọi công thức/điều kiện/liên kết trong sheet (đổi tên sheet).
     func rewriteFormulas(_ transform: (String) -> String) -> Bool {

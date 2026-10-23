@@ -26,7 +26,7 @@ public struct SlideSection: Equatable, Sendable {
 public final class Presentation {
     public let package: OPCPackage
     public let mainPart: PartName
-    let document: XMLDocument
+    let document: XDocument
 
     public convenience init(contentsOf url: URL) throws {
         try self.init(package: OPCPackage(contentsOf: url))
@@ -47,7 +47,7 @@ public final class Presentation {
     }
 
     var rels: Relationships { try! package.relationships(of: mainPart) }
-    var sldIdLst: XMLElement? { document.root.firstChild(NS.p, "sldIdLst") }
+    var sldIdLst: XElement? { document.root.firstChild(NS.p, "sldIdLst") }
 
     public var slides: [Slide] {
         let rels = self.rels
@@ -70,7 +70,7 @@ public final class Presentation {
         return (cx, cy)
     }
 
-    private var sectionList: XMLElement? {
+    private var sectionList: XElement? {
         document.root.firstChild(NS.p, "extLst")?.descendants(NS.p14, "sectionLst").first
     }
 
@@ -106,13 +106,88 @@ public final class Presentation {
         let newId = max(255, ids.max() ?? 255) + 1
         let srcEl = sldIdLst!.children(NS.p, "sldId").first { $0.attribute("id") == String(src.slideId) }!
         let rName = srcEl.attributes.first { $0.name.hasSuffix(":id") }?.name ?? "r:id"
-        let el = XMLElement(name: srcEl.name, attributes: [XMLAttribute(name: "id", value: String(newId)), XMLAttribute(name: rName, value: rid)])
+        let el = XElement(name: srcEl.name, attributes: [XAttribute(name: "id", value: String(newId)), XAttribute(name: rName, value: rid)])
         sldIdLst!.insert(el, after: srcEl)
         if let sec = sectionList {
             for s in sec.children(NS.p14, "section") {
                 guard let list = s.firstChild(NS.p14, "sldIdLst"),
                       let pos = list.children(NS.p14, "sldId").first(where: { $0.attribute("id") == String(src.slideId) }) else { continue }
-                list.insert(XMLElement(name: pos.name, attributes: [XMLAttribute(name: "id", value: String(newId))]), after: pos)
+                list.insert(XElement(name: pos.name, attributes: [XAttribute(name: "id", value: String(newId))]), after: pos)
+            }
+        }
+        package.markModified(mainPart)
+        try updateAppSlideCount()
+        return try Slide(presentation: self, part: newPart, slideId: newId, relId: rid)
+    }
+
+    /// Bố cục (layout) có sẵn: (tên, phần) theo thứ tự của slide master.
+    public var layouts: [(name: String, part: PartName)] {
+        var out: [(String, PartName)] = []
+        for master in (try? package.relatedParts(from: mainPart, .slideMaster)) ?? [] {
+            guard let mdoc = try? package.xml(master), let mrels = try? package.relationships(of: master) else { continue }
+            for l in mdoc.root.firstChild(NS.p, "sldLayoutIdLst")?.children(NS.p, "sldLayoutId") ?? [] {
+                guard let rid = l.attribute("id", in: NS.r), let part = mrels.targetPart(id: rid), package.hasPart(part),
+                      let ldoc = try? package.xml(part) else { continue }
+                out.append((ldoc.root.firstChild(NS.p, "cSld")?.attribute("name") ?? part.fileName, part))
+            }
+        }
+        return out
+    }
+
+    /// Thêm slide mới theo layout (như Home ▸ New Slide): sao chép các placeholder của layout với khung chữ trống.
+    /// `index` = vị trí chèn (mặc định cuối). Slide mới vào phân đoạn của slide đứng trước.
+    @discardableResult
+    public func addSlide(layout: PartName, at index: Int? = nil) throws -> Slide {
+        let ldoc = try package.xml(layout)
+        let newPart = package.uniquePartName(prefix: "/ppt/slides/slide", ext: "xml")
+        let doc = try XDocument(string: """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <p:sld xmlns:a="\(NS.a.primaryURI)" xmlns:r="\(NS.r.primaryURI)" xmlns:p="\(NS.p.primaryURI)"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>
+        """)
+        let tree = doc.root.firstChild(NS.p, "cSld")!.firstChild(NS.p, "spTree")!
+        var nextId = 2
+        for sp in ldoc.root.firstChild(NS.p, "cSld")?.firstChild(NS.p, "spTree")?.children(NS.p, "sp") ?? [] {
+            guard let ph = sp.firstChild(NS.p, "nvSpPr")?.firstChild(NS.p, "nvPr")?.firstChild(NS.p, "ph") else { continue }
+            let type = ph.attribute("type")
+            if ["dt", "ftr", "sldNum"].contains(type ?? "") { continue } // PowerPoint không chép header/footer
+            let name = sp.firstChild(NS.p, "nvSpPr")?.firstChild(NS.p, "cNvPr")?.attribute("name") ?? "Placeholder \(nextId)"
+            var phAttrs = ""
+            if let type { phAttrs += " type=\"\(type)\"" }
+            if let idx = ph.attribute("idx") { phAttrs += " idx=\"\(idx)\"" }
+            let esc = name.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "\"", with: "&quot;").replacingOccurrences(of: "<", with: "&lt;")
+            let frag = try XDocument(string: """
+            <p:sp xmlns:a="\(NS.a.primaryURI)" xmlns:p="\(NS.p.primaryURI)"><p:nvSpPr><p:cNvPr id="\(nextId)" name="\(esc)"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph\(phAttrs)/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="vi-VN" dirty="0"/></a:p></p:txBody></p:sp>
+            """).root
+            frag.removeAttribute("xmlns:a")
+            frag.removeAttribute("xmlns:p")
+            tree.append(frag)
+            nextId += 1
+        }
+        package.setXML(doc, for: newPart, contentType: ContentType.slide)
+        try package.relationships(of: newPart).add(.slideLayout, to: layout)
+        let rid = rels.add(.slide, to: newPart, reuseExisting: false)
+
+        let list: XElement = sldIdLst ?? {
+            let e = XElement(name: document.root.qualifiedName("sldIdLst", in: NS.p).name)
+            document.root.insertChild(e, schemaOrder: ["sldMasterIdLst", "notesMasterIdLst", "handoutMasterIdLst", "sldIdLst", "sldSz", "notesSz"])
+            return e
+        }()
+        let items = list.children(NS.p, "sldId")
+        let newId = max(255, items.compactMap { UInt32($0.attribute("id") ?? "") }.max() ?? 255) + 1
+        let rName = list.qualifiedName("id", in: NS.r).name
+        let el = XElement(name: list.qualifiedName("sldId", in: NS.p).name,
+                            attributes: [XAttribute(name: "id", value: String(newId)), XAttribute(name: rName, value: rid)])
+        let pos = min(max(index ?? items.count, 0), items.count)
+        if pos < items.count { list.insert(el, before: items[pos]) } else { list.append(el) }
+        if let sec = sectionList {
+            let prevId = pos > 0 ? items[pos - 1].attribute("id") : nil
+            let sections = sec.children(NS.p14, "section")
+            let target = sections.first { s in
+                s.firstChild(NS.p14, "sldIdLst")?.children(NS.p14, "sldId").contains { $0.attribute("id") == prevId } ?? false
+            } ?? (pos == 0 ? sections.first : sections.last)
+            if let l = target?.firstChild(NS.p14, "sldIdLst") {
+                let e = XElement(name: l.qualifiedName("sldId", in: NS.p14).name, attributes: [XAttribute(name: "id", value: String(newId))])
+                if let prev = l.children(NS.p14, "sldId").first(where: { $0.attribute("id") == prevId }) { l.insert(e, after: prev) } else { l.insert(e, at: 0) }
             }
         }
         package.markModified(mainPart)
@@ -174,7 +249,7 @@ public final class Presentation {
                 ids.sort { (order.firstIndex(of: $0) ?? 0) < (order.firstIndex(of: $1) ?? 0) }
                 let template = l.children(NS.p14, "sldId").first?.name ?? l.qualifiedName("sldId", in: NS.p14).name
                 l.removeAllChildren()
-                for id in ids { l.append(XMLElement(name: template, attributes: [XMLAttribute(name: "id", value: id)])) }
+                for id in ids { l.append(XElement(name: template, attributes: [XAttribute(name: "id", value: id)])) }
             }
         }
         package.markModified(mainPart)

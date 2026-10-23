@@ -31,9 +31,69 @@ public enum FormulaRewriter {
     }
 
     struct RefToken {
+        enum Kind {
+            case cell(CellPart)
+            case cellRange(CellPart, CellPart)
+            case columns(ColumnPart, ColumnPart)
+            case rows(RowPart, RowPart)
+        }
         var text: String
+        /// Tên sheet đứng ngay trước (Sheet!A1), nil = sheet chứa công thức.
+        var sheet: String?
+        var kind: Kind
         var shiftedImpl: (Int, Int) -> String
         func shifted(rows: Int, columns: Int) -> String { shiftedImpl(rows, columns) }
+    }
+
+    private static let deletedSheetMarker = "\u{1}"
+
+    /// Xóa sheet `name`: mọi tham chiếu tới nó thành #REF! (như Excel).
+    public static func invalidateSheet(_ formula: String, named name: String) -> String {
+        let marked = renameSheet(formula, from: name, to: deletedSheetMarker)
+        return marked.replacingOccurrences(of: quoteSheetName(deletedSheetMarker) + "!", with: "#REF!")
+    }
+
+    /// Chèn (`delta` > 0) hoặc xóa (`delta` < 0) hàng tại `row` của sheet `target`, cập nhật mọi tham chiếu
+    /// (tương đối lẫn tuyệt đối) tới sheet đó. Vùng bị xóa hết → #REF!; vùng bị xóa một phần → co lại.
+    public static func adjustRows(_ formula: String, formulaSheet: String, target: String, at row: Int, delta: Int) -> String {
+        guard delta != 0 else { return formula }
+        return transform(formula, sheet: { _ in nil }) { tok in
+            let s = tok.sheet ?? formulaSheet
+            guard s.caseInsensitiveCompare(target) == .orderedSame else { return tok.text }
+            switch tok.kind {
+            case .cell(let c):
+                guard let r = mapRow(c.ref.row, at: row, delta: delta) else { return "#REF!" }
+                return c.with(row: r)
+            case .cellRange(let a, let b):
+                guard let (r1, r2) = mapRange(a.ref.row, b.ref.row, at: row, delta: delta) else { return "#REF!" }
+                return a.with(row: r1) + ":" + b.with(row: r2)
+            case .rows(let a, let b):
+                guard let (r1, r2) = mapRange(a.row, b.row, at: row, delta: delta) else { return "#REF!" }
+                return a.with(r1) + ":" + b.with(r2)
+            case .columns:
+                return tok.text
+            }
+        }
+    }
+
+    /// Dòng mới của một ô đơn; nil nếu ô bị xóa.
+    static func mapRow(_ r: Int, at row: Int, delta: Int) -> Int? {
+        if delta > 0 { return r >= row ? min(r + delta, CellReference.maxRow) : r }
+        let n = -delta
+        if r >= row && r < row + n { return nil }
+        return r >= row + n ? r - n : r
+    }
+
+    static func mapRange(_ r1: Int, _ r2: Int, at row: Int, delta: Int) -> (Int, Int)? {
+        if delta > 0 {
+            return (r1 >= row ? r1 + delta : r1, r2 >= row ? min(r2 + delta, CellReference.maxRow) : r2)
+        }
+        let n = -delta
+        let end = row + n // không gồm
+        if r1 >= row && r2 < end { return nil }
+        let a = r1 >= end ? r1 - n : (r1 >= row ? row : r1)
+        let b = r2 >= end ? r2 - n : (r2 >= row ? row - 1 : r2)
+        return a <= b ? (a, b) : nil
     }
 
     private static func isWordChar(_ c: Character) -> Bool {
@@ -45,7 +105,10 @@ public enum FormulaRewriter {
         let chars = Array(formula)
         var out = ""
         var i = 0
+        var lastSheet: String?
+        func qualifier(at index: Int) -> String? { index > 0 && chars[index - 1] == "!" ? lastSheet : nil }
         func emitSheet(_ name: String, original: String) {
+            lastSheet = name
             if let n = sheet(name), n != name {
                 out += quoteSheetName(n)
             } else {
@@ -125,8 +188,16 @@ public enum FormulaRewriter {
                     let word2 = String(chars[(j + 1)..<k])
                     let after: Character? = k < chars.count ? chars[k] : nil
                     if after != "(", after != "!" {
+                        if let a = CellPart(word), let b = CellPart(word2) {
+                            out += ref(RefToken(text: word + ":" + word2, sheet: qualifier(at: i), kind: .cellRange(a, b)) { dr, dc in
+                                guard let x = a.shifted(dr, dc), let y = b.shifted(dr, dc) else { return "#REF!" }
+                                return x + ":" + y
+                            })
+                            i = k
+                            continue
+                        }
                         if let a = ColumnPart(word), let b = ColumnPart(word2) {
-                            out += ref(RefToken(text: word + ":" + word2) { _, dc in
+                            out += ref(RefToken(text: word + ":" + word2, sheet: qualifier(at: i), kind: .columns(a, b)) { _, dc in
                                 guard let x = a.shifted(dc), let y = b.shifted(dc) else { return "#REF!" }
                                 return x + ":" + y
                             })
@@ -134,7 +205,7 @@ public enum FormulaRewriter {
                             continue
                         }
                         if let a = RowPart(word), let b = RowPart(word2) {
-                            out += ref(RefToken(text: word + ":" + word2) { dr, _ in
+                            out += ref(RefToken(text: word + ":" + word2, sheet: qualifier(at: i), kind: .rows(a, b)) { dr, _ in
                                 guard let x = a.shifted(dr), let y = b.shifted(dr) else { return "#REF!" }
                                 return x + ":" + y
                             })
@@ -144,7 +215,7 @@ public enum FormulaRewriter {
                     }
                 }
                 if let cell = CellPart(word) {
-                    out += ref(RefToken(text: word) { dr, dc in cell.shifted(dr, dc) ?? "#REF!" })
+                    out += ref(RefToken(text: word, sheet: qualifier(at: i), kind: .cell(cell)) { dr, dc in cell.shifted(dr, dc) ?? "#REF!" })
                 } else {
                     out += word
                 }
@@ -183,6 +254,7 @@ public enum FormulaRewriter {
             guard !body.isEmpty, body.count <= 7, body.allSatisfy({ $0.isASCII && $0.isNumber }), let r = Int(body), r >= 1 else { return nil }
             row = r
         }
+        func with(_ r: Int) -> String { (absolute ? "$" : "") + String(r) }
         func shifted(_ d: Int) -> String? {
             let r = absolute ? row : row + d
             guard r >= 1 && r <= CellReference.maxRow else { return nil }
@@ -209,6 +281,9 @@ public enum FormulaRewriter {
             while i < chars.count && chars[i].isASCII && chars[i].isNumber { i += 1 }
             guard i == chars.count, i > ds, let r = CellReference(letters + String(chars[ds..<i])) else { return nil }
             ref = r
+        }
+        func with(row r: Int) -> String {
+            (colAbs ? "$" : "") + CellReference.columnName(ref.column) + (rowAbs ? "$" : "") + String(r)
         }
         func shifted(_ dr: Int, _ dc: Int) -> String? {
             let c = colAbs ? ref.column : ref.column + dc

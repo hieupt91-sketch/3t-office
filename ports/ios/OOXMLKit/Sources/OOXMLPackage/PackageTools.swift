@@ -27,7 +27,7 @@ public enum PackageValidator {
             do {
                 let d = try pkg.data(of: p)
                 if isXML && p.fileExtension != "vml" {
-                    _ = try XMLDocument(data: d)
+                    _ = try XDocument(data: d)
                 }
             } catch {
                 issues.append("\(p): \(error)")

@@ -42,7 +42,7 @@ public struct CellFormatInfo: Equatable, Sendable {
 public final class StyleSheet {
     let package: OPCPackage
     let part: PartName
-    let document: XMLDocument
+    let document: XDocument
     private struct CacheKey: Hashable { let base: Int; let change: CellFormatChange }
     private var cache: [CacheKey: Int] = [:]
 
@@ -58,17 +58,17 @@ public final class StyleSheet {
         document = try package.xml(part)
     }
 
-    private var root: XMLElement { document.root }
+    private var root: XElement { document.root }
 
-    private func container(_ local: String, create: Bool) -> XMLElement? {
+    private func container(_ local: String, create: Bool) -> XElement? {
         if let e = root.firstChild(NS.s, local) { return e }
         guard create else { return nil }
-        let e = XMLElement(name: root.qualifiedName(local, in: NS.s).name, attributes: [XMLAttribute(name: "count", value: "0")])
+        let e = XElement(name: root.qualifiedName(local, in: NS.s).name, attributes: [XAttribute(name: "count", value: "0")])
         root.insertChild(e, schemaOrder: StyleSheet.styleSheetOrder)
         return e
     }
 
-    var cellXfs: [XMLElement] { container("cellXfs", create: false)?.children(NS.s, "xf") ?? [] }
+    var cellXfs: [XElement] { container("cellXfs", create: false)?.children(NS.s, "xf") ?? [] }
 
     public var cellFormatCount: Int { cellXfs.count }
 
@@ -99,7 +99,7 @@ public final class StyleSheet {
                               fillColor: fillColor)
     }
 
-    private static func flag(_ local: String) -> (XMLElement) -> Bool {
+    private static func flag(_ local: String) -> (XElement) -> Bool {
         { font in
             guard let e = font.firstChild(NS.s, local) else { return false }
             let v = e.attribute("val")
@@ -107,7 +107,7 @@ public final class StyleSheet {
         }
     }
 
-    private func element(_ containerName: String, _ local: String, index: Int) -> XMLElement? {
+    private func element(_ containerName: String, _ local: String, index: Int) -> XElement? {
         let list = container(containerName, create: false)?.children(NS.s, local) ?? []
         return list.indices.contains(index) ? list[index] : nil
     }
@@ -118,14 +118,14 @@ public final class StyleSheet {
         if let c = cache[key] { return c }
         let xfs = container("cellXfs", create: true)!
         let existing = xfs.children(NS.s, "xf")
-        let xf: XMLElement
+        let xf: XElement
         if existing.indices.contains(base) {
             xf = existing[base].deepCopy()
         } else {
-            xf = XMLElement(name: xfs.qualifiedName("xf", in: NS.s).name, attributes: [
-                XMLAttribute(name: "numFmtId", value: "0"), XMLAttribute(name: "fontId", value: "0"),
-                XMLAttribute(name: "fillId", value: "0"), XMLAttribute(name: "borderId", value: "0"),
-                XMLAttribute(name: "xfId", value: "0"),
+            xf = XElement(name: xfs.qualifiedName("xf", in: NS.s).name, attributes: [
+                XAttribute(name: "numFmtId", value: "0"), XAttribute(name: "fontId", value: "0"),
+                XAttribute(name: "fillId", value: "0"), XAttribute(name: "borderId", value: "0"),
+                XAttribute(name: "xfId", value: "0"),
             ])
         }
         // Gắn vào cây trước khi sửa để tên phần tử con mới lấy đúng tiền tố namespace.
@@ -144,7 +144,7 @@ public final class StyleSheet {
         }
         if change.horizontalAlignment != nil || change.wrapText != nil {
             let al = xf.firstChild(NS.s, "alignment") ?? {
-                let a = XMLElement(name: xf.qualifiedName("alignment", in: NS.s).name)
+                let a = XElement(name: xf.qualifiedName("alignment", in: NS.s).name)
                 xf.insertChild(a, schemaOrder: StyleSheet.xfOrder)
                 return a
             }()
@@ -167,8 +167,8 @@ public final class StyleSheet {
             return id
         }
         let id = max(163, list.compactMap { Int($0.attribute("numFmtId") ?? "") }.max() ?? 163) + 1
-        nfs.append(XMLElement(name: nfs.qualifiedName("numFmt", in: NS.s).name, attributes: [
-            XMLAttribute(name: "numFmtId", value: String(id)), XMLAttribute(name: "formatCode", value: code),
+        nfs.append(XElement(name: nfs.qualifiedName("numFmt", in: NS.s).name, attributes: [
+            XAttribute(name: "numFmtId", value: String(id)), XAttribute(name: "formatCode", value: code),
         ]))
         nfs.setAttribute("count", String(list.count + 1))
         return id
@@ -178,25 +178,25 @@ public final class StyleSheet {
         let fonts = container("fonts", create: true)!
         let list = fonts.children(NS.s, "font")
         let font = list.indices.contains(fontId) ? list[fontId].deepCopy()
-            : XMLElement(name: fonts.qualifiedName("font", in: NS.s).name)
+            : XElement(name: fonts.qualifiedName("font", in: NS.s).name)
         fonts.append(font)
         func toggle(_ local: String, _ on: Bool?) {
             guard let on else { return }
             for e in font.children(NS.s, local) { e.removeFromParent() }
-            if on { font.insertChild(XMLElement(name: font.qualifiedName(local, in: NS.s).name), schemaOrder: StyleSheet.fontOrder) }
+            if on { font.insertChild(XElement(name: font.qualifiedName(local, in: NS.s).name), schemaOrder: StyleSheet.fontOrder) }
         }
         toggle("b", c.bold)
         toggle("i", c.italic)
         toggle("u", c.underline)
         if let color = c.fontColor {
             for e in font.children(NS.s, "color") { e.removeFromParent() }
-            font.insertChild(XMLElement(name: font.qualifiedName("color", in: NS.s).name,
-                                        attributes: [XMLAttribute(name: "rgb", value: color)]), schemaOrder: StyleSheet.fontOrder)
+            font.insertChild(XElement(name: font.qualifiedName("color", in: NS.s).name,
+                                        attributes: [XAttribute(name: "rgb", value: color)]), schemaOrder: StyleSheet.fontOrder)
         }
         if let size = c.fontSize {
             for e in font.children(NS.s, "sz") { e.removeFromParent() }
-            font.insertChild(XMLElement(name: font.qualifiedName("sz", in: NS.s).name,
-                                        attributes: [XMLAttribute(name: "val", value: Worksheet.format(size))]), schemaOrder: StyleSheet.fontOrder)
+            font.insertChild(XElement(name: font.qualifiedName("sz", in: NS.s).name,
+                                        attributes: [XAttribute(name: "val", value: Worksheet.format(size))]), schemaOrder: StyleSheet.fontOrder)
         }
         fonts.setAttribute("count", String(list.count + 1))
         return list.count
@@ -206,10 +206,10 @@ public final class StyleSheet {
         let fills = container("fills", create: true)!
         let list = fills.children(NS.s, "fill")
         let q = { (l: String) in fills.qualifiedName(l, in: NS.s).name }
-        let pf = XMLElement(name: q("patternFill"), attributes: [XMLAttribute(name: "patternType", value: "solid")])
-        pf.append(XMLElement(name: q("fgColor"), attributes: [XMLAttribute(name: "rgb", value: argb)]))
-        pf.append(XMLElement(name: q("bgColor"), attributes: [XMLAttribute(name: "indexed", value: "64")]))
-        let fill = XMLElement(name: q("fill"))
+        let pf = XElement(name: q("patternFill"), attributes: [XAttribute(name: "patternType", value: "solid")])
+        pf.append(XElement(name: q("fgColor"), attributes: [XAttribute(name: "rgb", value: argb)]))
+        pf.append(XElement(name: q("bgColor"), attributes: [XAttribute(name: "indexed", value: "64")]))
+        let fill = XElement(name: q("fill"))
         fill.append(pf)
         fills.append(fill)
         fills.setAttribute("count", String(list.count + 1))

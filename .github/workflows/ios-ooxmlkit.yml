@@ -20,12 +20,14 @@ jobs:
     defaults:
       run:
         working-directory: ports/ios/OOXMLKit
+        # pipefail: lỗi của swift/xcodebuild không bị che bởi grep/tail phía sau.
+        shell: bash -eo pipefail {0}
     steps:
       - uses: actions/checkout@v4
       - name: Phiên bản công cụ
         run: xcodebuild -version && swift --version
       - name: swift test (macOS)
-        run: swift test 2>&1 | tail -40
+        run: swift test 2>&1 | grep -E "error:|Test Suite '.*xctest'|Executed [0-9]+ tests"
       - name: Build cho thiết bị iOS/iPadOS (arm64, không ký)
         run: |
           xcodebuild build -scheme OOXMLKit-Package -destination 'generic/platform=iOS' \
@@ -44,10 +46,8 @@ jobs:
       - name: Test trên simulator iPhone
         run: |
           xcodebuild test -scheme OOXMLKit-Package -destination "id=${{ steps.sim.outputs.iphone }}" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "Test Suite|Executed|error:|failed" | tail -30
-          test ${PIPESTATUS[0]} -eq 0
+            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|Test Suite '.*xctest' (passed|failed)|Test Case .* failed|Executed [0-9]+ tests"
       - name: Test trên simulator iPad
         run: |
           xcodebuild test -scheme OOXMLKit-Package -destination "id=${{ steps.sim.outputs.ipad }}" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "Test Suite|Executed|error:|failed" | tail -30
-          test ${PIPESTATUS[0]} -eq 0
+            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|Test Suite '.*xctest' (passed|failed)|Test Case .* failed|Executed [0-9]+ tests"

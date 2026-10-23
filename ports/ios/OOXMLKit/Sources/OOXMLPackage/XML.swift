@@ -22,7 +22,7 @@ public enum XMLError: Error, Equatable, CustomStringConvertible {
     }
 }
 
-public struct XMLAttribute: Equatable, Sendable {
+public struct XAttribute: Equatable, Sendable {
     public var name: String
     public var value: String
     public init(name: String, value: String) {
@@ -31,14 +31,14 @@ public struct XMLAttribute: Equatable, Sendable {
     }
 }
 
-public enum XMLNode {
-    case element(XMLElement)
+public enum XNode {
+    case element(XElement)
     case text(String)
     case cdata(String)
     case comment(String)
     case processingInstruction(String)
 
-    public var element: XMLElement? {
+    public var element: XElement? {
         if case .element(let e) = self { return e }
         return nil
     }
@@ -62,14 +62,14 @@ public struct XMLNamespace: Hashable, Sendable {
     }
 }
 
-public final class XMLElement {
+public final class XElement {
     /// Tên định danh đầy đủ đúng như trong tệp (ví dụ "x:c" hoặc "c").
     public var name: String
-    public var attributes: [XMLAttribute]
-    public private(set) var children: [XMLNode]
-    public private(set) weak var parent: XMLElement?
+    public var attributes: [XAttribute]
+    public private(set) var children: [XNode]
+    public private(set) weak var parent: XElement?
 
-    public init(name: String, attributes: [XMLAttribute] = [], children: [XMLNode] = []) {
+    public init(name: String, attributes: [XAttribute] = [], children: [XNode] = []) {
         self.name = name
         self.attributes = attributes
         self.children = []
@@ -92,7 +92,7 @@ public final class XMLElement {
     public func namespaceURI(forPrefix prefix: String?) -> String? {
         if prefix == "xml" { return "http://www.w3.org/XML/1998/namespace" }
         let attr = prefix.map { "xmlns:" + $0 } ?? "xmlns"
-        var e: XMLElement? = self
+        var e: XElement? = self
         while let cur = e {
             for a in cur.attributes where a.name == attr {
                 return a.value.isEmpty ? nil : a.value
@@ -106,7 +106,7 @@ public final class XMLElement {
 
     /// Tiền tố đang gắn với namespace trong phạm vi phần tử này ("" = mặc định), nil nếu chưa khai báo.
     public func prefix(for ns: XMLNamespace) -> String? {
-        var e: XMLElement? = self
+        var e: XElement? = self
         var shadowed = Set<String>()
         while let cur = e {
             for a in cur.attributes {
@@ -167,7 +167,7 @@ public final class XMLElement {
         if let i = attributes.firstIndex(where: { $0.name == name }) {
             attributes[i].value = value
         } else {
-            attributes.append(XMLAttribute(name: name, value: value))
+            attributes.append(XAttribute(name: name, value: value))
         }
     }
 
@@ -177,18 +177,18 @@ public final class XMLElement {
 
     // MARK: Con
 
-    public var elements: [XMLElement] {
+    public var elements: [XElement] {
         children.compactMap(\.element)
     }
 
-    public func firstChild(_ ns: XMLNamespace, _ local: String) -> XMLElement? {
+    public func firstChild(_ ns: XMLNamespace, _ local: String) -> XElement? {
         for c in children {
             if case .element(let e) = c, e.is(ns, local) { return e }
         }
         return nil
     }
 
-    public func children(_ ns: XMLNamespace, _ local: String) -> [XMLElement] {
+    public func children(_ ns: XMLNamespace, _ local: String) -> [XElement] {
         children.compactMap { c in
             if case .element(let e) = c, e.is(ns, local) { return e }
             return nil
@@ -196,7 +196,7 @@ public final class XMLElement {
     }
 
     /// Duyệt mọi phần tử con cháu theo thứ tự tài liệu.
-    public func forEachDescendant(_ body: (XMLElement) -> Void) {
+    public func forEachDescendant(_ body: (XElement) -> Void) {
         for c in children {
             if case .element(let e) = c {
                 body(e)
@@ -205,14 +205,14 @@ public final class XMLElement {
         }
     }
 
-    public func descendants(_ ns: XMLNamespace, _ local: String) -> [XMLElement] {
-        var out: [XMLElement] = []
+    public func descendants(_ ns: XMLNamespace, _ local: String) -> [XElement] {
+        var out: [XElement] = []
         forEachDescendant { if $0.is(ns, local) { out.append($0) } }
         return out
     }
 
     /// Duyệt có điều khiển: closure trả về false để không đi vào con của phần tử đó.
-    public func walk(_ visit: (XMLElement) -> Bool) {
+    public func walk(_ visit: (XElement) -> Bool) {
         for c in children {
             if case .element(let e) = c, visit(e) {
                 e.walk(visit)
@@ -224,32 +224,32 @@ public final class XMLElement {
         parent?.children.firstIndex { $0.element === self }
     }
 
-    private func adopt(_ node: XMLNode) {
+    private func adopt(_ node: XNode) {
         if case .element(let e) = node {
             e.removeFromParent()
             e.parent = self
         }
     }
 
-    public func appendNode(_ node: XMLNode) {
+    public func appendNode(_ node: XNode) {
         adopt(node)
         children.append(node)
     }
 
-    public func append(_ element: XMLElement) {
+    public func append(_ element: XElement) {
         appendNode(.element(element))
     }
 
-    public func insertNode(_ node: XMLNode, at index: Int) {
+    public func insertNode(_ node: XNode, at index: Int) {
         adopt(node)
         children.insert(node, at: max(0, min(index, children.count)))
     }
 
-    public func insert(_ element: XMLElement, at index: Int) {
+    public func insert(_ element: XElement, at index: Int) {
         insertNode(.element(element), at: index)
     }
 
-    public func insert(_ element: XMLElement, before sibling: XMLElement) {
+    public func insert(_ element: XElement, before sibling: XElement) {
         guard let i = children.firstIndex(where: { $0.element === sibling }) else {
             append(element)
             return
@@ -257,7 +257,7 @@ public final class XMLElement {
         insert(element, at: i)
     }
 
-    public func insert(_ element: XMLElement, after sibling: XMLElement) {
+    public func insert(_ element: XElement, after sibling: XElement) {
         guard let i = children.firstIndex(where: { $0.element === sibling }) else {
             append(element)
             return
@@ -276,8 +276,8 @@ public final class XMLElement {
         children.remove(at: index)
     }
 
-    public func removeChildren(where predicate: (XMLNode) -> Bool) {
-        var kept: [XMLNode] = []
+    public func removeChildren(where predicate: (XNode) -> Bool) {
+        var kept: [XNode] = []
         for c in children {
             if predicate(c) {
                 if case .element(let e) = c { e.parent = nil }
@@ -292,7 +292,7 @@ public final class XMLElement {
         removeChildren { _ in true }
     }
 
-    public func replaceNode(at index: Int, with node: XMLNode) {
+    public func replaceNode(at index: Int, with node: XNode) {
         if case .element(let e) = children[index] { e.parent = nil }
         adopt(node)
         children[index] = node
@@ -300,7 +300,7 @@ public final class XMLElement {
 
     /// Chèn phần tử con theo thứ tự lược đồ (xs:sequence) cho trước bằng tên cục bộ.
     /// Phần tử lạ (không có trong danh sách) không ảnh hưởng tới vị trí.
-    public func insertChild(_ child: XMLElement, schemaOrder: [String]) {
+    public func insertChild(_ child: XElement, schemaOrder: [String]) {
         guard let rank = schemaOrder.firstIndex(of: child.localName) else {
             append(child)
             return
@@ -333,8 +333,8 @@ public final class XMLElement {
         if !text.isEmpty { appendNode(.text(text)) }
     }
 
-    public func deepCopy() -> XMLElement {
-        let e = XMLElement(name: name, attributes: attributes)
+    public func deepCopy() -> XElement {
+        let e = XElement(name: name, attributes: attributes)
         for c in children {
             switch c {
             case .element(let x): e.append(x.deepCopy())
@@ -345,14 +345,14 @@ public final class XMLElement {
     }
 }
 
-public final class XMLDocument {
+public final class XDocument {
     /// Nội dung bên trong `<?xml ... ?>` (nil nếu tệp không có khai báo).
     public var declaration: String?
-    public var prolog: [XMLNode] = []
-    public var root: XMLElement
-    public var epilog: [XMLNode] = []
+    public var prolog: [XNode] = []
+    public var root: XElement
+    public var epilog: [XNode] = []
 
-    public init(root: XMLElement, declaration: String? = #"version="1.0" encoding="UTF-8" standalone="yes""#) {
+    public init(root: XElement, declaration: String? = #"version="1.0" encoding="UTF-8" standalone="yes""#) {
         self.root = root
         self.declaration = declaration
     }
@@ -365,7 +365,7 @@ public final class XMLDocument {
             bytes = Array(s.utf8)
             declOverride = "UTF-8"
         }
-        var parser = XMLParser(bytes: bytes)
+        var parser = XParser(bytes: bytes)
         let doc = try parser.parseDocument()
         self.init(root: doc.root, declaration: doc.declaration)
         prolog = doc.prolog
@@ -381,7 +381,7 @@ public final class XMLDocument {
     }
 
     public func serialized() -> Data {
-        var w = XMLWriter()
+        var w = XWriter()
         if let d = declaration {
             w.raw("<?xml ")
             w.raw(d)
@@ -399,7 +399,7 @@ public final class XMLDocument {
 
 // MARK: - Bộ phân tích
 
-struct XMLParser {
+struct XParser {
     let bytes: [UInt8]
     var p = 0
 
@@ -410,9 +410,9 @@ struct XMLParser {
 
     struct Result {
         var declaration: String?
-        var prolog: [XMLNode]
-        var root: XMLElement
-        var epilog: [XMLNode]
+        var prolog: [XNode]
+        var root: XElement
+        var epilog: [XNode]
     }
 
     @inline(__always) func peek(_ s: StaticString, at i: Int) -> Bool {
@@ -442,12 +442,12 @@ struct XMLParser {
 
     mutating func parseDocument() throws -> Result {
         var declaration: String?
-        var prolog: [XMLNode] = []
-        var epilog: [XMLNode] = []
-        var root: XMLElement?
-        var stack: [XMLElement] = []
+        var prolog: [XNode] = []
+        var epilog: [XNode] = []
+        var root: XElement?
+        var stack: [XElement] = []
 
-        func addNode(_ n: XMLNode) {
+        func addNode(_ n: XNode) {
             if let top = stack.last {
                 top.appendNode(n)
             } else if root == nil {
@@ -493,7 +493,7 @@ struct XMLParser {
                     let start = p
                     p += 1
                     let name = try readName()
-                    var attrs: [XMLAttribute] = []
+                    var attrs: [XAttribute] = []
                     var selfClosing = false
                     while true {
                         skipSpace()
@@ -532,9 +532,9 @@ struct XMLParser {
                         if attrs.contains(where: { $0.name == an }) {
                             throw XMLError.malformed("thuộc tính trùng \(an)", offset: vs)
                         }
-                        attrs.append(XMLAttribute(name: an, value: value))
+                        attrs.append(XAttribute(name: an, value: value))
                     }
-                    let el = XMLElement(name: name, attributes: attrs)
+                    let el = XElement(name: name, attributes: attrs)
                     if stack.isEmpty {
                         guard root == nil else { throw XMLError.malformed("nhiều phần tử gốc", offset: start) }
                         root = el
@@ -548,7 +548,7 @@ struct XMLParser {
                 while p < bytes.count && bytes[p] != UInt8(ascii: "<") { p += 1 }
                 if stack.isEmpty {
                     // Chỉ cho phép khoảng trắng ngoài phần tử gốc.
-                    for i in start..<p where !XMLParser.isSpace(bytes[i]) {
+                    for i in start..<p where !XParser.isSpace(bytes[i]) {
                         throw XMLError.malformed("văn bản ngoài phần tử gốc", offset: i)
                     }
                 }
@@ -561,14 +561,14 @@ struct XMLParser {
     }
 
     mutating func skipSpace() {
-        while p < bytes.count && XMLParser.isSpace(bytes[p]) { p += 1 }
+        while p < bytes.count && XParser.isSpace(bytes[p]) { p += 1 }
     }
 
     mutating func readName() throws -> String {
         let s = p
         while p < bytes.count {
             let b = bytes[p]
-            if XMLParser.isSpace(b) || b == UInt8(ascii: ">") || b == UInt8(ascii: "/") || b == UInt8(ascii: "=") {
+            if XParser.isSpace(b) || b == UInt8(ascii: ">") || b == UInt8(ascii: "/") || b == UInt8(ascii: "=") {
                 break
             }
             p += 1
@@ -643,14 +643,14 @@ struct XMLParser {
 
 // MARK: - Bộ ghi
 
-struct XMLWriter {
+struct XWriter {
     var out: [UInt8] = []
 
     init() { out.reserveCapacity(4096) }
 
     mutating func raw(_ s: String) { out.append(contentsOf: s.utf8) }
 
-    mutating func node(_ n: XMLNode) {
+    mutating func node(_ n: XNode) {
         switch n {
         case .element(let e): element(e)
         case .text(let t): escaped(t, attribute: false)
@@ -669,7 +669,7 @@ struct XMLWriter {
         }
     }
 
-    mutating func element(_ e: XMLElement) {
+    mutating func element(_ e: XElement) {
         out.append(UInt8(ascii: "<"))
         raw(e.name)
         for a in e.attributes {

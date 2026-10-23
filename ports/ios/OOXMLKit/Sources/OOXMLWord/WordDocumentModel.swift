@@ -78,12 +78,12 @@ public final class WordDocument {
 
     // MARK: Đoạn văn
 
-    private func newParagraph(_ text: String, style: String?, context: XMLElement) -> XMLElement {
-        let p = XMLElement(name: WordText.qn(context, "p"))
+    private func newParagraph(_ text: String, style: String?, context: XElement) -> XElement {
+        let p = XElement(name: WordText.qn(context, "p"))
         context.append(p) // gắn tạm để lấy đúng tiền tố
         if let style {
-            let pPr = XMLElement(name: WordText.qn(context, "pPr"))
-            pPr.append(XMLElement(name: WordText.qn(context, "pStyle"), attributes: [XMLAttribute(name: WordText.qn(context, "val"), value: style)]))
+            let pPr = XElement(name: WordText.qn(context, "pPr"))
+            pPr.append(XElement(name: WordText.qn(context, "pStyle"), attributes: [XAttribute(name: WordText.qn(context, "val"), value: style)]))
             p.append(pPr)
         }
         for r in WordText.makeRuns(text, rPr: nil, context: p) { p.append(r) }
@@ -175,7 +175,7 @@ public final class WordDocument {
         var wrapperAttrs = ""
         if let p = root.prefix(for: NS.w) { wrapperAttrs += p.isEmpty ? " xmlns=\"\(NS.w.primaryURI)\"" : " xmlns:\(p)=\"\(NS.w.primaryURI)\"" }
         if let p = rPrefix, !p.isEmpty { wrapperAttrs += " xmlns:\(p)=\"\(NS.r.primaryURI)\"" }
-        let parsed = try XMLDocument(string: "<wrapper\(wrapperAttrs)>\(fragment)</wrapper>")
+        let parsed = try XDocument(string: "<wrapper\(wrapperAttrs)>\(fragment)</wrapper>")
         let run = parsed.root.elements[0]
         run.removeFromParent()
 

@@ -6,7 +6,7 @@ public final class Slide {
     public let part: PartName
     public let slideId: UInt32
     let relId: String
-    let document: XMLDocument
+    let document: XDocument
 
     init(presentation: Presentation, part: PartName, slideId: UInt32, relId: String) throws {
         self.presentation = presentation
@@ -19,7 +19,7 @@ public final class Slide {
     var package: OPCPackage { presentation.package }
     func markModified() { package.markModified(part) }
 
-    var spTree: XMLElement? { document.root.firstChild(NS.p, "cSld")?.firstChild(NS.p, "spTree") }
+    var spTree: XElement? { document.root.firstChild(NS.p, "cSld")?.firstChild(NS.p, "spTree") }
 
     /// Hình cấp cao nhất (nhóm chứa hình con trong `children`).
     public var shapes: [Shape] { Shape.list(in: spTree, owner: .slide(self)) }
@@ -69,7 +69,7 @@ public final class Slide {
         return p
     }
 
-    private func notesShape() throws -> (part: PartName, txBody: XMLElement)? {
+    private func notesShape() throws -> (part: PartName, txBody: XElement)? {
         guard let np = notesPart else { return nil }
         let doc = try package.xml(np)
         guard let tree = doc.root.firstChild(NS.p, "cSld")?.firstChild(NS.p, "spTree") else { return nil }
@@ -97,7 +97,7 @@ public final class Slide {
             throw PresentationError.noNotesMaster
         }
         let np = package.uniquePartName(prefix: "/ppt/notesSlides/notesSlide", ext: "xml")
-        let doc = try XMLDocument(string: """
+        let doc = try XDocument(string: """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <p:notes xmlns:a="\(NS.a.primaryURI)" xmlns:r="\(NS.r.primaryURI)" xmlns:p="\(NS.p.primaryURI)"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr><p:sp><p:nvSpPr><p:cNvPr id="2" name="Slide Image Placeholder 1"/><p:cNvSpPr><a:spLocks noGrp="1" noRot="1" noChangeAspect="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldImg"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp><p:sp><p:nvSpPr><p:cNvPr id="3" name="Notes Placeholder 2"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="vi-VN" dirty="0"/></a:p></p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>
         """)
@@ -120,16 +120,16 @@ public final class Shape {
     public enum Kind: Equatable, Sendable { case shape, picture, graphicFrame, group, connector, contentPart, other }
 
     let owner: Owner
-    public let element: XMLElement
+    public let element: XElement
     public let children: [Shape]
 
-    init(owner: Owner, element: XMLElement) {
+    init(owner: Owner, element: XElement) {
         self.owner = owner
         self.element = element
         children = element.localName == "grpSp" ? Shape.list(in: element, owner: owner) : []
     }
 
-    static func list(in tree: XMLElement?, owner: Owner) -> [Shape] {
+    static func list(in tree: XElement?, owner: Owner) -> [Shape] {
         guard let tree else { return [] }
         var out: [Shape] = []
         for e in tree.elements {
@@ -169,8 +169,8 @@ public final class Shape {
         }
     }
 
-    private var nonVisual: XMLElement? { element.elements.first { $0.localName.hasPrefix("nv") } }
-    private var cNvPr: XMLElement? { nonVisual?.firstChild(NS.p, "cNvPr") }
+    private var nonVisual: XElement? { element.elements.first { $0.localName.hasPrefix("nv") } }
+    private var cNvPr: XElement? { nonVisual?.firstChild(NS.p, "cNvPr") }
 
     public var id: Int? { cNvPr?.attribute("id").flatMap { Int($0) } }
     public var name: String { cNvPr?.attribute("name") ?? "" }
@@ -193,7 +193,7 @@ public final class Shape {
         return (ox, oy, cx, cy)
     }
 
-    var txBody: XMLElement? { element.firstChild(NS.p, "txBody") }
+    var txBody: XElement? { element.firstChild(NS.p, "txBody") }
     public var hasTextFrame: Bool { txBody != nil }
 
     public var paragraphs: [String] { txBody.map(DrawingText.paragraphs) ?? [] }
@@ -206,7 +206,7 @@ public final class Shape {
         markModified()
     }
 
-    private var tableElement: XMLElement? {
+    private var tableElement: XElement? {
         element.firstChild(NS.a, "graphic")?.firstChild(NS.a, "graphicData")?.firstChild(NS.a, "tbl")
     }
 
@@ -228,10 +228,10 @@ public final class Shape {
         let tc = cells[column]
         let tx = tc.firstChild(NS.a, "txBody") ?? {
             let q = { (l: String) in tc.qualifiedName(l, in: NS.a).name }
-            let t = XMLElement(name: q("txBody"))
+            let t = XElement(name: q("txBody"))
             tc.insert(t, at: 0)
-            t.append(XMLElement(name: q("bodyPr")))
-            t.append(XMLElement(name: q("lstStyle")))
+            t.append(XElement(name: q("bodyPr")))
+            t.append(XElement(name: q("lstStyle")))
             return t
         }()
         DrawingText.setParagraphs(tx, text.components(separatedBy: "\n"))

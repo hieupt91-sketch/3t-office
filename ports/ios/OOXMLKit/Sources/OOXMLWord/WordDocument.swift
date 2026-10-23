@@ -22,7 +22,7 @@ public final class WordStory {
     public let document: WordDocument
     public let kind: Kind
     public let part: PartName
-    let xml: XMLDocument
+    let xml: XDocument
 
     init(document: WordDocument, kind: Kind, part: PartName) throws {
         self.document = document
@@ -32,7 +32,7 @@ public final class WordStory {
     }
 
     /// Phần tử chứa khối nội dung (w:body với thân văn bản, gốc với các story khác).
-    var container: XMLElement {
+    var container: XElement {
         kind == .body ? (xml.root.firstChild(NS.w, "body") ?? xml.root) : xml.root
     }
 
@@ -42,7 +42,7 @@ public final class WordStory {
     /// (không gồm đoạn trong hộp văn bản/hình vẽ).
     public var paragraphs: [Paragraph] {
         var out: [Paragraph] = []
-        func visit(_ e: XMLElement) {
+        func visit(_ e: XElement) {
             for c in e.elements {
                 if c.localName == "AlternateContent" {
                     if let choice = c.elements.first(where: { $0.localName == "Choice" }) { visit(choice) }
@@ -85,9 +85,9 @@ public final class WordStory {
 
 public final class Paragraph {
     public let story: WordStory
-    public let element: XMLElement
+    public let element: XElement
 
-    init(story: WordStory, element: XMLElement) {
+    init(story: WordStory, element: XElement) {
         self.story = story
         self.element = element
     }
@@ -108,7 +108,7 @@ public final class Paragraph {
         let pPr = WordText.ensurePPr(element)
         for e in pPr.children(NS.w, "pStyle") { e.removeFromParent() }
         if let styleId {
-            pPr.insertChild(XMLElement(name: WordText.qn(pPr, "pStyle"), attributes: [XMLAttribute(name: WordText.qn(pPr, "val"), value: styleId)]),
+            pPr.insertChild(XElement(name: WordText.qn(pPr, "pStyle"), attributes: [XAttribute(name: WordText.qn(pPr, "val"), value: styleId)]),
                             schemaOrder: WordText.pPrOrder)
         }
         if pPr.elements.isEmpty && pPr.attributes.isEmpty { pPr.removeFromParent() }
@@ -122,7 +122,7 @@ public final class Paragraph {
             let pPr = WordText.ensurePPr(element)
             for e in pPr.children(NS.w, "jc") { e.removeFromParent() }
             if let newValue {
-                pPr.insertChild(XMLElement(name: WordText.qn(pPr, "jc"), attributes: [XMLAttribute(name: WordText.qn(pPr, "val"), value: newValue)]),
+                pPr.insertChild(XElement(name: WordText.qn(pPr, "jc"), attributes: [XAttribute(name: WordText.qn(pPr, "val"), value: newValue)]),
                                 schemaOrder: WordText.pPrOrder)
             }
             story.markModified()
@@ -148,7 +148,7 @@ public final class Paragraph {
     @discardableResult
     public func appendRun(_ text: String, bold: Bool? = nil, italic: Bool? = nil) -> Run {
         let base = WordText.textRuns(element).last { !WordText.isAnchorRun($0) }?.firstChild(NS.w, "rPr")?.deepCopy()
-        let r = WordText.makeRuns(text, rPr: base, context: element).first ?? XMLElement(name: WordText.qn(element, "r"))
+        let r = WordText.makeRuns(text, rPr: base, context: element).first ?? XElement(name: WordText.qn(element, "r"))
         element.append(r)
         let run = Run(paragraph: self, element: r)
         if let bold { run.setBold(bold) }
@@ -160,9 +160,9 @@ public final class Paragraph {
 
 public final class Run {
     public let paragraph: Paragraph
-    public let element: XMLElement
+    public let element: XElement
 
-    init(paragraph: Paragraph, element: XMLElement) {
+    init(paragraph: Paragraph, element: XElement) {
         self.paragraph = paragraph
         self.element = element
     }
@@ -195,9 +195,9 @@ public final class Run {
 
 public final class Table {
     public let story: WordStory
-    public let element: XMLElement
+    public let element: XElement
 
-    init(story: WordStory, element: XMLElement) {
+    init(story: WordStory, element: XElement) {
         self.story = story
         self.element = element
     }
@@ -215,9 +215,9 @@ public final class Table {
 
 public final class TableCell {
     public let story: WordStory
-    public let element: XMLElement
+    public let element: XElement
 
-    init(story: WordStory, element: XMLElement) {
+    init(story: WordStory, element: XElement) {
         self.story = story
         self.element = element
     }
@@ -245,7 +245,7 @@ public final class TableCell {
             WordText.setParagraphText(first, text)
             for p in ps.dropFirst() { p.removeFromParent() }
         } else {
-            let p = XMLElement(name: WordText.qn(element, "p"))
+            let p = XElement(name: WordText.qn(element, "p"))
             element.append(p)
             WordText.setParagraphText(p, text)
         }

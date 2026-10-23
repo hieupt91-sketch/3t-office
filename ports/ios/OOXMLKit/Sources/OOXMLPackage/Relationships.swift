@@ -15,23 +15,23 @@ public struct Relationship: Equatable, Sendable {
 /// giữ nguyên thuộc tính/phần tử lạ và thứ tự gốc.
 public final class Relationships {
     public let source: PartName
-    public let document: XMLDocument
+    public let document: XDocument
     public internal(set) var isModified = false
 
-    init(source: PartName, document: XMLDocument) {
+    init(source: PartName, document: XDocument) {
         self.source = source
         self.document = document
     }
 
     init(source: PartName) {
         self.source = source
-        let root = XMLElement(name: "Relationships",
-                              attributes: [XMLAttribute(name: "xmlns", value: NS.packageRelationships.primaryURI)])
-        document = XMLDocument(root: root)
+        let root = XElement(name: "Relationships",
+                              attributes: [XAttribute(name: "xmlns", value: NS.packageRelationships.primaryURI)])
+        document = XDocument(root: root)
         isModified = true
     }
 
-    private var elements: [XMLElement] {
+    private var elements: [XElement] {
         document.root.elements.filter { $0.localName == "Relationship" }
     }
 
@@ -94,12 +94,12 @@ public final class Relationships {
     @discardableResult
     public func add(type: String, target: String, external: Bool, id: String? = nil) -> String {
         let rid = id ?? nextId()
-        var attrs = [XMLAttribute(name: "Id", value: rid),
-                     XMLAttribute(name: "Type", value: type),
-                     XMLAttribute(name: "Target", value: target)]
-        if external { attrs.append(XMLAttribute(name: "TargetMode", value: "External")) }
+        var attrs = [XAttribute(name: "Id", value: rid),
+                     XAttribute(name: "Type", value: type),
+                     XAttribute(name: "Target", value: target)]
+        if external { attrs.append(XAttribute(name: "TargetMode", value: "External")) }
         let name = document.root.prefix.map { "\($0):Relationship" } ?? "Relationship"
-        document.root.append(XMLElement(name: name, attributes: attrs))
+        document.root.append(XElement(name: name, attributes: attrs))
         isModified = true
         return rid
     }
@@ -121,16 +121,16 @@ public final class Relationships {
 
 /// [Content_Types].xml
 public final class ContentTypes {
-    public let document: XMLDocument
+    public let document: XDocument
     public internal(set) var isModified = false
 
-    init(document: XMLDocument) {
+    init(document: XDocument) {
         self.document = document
     }
 
     init() {
-        let root = XMLElement(name: "Types", attributes: [XMLAttribute(name: "xmlns", value: NS.contentTypes.primaryURI)])
-        document = XMLDocument(root: root)
+        let root = XElement(name: "Types", attributes: [XAttribute(name: "xmlns", value: NS.contentTypes.primaryURI)])
+        document = XDocument(root: root)
         isModified = true
         setDefault(extension: "rels", contentType: ContentType.relationships)
         setDefault(extension: "xml", contentType: ContentType.xml)
@@ -171,9 +171,9 @@ public final class ContentTypes {
             }
             return
         }
-        let el = XMLElement(name: qualified("Default"), attributes: [
-            XMLAttribute(name: "Extension", value: ext),
-            XMLAttribute(name: "ContentType", value: contentType),
+        let el = XElement(name: qualified("Default"), attributes: [
+            XAttribute(name: "Extension", value: ext),
+            XAttribute(name: "ContentType", value: contentType),
         ])
         // Default đứng trước Override theo thói quen của Office.
         if let firstOverride = document.root.elements.first(where: { $0.localName == "Override" }) {
@@ -194,9 +194,9 @@ public final class ContentTypes {
                 return
             }
         }
-        document.root.append(XMLElement(name: qualified("Override"), attributes: [
-            XMLAttribute(name: "PartName", value: part.value),
-            XMLAttribute(name: "ContentType", value: contentType),
+        document.root.append(XElement(name: qualified("Override"), attributes: [
+            XAttribute(name: "PartName", value: part.value),
+            XAttribute(name: "ContentType", value: contentType),
         ]))
         isModified = true
     }

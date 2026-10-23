@@ -6,7 +6,7 @@ import OOXMLPackage
 public final class SharedStrings {
     let package: OPCPackage
     let part: PartName
-    let document: XMLDocument
+    let document: XDocument
     private(set) var texts: [String] = []
     private(set) var richFlags: [Bool] = []
     private var plainIndex: [String: Int] = [:]
@@ -27,11 +27,11 @@ public final class SharedStrings {
     /// Tạo phần sharedStrings mới cho workbook chưa có.
     static func create(in package: OPCPackage, workbookPart: PartName) throws -> SharedStrings {
         let part = PartName(workbookPart.directory + "/sharedStrings.xml")
-        let root = XMLElement(name: "sst", attributes: [
-            XMLAttribute(name: "xmlns", value: NS.s.primaryURI),
-            XMLAttribute(name: "count", value: "0"), XMLAttribute(name: "uniqueCount", value: "0"),
+        let root = XElement(name: "sst", attributes: [
+            XAttribute(name: "xmlns", value: NS.s.primaryURI),
+            XAttribute(name: "count", value: "0"), XAttribute(name: "uniqueCount", value: "0"),
         ])
-        package.setXML(XMLDocument(root: root), for: part, contentType: ContentType.sharedStrings)
+        package.setXML(XDocument(root: root), for: part, contentType: ContentType.sharedStrings)
         try package.relationships(of: workbookPart).add(.sharedStrings, to: part)
         return try SharedStrings(package: package, part: part)
     }
@@ -50,8 +50,8 @@ public final class SharedStrings {
     func index(for text: String) -> Int {
         bumpCount()
         if let i = plainIndex[text] { return i }
-        let si = XMLElement(name: document.root.qualifiedName("si", in: NS.s).name)
-        let t = XMLElement(name: document.root.qualifiedName("t", in: NS.s).name)
+        let si = XElement(name: document.root.qualifiedName("si", in: NS.s).name)
+        let t = XElement(name: document.root.qualifiedName("t", in: NS.s).name)
         if text.first?.isWhitespace == true || text.last?.isWhitespace == true || text.contains("\n") {
             t.setAttribute("xml:space", "preserve")
         }
@@ -77,7 +77,7 @@ public final class SharedStrings {
     }
 
     /// Văn bản của <si>/<is>: nối <t> trực tiếp và trong <r>; bỏ phiên âm <rPh>.
-    static func text(of si: XMLElement) -> String {
+    static func text(of si: XElement) -> String {
         var s = ""
         for e in si.elements {
             if e.is(NS.s, "t") {
