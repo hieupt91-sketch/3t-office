@@ -254,3 +254,33 @@ public final class Shape {
         return try? s.package.relationships(of: s.part).targetPart(id: rid)
     }
 }
+
+extension Shape {
+    /// Thay ảnh của hình ảnh (p:pic) — tạo phần media MỚI (không ghi đè ảnh có thể đang được slide khác dùng),
+    /// trỏ quan hệ sang ảnh mới, giữ nguyên vị trí/kích thước/cắt xén; ảnh cũ bị xóa nếu không còn ai dùng.
+    public func replaceImage(_ data: Data) throws {
+        guard case .slide(let s) = owner,
+              let blip = element.firstChild(NS.p, "blipFill")?.firstChild(NS.a, "blip"),
+              let embedAttr = blip.attributes.first(where: { $0.name.hasSuffix(":embed") })?.name,
+              let oldId = blip.attribute(embedAttr) else { throw PresentationError.shapeHasNoText }
+        let ext: String
+        let ct: String
+        let b = [UInt8](data.prefix(8))
+        if b.starts(with: [0x89, 0x50, 0x4E, 0x47]) { (ext, ct) = ("png", ContentType.png) }
+        else if b.starts(with: [0xFF, 0xD8]) { (ext, ct) = ("jpeg", ContentType.jpeg) }
+        else if b.starts(with: [0x47, 0x49, 0x46]) { (ext, ct) = ("gif", ContentType.gif) }
+        else { throw PresentationError.unsupportedImage }
+        let pkg = s.package
+        let rels = try pkg.relationships(of: s.part)
+        let old = rels.targetPart(id: oldId)
+        let part = pkg.uniquePartName(prefix: "/ppt/media/image", ext: ext)
+        pkg.setData(data, for: part, contentType: ct)
+        let rid = rels.add(.image, to: part, reuseExisting: false)
+        blip.setAttribute(embedAttr, rid)
+        // Gỡ quan hệ cũ nếu không còn phần tử nào của slide dùng nó.
+        let stillUsed = s.document.root.descendants(NS.a, "blip").contains { $0.attributes.contains { $0.value == oldId && $0.name.hasSuffix(":embed") } }
+        if !stillUsed { rels.remove(id: oldId) }
+        s.markModified()
+        if let old { try pkg.removeUnreachable(among: [old]) }
+    }
+}

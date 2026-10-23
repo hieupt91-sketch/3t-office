@@ -41,3 +41,35 @@ final class Phase5SlideTests: XCTestCase {
         }
     }
 }
+
+final class Phase5ImageTests: XCTestCase {
+    func testReplaceImageOwnedBySingleSlide() throws {
+        let original = try Fixtures.data("pptx/rich-deck.pptx")
+        let deck = try Presentation(data: original)
+        let newPNG = try OPCPackage(data: try Fixtures.data("real/sample-writer-image.docx")).data(of: "/word/media/image1.png")
+        let pic = deck.slides[0].shape(named: "Logo 3T")!
+        let frame = pic.frame!
+        try pic.replaceImage(newPNG)
+        let saved = try deck.save()
+        let re = try Presentation(data: saved)
+        let p2 = re.slides[0].shape(named: "Logo 3T")!
+        XCTAssertEqual(p2.imagePart, "/ppt/media/image2.png")
+        XCTAssertEqual(try re.package.data(of: p2.imagePart!), newPNG)
+        XCTAssertEqual(p2.frame!.width, frame.width, "giữ kích thước")
+        XCTAssertFalse(re.package.hasPart("/ppt/media/image1.png"), "ảnh cũ không còn ai dùng → xóa")
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["ppt/slides/slide1.xml", "ppt/slides/_rels/slide1.xml.rels", "ppt/media/image1.png", "ppt/media/image2.png"],
+                             requireChanged: ["ppt/media/image2.png"], name: "p5-replace-image.pptx")
+    }
+
+    func testReplaceImageSharedWithDuplicateKeepsOriginal() throws {
+        let deck = try Presentation(data: try Fixtures.data("pptx/rich-deck.pptx"))
+        let dup = try deck.duplicateSlide(at: 0) // slide nhân bản dùng chung image1.png
+        try dup.shape(named: "Logo 3T")!.replaceImage(Data([0x89, 0x50, 0x4E, 0x47, 0, 0, 0, 0]))
+        let re = try Presentation(data: try deck.save())
+        XCTAssertEqual(re.slides[0].shape(named: "Logo 3T")?.imagePart, "/ppt/media/image1.png", "slide gốc giữ ảnh cũ")
+        XCTAssertTrue(re.package.hasPart("/ppt/media/image1.png"))
+        XCTAssertNotEqual(re.slides[1].shape(named: "Logo 3T")?.imagePart, "/ppt/media/image1.png")
+        XCTAssertThrowsError(try re.slides[0].shape(named: "Logo 3T")!.replaceImage(Data("không phải ảnh".utf8)))
+    }
+}

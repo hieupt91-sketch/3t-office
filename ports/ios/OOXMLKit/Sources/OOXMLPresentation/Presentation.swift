@@ -6,6 +6,7 @@ public enum PresentationError: Error, Equatable, CustomStringConvertible {
     case slideIndexOutOfRange(Int)
     case noNotesMaster
     case shapeHasNoText
+    case unsupportedImage
 
     public var description: String {
         switch self {
@@ -13,6 +14,7 @@ public enum PresentationError: Error, Equatable, CustomStringConvertible {
         case .slideIndexOutOfRange(let i): return "Không có slide số \(i + 1)"
         case .noNotesMaster: return "Bản trình chiếu chưa có notes master — không tạo được ghi chú mới"
         case .shapeHasNoText: return "Hình này không chứa khung chữ"
+        case .unsupportedImage: return "Chỉ hỗ trợ ảnh PNG, JPEG, GIF"
         }
     }
 }
