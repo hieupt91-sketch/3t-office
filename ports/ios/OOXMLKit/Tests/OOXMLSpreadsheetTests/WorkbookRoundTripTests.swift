@@ -333,4 +333,27 @@ final class WorkbookRoundTripTests: XCTestCase {
             XCTAssertEqual($0 as? SpreadsheetError, .notASpreadsheet)
         }
     }
+
+    /// Hồi quy phát hiện 23/10: tệp Excel THẬT dùng <font><family val="34"/> (>14), <charset val="163"/>,
+    /// color theme+tint — openpyxl từ chối đọc, OOXMLKit phải mở và round-trip nguyên vẹn (không áp ràng buộc kiểu đó).
+    func testRealWorldOfficeStyleQuirks() throws {
+        let original = try Fixtures.data("xlsx/office-quirks.xlsx")
+        let wb = try Workbook(data: original)
+        let ws = try wb.worksheet(at: 0)
+        XCTAssertEqual(try ws.value("A1"), .string("Báo giá mẫu"))
+        XCTAssertEqual(try ws.value("B1"), .number(255000))
+        // Lưu không sửa: giữ nguyên byte, giá trị lạ trong styles không bị "chỉnh".
+        try RoundTrip.assertNoOpSaveIsLossless(original, saved: try Workbook(data: original).save(), name: "office-quirks-noop.xlsx")
+        // Sửa 1 ô rồi lưu: styles vẫn còn nguyên family=34, charset=163, tint.
+        try ws.setValue(300000, at: "B1")
+        let saved = try wb.save()
+        XCTAssertEqual(try Workbook(data: saved).worksheet(at: 0).value("B1"), .number(300000))
+        let styles = try RoundTrip.partString(saved, "xl/styles.xml")
+        XCTAssertTrue(styles.contains("<family val=\"34\"/>"), "giá trị family lạ của Office phải giữ nguyên")
+        XCTAssertTrue(styles.contains("<charset val=\"163\"/>"))
+        XCTAssertTrue(styles.contains("tint=\"-0.249977111117893\""))
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["xl/worksheets/sheet1.xml", "xl/workbook.xml"],
+                             requireChanged: ["xl/worksheets/sheet1.xml"], name: "office-quirks-edited.xlsx")
+    }
 }

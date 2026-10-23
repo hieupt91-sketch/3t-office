@@ -244,3 +244,28 @@ minimal(os.path.join(D, "strict.xlsx"),
         DECL + f'<worksheet xmlns="{SX}"><sheetData><row r="1"><c r="A1"><v>3.5</v></c></row></sheetData></worksheet>',
         wb_ns_prefix=False, ns=SX)
 print("XLSX fixtures written to", D)
+
+# office-quirks.xlsx — bẫy "góc khuất" của Office THẬT mà thư viện khác (vd openpyxl) có thể từ chối:
+# <font><family val="34"/> (giá trị >14), <charset val="163"/> (bảng mã tiếng Việt), color theme+tint.
+def office_quirks(path):
+    X = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    wb = (DECL + f'<workbook xmlns="{X}" xmlns:r="{R_NS}"><sheets><sheet name="Dữ liệu" sheetId="1" r:id="rId1"/></sheets></workbook>')
+    st = (DECL + f'<styleSheet xmlns="{X}"><fonts count="2">'
+          '<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>'
+          '<font><b/><sz val="12"/><color theme="4" tint="-0.249977111117893"/><name val="Times New Roman"/><family val="34"/><charset val="163"/></font>'
+          '</fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
+          '<borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+          '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+          '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>')
+    sheet = (DECL + f'<worksheet xmlns="{X}"><sheetData><row r="1"><c r="A1" s="1" t="inlineStr"><is><t>Báo giá mẫu</t></is></c>'
+             '<c r="B1"><v>255000</v></c></row></sheetData></worksheet>')
+    write_package(path, [
+        ("[Content_Types].xml", content_types([("rels", "application/vnd.openxmlformats-package.relationships+xml"), ("xml", "application/xml")],
+            [("/xl/workbook.xml", CT + "sheet.main+xml"), ("/xl/worksheets/sheet1.xml", CT + "worksheet+xml"), ("/xl/styles.xml", CT + "styles+xml")])),
+        ("_rels/.rels", rels([("rId1", "officeDocument", "xl/workbook.xml")])),
+        ("xl/workbook.xml", wb),
+        ("xl/_rels/workbook.xml.rels", rels([("rId1", "worksheet", "worksheets/sheet1.xml"), ("rId2", "styles", "styles.xml")])),
+        ("xl/styles.xml", st), ("xl/worksheets/sheet1.xml", sheet)])
+
+office_quirks(os.path.join(D, "office-quirks.xlsx"))
+print("office-quirks.xlsx written")
