@@ -41,6 +41,8 @@ jobs:
     timeout-minutes: 40
     continue-on-error: true
     steps:
+      # Nạp môi trường MSVC (INCLUDE/LIB/PATH cho Windows SDK + UCRT) — sửa lỗi "could not build module 'ucrt'".
+      - uses: ilammy/msvc-dev-cmd@v1
       - uses: compnerd/gha-setup-swift@main
         with:
           branch: swift-6.0.3-release
