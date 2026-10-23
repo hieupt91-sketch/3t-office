@@ -159,3 +159,14 @@ Cả workflow xanh, đã đọc kết quả từng job:
 | `ios` → test simulator iPad | macOS 15 | **PASS** |
 
 Chốt: thư viện hiện xanh trên **Linux + macOS + iPhone(sim) + iPad(sim)** qua CI tự động. Còn NOT RUN: iPhone/iPad **thật** (đo bộ nhớ/tốc độ) và mở tệp kết quả bằng Microsoft Office thật.
+
+### 8.6 Kiểm với tệp Microsoft Office THẬT (23/10/2026, do Người phụ trách cấp)
+Hai tệp do Microsoft Office thật tạo (Word 16, Excel 16.03) — **chứa dữ liệu kinh doanh thật nên KHÔNG commit vào kho** (AGENTS.md §2; chỉ kiểm trong phiên, ghi lại số liệu). Chạy qua đầu dò OOXMLKit:
+| Tệp (đặc điểm, không nêu nội dung) | Mở | No-op save giữ nguyên byte | Sửa→lưu→mở lại | Lỗi mới | Kiểm chéo độc lập |
+|---|---|---|---|---|---|
+| Excel 5 sheet (có sheet ẩn), ~1.600 ô, ~199 công thức, 32 vùng gộp, 2 drawing + ảnh + printerSettings | **PASS** | **25/25 phần** | PASS | 0 | zlib+CRC+expat PASS |
+| Word 170 đoạn, 2 bảng, ảnh, customXml, numbering | **PASS** | **16/16 phần** | PASS | 0 | zlib+CRC+expat + python-docx PASS |
+
+**Phát hiện giá trị:** `openpyxl` **không đọc được** tệp Excel thật này (nó áp ngưỡng `<font><family> ≤ 14`, trong khi Office ghi giá trị khác) — nhưng OOXMLKit mở và round-trip sạch. Minh chứng vì sao cần tệp Office thật, và OOXMLKit chịu được "góc khuất" thực tế.
+
+Còn lại để đóng hẳn mục này: **mở tệp OOXMLKit lưu ra bằng chính Microsoft Office** để xác nhận không có hộp thoại "repair" (cần máy có Office — đã gửi tệp đã sửa cho Người phụ trách kiểm). Và cần bộ tệp Office **nội dung giả** để đưa vào fixture commit được.
