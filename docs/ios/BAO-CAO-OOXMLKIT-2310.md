@@ -175,3 +175,12 @@ Còn lại để đóng hẳn mục này: **mở tệp OOXMLKit lưu ra bằng c
 ### 8.7 CI Windows — BLOCKED (lỗi toolchain, không phải lỗi mã)
 Đã thử spike Swift-on-Windows trên `windows-latest` (action `compnerd/gha-setup-swift` + `ilammy/msvc-dev-cmd`): Swift **cài được**, `swift --version` chạy, nhưng `swift build` **lỗi dựng C-module `ucrt`** (`LibcOverlayShims.h: could not build module 'ucrt'`). Đây là **mâu thuẫn modulemap giữa bản Swift 6.0.3 và phiên bản Windows SDK trên runner**, một vướng mắc toolchain đã biết của Swift-on-Windows — **không liên quan mã OOXMLKit** (cùng mã này build/test sạch trên Linux/macOS/iOS/iPadOS).
 Đã **gỡ job Windows khỏi CI** để không đốt phút CI vào lỗi hạ tầng. **Bằng chứng chạy-ngoài-Apple vẫn còn** qua job `linux` (swift-corelibs-foundation — đúng nền Foundation của Windows). **Trạng thái: BLOCKED.** Xem lại khi: pin được cặp Swift toolchain ↔ Windows SDK tương thích, hoặc để team dựng/kiểm trên máy Windows thật.
+
+
+### 8.8 Việc chủ động thêm (tối 23/10) + đang chờ Người phụ trách
+Làm thêm (không cần thao tác của người dùng):
+- `scripts/sanitize_fixture.py`: làm sạch file Office thật → fixture nội dung giả, có **bộ kiểm chống rò** (nghi ngờ thì từ chối ghi). Thử trên 2 file thật: tool **đúng đắn từ chối** vì còn chữ nghiệp vụ ở phần nhị phân/nhãn — xác nhận "tự động làm sạch file nghiệp vụ không bảo đảm", cần file nội dung giả ngay từ đầu.
+- `office-quirks.xlsx` + test hồi quy: khóa lại phát hiện 23/10 (`<font><family val="34"/>`, `<charset val="163"/>`, color tint) — openpyxl từ chối, OOXMLKit round-trip sạch. Tổng test: **104/104** PASS (debug + release).
+- `docs/ios/SPEC-MOBILE-BRIDGE.md`: đặc tả cầu nối WKWebView ↔ OOXMLKit cho Phase 7 (giao thức JSON, ánh xạ API, tệp/quyền iOS, bộ nhớ, hướng dẫn tiếng Việt).
+
+Đang chờ Người phụ trách (treo, không chặn việc khác): (1) mở 2 file OOXMLKit lưu ra bằng Office thật — có "repair" không; (2) gửi file PowerPoint thật; (3) cấp tệp Office nội dung giả để commit fixture; (4) duyệt bắt đầu Phase 7.
