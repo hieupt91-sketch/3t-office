@@ -105,12 +105,16 @@ SPEC-MOBILE §4 đề xuất giai đoạn 1 dùng máy chủ (phương án A). N
 ### 8.1 Kết quả
 | Hạng mục | Kết quả | Số liệu |
 |---|---|---|
-| Toàn bộ test trên Linux (debug + release) | **PASS** | 91/91 + 91/91 (79 cũ + 12 mới) |
-| Kiểm chéo độc lập toàn bộ tệp kết quả | **PASS** | 70/70 tệp (60 cũ + 10 tệp Phase 5) |
+| Toàn bộ test trên Linux (debug + release) | **PASS** | 102/102 + 102/102 (79 cũ + 23 mới) |
+| Kiểm chéo độc lập toàn bộ tệp kết quả | **PASS** | 76/76 tệp (60 cũ + 16 tệp Phase 5) |
 | Bảo đảm ngoại tuyến (`OfflineGuaranteeTests`) | **PASS** | 3/3: không API mạng/tiến trình ngoài, chỉ `import Foundation` + module nội bộ, không gói phụ thuộc |
 | Phase 5 — xóa sheet | **PASS** | 3/3 test |
 | Phase 5 — chèn/xóa hàng | **PASS** | 4/4 test (gồm 7 tệp thật: chèn rồi xóa → mọi ô về như cũ) |
 | Phase 5 — thêm slide từ layout | **PASS** | 2/2 test (rich-deck + 5 tệp thật) |
+| Phase 5 — chèn/xóa cột | **PASS** | 5/5 test (chặn an toàn khi cắt ngang bảng; 7 tệp thật) |
+| Phase 5 — DOCX theo dõi thay đổi + chấp nhận/từ chối tất cả | **PASS** | 3/3 test |
+| Phase 5 — PPTX thay ảnh | **PASS** | 2/2 test (không ghi đè ảnh dùng chung) |
+| Sửa tận gốc lỗi "phần tử tách rời mất namespace" | **PASS** | 1 test hồi quy |
 | CI macOS `swift test` | **PASS** | 91/91 |
 | CI build thiết bị iOS/iPadOS arm64 | **PASS** | Xcode 16.4 |
 | CI test simulator iPhone / iPad | **PASS** | 91/91 / 91/91 |
@@ -132,9 +136,13 @@ Lưu ý chi phí: runner macOS tính phút gấp 10 lần Linux (≈3,5 phút/l�
 ### 8.3 Lỗi phát hiện trong phiên tối
 1. **Trùng tên với Foundation trên macOS**: Foundation của macOS có sẵn `XMLElement`/`XMLDocument` (NSXML) → module khác không biên dịch được trên Mac. iOS/iPadOS không có NSXML nên build iOS không bị. Đã đổi tên kiểu nội bộ thành `XElement`, `XDocument`, `XNode`, `XAttribute`, `XParser`, `XWriter`.
 2. **CI lần 1 báo xanh sai**: bước `swift test` trên macOS thực ra lỗi biên dịch nhưng `| tail` che mã lỗi (shell macOS không bật `pipefail`). Đã bật `bash -eo pipefail`, bỏ cắt log, in đủ kết quả từng bộ test. Kết quả CI lần 1 **không được tính** là PASS.
-3. Test xóa sheet ban đầu chưa tính liên kết nội bộ `'Tổng hợp'!A1` ở sheet khác → thư viện đã đổi đúng thành `#REF!A1` như Excel; sửa kỳ vọng của test cho đúng hành vi Excel (không phải đổi để "cho xanh": kiểm tra thêm giá trị `#REF!A1`).
+3. **Từ chối thay đổi (reject) trả về chữ rỗng**: đổi `w:delText → w:t` sau khi đã tách phần tử khỏi cây nên không nhận ra namespace `w:`. Đây là lần thứ 3 gặp cùng lớp lỗi (trước đó: font/xf trong styles, phần tử Word tạm) → đã **sửa tận gốc trong lớp XML**: phần tử tách rời/sao chép nhớ các khai báo namespace đang hiệu lực (không ghi thêm gì ra tệp), có test hồi quy.
+4. Test xóa sheet ban đầu chưa tính liên kết nội bộ `'Tổng hợp'!A1` ở sheet khác → thư viện đã đổi đúng thành `#REF!A1` như Excel; sửa kỳ vọng của test cho đúng hành vi Excel (không phải đổi để "cho xanh": kiểm tra thêm giá trị `#REF!A1`).
 
 ### 8.4 Phase 5 làm gì
 - `Workbook.deleteSheet(named:)`: gỡ sheet, xóa phần chỉ sheet đó dùng (drawing, ảnh, bình luận + VML, bảng, printerSettings), tham chiếu tới sheet trong công thức, tên định nghĩa, biểu đồ, liên kết → `#REF!`, bỏ tên cục bộ và dịch `localSheetId`, sửa tab đang chọn, cập nhật `docProps/app.xml`; không cho xóa sheet hiển thị cuối cùng.
 - `Worksheet.insertRows(at:count:)` / `deleteRows(at:count:)`: dịch hàng/ô; cập nhật công thức mọi sheet (cả tham chiếu tuyệt đối, vùng nới rộng/co lại, ô bị xóa → `#REF!`), công thức chia sẻ được mở rộng trước, công thức mảng, tên định nghĩa, biểu đồ, bảng (table + autoFilter), gộp ô, định dạng có điều kiện (cả x14), xác thực, liên kết, dimension, vùng chọn/pane, ảnh neo theo ô (xdr:from/to), bình luận (comments + VML `x:Row`).
+- `Worksheet.insertColumns/deleteColumns`: như hàng (công thức mọi sheet, vùng cột `B:B`, độ rộng cột đi theo cột, spans, ảnh neo, bình luận + VML `x:Column`, bảng ngoài vùng); **từ chối** khi cột cắt ngang bảng hoặc vùng đang lọc (chưa hỗ trợ thêm/bớt cột của bảng) — từ chối trước khi sửa nên tệp không đổi (có test).
+- `Paragraph.setText(_:revision:)`, `WordDocument.appendParagraph(_:revision:)`: ghi thành `w:del`/`w:ins` có tác giả + thời điểm, id duy nhất; `acceptAllRevisions()` / `rejectAllRevisions()` áp cho mọi story. Lưu ý: python-docx không đọc chữ trong `w:ins` nên hiển thị rỗng — Word hiển thị đúng (giới hạn của python-docx, không phải lỗi).
+- `Shape.replaceImage(_:)`: ảnh mới vào phần media mới, ảnh cũ chỉ bị xóa khi không còn slide nào dùng.
 - `Presentation.layouts` + `addSlide(layout:at:)`: tạo slide theo layout (sao chép placeholder, bỏ ngày/chân trang/số trang như PowerPoint), chèn đúng vị trí, vào phân đoạn của slide đứng trước, cập nhật app.xml.

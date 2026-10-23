@@ -1,6 +1,6 @@
 # Kế hoạch triển khai OOXMLKit theo phase — iOS/iPadOS ngoại tuyến
 
-Cập nhật: 23/10/2026 · Nhánh: `claude/ooxml-offline-ios-library-fqqyj0` (kho `hieupt91-sketch/3t-office`) · Mã: `ports/ios/OOXMLKit/`
+Cập nhật: 23/10/2026 21:10 · Nhánh: `claude/ooxml-offline-ios-library-fqqyj0` (kho `hieupt91-sketch/3t-office`) · Mã: `ports/ios/OOXMLKit/`
 Báo cáo kết quả: `docs/ios/BAO-CAO-OOXMLKIT-2310.md`
 
 ## 0. Ràng buộc chung (áp dụng cho MỌI phase)
@@ -40,16 +40,16 @@ Trạng thái: ✅ xong (đã chạy, PASS) · 🟡 đang làm · ⏳ chưa làm
 - **Nghiệm thu**: chuyển cảnh p14, liên kết, cấp thụt lề giữ nguyên; phân đoạn/custShow/app.xml cập nhật đúng; python-pptx đọc đúng.
 - **Đối chiếu**: 11/11 test PASS · 13/13 tệp kiểm chéo.
 
-## Phase 5 — Bổ sung thao tác còn thiếu 🟡 (3/6 hạng mục xong)
+## Phase 5 — Bổ sung thao tác còn thiếu ✅ (6/7 hạng mục xong, 23 test)
 | Hạng mục | Ưu tiên | Trạng thái |
 |---|---|---|
 | XLSX xóa sheet (dọn quan hệ, tên định nghĩa cục bộ, app.xml, tham chiếu → #REF!) | Cao | ✅ 3 test |
 | PPTX thêm slide mới từ layout | Cao | ✅ 2 test (rich-deck + 5 tệp thật) |
 | XLSX chèn/xóa hàng (dịch ô, công thức mọi sheet, gộp ô, CF, xác thực, dimension, tên, biểu đồ, bảng, ảnh neo, bình luận + VML) | Cao | ✅ 4 test (gồm 7 tệp thật chèn rồi xóa về như cũ) |
-| XLSX chèn/xóa cột | Trung bình | ⏳ (dùng lại hạ tầng của hàng) |
+| XLSX chèn/xóa cột (chặn an toàn khi cắt ngang bảng/bộ lọc đang lọc) | Trung bình | ✅ 5 test (gồm 7 tệp thật) |
 | XLSX ngắt trang `rowBreaks` khi chèn hàng | Thấp | ⏳ |
-| DOCX sửa dưới dạng theo dõi thay đổi (w:ins/w:del có tác giả) | Trung bình | ⏳ |
-| PPTX thay ảnh | Thấp | ⏳ |
+| DOCX sửa dưới dạng theo dõi thay đổi (w:ins/w:del có tác giả) + chấp nhận/từ chối tất cả | Trung bình | ✅ 3 test |
+| PPTX thay ảnh (không ghi đè ảnh dùng chung) | Thấp | ✅ 2 test |
 - **Nghiệm thu**: như R3; mỗi hạng mục có test mở–sửa–lưu–đóng–mở lại + kiểm chéo bằng openpyxl/python-pptx.
 
 ## Phase 6 — Kiểm trên thiết bị Apple 🟡 (6a xong)
@@ -75,3 +75,15 @@ Trạng thái: ✅ xong (đã chạy, PASS) · 🟡 đang làm · ⏳ chưa làm
 | Xuất PDF / in | Có | Chưa (dùng dịch vụ in iOS ở Phase 7) |
 | DOC/XLS/PPT nhị phân, ODF | Có | Không (ngoài phạm vi) |
 | Tệp có mật khẩu | Có | Không |
+
+## Bảng đối chiếu kế hoạch ↔ thực tế (23/10/2026)
+| Phase | Kế hoạch | Thực tế | Test | Kiểm chéo độc lập | iPhone sim | iPad sim |
+|---|---|---|---|---|---|---|
+| 1 ZIP | đủ phạm vi | ✅ đủ | 20 | ✅ | ✅ | ✅ |
+| 1b XML + OPC + offline | đủ phạm vi | ✅ đủ + tên phần mã hóa % + giữ namespace khi tách phần tử | 21 | ✅ | ✅ | ✅ |
+| 2 XLSX | đủ phạm vi | ✅ đủ | 20 | ✅ | ✅ | ✅ |
+| 3 DOCX | đủ phạm vi | ✅ đủ | 11 | ✅ | ✅ | ✅ |
+| 4 PPTX | đủ phạm vi | ✅ đủ | 11 | ✅ | ✅ | ✅ |
+| 5 Bổ sung | 7 hạng mục | ✅ 6/7 (còn ngắt trang khi chèn hàng) | 19 + 4 | ✅ | xem báo cáo §8.2 | xem báo cáo §8.2 |
+| 6 Thiết bị Apple | 4 bước | ✅ 6a (CI); ⛔ 6b–6d cần người/máy | — | — | — | — |
+| 7 Tích hợp app | chờ duyệt | ⏳ chưa bắt đầu (đúng yêu cầu) | — | — | — | — |
