@@ -1,5 +1,8 @@
-# Kiểm OOXMLKit trên macOS thật: swift test, build cho iPhone/iPad (thiết bị arm64),
-# chạy test trên simulator iPhone và iPad. Chỉ chạy khi mã ports/ios đổi (macOS runner tốn phút gấp 10 lần Linux).
+# Kiểm OOXMLKit đa nền:
+#  - job linux  (ubuntu + swift container): chứng minh engine chạy ngoài Apple bằng swift-corelibs-foundation
+#    — chính là bộ Foundation mà Windows và Android cũng dùng, nên đây là bằng chứng đa nền rẻ nhất (rẻ ~10x macOS).
+#  - job ios    (macOS thật): swift test, build iPhone/iPad arm64, test simulator iPhone + iPad.
+# Chỉ chạy khi mã ports/ios đổi.
 name: iOS OOXMLKit
 
 on:
@@ -14,6 +17,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container: swift:6.0
+    defaults:
+      run:
+        working-directory: ports/ios/OOXMLKit
+        shell: bash -eo pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Phiên bản Swift (Linux, swift-corelibs-foundation)
+        run: swift --version
+      - name: swift test (Linux, debug)
+        run: swift test 2>&1 | grep -E "error:|Test Suite '.*xctest'|Executed [0-9]+ tests"
+      - name: swift test (Linux, release)
+        run: swift test -c release -Xswiftc -enable-testing 2>&1 | grep -E "error:|Executed [0-9]+ tests"
+
   ios:
     runs-on: macos-15
     timeout-minutes: 45
