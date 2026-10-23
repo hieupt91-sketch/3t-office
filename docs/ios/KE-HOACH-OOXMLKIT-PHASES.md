@@ -84,6 +84,6 @@ Trạng thái: ✅ xong (đã chạy, PASS) · 🟡 đang làm · ⏳ chưa làm
 | 2 XLSX | đủ phạm vi | ✅ đủ | 20 | ✅ | ✅ | ✅ |
 | 3 DOCX | đủ phạm vi | ✅ đủ | 11 | ✅ | ✅ | ✅ |
 | 4 PPTX | đủ phạm vi | ✅ đủ | 11 | ✅ | ✅ | ✅ |
-| 5 Bổ sung | 7 hạng mục | ✅ 6/7 (còn ngắt trang khi chèn hàng) | 19 + 4 | ✅ | xem báo cáo §8.2 | xem báo cáo §8.2 |
+| 5 Bổ sung | 7 hạng mục | ✅ 6/7 (còn ngắt trang khi chèn hàng) | 19 | ✅ | xem báo cáo §8.2 | xem báo cáo §8.2 |
 | 6 Thiết bị Apple | 4 bước | ✅ 6a (CI); ⛔ 6b–6d cần người/máy | — | — | — | — |
 | 7 Tích hợp app | chờ duyệt | ⏳ chưa bắt đầu (đúng yêu cầu) | — | — | — | — |
