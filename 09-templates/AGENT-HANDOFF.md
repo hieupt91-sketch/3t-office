@@ -1184,3 +1184,25 @@ DEPENDENCIES/BLOCKERS: Không có dependency mới. Follow-up độ trung thực
 CORE PATCH ID (if any): None.
 GIAO DIEN ĐÃ XEM: 20 ảnh XLS `E:\VNOffice-briefs\logs\Q51-artifacts\xls-legacyNN.png`; 20 ảnh DOC `...\legacyNN.png`; ảnh Writer Save As trước/sau. Ribbon/status/scroll không bị cắt hoặc che. Có nội dung trong một số ô bị cắt theo cột/viewport; `legacy08.xls` hiện `#NAME?`; tiêu đề `legacy20.doc` sát liền. Hộp chọn tệp native không được ảnh CDP ghi lại.
 NEXT ACTION: Q51 complete. Báo cáo chi tiết tại `docs/LEGACY-OFFICE-AUDIT-24-10.md`.
+
+
+## Q52 — Handoff cuối 24/10/2026
+
+TASK: Q52 — sửa kiểm thử chữ ký API; chẩn đoán độ trung thực `.doc`/`.xls`; cảnh báo tệp định dạng cũ.
+AGENT/ROLE: Codex / Windows desktop CDP.
+BRANCH: codex/queue-19-10.
+WORKTREE: E:\VNOffice-codex-queue.
+OBJECTIVE: Sửa bài test kỳ vọng chữ ký cũ; xác định lỗi nhập/lưu legacy; cảnh báo không chặn và hướng dẫn lưu sang định dạng hiện hành.
+FINDINGS: Test chữ ký sai kỳ vọng trước khi sửa: đòi `open_document_dialog(app_kind)` trong khi API công khai thêm `source_path` và `password`. `.xls`: CDP mở/lưu bản sao 20/20; LibreOffice so sánh 20/20 cho 17 chênh lệch trên 2.515 ô (legacy06=9, legacy08=6, legacy13=1, legacy18=1), trùng số Q51. `.doc`: LO chuyển 9 tệp lỗi sang DOCX/FODT được 18/18; Word COM SaveAs2 thành công cho legacy06/07 nhưng treo ở legacy10; các phép đo hiện có chưa cô lập được bộ lọc/importer so với đường xuất.
+IMPLEMENTATION SUMMARY: Commit riêng sửa kỳ vọng chữ ký. Thêm cảnh báo không chặn cho `.doc`/`.xls`, nút Lưu thành `.docx`/`.xlsx`, giữ các hành động trạng thái Final, thêm Help tiếng Việt và i18n VI/EN; dùng lại `common.file.open`, không thêm lệnh mới. Chưa đổi đường nhập/lưu nội dung do chưa có biện pháp fallback an toàn chứng minh tốt hơn trên corpus và không làm xấu DOCX/XLSX.
+FILES CHANGED: `tests/test_error_reporting.py` (commit riêng); `adapters/libreoffice/{writer/writer-adapter.js,sheet/sheet-adapter.js}`; `platform/help/{entries-writer.js,entries-sheet.js}`; `platform/i18n/{strings-vi.js,strings-en.js}`; `tests/unit/help-coverage.test.js`; `tests/live/cdp/{legacy-format-warning.desktop.mjs,q52-xls-legacy-roundtrip.desktop.mjs}`; `docs/EXCEL2016-FEATURE-CHECKLIST.md` (dòng tham chiếu sinh lại).
+COMMITS: `bd07b74b` sửa test chữ ký API; commit triển khai và commit handoff được ghi trong `E:\VNOffice-briefs\logs\Q52.DONE`.
+COMMANDS RUN: merge `main`; test chữ ký FAIL trước/PASS sau; `python -m pytest tests -q`; `npm test`; `node tests/run-tests.js`; i18n parity; ba checklist generator; checklist evidence; CDP cảnh báo Writer/Sheet; CDP legacy `.xls` 20 tệp; LibreOffice-only compare `.xls`; batch LAN XLSX/DOCX; `git diff --check`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — pytest 1140 passed/1 skipped; Node 3793/3793; i18n VI=3174, EN=3174, missing=0; checklist lowered=0; XLSX 27/27; DOCX 8/8; CDP cảnh báo 8/8; `.xls` CDP 20/20 và LO compare 20/20.
+KNOWN FAILURES: `.xls` còn 17 sai khác công thức/giá trị ở 4/20; `legacy08.xls` vẫn hiển thị `#NAME?`. `.doc` toàn bộ 20 tệp chưa được chạy lại sau thay đổi cảnh báo; B/C vẫn theo số Q51 (6/20 và 3/20), chưa xác nhận hậu kiểm. Word COM legacy10 SaveAs2 treo; dừng PID Word do lượt chạy này tạo. Excel COM BLOCKED theo quy tắc chung.
+RISKS: Cảnh báo giảm rủi ro lưu âm thầm, không khôi phục công thức/hình/bố cục đã mất. Một số văn bản trong lưới Sheet bị cắt theo độ rộng cột/khung nhìn; theme tối có chữ đen khó đọc trên nền tối trong nội dung tài liệu legacy.
+DEPENDENCIES/BLOCKERS: Không thêm dependency. Chưa có bằng chứng để chọn fallback `.doc`/`.xls` an toàn.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Writer `.doc` legacy06 và Sheet `.xls` legacy06 ở sáng/tối (4 ảnh); 20 ảnh Sheet `.xls` sau khi chờ thanh cảnh báo render ở 1366x768. Thanh cảnh báo và nút Lưu thành nằm trọn, chữ/nút đọc được ở theme sáng; nội dung lưới có chỗ bị cắt và legacy08 có `#NAME?`. Theme tối làm một số chữ tài liệu legacy tương phản kém.
+NEXT ACTION: Tiếp tục điều tra riêng độ trung thực `.doc` và nguyên nhân công thức `.xls`; xem chi tiết Q52 tại `E:\VNOffice-briefs\logs\Q52-work`.
