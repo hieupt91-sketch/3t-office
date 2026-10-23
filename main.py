@@ -1725,6 +1725,11 @@ def _ooxml_encryption():
 
 
 def _is_encrypted_package(file_path: str) -> bool:
+    # Legacy binary Office files also use the CFB signature, but they are not
+    # password-encrypted OOXML packages. Leave their password handling to the
+    # document engine instead of asking the OOXML decryptor for a password.
+    if Path(file_path).suffix.lower() in {".doc", ".xls", ".ppt"}:
+        return False
     try:
         with open(file_path, "rb") as source:
             return _ooxml_encryption().is_encrypted_package(source.read(8))

@@ -52,6 +52,19 @@ class OoxmlEncryptionMainTests(unittest.TestCase):
         self.assertEqual(result, {"status": "ok", "written": False, "skipped": "password-protected"})
         api._autorecover_store.write_snapshot.assert_not_called()
 
+    def test_legacy_binary_office_files_are_not_treated_as_encrypted_ooxml(self):
+        cfb_header = bytes.fromhex("D0CF11E0A1B11AE1") + b"legacy binary payload"
+        with tempfile.TemporaryDirectory() as folder:
+            for extension in ("doc", "xls", "ppt"):
+                with self.subTest(extension=extension):
+                    path = Path(folder) / f"legacy.{extension}"
+                    path.write_bytes(cfb_header)
+                    self.assertFalse(main._is_encrypted_package(str(path)))
+
+            encrypted_ooxml = Path(folder) / "encrypted.xlsx"
+            encrypted_ooxml.write_bytes(cfb_header)
+            self.assertTrue(main._is_encrypted_package(str(encrypted_ooxml)))
+
 
 if __name__ == "__main__":
     unittest.main()
