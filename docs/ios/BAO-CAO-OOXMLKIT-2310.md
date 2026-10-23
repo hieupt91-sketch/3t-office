@@ -147,3 +147,15 @@ Lưu ý chi phí: runner macOS tính phút gấp 10 lần Linux (≈3,5 phút/l�
 - `Paragraph.setText(_:revision:)`, `WordDocument.appendParagraph(_:revision:)`: ghi thành `w:del`/`w:ins` có tác giả + thời điểm, id duy nhất; `acceptAllRevisions()` / `rejectAllRevisions()` áp cho mọi story. Lưu ý: python-docx không đọc chữ trong `w:ins` nên hiển thị rỗng — Word hiển thị đúng (giới hạn của python-docx, không phải lỗi).
 - `Shape.replaceImage(_:)`: ảnh mới vào phần media mới, ảnh cũ chỉ bị xóa khi không còn slide nào dùng.
 - `Presentation.layouts` + `addSlide(layout:at:)`: tạo slide theo layout (sao chép placeholder, bỏ ngày/chân trang/số trang như PowerPoint), chèn đúng vị trí, vào phân đoạn của slide đứng trước, cập nhật app.xml.
+
+### 8.5 CI đa nền — xác nhận lúc 22:00 (commit cuối `4be4377`, run 39972276568)
+Cả workflow xanh, đã đọc kết quả từng job:
+| Job | Nền | Kết quả |
+|---|---|---|
+| `linux` (container `swift:6.0`) | Ubuntu, swift-corelibs-foundation | **PASS** debug + release — bằng chứng engine chạy ngoài Apple (nền Foundation của Windows/Android) |
+| `ios` → swift test | macOS 15 | **PASS** |
+| `ios` → build thiết bị iOS/iPadOS arm64 | macOS 15 (Xcode 16.4) | **PASS** |
+| `ios` → test simulator iPhone | macOS 15 | **PASS** |
+| `ios` → test simulator iPad | macOS 15 | **PASS** |
+
+Chốt: thư viện hiện xanh trên **Linux + macOS + iPhone(sim) + iPad(sim)** qua CI tự động. Còn NOT RUN: iPhone/iPad **thật** (đo bộ nhớ/tốc độ) và mở tệp kết quả bằng Microsoft Office thật.
