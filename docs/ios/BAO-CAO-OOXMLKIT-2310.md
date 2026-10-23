@@ -191,3 +191,13 @@ Module mới `OOXMLBridge` (Swift, chỉ `Foundation`+`OOXMLKit`): nhận JSON `
 `OOXMLWebViewBridge` (`#if canImport(WebKit)`) đăng ký `WKScriptMessageHandlerWithReply` — biên dịch trên iOS/iPadOS/macOS, không mạng (chỉ bắc cầu JSON trong tiến trình).
 **Test: 7/7 qua đúng giao thức JSON** (mở→đọc→sửa→xuất/lưu→mở lại cho XLSX/DOCX/PPTX + tệp thật + lỗi có cấu trúc). Tổng: **111/111** PASS (debug + release). `OfflineGuaranteeTests` phủ cả module cầu nối (bỏ qua đúng tệp WebKit-guarded).
 Còn lại (cần thiết bị/Xcode, treo chờ): nhúng WebView thật, document picker + security-scoped bookmark, lưu tự động, bố cục cảm ứng iPhone/iPad, Hướng dẫn tiếng Việt từng thao tác.
+
+### 8.10 Xác nhận CI cho Phase 7 (cầu nối) — run 39986089782, commit `2e1a756`
+| Job | Kết quả | Ý nghĩa |
+|---|---|---|
+| `linux` (debug + release) | **PASS** | 111 test qua swift-corelibs-foundation |
+| `ios` → swift test (macOS) | **PASS** | 111 test |
+| `ios` → build thiết bị iOS/iPadOS arm64 | **PASS** | **biên dịch được `OOXMLWebViewBridge.swift`** (khối `#if canImport(WebKit)`) — xác nhận file nối WebView hợp lệ trên Apple (không kiểm được trên Linux) |
+| `ios` → simulator iPhone / iPad | **PASS / PASS** | 111 test mỗi nền |
+
+→ Lõi cầu nối Phase 7 xanh trên **Linux + macOS + iPhone(sim) + iPad(sim)**; phần WebKit biên dịch sạch. Còn lại (nhúng WebView/UI/document picker thật) cần Xcode + thiết bị.
