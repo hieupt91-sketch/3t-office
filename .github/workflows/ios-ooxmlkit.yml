@@ -1,0 +1,53 @@
+# Kiểm OOXMLKit trên macOS thật: swift test, build cho iPhone/iPad (thiết bị arm64),
+# chạy test trên simulator iPhone và iPad. Chỉ chạy khi mã ports/ios đổi (macOS runner tốn phút gấp 10 lần Linux).
+name: iOS OOXMLKit
+
+on:
+  push:
+    paths: ["ports/ios/**", ".github/workflows/ios-ooxmlkit.yml"]
+  pull_request:
+    paths: ["ports/ios/**", ".github/workflows/ios-ooxmlkit.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-ooxmlkit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: ports/ios/OOXMLKit
+    steps:
+      - uses: actions/checkout@v4
+      - name: Phiên bản công cụ
+        run: xcodebuild -version && swift --version
+      - name: swift test (macOS)
+        run: swift test 2>&1 | tail -40
+      - name: Build cho thiết bị iOS/iPadOS (arm64, không ký)
+        run: |
+          xcodebuild build -scheme OOXMLKit-Package -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO -quiet
+      - name: Chọn simulator iPhone và iPad
+        id: sim
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, subprocess
+          d = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          devs = [x for k, v in d["devices"].items() if "iOS" in k for x in v]
+          iphone = next(x["udid"] for x in devs if x["name"].startswith("iPhone"))
+          ipad = next(x["udid"] for x in devs if x["name"].startswith("iPad"))
+          print(f"iphone={iphone}\nipad={ipad}")
+          PY
+      - name: Test trên simulator iPhone
+        run: |
+          xcodebuild test -scheme OOXMLKit-Package -destination "id=${{ steps.sim.outputs.iphone }}" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "Test Suite|Executed|error:|failed" | tail -30
+          test ${PIPESTATUS[0]} -eq 0
+      - name: Test trên simulator iPad
+        run: |
+          xcodebuild test -scheme OOXMLKit-Package -destination "id=${{ steps.sim.outputs.ipad }}" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "Test Suite|Executed|error:|failed" | tail -30
+          test ${PIPESTATUS[0]} -eq 0
