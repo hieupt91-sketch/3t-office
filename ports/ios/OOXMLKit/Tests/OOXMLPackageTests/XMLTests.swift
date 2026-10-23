@@ -94,4 +94,22 @@ final class XMLTests: XCTestCase {
         copy.elements[0].name = "z"
         XCTAssertEqual(b.name, "b")
     }
+
+    /// Lỗi gặp 3 lần trong quá trình làm: phần tử bị tách khỏi cây / bản sao mất ngữ cảnh namespace.
+    func testDetachedAndCopiedElementsKeepNamespaceContext() throws {
+        let doc = try XDocument(string: #"<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>x</w:t></w:r></w:p></w:body></w:document>"#)
+        let p = doc.root.elements[0].elements[0]
+        let r = p.elements[0]
+        r.removeFromParent()
+        XCTAssertTrue(r.is(NS.w, "r"), "tách rời vẫn nhận ra w:r")
+        XCTAssertTrue(r.elements[0].is(NS.w, "t"))
+        XCTAssertEqual(r.qualifiedName("b", in: NS.w).name, "w:b")
+        let copy = p.deepCopy()
+        XCTAssertTrue(copy.is(NS.w, "p"))
+        XCTAssertFalse(copy.qualifiedName("rPr", in: NS.w).needsDeclaration)
+        p.append(r)
+        XCTAssertEqual(XDocument(root: doc.root, declaration: nil).string.contains("xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>"), true)
+        XCTAssertEqual(doc.root.descendants(NS.w, "t").count, 1, "gắn lại không sinh khai báo thừa")
+        XCTAssertFalse(XDocument(root: doc.root, declaration: nil).string.contains("<w:r xmlns"), "không ghi khai báo phụ khi lưu")
+    }
 }

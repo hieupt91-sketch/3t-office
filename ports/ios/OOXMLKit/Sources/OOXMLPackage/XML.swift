@@ -68,6 +68,9 @@ public final class XElement {
     public var attributes: [XAttribute]
     public private(set) var children: [XNode]
     public private(set) weak var parent: XElement?
+    /// Khai báo namespace còn hiệu lực lúc phần tử bị tách khỏi cây (hoặc được sao chép), để phần tử
+    /// tách rời vẫn nhận đúng namespace. Không được ghi ra khi lưu; xóa khi gắn lại vào cây.
+    private var detachedScope: [String: String]?
 
     public init(name: String, attributes: [XAttribute] = [], children: [XNode] = []) {
         self.name = name
@@ -97,9 +100,27 @@ public final class XElement {
             for a in cur.attributes where a.name == attr {
                 return a.value.isEmpty ? nil : a.value
             }
+            if cur.parent == nil, let scope = cur.detachedScope, let v = scope[prefix ?? ""] {
+                return v.isEmpty ? nil : v
+            }
             e = cur.parent
         }
         return nil
+    }
+
+    /// Mọi khai báo namespace đang hiệu lực tại phần tử này (tiền tố "" = mặc định).
+    func inScopeNamespaces() -> [String: String] {
+        var out: [String: String] = [:]
+        var chain: [XElement] = []
+        var e: XElement? = self
+        while let cur = e { chain.append(cur); e = cur.parent }
+        if let top = chain.last, let scope = top.detachedScope { out = scope }
+        for cur in chain.reversed() {
+            for a in cur.attributes {
+                if a.name == "xmlns" { out[""] = a.value } else if a.name.hasPrefix("xmlns:") { out[String(a.name.dropFirst(6))] = a.value }
+            }
+        }
+        return out
     }
 
     public var namespaceURI: String? { namespaceURI(forPrefix: prefix) }
@@ -118,6 +139,9 @@ public final class XElement {
                     if !shadowed.contains(p) && ns.matches(a.value) { return p }
                     shadowed.insert(p)
                 }
+            }
+            if cur.parent == nil, let scope = cur.detachedScope {
+                for (p, uri) in scope.sorted(by: { $0.key < $1.key }) where !shadowed.contains(p) && ns.matches(uri) { return p }
             }
             e = cur.parent
         }
@@ -228,7 +252,13 @@ public final class XElement {
         if case .element(let e) = node {
             e.removeFromParent()
             e.parent = self
+            e.detachedScope = nil
         }
+    }
+
+    private func detach(_ e: XElement) {
+        e.detachedScope = e.inScopeNamespaces()
+        e.parent = nil
     }
 
     public func appendNode(_ node: XNode) {
@@ -268,11 +298,11 @@ public final class XElement {
     public func removeFromParent() {
         guard let p = parent else { return }
         p.children.removeAll { $0.element === self }
-        parent = nil
+        p.detach(self)
     }
 
     public func removeChild(at index: Int) {
-        if case .element(let e) = children[index] { e.parent = nil }
+        if case .element(let e) = children[index] { detach(e) }
         children.remove(at: index)
     }
 
@@ -280,7 +310,7 @@ public final class XElement {
         var kept: [XNode] = []
         for c in children {
             if predicate(c) {
-                if case .element(let e) = c { e.parent = nil }
+                if case .element(let e) = c { detach(e) }
             } else {
                 kept.append(c)
             }
@@ -293,7 +323,7 @@ public final class XElement {
     }
 
     public func replaceNode(at index: Int, with node: XNode) {
-        if case .element(let e) = children[index] { e.parent = nil }
+        if case .element(let e) = children[index] { detach(e) }
         adopt(node)
         children[index] = node
     }
@@ -334,10 +364,16 @@ public final class XElement {
     }
 
     public func deepCopy() -> XElement {
+        let e = copyTree()
+        e.detachedScope = inScopeNamespaces()
+        return e
+    }
+
+    private func copyTree() -> XElement {
         let e = XElement(name: name, attributes: attributes)
         for c in children {
             switch c {
-            case .element(let x): e.append(x.deepCopy())
+            case .element(let x): e.append(x.copyTree())
             default: e.appendNode(c)
             }
         }
