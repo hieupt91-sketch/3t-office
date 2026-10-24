@@ -288,7 +288,23 @@ export const RETRO_PLATFORM_HELP_ENTRIES = [
       "Tùy chọn 'Tương thích Office': Được chọn sẵn theo mặc định nhằm tự động tối ưu hóa phông chữ, định dạng ô, bảng biểu và cấu trúc tài liệu để hiển thị chính xác khi mở trong các bộ ứng dụng Office.",
       "Xuất bản tài liệu PDF: Chọn thẻ 'Tạo tài liệu PDF (.pdf)' để xuất tài liệu thành tệp PDF tiêu chuẩn, bảo toàn trọn vẹn bố cục trang in, kiểu chữ tiếng Việt và hình ảnh trên mọi thiết bị.",
       "Chuyển đổi sang định dạng khác: Chọn định dạng mong muốn trong danh sách (đối với văn bản: .docx, .doc, .odt, .rtf, .txt; đối với bảng tính: .xlsx, .xls, .ods, .csv; đối với bản trình chiếu: .pptx, .ppt, .odp). Mỗi định dạng đều có phần mô tả chi tiết về mức độ bảo toàn bố cục.",
-      "Hoàn tất và mở thư mục: Nhấn nút 'Xuất tệp...' hoặc nhấn Enter/Space tại thẻ định dạng đã chọn để chỉ định nơi lưu. Sau khi hoàn tất, hệ thống hiển thị thông báo kèm đường dẫn tệp và nút 'Mở thư mục chứa tệp' để bạn truy cập nhanh."
+      "Hoàn tất và mở thư mục: Nhấn nút 'Xuất tệp...' hoặc nhấn Enter/Space tại thẻ định dạng đã chọn để chỉ định nơi lưu. Sau khi hoàn tất, hệ thống hiển thị thông báo kèm đường dẫn tệp và nút 'Mở thư mục chứa tệp' để bạn truy cập nhanh.",
+      "Nút 'Mở thư mục chứa tệp': mở cửa sổ quản lý tệp của hệ điều hành ngay tại thư mục vừa lưu và chọn sẵn tệp vừa xuất. Trên máy Mac, cửa sổ quản lý tệp mở ra với tệp được tô sáng; nếu tệp đã bị xóa hoặc đổi tên, ứng dụng báo 'Không tìm thấy tệp để mở thư mục chứa nó.'"
+    ]
+  },
+  {
+    id: "common.platform.startupErrorDialog",
+    app: "common",
+    commandIds: [],
+    title: "Hộp thoại báo lỗi khi ứng dụng không khởi động được",
+    summary: "Khi Doc, Sheet hoặc Slide không thể khởi động (ví dụ phần mềm bảo vệ máy chặn kết nối nội bộ của ứng dụng), một hộp thoại của hệ điều hành hiện ra với tiêu đề '3T Office — Lỗi khởi động', nêu nguyên nhân và việc cần kiểm tra.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Khởi động ứng dụng" },
+    keywords: ["lỗi khởi động", "không mở được", "không khởi động", "hộp thoại lỗi", "tường lửa", "diệt virus", "mac"],
+    steps: [
+      "Đọc dòng 'Nguyên nhân' trong hộp thoại: đây là lý do cụ thể khiến ứng dụng dừng lại.",
+      "Làm theo các mục 'Vui lòng kiểm tra' trong hộp thoại: kiểm tra phần mềm diệt virus hoặc tường lửa có đang chặn ứng dụng không, sau đó thử khởi động lại máy.",
+      "Nhấn 'Đóng' (trên máy Mac) hoặc 'OK' (trên Windows) để đóng hộp thoại rồi mở lại ứng dụng. Trên máy Mac, nếu bạn không bấm gì, hộp thoại tự đóng sau 5 phút để không chiếm màn hình.",
+      "Nếu lỗi lặp lại, ghi lại nội dung hộp thoại và gửi cho bộ phận hỗ trợ bằng nút “Báo lỗi / Góp ý” trong bảng Trợ giúp (tab Trợ giúp > Trợ giúp) sau khi ứng dụng mở lại được."
     ]
   }
 ,
