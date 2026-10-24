@@ -72,6 +72,7 @@ public final class OOXMLBridge {
         case "close": docs[try args.string("handle")] = nil; return [:]
         case "exportBytes": return ["base64": try exportBytes(args).base64EncodedString()]
         case "save": return try save(args)
+        case "xlsx.save": return try xlsxSaveDelta(args)
 
         case "sheet.read": return try sheetRead(args)
         case "sheet.setValue": return try sheetSetValue(args)
@@ -148,6 +149,230 @@ public final class OOXMLBridge {
         case .presentation(let p): try p.save(to: url)
         }
         return [:]
+    }
+
+    /// Lưu một batch delta XLSX vào staging; từ chối toàn batch nếu có thao tác chưa hỗ trợ.
+    private func xlsxSaveDelta(_ args: Args) throws -> [String: Any] {
+        guard let sourcePath = args.optString("source_document_path") ?? args.optString("sourcePath"),
+              let targetPath = args.optString("target_path") ?? args.optString("targetPath") else {
+            throw BridgeError("args", "cần source_document_path và target_path")
+        }
+        let sourceURL = URL(fileURLWithPath: sourcePath).standardizedFileURL
+        let targetURL = URL(fileURLWithPath: targetPath).standardizedFileURL
+        guard sourceURL != targetURL else {
+            throw BridgeError("path", "đường dẫn staging phải khác đường dẫn nguồn")
+        }
+        guard let delta = args.raw["delta"] as? [String: Any] else {
+            throw BridgeError("delta", "delta phải là JSON object")
+        }
+
+        var unsupported: [String] = []
+        let allowedDeltaKeys: Set<String> = ["cells", "cleared_cells", "structural_ops"]
+        for key in delta.keys where !allowedDeltaKeys.contains(key) {
+            unsupported.append("delta.\(key)")
+        }
+        let cells = delta["cells"] as? [[String: Any]] ?? []
+        let clearedCells = delta["cleared_cells"] as? [[String: Any]] ?? []
+        let structuralOps = delta["structural_ops"] as? [[String: Any]] ?? []
+        if delta["cells"] != nil && !(delta["cells"] is [[String: Any]]) {
+            unsupported.append("cells must be an array")
+        }
+        if delta["cleared_cells"] != nil && !(delta["cleared_cells"] is [[String: Any]]) {
+            unsupported.append("cleared_cells must be an array")
+        }
+        if delta["structural_ops"] != nil && !(delta["structural_ops"] is [[String: Any]]) {
+            unsupported.append("structural_ops must be an array")
+        }
+        for (index, operation) in structuralOps.enumerated() {
+            let name = operation["op"] as? String ?? "unknown"
+            let operationArgs = operation["args"] as? [String: Any] ?? [:]
+            let allowed: Set<String>
+            switch name {
+            case "sheet.freezePanes": allowed = ["sheet", "rows", "cols"]
+            case "sheet.setTabColor": allowed = ["sheet", "color"]
+            case "sheet.setPrintArea": allowed = ["sheet", "range"]
+            default:
+                unsupported.append("structural_ops[\(index)]: \(name)")
+                continue
+            }
+            for key in operation.keys where key != "op" && key != "args" {
+                unsupported.append("structural_ops[\(index)].\(key)")
+            }
+            for key in operationArgs.keys where !allowed.contains(key) {
+                unsupported.append("structural_ops[\(index)].args.\(key)")
+            }
+            if !(operationArgs["sheet"] is String) {
+                unsupported.append("structural_ops[\(index)].args.sheet")
+            }
+            switch name {
+            case "sheet.freezePanes":
+                if !(operationArgs["rows"] is Int) || !(operationArgs["cols"] is Int) {
+                    unsupported.append("structural_ops[\(index)].args.rows/cols")
+                }
+            case "sheet.setTabColor":
+                if !(operationArgs["color"] is String) { unsupported.append("structural_ops[\(index)].args.color") }
+            case "sheet.setPrintArea":
+                if !(operationArgs["range"] is String) { unsupported.append("structural_ops[\(index)].args.range") }
+            default: break
+            }
+        }
+
+        for (index, cell) in cells.enumerated() {
+            let keys: Set<String> = ["sheet", "ref", "value", "type", "formula", "cached", "cachedType", "styleIndex"]
+            for key in cell.keys where !keys.contains(key) {
+                unsupported.append("cells[\(index)].\(key)")
+            }
+            if cell["formula"] == nil {
+                guard cell["value"] != nil, let type = cell["type"] as? String,
+                      ["number", "string", "bool", "boolean", "error", "empty"].contains(type) else {
+                    unsupported.append("cells[\(index)]: value/type")
+                    continue
+                }
+            } else if !(cell["formula"] is String) {
+                unsupported.append("cells[\(index)].formula")
+            }
+            if let style = cell["styleIndex"], !(style is Int) || (style as? Int ?? -1) < 0 {
+                unsupported.append("cells[\(index)].styleIndex")
+            }
+        }
+        for (index, cell) in clearedCells.enumerated() {
+            let keys: Set<String> = ["sheet", "range"]
+            for key in cell.keys where !keys.contains(key) {
+                unsupported.append("cleared_cells[\(index)].\(key)")
+            }
+            if !(cell["sheet"] is String) || !(cell["range"] is String) {
+                unsupported.append("cleared_cells[\(index)]: sheet/range")
+            }
+        }
+        guard unsupported.isEmpty else {
+            return ["ok": false, "changedParts": [String](), "unsupported": unsupported.sorted()]
+        }
+
+        let sourceData = try Data(contentsOf: sourceURL)
+        let workbook = try Workbook(data: sourceData)
+        for (index, cell) in cells.enumerated() {
+            guard let style = cell["styleIndex"] as? Int else { continue }
+            if style > 0 && workbook.styles?.info(styleIndex: style) == nil {
+                unsupported.append("cells[\(index)].styleIndex: không tồn tại style \(style)")
+            }
+        }
+        guard unsupported.isEmpty else {
+            return ["ok": false, "changedParts": [String](), "unsupported": unsupported.sorted()]
+        }
+        for (index, cell) in cells.enumerated() {
+            guard let sheetName = cell["sheet"] as? String, let reference = cell["ref"] as? String,
+                  CellReference(reference) != nil else {
+                throw BridgeError("delta", "cells[\(index)] cần sheet và ref hợp lệ")
+            }
+            let worksheet = try workbook.worksheet(named: sheetName)
+            if let formula = cell["formula"] as? String {
+                let cachedValue = cell["cached"]
+                let cachedType = cell["cachedType"] as? String ?? (cachedValue is String ? "string" : "number")
+                let cached = try deltaCellValue(cachedValue, type: cachedValue == nil ? "empty" : cachedType)
+                try worksheet.setFormula(formula, at: reference, cachedValue: cached)
+            } else {
+                try worksheet.setValue(deltaCellValue(cell["value"], type: cell["type"] as? String ?? "empty"), at: reference)
+            }
+            if let style = cell["styleIndex"] as? Int { try worksheet.setStyleIndex(style, at: reference) }
+        }
+        for (index, cell) in clearedCells.enumerated() {
+            guard let sheetName = cell["sheet"] as? String, let rangeText = cell["range"] as? String,
+                  let range = CellRange(rangeText) else {
+                throw BridgeError("delta", "cleared_cells[\(index)] cần sheet và range hợp lệ")
+            }
+            let worksheet = try workbook.worksheet(named: sheetName)
+            for existing in worksheet.cells where range.contains(existing.reference) {
+                try worksheet.clear(existing.reference.a1)
+            }
+        }
+        for (index, operation) in structuralOps.enumerated() {
+            let name = operation["op"] as! String
+            let operationArgs = operation["args"] as! [String: Any]
+            let worksheet = try workbook.worksheet(named: operationArgs["sheet"] as! String)
+            switch name {
+            case "sheet.freezePanes":
+                try worksheet.setFreezePanes(rows: operationArgs["rows"] as! Int, cols: operationArgs["cols"] as! Int)
+            case "sheet.setTabColor":
+                try worksheet.setTabColor(rgbHex: operationArgs["color"] as! String)
+            case "sheet.setPrintArea":
+                let rangeText = operationArgs["range"] as! String
+                guard let range = CellRange(rangeText) else {
+                    throw BridgeError("delta", "vùng in không hợp lệ: \(rangeText)")
+                }
+                try worksheet.setPrintArea(range: range)
+            default: break
+            }
+        }
+
+        try workbook.save(to: targetURL)
+        do {
+            let savedData = try Data(contentsOf: targetURL)
+            let reopened = try Workbook(data: savedData)
+            guard reopened.sheets.map(\.name) == workbook.sheets.map(\.name) else {
+                throw BridgeError("reopen", "danh sách sheet sau khi mở lại không khớp")
+            }
+            for cell in cells {
+                let sheet = try reopened.worksheet(named: cell["sheet"] as! String)
+                let reference = cell["ref"] as! String
+                if let formula = cell["formula"] as? String {
+                    guard try sheet.cell(reference)?.formula == (formula.hasPrefix("=") ? String(formula.dropFirst()) : formula) else {
+                        throw BridgeError("reopen", "công thức \(reference) không khớp sau khi mở lại")
+                    }
+                } else {
+                    let expected = try deltaCellValue(cell["value"], type: cell["type"] as? String ?? "empty")
+                    guard try sheet.value(reference) == expected else {
+                        throw BridgeError("reopen", "giá trị \(reference) không khớp sau khi mở lại")
+                    }
+                }
+                if let style = cell["styleIndex"] as? Int {
+                    guard try sheet.cell(reference)?.styleIndex == style else {
+                        throw BridgeError("reopen", "định dạng \(reference) không khớp sau khi mở lại")
+                    }
+                }
+            }
+            let changedParts = try Self.changedZipParts(before: sourceData, after: savedData)
+            return ["ok": true, "changedParts": changedParts, "unsupported": [String]()]
+        } catch {
+            try? FileManager.default.removeItem(at: targetURL)
+            throw error
+        }
+    }
+
+    private func deltaCellValue(_ value: Any?, type: String) throws -> CellValue {
+        switch type {
+        case "number":
+            if let number = value as? Double { return .number(number) }
+            if let number = value as? Int { return .number(Double(number)) }
+            if let text = value as? String, let number = Double(text) { return .number(number) }
+            throw BridgeError("delta", "giá trị số không hợp lệ")
+        case "string":
+            guard let text = value as? String else { throw BridgeError("delta", "giá trị chuỗi không hợp lệ") }
+            return .string(text)
+        case "bool", "boolean":
+            guard let flag = value as? Bool else { throw BridgeError("delta", "giá trị boolean không hợp lệ") }
+            return .bool(flag)
+        case "error":
+            guard let text = value as? String else { throw BridgeError("delta", "giá trị lỗi không hợp lệ") }
+            return .error(text)
+        case "empty": return .empty
+        default: throw BridgeError("delta", "kiểu ô '\(type)' không hỗ trợ")
+        }
+    }
+
+    private static func changedZipParts(before: Data, after: Data) throws -> [String] {
+        let oldArchive = try ZipArchive(data: before)
+        let newArchive = try ZipArchive(data: after)
+        var changed: [String] = []
+        for name in Set(oldArchive.entryNames).union(newArchive.entryNames).sorted() {
+            guard let oldEntry = oldArchive.entry(name), let newEntry = newArchive.entry(name) else {
+                changed.append(name)
+                continue
+            }
+            if try oldArchive.contents(of: oldEntry) != newArchive.contents(of: newEntry) {
+                changed.append(name)
+            }
+        }
+        return changed
     }
 
     private func info(_ args: Args) throws -> [String: Any] { try info(handle: try args.string("handle")) }

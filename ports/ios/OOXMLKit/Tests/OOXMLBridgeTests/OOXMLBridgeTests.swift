@@ -66,6 +66,67 @@ final class OOXMLBridgeTests: XCTestCase {
         XCTAssertEqual(g2["formula"] as? String, "C2*2")
     }
 
+    func testXlsxSaveDeltaWritesReopensAndPreservesUntouchedParts() throws {
+        let dir = try Fixtures.scratchDirectory("xlsx-save-delta")
+        let source = dir.appendingPathComponent("source.xlsx")
+        let target = dir.appendingPathComponent("staging.xlsx")
+        let sourceData = try Fixtures.data("xlsx/rich-excel.xlsx")
+        try sourceData.write(to: source)
+
+        let result = try call("xlsx.save", [
+            "source_document_path": source.path,
+            "target_path": target.path,
+            "delta": [
+                "cells": [
+                    ["sheet": "Dữ liệu", "ref": "A1", "type": "string", "value": "đã lưu"],
+                    ["sheet": "Dữ liệu", "ref": "G2", "formula": "C2*2", "cached": 500],
+                    ["sheet": "Dữ liệu", "ref": "H2", "type": "number", "value": 12.5, "styleIndex": 1],
+                ],
+                "cleared_cells": [["sheet": "Dữ liệu", "range": "A2"]],
+                "structural_ops": [
+                    ["op": "sheet.freezePanes", "args": ["sheet": "Dữ liệu", "rows": 1, "cols": 1]],
+                    ["op": "sheet.setTabColor", "args": ["sheet": "Dữ liệu", "color": "FF0000"]],
+                    ["op": "sheet.setPrintArea", "args": ["sheet": "Dữ liệu", "range": "A1:H2"]],
+                ],
+            ],
+        ])
+
+        XCTAssertEqual(result["ok"] as? Bool, true)
+        XCTAssertEqual(result["unsupported"] as? [String], [])
+        XCTAssertFalse((result["changedParts"] as? [String] ?? []).isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: target.path))
+
+        let savedData = try Data(contentsOf: target)
+        let reopenedHandle = try call("open", ["base64": savedData.base64EncodedString()])["handle"] as! String
+        let read = try call("sheet.read", ["handle": reopenedHandle, "sheet": "Dữ liệu", "range": "A1:H2"])
+        let cells = read["cells"] as! [[String: Any]]
+        let a1 = cells.first { $0["ref"] as? String == "A1" }!
+        XCTAssertEqual((a1["value"] as! [String: Any])["v"] as? String, "đã lưu")
+        let g2 = cells.first { $0["ref"] as? String == "G2" }!
+        XCTAssertEqual(g2["formula"] as? String, "C2*2")
+        let h2 = cells.first { $0["ref"] as? String == "H2" }!
+        XCTAssertEqual((h2["value"] as! [String: Any])["v"] as? Double, 12.5)
+        XCTAssertFalse(cells.contains { $0["ref"] as? String == "A2" })
+    }
+
+    func testXlsxSaveDeltaUnsupportedDoesNotWriteTarget() throws {
+        let dir = try Fixtures.scratchDirectory("xlsx-save-unsupported")
+        let source = dir.appendingPathComponent("source.xlsx")
+        let target = dir.appendingPathComponent("staging.xlsx")
+        try Fixtures.data("xlsx/rich-excel.xlsx").write(to: source)
+
+        let result = try call("xlsx.save", [
+            "source_document_path": source.path,
+            "target_path": target.path,
+            "delta": ["cells": [], "cleared_cells": [], "structural_ops": [["op": "sheet.add"]]],
+        ])
+
+        XCTAssertEqual(result["ok"] as? Bool, false)
+        XCTAssertEqual(result["changedParts"] as? [String], [])
+        XCTAssertFalse((result["unsupported"] as? [String] ?? []).isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
+    }
+
     func testSheetStructuralOps() throws {
         let h = try openFixture("xlsx/rich-excel.xlsx")
         try call("sheet.insertRows", ["handle": h, "sheet": "Dữ liệu", "at": 3, "count": 2])

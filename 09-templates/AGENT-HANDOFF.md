@@ -1334,3 +1334,24 @@ CORPUS: XLSX 27/27 saved, LO diff=0/lint clean, Excel COM BLOCKED. Legacy XLS CD
 GIAO DIỆN ĐÃ XEM: 20 XLS, 8 DOCX, 11 Q18 screenshots, Q27 final and sample-3 before/after at 1366×768. Major test-state Slides issue: date/body duplicate and overlap in editor/notes/slideshow/print preview; Q27 has overlap and a white canvas overlay. DOCX d24 title overlaps; legacy08 shows #NAME? in document. Full images in E:\VNOffice-briefs\logs\Q56-work.
 KNOWN FAILURES: Required DOCX corpus is FAIL 7/8 because d20 adds one page, reproduced twice. Two Q27 cases are NOT SUPPORTED. Excel COM not run per ticket rules.
 NEXT ACTION: Triage d20 pagination and the captured Slides overlaps in owning tickets. Q56 implementation is complete but corpus gate remains failed; record in E:\VNOffice-briefs\logs\Q56.DONE.
+
+---
+
+# Agent Handoff
+TASK: CODEX-W3C — Lệnh lưu XLSX delta trong OOXMLBridge/ooxml-engine
+AGENT/ROLE: Codex / OOXMLKit
+BRANCH: codex/ooxml-w3a
+WORKTREE: E:\VNOffice-codex-ooxmlw3a
+OBJECTIVE: Thêm op `xlsx.save` nhận nguồn XLSX, đường dẫn staging và delta; dùng API P0/P1 hiện có, kiểm tra mở lại và trả JSON có `ok`, `changedParts`, `unsupported`.
+FINDINGS: `ooxml-engine` chuyển JSON Lines trực tiếp qua `OOXMLBridge`; Workbook/Worksheet đã có API sửa ô, công thức, style index, freeze panes, màu tab và print area. Lệnh `save(to:)` hiện có ghi staging an toàn và kiểm định gói.
+IMPLEMENTATION SUMMARY: Thêm `xlsx.save` cho delta cell, clear range, freeze panes, tab color và print area. Tiền kiểm để delta lạ không ghi file; xác minh style index, lưu staging, mở lại và so sánh part để trả `changedParts`. Thêm test Swift round-trip/unsupported và smoke test Windows kiểm tra các part không đổi.
+FILES CHANGED: ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift; ports/ios/OOXMLKit/Tests/OOXMLBridgeTests/OOXMLBridgeTests.swift; tests/test_ooxml_engine_windows.py; docs/ios/BAO-CAO-OOXMLKIT-2310.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `swift test` qua WSL với snapshot `git archive` và overlay đúng hai file Swift đang sửa; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k ooxml_engine -rs`; `python -m py_compile tests/test_ooxml_engine_windows.py`; `git diff --check`.
+BUILD RESULT: PASS — Swift package debug build hoàn tất trong lúc chạy toàn bộ test.
+TEST RESULTS: PASS — Swift 123/123 (121 cũ + 2 mới); Node 3796/3796; i18n missing=0; checklist lowered=0. Hai bài Windows pytest SKIPPED vì `ooxml-engine.exe` chưa được build trên Windows; Python syntax compile PASS.
+KNOWN FAILURES: Không có test FAIL sau sửa. Hai smoke test Windows chưa chạy thực thi vì thiếu file `.exe`.
+RISKS: Thao tác structural khác ba API P0/P1 trong phạm vi trả `unsupported` để tầng Python dùng fallback.
+DEPENDENCIES/BLOCKERS: Windows smoke test cần binary `ooxml-engine.exe` được build trong worktree.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — backend/bridge; không chạy app/CDP.
+NEXT ACTION: Review commit; nối op vào luồng lưu ở phiếu kế tiếp sau phê duyệt.

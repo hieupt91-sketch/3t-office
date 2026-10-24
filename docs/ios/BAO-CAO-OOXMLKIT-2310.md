@@ -220,3 +220,9 @@ Môi trường: Mac Apple Silicon, macOS 15.8.1, Xcode 26.3, Swift 6.2.4.
 Ghi chú về môi trường: lần gọi `swift test` đầu dùng Swift thuộc Command Line Tools và dừng ở `no such module XCTest`; sau khi chọn toolchain Swift trong Xcode đầy đủ, các lượt test debug/release đều PASS. Không sửa mã nguồn hay test trong đợt xác nhận này.
 
 Phần còn cần người có thiết bị: chạy scheme trên iPhone/iPad thật, đo mở/lưu và đỉnh bộ nhớ; kiểm tệp Word/Excel/PowerPoint có nguồn Microsoft Office thật (nội dung giả) để có thêm đầu vào chuẩn ngoài fixtures tổng hợp/LibreOffice.
+
+## 8.12. W3C — lệnh lưu delta XLSX qua engine (24/10/2026)
+
+`OOXMLBridge`/`ooxml-engine` nhận `xlsx.save` với `source_document_path`, `target_path` staging và delta theo kế hoạch. Lệnh hỗ trợ sửa giá trị/công thức/style index, xóa vùng ô, freeze panes, màu tab và print area bằng API OOXMLKit sẵn có. Thao tác ngoài phạm vi trả `unsupported` và không ghi staging; lệnh lưu staging, mở lại workbook, xác minh sheet/các ô sửa và trả `changedParts`.
+
+Kiểm thử: 2 test mới **FAIL trước sửa** do op chưa tồn tại, sau sửa **PASS 2/2**; toàn bộ Swift **PASS 123/123** (121 bài cũ + 2 bài mới); `node tests/run-tests.js` **PASS 3796/3796**; i18n `missing=0`; checklist evidence `lowered=0`. `python -m pytest tests -q -k ooxml_engine -rs`: **2 SKIPPED** vì chưa có `ooxml-engine.exe` trong worktree Windows. Không chạy app/CDP; thay đổi chỉ ở bridge/engine.

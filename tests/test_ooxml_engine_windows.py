@@ -112,3 +112,110 @@ def test_engine_opens_edits_saves_and_reopens_synthetic_xlsx(tmp_path):
             startup_seconds, open_seconds
         )
     )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows executable smoke test")
+def test_engine_xlsx_save_delta_reopens_and_rejects_unsupported(tmp_path):
+    if not ENGINE.is_file():
+        pytest.skip(f"Swift engine executable is not built: {ENGINE}")
+
+    source = tmp_path / "delta-source.xlsx"
+    target = tmp_path / "delta-staging.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Data"
+    sheet["A1"] = "before"
+    sheet["A2"] = 5
+    sheet["C1"] = "styled"
+    sheet["C1"].font = sheet["C1"].font.copy(bold=True)
+    workbook.save(source)
+
+    process = subprocess.Popen(
+        [str(ENGINE)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+
+    def request(payload):
+        process.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
+        process.stdin.flush()
+        return json.loads(process.stdout.readline())
+
+    try:
+        response = request(
+            {
+                "id": 1,
+                "op": "xlsx.save",
+                "args": {
+                    "source_document_path": str(source),
+                    "target_path": str(target),
+                    "delta": {
+                        "cells": [
+                            {"sheet": "Data", "ref": "A1", "type": "string", "value": "after"},
+                            {"sheet": "Data", "ref": "B1", "formula": "A2*2", "cached": 10},
+                            {"sheet": "Data", "ref": "C1", "type": "string", "value": "styled", "styleIndex": 1},
+                        ],
+                        "cleared_cells": [{"sheet": "Data", "range": "A2"}],
+                        "structural_ops": [
+                            {"op": "sheet.freezePanes", "args": {"sheet": "Data", "rows": 1, "cols": 1}},
+                            {"op": "sheet.setTabColor", "args": {"sheet": "Data", "color": "FF0000"}},
+                            {"op": "sheet.setPrintArea", "args": {"sheet": "Data", "range": "A1:C1"}},
+                        ],
+                    },
+                },
+            }
+        )
+        assert response["ok"] is True, response
+        result = response["result"]
+        assert result["ok"] is True, result
+        assert result["unsupported"] == []
+        assert "xl/worksheets/sheet1.xml" in result["changedParts"]
+        assert target.is_file()
+
+        with zipfile.ZipFile(source) as original_zip, zipfile.ZipFile(target) as saved_zip:
+            assert original_zip.namelist() == saved_zip.namelist()
+            for part in original_zip.namelist():
+                if part not in result["changedParts"]:
+                    assert original_zip.read(part) == saved_zip.read(part), part
+
+        saved = openpyxl.load_workbook(target, data_only=False)
+        try:
+            saved_sheet = saved["Data"]
+            assert saved_sheet["A1"].value == "after"
+            assert saved_sheet["B1"].value == "=A2*2"
+            assert saved_sheet["C1"].style_id == 1
+            assert saved_sheet["A2"].value is None
+        finally:
+            saved.close()
+
+        unsupported_target = tmp_path / "unsupported-staging.xlsx"
+        unsupported = request(
+            {
+                "id": 2,
+                "op": "xlsx.save",
+                "args": {
+                    "source_document_path": str(source),
+                    "target_path": str(unsupported_target),
+                    "delta": {
+                        "cells": [],
+                        "cleared_cells": [],
+                        "structural_ops": [{"op": "sheet.add", "args": {"name": "New"}}],
+                    },
+                },
+            }
+        )
+        assert unsupported["ok"] is True, unsupported
+        assert unsupported["result"]["ok"] is False
+        assert unsupported["result"]["changedParts"] == []
+        assert unsupported["result"]["unsupported"]
+        assert not unsupported_target.exists()
+    finally:
+        process.stdin.close()
+        process.wait(timeout=30)
+        stderr = process.stderr.read()
+        assert process.returncode == 0, stderr
+        process.stdout.close()
+        process.stderr.close()
