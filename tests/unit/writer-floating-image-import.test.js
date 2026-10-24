@@ -64,6 +64,52 @@ export async function runWriterFloatingImageImportTests() {
     check(body.includes("<br><br>"), `Image paragraph was collapsed as empty whitespace: ${body}`);
   });
 
+  test("Imported spacing repair matches OOXML, preserves real spaces, and supports the VNO fallback", () => {
+    const textNode = (value) => ({ nodeType: 3, nodeValue: value });
+    const paragraph = (values) => {
+      const node = { nodeType: 1, childNodes: values.map(textNode) };
+      Object.defineProperty(node, "textContent", { get() { return this.childNodes.map((child) => child.nodeValue || child.textContent || "").join(""); } });
+      return node;
+    };
+    const noSourceSpace = paragraph(["Đ", "\nộc\nlập"]);
+    const sourceSpace = paragraph(["T", "\nel"]);
+    const root = { querySelectorAll: () => [noSourceSpace, sourceSpace] };
+    const xml = '<w:document><w:body><w:p><w:r><w:t>Độc lập</w:t></w:r></w:p><w:p><w:r><w:t>T el</w:t></w:r></w:p></w:body></w:document>';
+    const adapter = new WriterAdapter(null);
+    adapter._repairImportedTextWhitespaceFromOoxml(root, xml);
+    check(noSourceSpace.textContent === "Độc\nlập", `Inserted split was not removed or a real space was lost: ${JSON.stringify(noSourceSpace.textContent)}`);
+    check(sourceSpace.textContent === "T\nel", `Source space was changed: ${JSON.stringify(sourceSpace.textContent)}`);
+
+    const previous = globalThis.__VNO_WRITER_REPAIR_FLOAT_WORD_SPACES;
+    globalThis.__VNO_WRITER_REPAIR_FLOAT_WORD_SPACES = false;
+    try {
+      const fallback = paragraph(["Đ", "\nộc\nlập"]);
+      adapter._repairImportedTextWhitespaceFromOoxml({ querySelectorAll: () => [fallback] }, xml);
+      check(fallback.textContent === "Đ\nộc\nlập", `VNO fallback did not preserve the old path: ${JSON.stringify(fallback.textContent)}`);
+    } finally {
+      if (previous === undefined) delete globalThis.__VNO_WRITER_REPAIR_FLOAT_WORD_SPACES;
+      else globalThis.__VNO_WRITER_REPAIR_FLOAT_WORD_SPACES = previous;
+    }
+  });
+
+  test("Imported spacing repair preserves OOXML tabs and line breaks while repairing split Vietnamese text", () => {
+    const textNode = (value) => ({ nodeType: 3, nodeValue: value });
+    const paragraph = (value) => {
+      const node = { nodeType: 1, childNodes: [textNode(value)] };
+      Object.defineProperty(node, "textContent", { get() { return this.childNodes.map((child) => child.nodeValue || "").join(""); } });
+      return node;
+    };
+    const tabPara = paragraph("Actual ship value\tWhereof\tHull");
+    const breakPara = paragraph("Tiêu đề\nNội dung");
+    const splitPara = paragraph("Đ\nộc l\nập");
+    const root = { querySelectorAll: () => [tabPara, breakPara, splitPara] };
+    const xml = '<w:document><w:body><w:p><w:r><w:t>Actual ship value</w:t><w:tab/><w:t>Whereof</w:t><w:tab/><w:t>Hull</w:t></w:r></w:p><w:p><w:r><w:t>Tiêu đề</w:t><w:br/><w:t>Nội dung</w:t></w:r></w:p><w:p><w:r><w:t>Độc lập</w:t></w:r></w:p></w:body></w:document>';
+    new WriterAdapter(null)._repairImportedTextWhitespaceFromOoxml(root, xml);
+    check(tabPara.textContent === "Actual ship value\tWhereof\tHull", `OOXML tabs changed: ${JSON.stringify(tabPara.textContent)}`);
+    check(breakPara.textContent === "Tiêu đề\nNội dung", `OOXML line break changed: ${JSON.stringify(breakPara.textContent)}`);
+    check(splitPara.textContent === "Độc lập", `Split Vietnamese text was not repaired: ${JSON.stringify(splitPara.textContent)}`);
+  });
+
   test("Floating import preserves textbox content, negative geometry and wrap", () => {
     const adapter = new WriterAdapter(null);
     const body = adapter._normalizeImportedHtml(HTML, OOXML).body;

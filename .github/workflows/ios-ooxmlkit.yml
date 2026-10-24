@@ -1,0 +1,77 @@
+# Kiểm OOXMLKit đa nền:
+#  - job linux  (ubuntu + swift container): chứng minh engine chạy ngoài Apple bằng swift-corelibs-foundation
+#    — chính là bộ Foundation mà Windows và Android cũng dùng, nên đây là bằng chứng đa nền rẻ nhất (rẻ ~10x macOS).
+#  - job ios    (macOS thật): swift test, build iPhone/iPad arm64, test simulator iPhone + iPad.
+# Chỉ chạy khi mã ports/ios đổi.
+# Windows: đã thử spike (compnerd/gha-setup-swift + ilammy/msvc-dev-cmd) — BLOCKED do mâu thuẫn modulemap
+#   'ucrt' giữa Swift 6.0.3 và Windows SDK trên runner windows-latest (lỗi toolchain, KHÔNG phải lỗi mã).
+#   Bằng chứng chạy-ngoài-Apple đã có qua job linux (cùng swift-corelibs-foundation như Windows). Xem lại khi
+#   pin được Windows SDK hợp lệ, hoặc để team dựng trên máy Windows thật.
+name: iOS OOXMLKit
+
+on:
+  push:
+    paths: ["ports/ios/**", ".github/workflows/ios-ooxmlkit.yml"]
+  pull_request:
+    paths: ["ports/ios/**", ".github/workflows/ios-ooxmlkit.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-ooxmlkit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container: swift:6.0
+    defaults:
+      run:
+        working-directory: ports/ios/OOXMLKit
+        shell: bash -eo pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Phiên bản Swift (Linux, swift-corelibs-foundation)
+        run: swift --version
+      - name: swift test (Linux, debug)
+        run: swift test 2>&1 | grep -E "error:|Test Suite '.*xctest'|Executed [0-9]+ tests"
+      - name: swift test (Linux, release)
+        run: swift test -c release -Xswiftc -enable-testing 2>&1 | grep -E "error:|Executed [0-9]+ tests"
+
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: ports/ios/OOXMLKit
+        # pipefail: lỗi của swift/xcodebuild không bị che bởi grep/tail phía sau.
+        shell: bash -eo pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Phiên bản công cụ
+        run: xcodebuild -version && swift --version
+      - name: swift test (macOS)
+        run: swift test 2>&1 | grep -E "error:|Test Suite '.*xctest'|Executed [0-9]+ tests"
+      - name: Build cho thiết bị iOS/iPadOS (arm64, không ký)
+        run: |
+          xcodebuild build -scheme OOXMLKit-Package -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO -quiet
+      - name: Chọn simulator iPhone và iPad
+        id: sim
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, subprocess
+          d = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          devs = [x for k, v in d["devices"].items() if "iOS" in k for x in v]
+          iphone = next(x["udid"] for x in devs if x["name"].startswith("iPhone"))
+          ipad = next(x["udid"] for x in devs if x["name"].startswith("iPad"))
+          print(f"iphone={iphone}\nipad={ipad}")
+          PY
+      - name: Test trên simulator iPhone
+        run: |
+          xcodebuild test -scheme OOXMLKit-Package -destination "id=${{ steps.sim.outputs.iphone }}" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|Test Suite '.*xctest' (passed|failed)|Test Case .* failed|Executed [0-9]+ tests"
+      - name: Test trên simulator iPad
+        run: |
+          xcodebuild test -scheme OOXMLKit-Package -destination "id=${{ steps.sim.outputs.ipad }}" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|Test Suite '.*xctest' (passed|failed)|Test Case .* failed|Executed [0-9]+ tests"

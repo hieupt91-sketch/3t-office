@@ -3,7 +3,7 @@
  * Tuân thủ chuẩn 01-architecture/COMMAND-ARCHITECTURE.md
  */
 
-import { restoreEditorFocus, hasOpenDialog } from "../shell/focus-manager.js";
+import { restoreEditorFocus, hasOpenDialog, getDialogKeyboardRibbonInvoker, clearKeyboardRibbonInvoker } from "../shell/focus-manager.js";
 
 export class CommandBus {
   constructor() {
@@ -222,7 +222,16 @@ export class CommandBus {
           setTimeout(() => {
             try {
               if (!hasOpenDialog()) {
-                restoreEditorFocus();
+                const keyboardInvoker = getDialogKeyboardRibbonInvoker();
+                if (keyboardInvoker) {
+                  keyboardInvoker.focus();
+                  setTimeout(() => {
+                    if (getDialogKeyboardRibbonInvoker() === keyboardInvoker) clearKeyboardRibbonInvoker();
+                  }, 750);
+                } else {
+                  clearKeyboardRibbonInvoker();
+                  restoreEditorFocus();
+                }
               }
             } catch (_) {}
           }, 0);

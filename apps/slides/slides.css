@@ -489,6 +489,50 @@
   justify-content: center;
   overflow: hidden;
 }
+.vno-slideshow-overlay.vno-slideshow-cursor-idle { cursor: none !important; }
+.vno-slideshow-controls {
+  position: fixed;
+  left: 50%;
+  bottom: 60px;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100vw - 24px);
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,.24);
+  border-radius: 9px;
+  background: rgba(15,23,42,.94);
+  color: #fff;
+  box-shadow: 0 5px 20px rgba(0,0,0,.35);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, 8px);
+  transition: opacity .15s ease, transform .15s ease, visibility .15s ease;
+  font: 13px/1.2 system-ui, sans-serif;
+}
+.vno-slideshow-controls.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+.vno-slideshow-controls > button {
+  min-width: 40px;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  white-space: nowrap;
+}
+.vno-slideshow-controls > button:hover { background: rgba(255,255,255,.16); }
+.vno-slideshow-controls > button:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
+.vno-slideshow-control-counter { min-width: 64px; padding: 0 6px; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .vno-slideshow-content {
   width: 100vw;
   height: 56.25vw;

@@ -1549,6 +1549,20 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.file.legacyFormatWarning",
+    app: "sheet",
+    commandIds: ["common.file.open"],
+    title: "Cảnh báo khi mở tệp .xls",
+    summary: "Tệp .xls có thể thay đổi một số định dạng hoặc công thức khi lưu. Thanh cảnh báo xuất hiện sau khi mở tệp và cho phép tạo bản .xlsx.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Trang tính" },
+    keywords: ["xls", "xlsx", "định dạng cũ", "cảnh báo", "lưu thành", "công thức", "tệp cũ"],
+    steps: [
+      "Mở tab Tệp, nhóm Trang tính, chọn Mở tệp rồi chọn tệp có đuôi .xls.",
+      "Sau khi bảng tính nạp xong, đọc thanh cảnh báo phía trên lưới. Cảnh báo cho biết một số định dạng hoặc công thức có thể thay đổi khi lưu.",
+      "Chọn Lưu thành .xlsx trên thanh cảnh báo, chọn thư mục và tên tệp trong hộp thoại lưu, rồi xác nhận. Bản .xlsx mới được tạo theo định dạng hiện hành."
+    ]
+  },
+  {
     id: "sheet.file.saveDocument",
     app: "sheet",
     commandIds: ["common.file.save", "common.file.saveAs"],

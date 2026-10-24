@@ -125,7 +125,7 @@ export async function runWriterSlidesInsertGapsTests() {
     }
   });
 
-  await test("Slides Insert ribbon: Tables → Images → Illustrations → Comments → Text → Symbols → Media", () => {
+  await test("Slides Insert ribbon: Tables → Images → Illustrations → Comments → Text → Links → Symbols → Media", () => {
     const insertTab = SLIDES_RIBBON_TABS.find(tab => tab.id === "insert");
     const keys = insertTab.groups.map(group => group.labelKey);
     const required = [
@@ -134,6 +134,7 @@ export async function runWriterSlidesInsertGapsTests() {
       "slidesRibbon.group.illustrations",
       "slidesRibbon.group.comments",
       "slidesRibbon.group.text",
+      "slidesRibbon.group.links",
       "slidesRibbon.group.symbols",
       "slidesRibbon.group.media"
     ];

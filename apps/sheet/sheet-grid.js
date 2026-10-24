@@ -21501,7 +21501,14 @@ export class SheetGridController {
   _showDataNotice(message) {
     if (typeof document === "undefined") return;
     const overlay = this._createSheetDialog(t("sheetDialogs.resultTitle", "Kết quả"), `<p class="vno-data-result" role="status">${message}</p>`);
-    overlay?.querySelector(".vno-rule-apply")?.addEventListener("click", () => overlay.closeDialog());
+    const closeButton = overlay?.querySelector(".vno-rule-apply");
+    if (closeButton) {
+      const label = t("sheetDialogs.close", "Đóng");
+      closeButton.textContent = label;
+      closeButton.setAttribute("aria-label", label);
+      closeButton.classList.remove("vno-btn-primary");
+      closeButton.addEventListener("click", () => overlay.closeDialog());
+    }
   }
 
   _createSheetDialog(title, bodyHtml) {
@@ -21545,7 +21552,9 @@ export class SheetGridController {
         }
       }
     };
+    let errorObserver = null;
     const close = () => {
+      errorObserver?.disconnect();
       document.removeEventListener("keydown", onKey);
       overlay.remove();
       if (previousActive && typeof previousActive.focus === "function") {
@@ -21555,6 +21564,60 @@ export class SheetGridController {
     overlay.closeDialog = close;
     overlay.querySelector(".vno-rule-close").addEventListener("click", close);
     overlay.querySelector(".vno-rule-cancel").addEventListener("click", close);
+    const applyButton = overlay.querySelector(".vno-rule-apply");
+    const validationErrors = [...overlay.querySelectorAll('[role="alert"]')];
+    const validationSummaryId = `${titleId}-input-error`;
+    let validationSummary = null;
+    const syncValidationState = () => {
+      const firstError = validationErrors.find(error => error.textContent.trim());
+      const invalidControl = [...overlay.querySelectorAll("input,select,textarea")].find(control => {
+        if (control.disabled || control.willValidate === false) return false;
+        const validity = control.validity;
+        return Boolean(validity && (!validity.valid || validity.badInput || validity.valueMissing || validity.rangeUnderflow || validity.rangeOverflow || validity.stepMismatch || validity.typeMismatch));
+      });
+      const hasError = Boolean(firstError || invalidControl);
+      if (validationSummary && !invalidControl) {
+        validationSummary.remove();
+        validationSummary = null;
+      }
+      if (invalidControl) {
+        invalidControl.setAttribute("aria-invalid", "true");
+        if (!validationSummary) {
+          validationSummary = document.createElement("div");
+          validationSummary.id = validationSummaryId;
+          validationSummary.className = "vno-rule-error";
+          validationSummary.setAttribute("role", "alert");
+          validationSummary.setAttribute("aria-live", "polite");
+          overlay.querySelector(".vno-dialog-body")?.appendChild(validationSummary);
+        }
+        const validity = invalidControl.validity;
+        validationSummary.textContent = validity?.valueMissing
+          ? t("sheetDialogs.inputRequired", "Trường này không được để trống.")
+          : validity?.badInput || validity?.typeMismatch
+            ? t("sheetDialogs.inputInvalidFormat", "Nhập giá trị đúng định dạng.")
+            : t("sheetDialogs.inputOutOfRange", "Giá trị nằm ngoài phạm vi cho phép.");
+        invalidControl.setAttribute("aria-describedby", validationSummaryId);
+      } else {
+        overlay.querySelectorAll("[aria-invalid='true']").forEach(control => {
+          control.removeAttribute("aria-invalid");
+          if (control.getAttribute("aria-describedby") === validationSummaryId) control.removeAttribute("aria-describedby");
+        });
+      }
+      applyButton.disabled = hasError;
+      applyButton.setAttribute("aria-disabled", String(hasError));
+      applyButton.title = hasError ? t("sheetDialogs.resolveErrorToContinue", "Sửa lỗi trước khi áp dụng.") : "";
+      if (firstError || invalidControl) (firstError || validationSummary || invalidControl).scrollIntoView({ block: "nearest" });
+    };
+    errorObserver = new MutationObserver(syncValidationState);
+    validationErrors.forEach(error => errorObserver.observe(error, { childList: true, characterData: true, subtree: true }));
+    overlay.addEventListener("input", () => {
+      validationErrors.forEach(error => { error.textContent = ""; error.style.color = ""; });
+      syncValidationState();
+    });
+    overlay.addEventListener("change", () => {
+      validationErrors.forEach(error => { error.textContent = ""; error.style.color = ""; });
+      syncValidationState();
+    });
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) close();
     });
@@ -21598,7 +21661,7 @@ export class SheetGridController {
       <label id="vno-cf-value2-row">${t("sheetDialogs.maximum")}<input id="vno-cf-value2" type="number" value="100"></label>
       <label id="vno-cf-text-row">${t("sheetDialogs.textValue")}<input id="vno-cf-text" type="text"></label>
       <label id="vno-cf-date-row">${t("sheetDialogs.datePeriod")}<select id="vno-cf-date"><option value="yesterday">${t("sheetDialogs.yesterday")}</option><option value="today">${t("sheetDialogs.today")}</option><option value="tomorrow">${t("sheetDialogs.tomorrow")}</option><option value="last7Days">${t("sheetDialogs.last7Days")}</option><option value="lastWeek">${t("sheetDialogs.lastWeek")}</option><option value="thisWeek">${t("sheetDialogs.thisWeek")}</option><option value="nextWeek">${t("sheetDialogs.nextWeek")}</option><option value="lastMonth">${t("sheetDialogs.lastMonth")}</option><option value="thisMonth">${t("sheetDialogs.thisMonth")}</option><option value="nextMonth">${t("sheetDialogs.nextMonth")}</option></select></label>
-      <label id="vno-cf-rank-row"><span id="vno-cf-rank-label">${t("sheetDialogs.rankCount")}</span><input id="vno-cf-rank" type="number" min="1" max="1000" value="10"></label>
+      <label id="vno-cf-rank-row"><span id="vno-cf-rank-label">${t("sheetDialogs.rankCount")}</span><input id="vno-cf-rank" type="number" min="1" max="1000" step="1" required value="10"></label>
       <label id="vno-cf-formula-row">${t("sheetDialogs.formula")}<input id="vno-cf-formula" type="text" value="=" placeholder="=$A1&gt;100"></label>
       <label id="vno-cf-color-row">${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc"></label>
       <div id="vno-cf-scale-row" class="vno-cf-colors"><label>${t("sheetDialogs.minimumColor")}<input id="vno-cf-color1" type="color" value="#f8696b"></label><label id="vno-cf-mid-color">${t("sheetDialogs.midpointColor")}<input id="vno-cf-color2" type="color" value="#ffeb84"></label><label>${t("sheetDialogs.maximumColor")}<input id="vno-cf-color3" type="color" value="#63be7b"></label></div>
@@ -22257,12 +22320,22 @@ export class SheetGridController {
         <label>${t("sheetDialogs.pivotSource")}<input id="vno-pivot-range" value="${this._escapeHtml(defaultRange)}" aria-label="${t("sheetDialogs.pivotSource")}"></label>
         <button class="vno-btn" id="vno-pivot-load-fields" type="button">${t("sheetDialogs.loadFields")}</button>
         <div class="vno-pivot-fields" aria-live="polite"></div>
-        <div class="vno-rule-error" role="alert"></div>
+        <div class="vno-rule-error" id="vno-pivot-error" role="alert"></div>
       </div>`);
     if (!overlay) return false;
     const fieldsHost = overlay.querySelector(".vno-pivot-fields");
     const error = overlay.querySelector(".vno-rule-error");
+    const createButton = overlay.querySelector(".vno-rule-apply");
+    const setCreateEnabled = (enabled, message = "") => {
+      createButton.disabled = !enabled;
+      createButton.setAttribute("aria-disabled", String(!enabled));
+      createButton.setAttribute("aria-describedby", "vno-pivot-error");
+      if (!enabled && message) createButton.title = message;
+      else createButton.removeAttribute("title");
+    };
     const loadFields = () => {
+      setCreateEnabled(false);
+      fieldsHost.dataset.headers = "[]";
       try {
         const { headers, records } = this.pivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
         fieldsHost.innerHTML = `<p>${t("sheetDialogs.chooseFields")}</p>${headers.map((header, index) => `
@@ -22284,14 +22357,18 @@ export class SheetGridController {
           if (options) options.hidden = !input.checked;
         }));
         error.textContent = "";
+        setCreateEnabled(true);
       } catch (err) {
         fieldsHost.innerHTML = "";
         error.textContent = err.message;
+        setCreateEnabled(false, err.message);
       }
     };
     overlay.querySelector("#vno-pivot-load-fields").addEventListener("click", loadFields);
-    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.createPivotBtn", "Tạo Pivot Table");
-    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+    const rangeInput = overlay.querySelector("#vno-pivot-range");
+    rangeInput.addEventListener("input", loadFields);
+    createButton.textContent = t("sheetDialogs.createPivotBtn", "Tạo Pivot Table");
+    createButton.addEventListener("click", () => {
       try {
         const headers = JSON.parse(fieldsHost.dataset.headers || "[]");
         const selected = zone => [...fieldsHost.querySelectorAll(`input[data-zone="${zone}"]:checked`)].map(input => headers[+input.dataset.index]);

@@ -28,6 +28,17 @@ export async function runHelpCoverageTests() {
   registerHelpEntries(SLIDES_HELP_ENTRIES);
   const analysis = analyzeHelpCoverage();
 
+  await test("Help có hướng dẫn cụ thể cho tệp .doc và .xls đời cũ", () => {
+    const writer = WRITER_HELP_ENTRIES.find((entry) => entry.id === "writer.file.legacyFormatWarning");
+    const sheet = SHEET_HELP_ENTRIES.find((entry) => entry.id === "sheet.file.legacyFormatWarning");
+    if (!writer || !writer.commandIds.includes("common.file.open") || !writer.steps.some((step) => step.includes("Lưu thành .docx"))) {
+      throw new Error("Thiếu hướng dẫn mở .doc và lưu thành .docx trong Help Writer.");
+    }
+    if (!sheet || !sheet.commandIds.includes("common.file.open") || !sheet.steps.some((step) => step.includes("Lưu thành .xlsx"))) {
+      throw new Error("Thiếu hướng dẫn mở .xls và lưu thành .xlsx trong Help Sheet.");
+    }
+  });
+
   await test("Help Coverage: 100% lệnh ribbon VN Writer có handler đều được phủ bài Help", () => {
     const writer = analysis.writer;
     const uncovered = writer.uncoveredCommands.filter((c) => !PENDING_BACKLOG_EXCEPTIONS.has(c.commandId));
@@ -40,6 +51,7 @@ export async function runHelpCoverageTests() {
     // Section options from main, paragraph-formatting, table controls and numbered list restart/continue commands, pasteSpecial and spellcheck toggle are covered.
     // NAV1 adds writer.view.navigationPane with its own complete Help entry.
     // Includes the Styles Pane and Create Style commands added with WRITER-STYLES.
+    // Q52 adds help detail to the existing common.file.open command; ribbon command counts stay 230/216.
     if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 230) {
       throw new Error(`Số lượng lệnh Writer không khớp: covered=${writer.coveredCount}, live=${writer.liveCount}`);
     }
@@ -68,7 +80,7 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Slides chưa có bài Help: ${details}`);
     }
-    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 192) {
+    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 193) {
       throw new Error(`Số lượng lệnh Slides không khớp: covered=${slides.coveredCount}, live=${slides.liveCount}`);
     }
     const transitionHelp = SLIDES_HELP_ENTRIES.find((entry) => entry.commandIds?.includes("slides.transition.apply"));
@@ -147,12 +159,13 @@ export async function runHelpCoverageTests() {
     }
   });
 
-  await test("Help Coverage: Toàn bộ 9 tính năng Shared Platform cốt lõi đều có bài Help chuyên biệt", () => {
+  await test("Help Coverage: Toàn bộ 10 tính năng Shared Platform cốt lõi đều có bài Help chuyên biệt", () => {
     const platformIds = [
       "common.platform.pasteSpecialHelp",
       "common.platform.printAndExportPdfHelp",
       "common.platform.findReplaceHelp",
       "common.platform.themeDarkLightHelp",
+      "common.platform.headerThemeHelp",
       "common.platform.quickStartHelp",
       "common.platform.contextualF1Help",
       "common.platform.keyTipsHelp",
@@ -164,6 +177,14 @@ export async function runHelpCoverageTests() {
       if (!entry) {
         throw new Error(`Thiếu bài Help cho tính năng Shared Platform: ${pid}`);
       }
+    }
+  });
+
+  await test("Help: hướng dẫn giao diện phân biệt giao diện ứng dụng với giao diện tài liệu", () => {
+    const entry = HELP_ENTRIES.find((e) => e.id === "common.platform.themeDarkLightHelp");
+    const text = [entry?.title || "", entry?.summary || "", ...(entry?.steps || [])].join(" ");
+    if (!text.includes("giao diện ứng dụng") || !text.includes("Giao diện tài liệu") || !text.includes("Theo hệ thống")) {
+      throw new Error("Hướng dẫn cần nêu rõ chế độ Theo hệ thống và phân biệt hai loại giao diện");
     }
   });
 

@@ -6,6 +6,7 @@
 import { ICONS } from "./icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
 import { t } from "../i18n/i18n.js";
+import { setKeyboardRibbonInvoker, clearKeyboardRibbonInvoker } from "../shell/focus-manager.js";
 
 const ONE_SHOT_HOVER_COMMANDS = new Set([
   "writer.table.cellBg",
@@ -196,7 +197,7 @@ export function resolveIcon(commandId, iconName) {
 /**
  * Tạo nút Ribbon Button với Icon chuẩn hóa
  */
-export function createCommandButton({ commandId, isLarge = false, iconOnly = false, isCheckbox = false, customIcon, customLabel }) {
+export function createCommandButton({ commandId, isLarge = false, iconOnly = false, isCheckbox = false, customIcon, customLabel, customAriaLabel }) {
   const btn = document.createElement("button");
   btn.setAttribute("type", "button");
   if (commandId) btn.setAttribute("data-command-id", commandId);
@@ -208,7 +209,7 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
   const iconKey = customIcon || (state && state.icon ? state.icon : (def && def.icon ? def.icon : ""));
   const iconSvg = resolveIcon(commandId, iconKey);
   const shortcut = state ? state.shortcut : (def ? def.shortcut : "");
-  const accessibleName = shortcut ? `${label} (${shortcut})` : label;
+  const accessibleName = customAriaLabel || (shortcut ? `${label} (${shortcut})` : label);
 
   btn.setAttribute("aria-label", accessibleName);
 
@@ -271,7 +272,11 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
   });
 
   // Click handler
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", (event) => {
+    if (btn.closest(".vno-ribbon-content")) {
+      if (event.detail === 0) setKeyboardRibbonInvoker(btn);
+      else clearKeyboardRibbonInvoker();
+    }
     globalCommandBus.execute(commandId).then(() => {
       if (ONE_SHOT_HOVER_COMMANDS.has(commandId)) btn.classList.add("vno-action-complete");
     });

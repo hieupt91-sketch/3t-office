@@ -86,17 +86,18 @@ export const RETRO_PLATFORM_HELP_ENTRIES = [
     id: "common.platform.themeDarkLightHelp",
     app: "common",
     commandIds: [],
-    title: "Chủ đề giao diện Sáng/Tối và Cỡ chữ hiển thị",
-    summary: "Tùy biến không gian làm việc với chế độ nền Tối dịu mắt cho ban đêm và điều chỉnh độ phóng đại cỡ chữ giao diện đồng bộ.",
-    ribbon: { tab: "Tệp", tabId: "file", group: "Tùy chọn" },
-    keywords: ["giao diện tối", "chế độ tối", "dark mode", "giao diện sáng", "cỡ chữ", "tùy chọn", "theme"],
+    title: "Giao diện ứng dụng và cỡ chữ",
+    summary: "Đổi nền Sáng, Tối hoặc theo thiết lập hệ thống; tùy chỉnh màu thanh tiêu đề, ảnh nền và màu nhấn. Các thay đổi chỉ ảnh hưởng giao diện ứng dụng.",
+    ribbon: { tab: "Thanh tiêu đề", tabId: "shell", group: "Tùy chỉnh giao diện" },
+    keywords: ["giao diện tối", "chế độ tối", "giao diện sáng", "cỡ chữ", "màu thanh tiêu đề", "màu nhấn", "theo hệ thống", "giao diện ứng dụng"],
     steps: [
-      "Chuyển đổi nhanh: bấm vào biểu tượng Mặt trời / Mặt trăng ở góc trên bên phải thanh tiêu đề cửa sổ ứng dụng.",
-      "Chế độ nền Sáng (mặc định) mang lại cảm giác trang giấy quen thuộc; Chế độ nền Tối giúp giảm mỏi mắt và tiết kiệm pin khi làm việc buổi tối.",
-      "Để chỉnh cỡ chữ giao diện: vào menu Tệp > chọn 'Tùy chọn' (Options).",
-      "Tại mục Cỡ chữ giao diện: chọn Tiêu chuẩn (100%), Lớn (115%) hoặc Rất lớn (130%) để toàn bộ chữ trên thanh Ribbon, bảng chọn và thanh trạng thái to rõ hơn.",
-      "Bấm nút 'Đồng ý': thiết lập giao diện sẽ được lưu trữ và áp dụng đồng bộ cho cả Doc, Sheet và Slide.",
-      "Lưu ý: Thay đổi chủ đề chỉ ảnh hưởng đến màu sắc khung hiển thị của phần mềm, hoàn toàn không làm đổi màu nền trang giấy in của tài liệu."
+      "Bấm biểu tượng Mặt trời hoặc Mặt trăng ở thanh tiêu đề để chuyển nhanh giữa Sáng và Tối.",
+      "Bấm nút bảng màu có chú giải 'Tùy biến giao diện (Theme)' để mở bảng tùy chỉnh. Chọn Sáng, Tối hoặc Theo hệ thống; lựa chọn được lưu trên máy.",
+      "Trong mục Màu thanh tiêu đề, chọn một ô màu gợi ý hoặc dùng ô chọn màu tùy ý. Chữ tự chuyển đen hoặc trắng để giữ tương phản tối thiểu 4,5:1.",
+      "Trong mục Ảnh nền thanh tiêu đề, chọn ảnh PNG, JPG hoặc WEBP. Tệp được xử lý và lưu cục bộ; dùng thanh Độ mờ và Vị trí để xem trước, ảnh sau tối ưu phải nằm trong giới hạn 800.000 ký tự.",
+      "Chọn Màu nhấn ứng dụng để đổi màu điểm nhấn. Chữ tương phản được chọn tự động.",
+      "Bấm Áp dụng để lưu. Bấm Hủy hoặc nhấn Esc để khôi phục trạng thái đã lưu. Đặt lại mặc định trả lại giao diện mặc định.",
+      "Để đổi màu trang, hình nền trang hoặc phối màu nội dung, dùng tab Thiết kế và mục Giao diện tài liệu; các lệnh đó áp dụng cho tài liệu, không cho giao diện ứng dụng."
     ]
   },
   {
@@ -119,18 +120,17 @@ export const RETRO_PLATFORM_HELP_ENTRIES = [
     id: "common.platform.headerThemeHelp",
     app: "common",
     commandIds: [],
-    title: "Đổi màu hoặc hình nền khu vực tiêu đề",
-    summary: "Tự chọn màu hoặc hình ảnh cho thanh tiêu đề và hàng thẻ ribbon (Trang đầu, Chèn, Bố cục…), không chỉ chế độ Sáng/Tối. Chữ tự đổi đen hoặc trắng để luôn dễ đọc. Áp dụng cho cả Doc, Sheet và Slide.",
-    ribbon: { tab: "Tệp", tabId: "file", group: "Tùy chọn" },
-    keywords: ["màu thanh tiêu đề", "hình nền", "đổi màu giao diện", "tùy biến giao diện", "chủ đề", "theme", "màu ribbon", "hình ảnh tiêu đề", "tùy chọn"],
+    title: "Tùy chỉnh màu thanh tiêu đề và ảnh nền",
+    summary: "Dùng nút bảng màu trên thanh tiêu đề để chọn màu hoặc ảnh nền cho thanh tiêu đề và thẻ lệnh. Thiết lập được lưu cục bộ.",
+    ribbon: { tab: "Thanh tiêu đề", tabId: "shell", group: "Tùy chỉnh giao diện" },
+    keywords: ["màu thanh tiêu đề", "hình nền", "đổi màu giao diện", "tùy biến giao diện", "màu thẻ lệnh", "hình ảnh tiêu đề"],
     steps: [
-      "Bấm nút Tệp ở góc trái, chọn Tùy chọn để mở hộp thoại Tùy chọn 3T Office.",
-      "Tìm mục Khu vực tiêu đề (thanh tiêu đề và thẻ ribbon). Có ba lựa chọn: Mặc định (theo Sáng/Tối), Một màu, Hình ảnh.",
-      "Chọn Một màu: bấm một ô màu gợi ý (xanh Doc, xanh lá, cam, tím, đỏ mận, xanh ngọc, xám, đen, vàng kem, xanh nhạt) hoặc dùng ô Màu khác để chọn bất kỳ màu nào. Thanh tiêu đề đổi ngay để bạn xem trước.",
-      "Chọn Hình ảnh: bấm Chọn hình… rồi chọn tệp PNG, JPG, WEBP, GIF hoặc BMP (tối đa 25 MB). Hình được thu nhỏ và cắt thành dải trải liền qua thanh tiêu đề và hàng thẻ; hình chỉ lưu trên máy bạn, không gửi đi đâu.",
-      "Kéo thanh Vị trí cắt để chọn phần hình nào hiện ra (trên hoặc dưới). Kéo thanh Độ phủ tối để làm tối hình khi chữ khó đọc (0–70%).",
-      "Bấm Đồng ý để lưu; bấm Hủy bỏ hoặc Esc để quay lại như cũ. Bấm Đặt lại mặc định để bỏ màu/hình đã chọn.",
-      "Lưu ý: màu hoặc hình bạn chọn vẫn giữ khi đổi giữa chế độ Sáng/Tối và khi mở lại ứng dụng. Chữ trên thanh tiêu đề tự chuyển đen hoặc trắng theo độ sáng của nền."
+      "Bấm nút bảng màu 'Tùy biến giao diện (Theme)' trên thanh tiêu đề; cùng bảng này cũng mở được từ Tệp > Tùy chọn.",
+      "Trong mục Màu thanh tiêu đề, bấm một trong 12 ô màu gợi ý hoặc dùng ô chọn màu tùy ý. Màu nền và màu chữ được xem trước ngay.",
+      "Trong mục Ảnh nền thanh tiêu đề, bấm Chọn hình rồi chọn PNG, JPG, WEBP, GIF hoặc BMP. Ảnh được cắt thành dải; nếu dữ liệu sau tối ưu vượt 800.000 ký tự, bảng sẽ báo lỗi và yêu cầu chọn ảnh nhỏ hơn.",
+      "Kéo thanh Vị trí để chọn phần ảnh hiển thị và thanh Độ mờ để chỉnh lớp phủ tối từ 0% đến 70%.",
+      "Chọn Sáng, Tối hoặc Theo hệ thống ở mục Chế độ. Màu thanh tiêu đề được giữ khi đổi chế độ.",
+      "Bấm Áp dụng để lưu cục bộ; Hủy hoặc Esc bỏ thay đổi xem trước. Đặt lại mặc định bỏ màu, ảnh và màu nhấn tùy chỉnh."
     ]
   },
   {

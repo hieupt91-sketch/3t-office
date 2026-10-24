@@ -38,7 +38,7 @@ export async function runWriterPageHairlineTests() {
     adapter.pageSetup = { size: "letter", orientation: "portrait", margins: { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 }, headerDistanceMm: 12.7, footerDistanceMm: 12.7 };
     adapter.headerDom = { innerText: "", offsetHeight: 0 };
     adapter.footerDom = { innerText: "", offsetHeight: 0 };
-    adapter._getUsablePageHeight = () => 864;
+    adapter._getUsablePageHeight = () => 250;
     const inserted = [];
     const mk = (top, h, rectH) => {
       const el = {
@@ -126,6 +126,46 @@ export async function runWriterPageHairlineTests() {
     } finally {
       globalThis.document = origDoc;
       globalThis.window = origWin;
+    }
+  });
+
+  test("W57: a hidden hyphenation marker cannot shift the first live page origin", () => {
+    const adapter = new WriterAdapter(null);
+    adapter.pageSetup = { size: "letter", orientation: "portrait", margins: { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 } };
+    adapter.headerDom = { innerText: "", offsetHeight: 0 };
+    adapter.footerDom = { innerText: "", offsetHeight: 0 };
+    adapter._getUsablePageHeight = () => 250;
+    const inserted = [];
+    const make = ({ top, height, marker = false }) => {
+      const el = {
+        tagName: "SPAN", offsetTop: top, offsetHeight: height, textContent: marker ? "VNO_HYPHENATION_AUTO_V1" : "Nội dung", children: [],
+        getBoundingClientRect: () => ({ top, height }),
+        getAttribute: (name) => name === "style" && marker ? "display:none" : "",
+        classList: { contains: (name) => marker && name === "vno-hyphenation-marker" },
+        querySelectorAll: () => [], parentNode: null
+      };
+      el.parentNode = { insertBefore: (gap) => inserted.push(gap) };
+      return el;
+    };
+    const marker = make({ top: 0, height: 0, marker: true });
+    const content = make({ top: 300, height: 100 });
+    const body = {
+      style: {}, children: [marker, content], querySelectorAll: () => [], insertBefore() {}, dispatchEvent() {},
+      getBoundingClientRect: () => ({ top: 300 }), scrollTop: 0
+    };
+    marker.parentNode = body; content.parentNode = body;
+    adapter.bodyDom = body;
+    const oldDocument = globalThis.document;
+    const oldWindow = globalThis.window;
+    globalThis.document = { createElement: () => ({ setAttribute() {}, className: "", appendChild() {}, style: { setProperty() {} } }) };
+    globalThis.window = { getComputedStyle: () => ({ marginTop: "0", lineHeight: "20px", fontSize: "16px" }) };
+    try {
+      adapter._alignPageRelativeFloats = () => {};
+      adapter._recomputeLivePagination();
+      check(adapter._livePageCount === 1, `hidden marker inflated live pagination to ${adapter._livePageCount} pages`);
+    } finally {
+      globalThis.document = oldDocument;
+      globalThis.window = oldWindow;
     }
   });
 

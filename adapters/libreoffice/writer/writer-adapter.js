@@ -8401,6 +8401,88 @@ export class WriterAdapter {
       .replace(/&apos;/g, "'");
   }
 
+  _repairImportedTextWhitespaceFromOoxml(root, documentXml) {
+    if (!root?.querySelectorAll || !documentXml || globalThis.__VNO_WRITER_REPAIR_FLOAT_WORD_SPACES === false) return;
+    const sourceParagraphs = [...String(documentXml).matchAll(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi)].map((paragraph) =>
+      [...paragraph[1].matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t\s*>|<w:tab\b[^>]*\/?\s*>|<w:br\b[^>]*\/?\s*>/gi)]
+        .map((part) => part[1] !== undefined
+          ? this._decodeXmlEntities(part[1])
+          : /^<w:tab\b/i.test(part[0]) ? "\t" : "\n")
+        .join("")
+    ).filter(Boolean);
+    const whitespaceSignature = (value) => {
+      const boundaries = [];
+      let hasText = false;
+      let hasWhitespace = false;
+      for (const character of String(value || "")) {
+        if (/\s/u.test(character)) {
+          if (hasText) hasWhitespace = true;
+        } else {
+          if (hasText) boundaries.push(hasWhitespace ? "1" : "0");
+          hasText = true;
+          hasWhitespace = false;
+        }
+      }
+      return boundaries.join("");
+    };
+
+    for (const paragraph of Array.from(root.querySelectorAll("p, h1, h2, h3, h4, h5, h6"))) {
+      const segments = [];
+      let globalOffset = 0;
+      const visit = (node) => {
+        if (node?.nodeType === 3) {
+          const value = String(node.nodeValue || "");
+          segments.push({ node, start: globalOffset, value });
+          globalOffset += value.length;
+        } else {
+          for (const child of Array.from(node?.childNodes || [])) visit(child);
+        }
+      };
+      visit(paragraph);
+      const actualText = segments.map((segment) => segment.value).join("");
+      const compactActual = actualText.replace(/\s/gu, "");
+      if (!compactActual) continue;
+      const matches = sourceParagraphs.filter((source) => source.replace(/\s/gu, "") === compactActual);
+      if (!matches.length) continue;
+      const signatures = new Set(matches.map(whitespaceSignature));
+      if (signatures.size !== 1) continue;
+
+      const actualCharacters = [];
+      globalOffset = 0;
+      for (const segment of segments) {
+        for (let localOffset = 0; localOffset < segment.value.length;) {
+          const character = String.fromCodePoint(segment.value.codePointAt(localOffset));
+          const end = localOffset + character.length;
+          if (!/\s/u.test(character)) actualCharacters.push({ start: globalOffset + localOffset, end: globalOffset + end });
+          localOffset = end;
+        }
+        globalOffset += segment.value.length;
+      }
+
+      const targetSignature = [...signatures][0];
+      const removals = new Map();
+      for (let boundary = 0; boundary < actualCharacters.length - 1; boundary += 1) {
+        if (targetSignature[boundary] !== "0") continue;
+        const gapStart = actualCharacters[boundary].end;
+        const gapEnd = actualCharacters[boundary + 1].start;
+        if (gapStart >= gapEnd) continue;
+        for (const segment of segments) {
+          const localStart = Math.max(0, gapStart - segment.start);
+          const localEnd = Math.min(segment.value.length, gapEnd - segment.start);
+          if (localStart >= localEnd || !/^\s+$/u.test(segment.value.slice(localStart, localEnd))) continue;
+          const ranges = removals.get(segment.node) || [];
+          ranges.push([localStart, localEnd]);
+          removals.set(segment.node, ranges);
+        }
+      }
+      for (const [node, ranges] of removals) {
+        let value = String(node.nodeValue || "");
+        for (const [start, end] of ranges.sort((a, b) => b[0] - a[0])) value = value.slice(0, start) + value.slice(end);
+        node.nodeValue = value;
+      }
+    }
+  }
+
   _escapeRegExp(value) {
     return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
@@ -18584,14 +18666,20 @@ export class WriterAdapter {
    * Luôn mở hộp thoại lưu native của hệ điều hành, cho phép chọn thư mục, đổi tên
    * hoặc chọn định dạng xuất (.docx, .doc, .odt, .rtf).
    */
-  async saveAs() {
+  async saveAs(targetFormatOverride = null) {
     this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
     const currentName = this.sourceFileName || "TaiLieu";
-    const suggestedName = this._sourcePath
+    const originalSuggestedName = this._sourcePath
       ? this._sourcePath.split(/[/\\]/).pop()
       : (this.shell?.documentName ? this.shell.documentName : (currentName !== "TaiLieu" ? currentName : "TaiLieu.docx"));
 
-    const targetFormat = this._sourcePath ? (this._sourcePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "docx") : "docx";
+    const requestedFormat = String(targetFormatOverride || "").toLowerCase();
+    const targetFormat = ["docx", "doc", "odt", "rtf"].includes(requestedFormat)
+      ? requestedFormat
+      : (this._sourcePath ? (this._sourcePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "docx") : "docx");
+    const suggestedName = requestedFormat
+      ? `${String(originalSuggestedName || currentName).replace(/\.[^/.]+$/, "")}.${targetFormat}`
+      : originalSuggestedName;
 
     const result = await globalUnoBridge.saveRealFile(
       "writer",
@@ -18769,6 +18857,7 @@ export class WriterAdapter {
       } else if (this.editorDom) {
         this.editorDom.innerHTML = imported.body;
       }
+      this._repairImportedTextWhitespaceFromOoxml(this.bodyDom || this.editorDom, result.ooxmlDocumentXml);
       // Quy ước W1/W8/W23a: tỉ số font theo font THẬT đang vẽ của từng phần tử và strut của <p> = font của run (cả thân lẫn header/footer).
       // Chạy trước khi băm "chưa sửa" nên không làm tài liệu thành "đã sửa".
       try {
@@ -18804,6 +18893,24 @@ export class WriterAdapter {
       this._recomputeLivePagination?.();
       if (typeof requestAnimationFrame !== "undefined") {
         requestAnimationFrame(() => this._recomputeLivePagination?.());
+      }
+      if (/\.doc$/i.test(String(result.sourcePath || result.fileName || "")) && this.shell?.showNotification) {
+        const legacyWarning = t("legacyFileFormat.docWarning");
+        this.shell.showNotification({
+          type: "warning",
+          message: this.isFinal
+            ? `${t("writerDocumentProperties.finalBanner", "Tài liệu đã được đánh dấu là cuối cùng để ngăn chỉnh sửa vô ý.")} ${legacyWarning}`
+            : legacyWarning,
+          action: {
+            label: t("legacyFileFormat.saveDocx"),
+            onClick: () => this.saveAs("docx")
+          },
+          actions: this.isFinal ? [{
+            label: t("writerDocumentProperties.editAnyway"),
+            onClick: () => this.unmarkFinal()
+          }] : [],
+          dismissible: !this.isFinal
+        });
       }
       return true;
     }
@@ -20144,7 +20251,12 @@ export class WriterAdapter {
         this.bodyDom.style.marginBottom = footerExtraPx > 0 ? `${footerExtraPx}px` : "0";
       }
 
-      const children = Array.from(this.bodyDom.children);
+      // The automatic hyphenation marker is intentionally display:none and has no
+      // layout box. Its DOM rect can sit before the visible body origin, so it must
+      // not establish the live page origin (the marker remains in the document for
+      // hyphenation serialization and round trips).
+      const children = Array.from(this.bodyDom.children)
+        .filter((el) => !el.classList?.contains("vno-hyphenation-marker"));
       let pageCount = 1;
       const gapBeforeEls = [];
       // Đo bằng vị trí thật của khối (offsetTop) nên khoảng cách giữa hai đoạn đã là

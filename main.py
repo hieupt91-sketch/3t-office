@@ -211,6 +211,7 @@ _PRINT_PIPELINE_PATH = Path(__file__).resolve().parent / "platform" / "print" / 
 _PRINT_PIPELINE_MODULE = None
 _OFFICE_COM_PATH = Path(__file__).resolve().parent / "platform" / "print" / "office_com.py"
 _OFFICE_COM_MODULE = None
+_OOXML_ENGINE_CLIENT_PATH = Path(__file__).resolve().parent / "platform" / "ooxml" / "engine_client.py"
 _LAZY_LOCAL_MODULE_LOCK = threading.Lock()
 
 
@@ -231,6 +232,25 @@ def _load_local_module(module_name: str, module_path: Path):
             sys.modules.pop(module_name, None)
             raise
         return module
+
+
+def _run_ooxml_shadow(kind: str, source_path: str | None, reference_path: str) -> None:
+    """Run opt-in, local-only engine comparison when the save route has a delta."""
+    if os.environ.get("VNO_OOXML_ENGINE") != "shadow":
+        return
+    try:
+        module = _load_local_module("vno_ooxml_engine_client", _OOXML_ENGINE_CLIENT_PATH)
+        module.shadow_save(
+            kind=kind,
+            source_path=source_path,
+            delta=None,
+            reference_path=reference_path,
+        )
+    except Exception as exc:
+        # Shadow mode must never change the active LibreOffice save result.
+        logging.getLogger("vnoffice.ooxml_engine").info(
+            "event=shadow_engine_error kind=%s error=%s", kind, type(exc).__name__
+        )
 
 
 class _LazyLocalModuleProxy:
@@ -1725,6 +1745,11 @@ def _ooxml_encryption():
 
 
 def _is_encrypted_package(file_path: str) -> bool:
+    # Legacy binary Office files also use the CFB signature, but they are not
+    # password-encrypted OOXML packages. Leave their password handling to the
+    # document engine instead of asking the OOXML decryptor for a password.
+    if Path(file_path).suffix.lower() in {".doc", ".xls", ".ppt"}:
+        return False
     try:
         with open(file_path, "rb") as source:
             return _ooxml_encryption().is_encrypted_package(source.read(8))
@@ -1742,22 +1767,35 @@ def _encrypt_ooxml_output(source_path: str, target_format: str, password: str | 
             encrypted = encryptor.encrypt_package(source.read(), password)
     except encryptor.OfficeEncryptionError as exc:
         raise DocumentEngineError("Không thể mã hóa gói OOXML. Tệp đích chưa bị thay đổi.") from exc
-    fd, encrypted_path = tempfile.mkstemp(
-        prefix="vnoffice_encrypted_", suffix=f".{target_format}", dir=os.path.dirname(source_path)
-    )
+    fd = None
+    encrypted_path = None
     try:
+        fd, encrypted_path = tempfile.mkstemp(
+            prefix="vnoffice_encrypted_", suffix=f".{target_format}", dir=os.path.dirname(source_path)
+        )
         with os.fdopen(fd, "wb") as output:
+            fd = None
             output.write(encrypted)
             output.flush()
             os.fsync(output.fileno())
-        os.remove(source_path)
-        return encrypted_path
-    except BaseException:
-        try:
-            os.unlink(encrypted_path)
-        except OSError:
-            pass
+        _atomic_replace_file(encrypted_path, source_path)
+        encrypted_path = None
+        return source_path
+    except DocumentEngineError:
         raise
+    except Exception as exc:
+        raise DocumentEngineError("Không thể hoàn tất việc mã hóa tệp. Tệp nguồn chưa bị thay đổi.") from exc
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        if encrypted_path:
+            try:
+                os.unlink(encrypted_path)
+            except OSError:
+                pass
 
 
 def _sheet_xlsx_preview():
@@ -5456,6 +5494,8 @@ class VnOfficeApi:
                 if self._document_password and target_format not in {"docx", "xlsx", "pptx"}:
                     raise DocumentEngineError("Hãy xóa mật khẩu trước khi lưu sang định dạng không hỗ trợ mã hóa.")
                 out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
+                if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
+                    _run_ooxml_shadow(target_format, source_path, out_path)
                 stage_started = time.perf_counter()
                 _atomic_replace_file(out_path, target_path)
                 if audit_timings is not None:
@@ -5562,6 +5602,8 @@ class VnOfficeApi:
                     if self._document_password and target_format not in {"docx", "xlsx", "pptx"}:
                         raise DocumentEngineError("Hãy xóa mật khẩu trước khi lưu sang định dạng không hỗ trợ mã hóa.")
                     out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
+                    if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
+                        _run_ooxml_shadow(target_format, source_path, out_path)
                 _atomic_replace_file(out_path, dest_path)
                 _verify_saved_file(dest_path)
         except DocumentEngineError as exc:
@@ -6120,6 +6162,8 @@ def main(argv: list[str] | None = None):
             gui=cdp_webview_gui,
             debug=os.environ.get("VNO_PERF_DEBUG") == "1",
             icon=app_icon,
+            storage_path=str(_user_data_dir() / "webview-storage"),
+            private_mode=False,
         )
     except SystemExit:
         pass

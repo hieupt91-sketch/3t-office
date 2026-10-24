@@ -123,7 +123,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.style.gallery", category: "format", label: "Thư viện kiểu", icon: "styleGallery", tooltip: "Mở thư viện kiểu định dạng trực quan (Styles Gallery)" },
   { id: "writer.styles.pane", category: "format", label: "Ngăn Kiểu", shortcut: "Ctrl+Alt+Shift+S", icon: "styleGallery", tooltip: "Mở hoặc đóng ngăn Kiểu (Ctrl+Alt+Shift+S)" },
   { id: "writer.styles.create", category: "format", label: "Tạo kiểu mới", tooltip: "Tạo kiểu đoạn văn từ vùng chọn hiện tại" },
-  { id: "writer.design.themeGallery", category: "format", label: "Chủ đề văn bản", icon: "themeGallery", tooltip: "Mở thư viện chủ đề định dạng tài liệu (Document Themes)" },
+  { id: "writer.design.themeGallery", category: "format", label: "Chủ đề tài liệu", icon: "themeGallery", tooltip: "Chọn phối màu và phông chữ cho nội dung tài liệu; không đổi giao diện ứng dụng" },
   { id: "writer.color.text", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu phông chữ" },
   { id: "writer.color.highlight", category: "format", label: "Màu nền chữ", shortcut: "Ctrl+Alt+H", icon: "colorHighlight", tooltip: "Tô màu nền văn bản (Ctrl+Alt+H)" },
   { id: "writer.format.textEffects", category: "format", label: "Hiệu ứng chữ", icon: "textEffects", tooltip: "Thêm hiệu ứng viền chữ, bóng đổ và phát sáng (Text Effects)" },

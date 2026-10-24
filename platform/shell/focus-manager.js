@@ -17,6 +17,24 @@
 let _capturedFocusTarget = null;
 let _capturedRange = null;
 let _globalFocusGuardInstalled = false;
+let _pendingKeyboardRibbonInvoker = null;
+let _dialogKeyboardRibbonInvoker = null;
+
+export function setKeyboardRibbonInvoker(element) {
+  _pendingKeyboardRibbonInvoker = element?.isConnected ? element : null;
+  _dialogKeyboardRibbonInvoker = null;
+}
+
+export function getDialogKeyboardRibbonInvoker() {
+  if (_dialogKeyboardRibbonInvoker?.isConnected) return _dialogKeyboardRibbonInvoker;
+  _dialogKeyboardRibbonInvoker = null;
+  return null;
+}
+
+export function clearKeyboardRibbonInvoker() {
+  _pendingKeyboardRibbonInvoker = null;
+  _dialogKeyboardRibbonInvoker = null;
+}
 
 /**
  * Danh sách selector nhận diện tất cả hộp thoại, modal, backstage và overlays trong 3T Office
@@ -166,6 +184,8 @@ export function restoreEditorFocus(options = {}) {
   if (!options.force && hasOpenDialog()) return false;
 
   const currentActive = document.activeElement;
+  const keyboardInvoker = getDialogKeyboardRibbonInvoker();
+  if (keyboardInvoker && currentActive === keyboardInvoker) return true;
   const isOutsideControl = currentActive && (
     currentActive.tagName === "BUTTON" ||
     currentActive.matches?.(".vno-ribbon-tab, .vno-btn, select, [role='tab'], [role='menuitem'], [data-command-id]")
@@ -375,13 +395,27 @@ export function installGlobalFocusGuard() {
     const isDialogNode = (n) => n && n.nodeType === 1 && (
       n.matches?.(DIALOG_SELECTORS) || n.querySelector?.(DIALOG_SELECTORS)
     );
+    let focusReturnSelector = null;
 
     const observer = new MutationObserver((mutations) => {
       let dialogChanged = false;
       for (const m of mutations) {
         if (m.type === "childList") {
+          for (const node of m.addedNodes) {
+            if (isDialogNode(node)) {
+              if (_pendingKeyboardRibbonInvoker?.isConnected) {
+                _dialogKeyboardRibbonInvoker = _pendingKeyboardRibbonInvoker;
+                _pendingKeyboardRibbonInvoker = null;
+              }
+              dialogChanged = true;
+              break;
+            }
+          }
+          if (dialogChanged) break;
           for (const node of m.removedNodes) {
             if (isDialogNode(node)) {
+              const focusReturn = node.matches?.("[data-focus-return]") ? node : node.querySelector?.("[data-focus-return]");
+              if (focusReturn) focusReturnSelector = focusReturn.getAttribute("data-focus-return") || null;
               dialogChanged = true;
               break;
             }
@@ -397,7 +431,24 @@ export function installGlobalFocusGuard() {
       if (dialogChanged) {
         setTimeout(() => {
           if (!hasOpenDialog()) {
-            restoreEditorFocus();
+            if (focusReturnSelector) {
+              const target = document.querySelector(focusReturnSelector);
+              focusReturnSelector = null;
+              if (target) {
+                target.focus();
+                return;
+              }
+            }
+            const invoker = getDialogKeyboardRibbonInvoker();
+            if (invoker) {
+              invoker.focus();
+              setTimeout(() => {
+                if (_dialogKeyboardRibbonInvoker === invoker) clearKeyboardRibbonInvoker();
+              }, 750);
+            } else {
+              _pendingKeyboardRibbonInvoker = null;
+              restoreEditorFocus();
+            }
           }
         }, 0);
       }
@@ -434,7 +485,8 @@ export function installGlobalFocusGuard() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       const active = document.activeElement;
-      if (active && (active.tagName === "BUTTON" || active.matches?.(".vno-ribbon-tab, [role='tab'], [role='menuitem']"))) {
+      const isRibbonControl = active?.closest?.(".vno-ribbon");
+      if (!isRibbonControl && active && (active.tagName === "BUTTON" || active.matches?.(".vno-ribbon-tab, [role='tab'], [role='menuitem']"))) {
         if (!hasOpenDialog()) {
           event.preventDefault();
           event.stopPropagation();

@@ -398,6 +398,14 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "links",
+        label: "Liên kết",
+        labelKey: "slidesRibbon.group.links",
+        items: [
+          { type: "button", commandId: "slides.insert.hyperlink", isLarge: true, ariaLabelKey: "slidesRibbon.hyperlinkShortcut" }
+        ]
+      },
+      {
         id: "symbols",
         label: "Ký hiệu",
         labelKey: "slidesRibbon.group.symbols",

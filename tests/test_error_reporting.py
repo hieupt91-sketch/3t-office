@@ -350,7 +350,7 @@ class ErrorReportingTests(unittest.TestCase):
         import main
 
         expected = {
-            "open_document_dialog": ["app_kind"],
+            "open_document_dialog": ["app_kind", "source_path", "password"],
             "save_document_in_place": ["content", "app_kind", "target_path", "source_path"],
             "save_document_dialog": ["content", "app_kind", "target_format", "suggested_name", "source_path"],
             "export_pdf_dialog": ["content", "app_kind", "suggested_name", "source_path"],

@@ -6680,18 +6680,24 @@ ${pristineXlsxMarker}${docPropsMarker}
    * Luôn mở hộp thoại lưu native của hệ điều hành, cho phép chọn thư mục, đổi tên
    * hoặc chọn định dạng xuất (.xlsx, .xls, .ods, .csv).
    */
-  async saveAs() {
+  async saveAs(targetFormatOverride = null) {
     if (this._guardQuickViewReadOnly()) return false;
     if (this.grid?.calculationMode === "manual" && this.grid?.calculateBeforeSave !== false) {
       this.grid?.recalculateAll?.();
     }
     const fodsContent = this.serializeToFods();
     const currentName = this.sourceFileName || "BangTinh";
-    const suggestedName = this.sourceFilePath
+    const originalSuggestedName = this.sourceFilePath
       ? this.sourceFilePath.split(/[/\\]/).pop()
       : (this.shell?.documentName ? this.shell.documentName : (currentName !== "BangTinh" ? currentName : "BangTinh.xlsx"));
 
-    const targetFormat = this.sourceFilePath ? (this.sourceFilePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "xlsx") : "xlsx";
+    const requestedFormat = String(targetFormatOverride || "").toLowerCase();
+    const targetFormat = ["xlsx", "xls", "ods", "csv"].includes(requestedFormat)
+      ? requestedFormat
+      : (this.sourceFilePath ? (this.sourceFilePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "xlsx") : "xlsx");
+    const suggestedName = requestedFormat
+      ? `${String(originalSuggestedName || currentName).replace(/\.[^/.]+$/, "")}.${targetFormat}`
+      : originalSuggestedName;
 
     const result = await globalUnoBridge.saveRealFile(
       "sheet",
@@ -6890,6 +6896,24 @@ ${pristineXlsxMarker}${docPropsMarker}
         }
       } else {
         this.shell?.clearNotification?.();
+      }
+      if (/\.xls$/i.test(String(this.sourceFilePath || "")) && this.shell?.showNotification) {
+        const legacyWarning = t("legacyFileFormat.xlsWarning");
+        this.shell.showNotification({
+          type: "warning",
+          message: this.isFinal
+            ? `${t("sheetDocumentProperties.finalBanner", "Sổ làm việc đã được đánh dấu là cuối cùng để ngăn chỉnh sửa vô ý.")} ${legacyWarning}`
+            : legacyWarning,
+          action: {
+            label: t("legacyFileFormat.saveXlsx"),
+            onClick: () => this.saveAs("xlsx")
+          },
+          actions: this.isFinal ? [{
+            label: t("sheetDocumentProperties.editAnyway"),
+            onClick: () => this.unmarkFinal()
+          }] : [],
+          dismissible: !this.isFinal
+        });
       }
       const quickView = typeof window !== "undefined" ? window.__vnoSheetQuickViewController : null;
       quickView?.applyPendingEditsToGrid?.(this.grid);

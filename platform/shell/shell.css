@@ -299,6 +299,22 @@ body {
   outline: 2px solid var(--vno-border-focus);
   outline-offset: 1px;
 }
+.vno-theme-customize-btn {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--vno-text-primary);
+  background: var(--vno-bg-subtle);
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+  cursor: pointer;
+}
+.vno-theme-customize-btn:hover { background: var(--vno-bg-hover); border-color: var(--vno-border-strong); }
+.vno-theme-customize-btn:focus-visible { outline: 2px solid var(--vno-border-focus); outline-offset: 2px; }
+.vno-theme-customize-btn[aria-expanded="true"] { background: var(--vno-bg-active); }
 .vno-lang-menu {
   position: absolute;
   top: 36px;

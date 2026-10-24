@@ -914,10 +914,10 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["writer.design.themeGallery"],
     title: "Chủ đề văn bản",
     summary: "Sáu bộ chủ đề đổi đồng loạt phông, màu tiêu đề và giãn dòng cho cả tài liệu. Mặc định Tiêu chuẩn (Office) — Times New Roman. Có bộ Hành chính Việt Nam (NĐ 30).",
-    ribbon: { tab: "Thiết kế", tabId: "design", group: "Định dạng tài liệu" },
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Giao diện tài liệu" },
     keywords: ["chủ đề", "theme", "nđ 30", "hành chính", "office", "be vietnam pro", "georgia", "thiết kế", "design", "kiểu dáng", "style set", "document formatting"],
     steps: [
-      "Tab Thiết kế, nhóm Định dạng tài liệu, nhấn nút lớn Chủ đề văn bản.",
+      "Tab Thiết kế, nhóm Giao diện tài liệu, nhấn nút lớn Chủ đề văn bản.",
       "Hộp «Thư viện Kiểu & Chủ đề tài liệu»: chọn bộ rồi Áp dụng kiểu. Sáu mẫu — Tiêu chuẩn (Office, Times New Roman), Hành chính Việt Nam (NĐ 30, TNR chữ đen), Hiện đại (Be Vietnam Pro), Trang nhã (Georgia), Tối giản (Arial), Sáng tạo Emerald (Calibri).",
       "Nhấn Áp dụng để đổi phông, màu và giãn dòng trên toàn bộ tài liệu. Tùy chọn này không có các biến thể chủ đề. Kiểm tra bố cục sau khi áp dụng; nhấn Ctrl+Z nếu muốn trở về cách trình bày trước đó.",
       "Esc / Hủy bỏ đóng không đổi. Ctrl+Z hoàn tác lần áp chủ đề."
@@ -1183,6 +1183,20 @@ export const WRITER_HELP_ENTRIES = [
       "Cách 2: Nhấn vào tab màu xanh «Tệp» ở góc trên cùng bên trái thanh công cụ để mở Backstage Menu, sau đó chọn mục «Mở tệp».",
       "Hộp thoại chọn tệp của hệ điều hành sẽ xuất hiện. Duyệt đến thư mục chứa tệp văn bản .docx (.docx, .doc, .odt, .rtf) cần mở, chọn tệp rồi nhấn Open.",
       "Hệ thống tự động chuyển đổi và hiển thị văn bản lên khổ giấy A4 chuẩn Nghị định 30/2020/NĐ-CP (lề trái 30 mm, lề phải 15 mm). Toàn bộ bảng biểu, tiêu đề căn giữa, định dạng phông chữ Times New Roman và tiêu đề tệp trên thanh tab được cập nhật tự động."
+    ]
+  },
+  {
+    id: "writer.file.legacyFormatWarning",
+    app: "writer",
+    commandIds: ["common.file.open"],
+    title: "Cảnh báo khi mở tệp .doc",
+    summary: "Tệp .doc có thể thay đổi một số định dạng khi lưu. Thanh cảnh báo xuất hiện sau khi mở tệp và cho phép tạo bản .docx.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
+    keywords: ["doc", "docx", "định dạng cũ", "cảnh báo", "lưu thành", "chuyển đổi", "tệp cũ"],
+    steps: [
+      "Mở tab Tệp, nhóm Tài liệu, chọn Mở tệp rồi chọn tệp có đuôi .doc.",
+      "Sau khi tài liệu nạp xong, đọc thanh cảnh báo phía trên vùng soạn thảo. Cảnh báo cho biết một số định dạng có thể thay đổi khi lưu.",
+      "Chọn Lưu thành .docx trên thanh cảnh báo, chọn thư mục và tên tệp trong hộp thoại lưu, rồi xác nhận. Bản .docx mới được tạo theo định dạng hiện hành."
     ]
   },
   {

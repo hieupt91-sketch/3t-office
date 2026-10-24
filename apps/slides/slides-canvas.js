@@ -10683,12 +10683,38 @@ const startEditing = (initialText) => {
           <div class="vno-dialog-body">
             <p class="vno-diagram-hint" style="color:var(--vno-text-secondary, #475569);">${t("slidesDialogs.diagramHint")}</p>
             <div class="vno-diagram-type-grid" role="radiogroup" aria-labelledby="vno-diagram-title">${types.map(([id, key, preview], index) => `<button type="button" role="radio" class="vno-diagram-type ${index === 0 ? "is-selected" : ""}" data-diagram-type="${id}" aria-checked="${index === 0}" aria-pressed="${index === 0}" tabindex="${index === 0 ? "0" : "-1"}"><span class="vno-diagram-type-preview" aria-hidden="true">${preview.replace(/\n/g, "<br>")}</span><strong>${t(`slidesDialogs.${key}`)}</strong></button>`).join("")}</div>
-            <label class="vno-diagram-count" for="vno-diagram-count">${t("slidesDialogs.diagramNodeCount")}<input id="vno-diagram-count" aria-label="${t("slidesDialogs.diagramNodeCount")}" type="number" min="3" max="6" value="4" /></label>
+            <label class="vno-diagram-count" for="vno-diagram-count">${t("slidesDialogs.diagramNodeCount")}<input id="vno-diagram-count" aria-label="${t("slidesDialogs.diagramNodeCount")}" type="number" min="3" max="6" step="1" required value="4" /></label>
+            <p id="vno-diagram-count-error" class="vno-rule-error" role="alert" aria-live="polite" hidden></p>
           </div>
           <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-diagram-cancel">${t("slidesDialogs.cancel")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-diagram-insert">${t("slidesDialogs.diagramInsert")}</button></div>
         </div>`;
       document.body.appendChild(overlay);
       const dialogBox = overlay.querySelector(".vno-dialog-box");
+      const countInput = overlay.querySelector("#vno-diagram-count");
+      const countError = overlay.querySelector("#vno-diagram-count-error");
+      const insertButton = overlay.querySelector("#vno-diagram-insert");
+      const syncCountValidity = () => {
+        const rawCount = String(countInput.value ?? "4").trim();
+        const numericCount = Number(rawCount);
+        const nativeValid = typeof countInput.checkValidity === "function"
+          ? countInput.checkValidity()
+          : countInput.validity ? countInput.validity.valid : true;
+        const valid = rawCount !== "" && Number.isInteger(numericCount) && numericCount >= 3 && numericCount <= 6 && nativeValid;
+        insertButton.disabled = !valid;
+        insertButton.setAttribute("aria-disabled", String(!valid));
+        insertButton.setAttribute("aria-describedby", countError.id);
+        countInput.setAttribute("aria-invalid", String(!valid));
+        countError.textContent = valid ? "" : t("slidesDialogs.diagram.countError", "Vui lòng nhập số nguyên từ 3 đến 6.");
+        countError.hidden = valid;
+        return valid;
+      };
+      const commitDiagram = () => {
+        if (!syncCountValidity()) return false;
+        close(!!this.insertDiagram(selectedType, Number(countInput.value)));
+        return true;
+      };
+      countInput.addEventListener("input", syncCountValidity);
+      syncCountValidity();
       let selectedType = "process";
       const cards = overlay.querySelectorAll(".vno-diagram-type");
       const selectCard = (card) => {
@@ -10737,8 +10763,7 @@ const startEditing = (initialText) => {
           close(false);
         } else if (e.key === "Enter" && e.target?.id !== "vno-diagram-cancel") {
           e.preventDefault();
-          const count = overlay.querySelector("#vno-diagram-count")?.value || 4;
-          close(!!this.insertDiagram(selectedType, count));
+          commitDiagram();
         } else if (e.key === "Tab") {
           trapFocus(dialogBox, e);
         }
@@ -10747,10 +10772,7 @@ const startEditing = (initialText) => {
       overlay.addEventListener("click", e => { if (e.target === overlay) close(false); });
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
       overlay.querySelector("#vno-diagram-cancel")?.addEventListener("click", () => close(false));
-      overlay.querySelector("#vno-diagram-insert")?.addEventListener("click", () => {
-        const count = overlay.querySelector("#vno-diagram-count")?.value || 4;
-        close(!!this.insertDiagram(selectedType, count));
-      });
+      overlay.querySelector("#vno-diagram-insert")?.addEventListener("click", commitDiagram);
       const activeCard = overlay.querySelector(".vno-diagram-type.is-selected") || overlay.querySelector(".vno-diagram-type");
       activeCard?.focus?.();
     });
@@ -11504,6 +11526,12 @@ const startEditing = (initialText) => {
     const idx = startIndex !== undefined ? startIndex : this.currentSlideIndex;
     let currentShowIdx = this._resolveShowStartIndex(idx);
     let autoAdvanceTimer = null;
+    let controlsHideTimer = null;
+    let showNumberBuffer = "";
+    let showNumberTimer = null;
+    let showControlsEl = null;
+    let showCounterEl = null;
+    let revealShowControls = () => {};
 
     const overlay = document.createElement("div");
     overlay.className = "vno-slideshow-overlay";
@@ -11683,6 +11711,7 @@ const startEditing = (initialText) => {
           <span>${t("slidesDialogs.slideshowHint")}</span>
         </div>
       `;
+      if (showCounterEl) showCounterEl.textContent = t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length });
 
       inkOverlayEl = makeSvgEl("svg");
       if (typeof inkOverlayEl.setAttribute === "function") inkOverlayEl.setAttribute("class", "vno-slideshow-ink-overlay"); else inkOverlayEl.className = "vno-slideshow-ink-overlay";
@@ -11750,6 +11779,8 @@ const startEditing = (initialText) => {
       } else {
         overlay.style.cursor = "default";
         if (laserDotEl) laserDotEl.style.display = "none";
+        if (showControlsEl?.classList?.contains?.("is-visible")) overlay.classList?.remove?.("vno-slideshow-cursor-idle");
+        else overlay.classList?.add?.("vno-slideshow-cursor-idle");
       }
       if (contextMenuEl) closeContextMenu();
     };
@@ -11788,6 +11819,7 @@ const startEditing = (initialText) => {
         currentStroke.d += ` L ${pt.x} ${pt.y}`;
         activePathEl.setAttribute?.("d", currentStroke.d);
       }
+      if (showControlsEl && !showControlsEl.contains(e.target)) revealShowControls();
     };
 
     const onPointerDown = (e) => {
@@ -12019,6 +12051,8 @@ const startEditing = (initialText) => {
 
       const finishClose = () => {
         if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+        if (controlsHideTimer) { clearTimeout(controlsHideTimer); controlsHideTimer = null; }
+        if (showNumberTimer) { clearTimeout(showNumberTimer); showNumberTimer = null; }
         if (rehearsing && discardRehearsal) {
           if (rehearseInterval) clearInterval(rehearseInterval);
         } else {
@@ -12152,6 +12186,14 @@ const startEditing = (initialText) => {
       }
       if (e.altKey) return;
       const k = e.key;
+      if (/^\d$/.test(k)) {
+        e.preventDefault?.();
+        showNumberBuffer = `${showNumberBuffer}${k}`.slice(-3);
+        if (showNumberTimer) clearTimeout(showNumberTimer);
+        showNumberTimer = setTimeout(() => { showNumberBuffer = ""; showNumberTimer = null; }, 2000);
+        revealShowControls();
+        return;
+      }
       if (k === "e" || k === "E") {
         e.preventDefault?.();
         eraseInkOnCurrentSlide();
@@ -12164,6 +12206,15 @@ const startEditing = (initialText) => {
           return;
         }
         closeShow();
+      } else if (k === "Enter" && showNumberBuffer) {
+        e.preventDefault?.();
+        const requested = Number(showNumberBuffer);
+        showNumberBuffer = "";
+        if (showNumberTimer) { clearTimeout(showNumberTimer); showNumberTimer = null; }
+        if (requested >= 1 && requested <= this.slides.length) {
+          const target = this._findVisibleSlideIndex(requested - 1, 1);
+          if (target >= 0) goToSlide(target);
+        }
       } else if (k === " " || k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === "Enter" || k === "n" || k === "N") {
         e.preventDefault?.();
         advanceShow();
@@ -12183,6 +12234,53 @@ const startEditing = (initialText) => {
       }
     };
 
+    showControlsEl = document.createElement("div");
+    showControlsEl.className = "vno-slideshow-controls";
+    if (showControlsEl.dataset) showControlsEl.dataset.visible = "false";
+    showControlsEl.setAttribute?.("role", "toolbar");
+    showControlsEl.setAttribute?.("aria-label", t("slidesDialogs.showControls", "Điều khiển trình chiếu"));
+    showControlsEl.innerHTML = `
+      <button type="button" data-show-control="previous" title="${this._escapeHtml(t("slidesDialogs.showPrevious", "Trang trước (←)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showPrevious", "Trang trước (←)"))}">◀</button>
+      <span class="vno-slideshow-control-counter" role="status" aria-live="polite"></span>
+      <button type="button" data-show-control="next" title="${this._escapeHtml(t("slidesDialogs.showNext", "Trang tiếp (Space hoặc →)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showNext", "Trang tiếp (Space hoặc →)"))}">▶</button>
+      <button type="button" data-show-control="pen" title="${this._escapeHtml(t("slidesDialogs.showPen", "Bút vẽ (Ctrl+P)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showPen", "Bút vẽ (Ctrl+P)"))}">${this._escapeHtml(t("slidesDialogs.showPenShort", "Bút"))}</button>
+      <button type="button" data-show-control="laser" title="${this._escapeHtml(t("slidesDialogs.showLaser", "Con trỏ laser (Ctrl+L)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showLaser", "Con trỏ laser (Ctrl+L)"))}">${this._escapeHtml(t("slidesDialogs.showLaserShort", "Laser"))}</button>
+      <button type="button" data-show-control="exit" title="${this._escapeHtml(t("slidesDialogs.showExit", "Kết thúc (Esc)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showExit", "Kết thúc (Esc)"))}">${this._escapeHtml(t("slidesDialogs.showExitShort", "Kết thúc"))}</button>`;
+    showCounterEl = showControlsEl.querySelector?.(".vno-slideshow-control-counter") || null;
+    if (showCounterEl) showCounterEl.textContent = t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length });
+    showControlsEl.addEventListener("click", (event) => {
+      const control = event.target?.closest?.("[data-show-control]");
+      if (!control) return;
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      event.stopImmediatePropagation?.();
+      const action = control.dataset.showControl;
+      if (action === "previous") rewindShow();
+      else if (action === "next") advanceShow();
+      else if (action === "pen") setPointerMode("pen");
+      else if (action === "laser") setPointerMode("laser");
+      else if (action === "exit") closeShow();
+    });
+    overlay.appendChild(showControlsEl);
+    const hideShowControls = () => {
+      showControlsEl.classList?.remove?.("is-visible");
+      if (showControlsEl.dataset) showControlsEl.dataset.visible = "false";
+      overlay.classList?.remove?.("vno-slideshow-controls-visible");
+      if (pointerMode === "arrow") overlay.classList?.add?.("vno-slideshow-cursor-idle");
+      controlsHideTimer = null;
+    };
+    revealShowControls = () => {
+      if (!showControlsEl) return;
+      showControlsEl.classList?.add?.("is-visible");
+      if (showControlsEl.dataset) showControlsEl.dataset.visible = "true";
+      overlay.classList?.add?.("vno-slideshow-controls-visible");
+      overlay.classList?.remove?.("vno-slideshow-cursor-idle");
+      if (controlsHideTimer) clearTimeout(controlsHideTimer);
+      controlsHideTimer = setTimeout(hideShowControls, 2000);
+    };
+    showControlsEl.addEventListener("focusin", revealShowControls);
+    overlay.classList?.add?.("vno-slideshow-cursor-idle");
+
     const previousShortcutScope = globalShortcutManager.getActiveScope?.() ?? "slides";
     globalShortcutManager.setActiveScope?.("slides-show");
     const keyTarget = typeof window !== "undefined" && window.addEventListener
@@ -12193,7 +12291,7 @@ const startEditing = (initialText) => {
     this._activeShowCleanup?.();
     this._activeShowCleanup = cleanupShow;
     overlay.addEventListener?.("click", (e) => {
-      if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box, .vno-slideshow-context-menu, .vno-ink-dialog")) return;
+      if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box, .vno-slideshow-context-menu, .vno-slideshow-controls, .vno-ink-dialog")) return;
       if (pointerMode !== "arrow") return;
       // Kích hoạt: bấm vào hình nào thì chạy hiệu ứng gắn với hình đó (và không chuyển trang).
       const hitIds = new Set();
