@@ -54,6 +54,25 @@ final class P1WorksheetFeatureTests: XCTestCase {
         )
     }
 
+    func testViewAndPrintOptionsRoundTrip() throws {
+        let original = try Fixtures.data("xlsx/rich-excel.xlsx")
+        let workbook = try Workbook(data: original)
+        let sheet = try workbook.worksheet(named: "Dữ liệu")
+        try sheet.setViewOptions(WorksheetViewOptions(showGridLines: false, showRowColumnHeaders: true, zoomScale: 85))
+        try sheet.setPrintOptions(WorksheetPrintOptions(gridLines: true, headings: true, horizontalCentered: true))
+        let saved = try workbook.save()
+        let xml = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(xml.contains("showGridLines=\"0\""), xml)
+        XCTAssertTrue(xml.contains("showRowColHeaders=\"1\""), xml)
+        XCTAssertTrue(xml.contains("zoomScale=\"85\""), xml)
+        XCTAssertTrue(xml.contains("<printOptions gridLines=\"1\""), xml)
+        XCTAssertTrue(xml.contains("headings=\"1\""), xml)
+        XCTAssertTrue(xml.contains("horizontalCentered=\"1\""), xml)
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["xl/worksheets/sheet1.xml"],
+                             requireChanged: ["xl/worksheets/sheet1.xml"], name: "xlsx-p1-view-print.xlsx")
+    }
+
     func testConditionalFormattingAndValidationRoundTrip() throws {
         let original = try Fixtures.data("xlsx/rich-excel.xlsx")
         let workbook = try Workbook(data: original)

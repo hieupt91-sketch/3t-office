@@ -123,6 +123,33 @@ public struct SheetProtectionOptions: Equatable, Sendable {
     }
 }
 
+public struct WorksheetViewOptions: Equatable, Sendable {
+    public let showGridLines: Bool
+    public let showRowColumnHeaders: Bool
+    public let zoomScale: Int?
+
+    public init(showGridLines: Bool, showRowColumnHeaders: Bool, zoomScale: Int? = nil) {
+        self.showGridLines = showGridLines
+        self.showRowColumnHeaders = showRowColumnHeaders
+        self.zoomScale = zoomScale
+    }
+}
+
+public struct WorksheetPrintOptions: Equatable, Sendable {
+    public let gridLines: Bool
+    public let headings: Bool
+    public let horizontalCentered: Bool
+    public let verticalCentered: Bool
+
+    public init(gridLines: Bool = false, headings: Bool = false,
+                horizontalCentered: Bool = false, verticalCentered: Bool = false) {
+        self.gridLines = gridLines
+        self.headings = headings
+        self.horizontalCentered = horizontalCentered
+        self.verticalCentered = verticalCentered
+    }
+}
+
 public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
     case notASpreadsheet
     case sheetNotFound(String)
@@ -376,6 +403,34 @@ public final class Worksheet {
               !view.children(NS.s, "pane").isEmpty else { return }
         for element in view.children(NS.s, "pane") { element.removeFromParent() }
         for element in view.children(NS.s, "selection") { element.removeFromParent() }
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt tùy chọn hiển thị lưới, tiêu đề hàng/cột và mức thu phóng của sheet.
+    public func setViewOptions(_ options: WorksheetViewOptions) throws {
+        if let zoom = options.zoomScale, !(10...400).contains(zoom) {
+            throw SpreadsheetError.invalidSetting("mức thu phóng phải từ 10 đến 400 phần trăm")
+        }
+        let view = sheetViewElement()
+        view.setAttribute("showGridLines", options.showGridLines ? "1" : "0")
+        view.setAttribute("showRowColHeaders", options.showRowColumnHeaders ? "1" : "0")
+        if let zoom = options.zoomScale { view.setAttribute("zoomScale", String(zoom)) }
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt tùy chọn in đường lưới, tiêu đề hàng/cột và căn giữa trang.
+    public func setPrintOptions(_ options: WorksheetPrintOptions) throws {
+        let element = document.root.firstChild(NS.s, "printOptions") ?? {
+            let node = XElement(name: q("printOptions"))
+            document.root.insertChild(node, schemaOrder: Worksheet.worksheetOrder)
+            return node
+        }()
+        element.setAttribute("gridLines", options.gridLines ? "1" : "0")
+        element.setAttribute("gridLinesSet", "1")
+        element.setAttribute("headings", options.headings ? "1" : "0")
+        element.setAttribute("headingsSet", "1")
+        element.setAttribute("horizontalCentered", options.horizontalCentered ? "1" : "0")
+        element.setAttribute("verticalCentered", options.verticalCentered ? "1" : "0")
         workbook.package.markModified(part)
     }
 
