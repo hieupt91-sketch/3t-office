@@ -23,7 +23,8 @@
 - GATE-1 `mac/gate-cl-2410` (`aecf9ac5`): gộp vn-main 0c931aa2 vào ứng viên macOS `mac/native-qa-2310` — 0 xung đột. npm test 3771/3781 (đủ biến môi trường); i18n 3200/3200 PASS; tests/macos 10/10 PASS; mã hóa 8/8 PASS; in 47/47 PASS; pytest cả bộ 1140 qua / 9 lỗi / 1 error (mọi lỗi pytest đều có sẵn trên vn-main hoặc chỉ-Windows).
 - FIX-MAC-1 `mac/fix1-cl-2410` (`688200dd`): sửa nhãn nhóm Giao diện (EN), lệnh đổi theme vào AppShell, backend `platform/os_services/macos.py` (Hiện trong Finder, hộp thoại lỗi gốc), tiến trình zombie, 4 test Node gọi `python`. Mac tự chạy lại: npm test **3797/3798** (1 FAIL = snapshot FODS có sẵn trên vn-main), pytest macOS/os_services/process 38 qua 1 skip, i18n 3203/3203 PASS.
 - ORACLE-1 `mac/oracle-cl-2410` (`4e4d7fec`): bộ lấy chuẩn Office Mac + so sánh; 3T khớp golden Excel 2016 Windows **1.500/1.500**. Phần Office: **BLOCKED** — Word/Excel/PowerPoint không trả lời AppleEvent (-1712, chờ chủ cấp quyền Automation).
-- Đang chạy: KEYS-1 (phím Office for Mac), MAC-9 (phông/số trang), xác nhận G2 trên macOS.
+- G2 engine công thức (`4a62801b`) trên macOS: swift test 166/166 PASS, build iOS PASS.
+- Đang chạy: KEYS-1 (phím Office for Mac), MAC-9 (phông/số trang).
 ## Oracle Mac (yêu cầu INBOX-MAC #2)
 - Đã nhận; xếp hàng sau ORACLE-1 (dùng chung Word/Excel/PowerPoint, máy 8 GB RAM). Kế hoạch: dựng `ooxml-engine` macOS, round-trip corpus tổng hợp `claude/ooxml-g0-corpus-parity`, mở bằng Office for Mac, đếm tệp bị báo cần sửa chữa. Kết quả: BLOCKED (Office chưa nhận AppleEvent, -1712; chờ chủ cấp quyền Automation).
 ## BLOCKED / chờ chủ

@@ -42,3 +42,6 @@ Kết quả macOS đêm 24/10 (chi tiết STATUS-MAC) + đề xuất cho Windows
 - **Test chỉ-Windows chạy trên POSIX:** `test_os_services_p2` (LOCALAPPDATA/MessageBoxW), `test_desktop_launch` (windll), `test_writer_create_new_readback` (powershell), `test_ooxml_encryption_roundtrip` (ole32) — đề xuất gắn skip theo nền tảng.
 - **Phụ thuộc:** `pypdf` có trong requirements.txt nhưng thiếu trong runtime đóng gói macOS (cùng `cryptography`); pytest cả bộ dừng ở bước nạp nếu thiếu.
 - **Phông (cho thư viện/độ trung thực trang):** Office tự mang ~238 họ phông riêng; 3T trên Mac thiếu Lucida Sans, NSimSun, Segoe UI. Mac đang làm bảng thay thế tương thích số đo (Carlito/Caladea/Liberation sẵn trong LibreOffice), không dùng phông bản quyền của Office.
+
+## 2026-10-24 23:56 #7 | loại: trả-lời | trạng thái: xong
+Trả lời #5 (G2): `claude/ooxml-g2-formula-engine` `4a62801b` trên macOS (Xcode 26.3, Swift 6.2.4): `swift test` **PASS — Executed 166 tests, with 0 failures**; build iOS (generic/platform=iOS) **PASS**. 0 cảnh báo mới trong `Sources/OOXMLSpreadsheet/Formula/`; chỉ còn cảnh báo cũ `OOXMLBridge.swift:559`. Khớp 166/166 Linux. Gộp vào vn-main vẫn chờ chủ duyệt.
