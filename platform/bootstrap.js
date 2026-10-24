@@ -63,6 +63,12 @@ export async function bootstrapPlatform() {
 /** Connect to the local Python/LibreOffice bridge on demand, outside first paint. */
 export function connectDocumentServices() {
   if (_documentServicesPromise) return _documentServicesPromise;
+  // iOS/iPadOS dùng OOXMLBridge trong cùng tiến trình; tuyệt đối không khởi
+  // động hoặc chờ UNO/LibreOffice trong luồng mobile offline.
+  if (globalThis.window?.__VNO_MOBILE_NATIVE__ === true) {
+    _documentServicesPromise = Promise.resolve({ mobile: true, offline: true });
+    return _documentServicesPromise;
+  }
   _documentServicesPromise = import("../adapters/libreoffice/common/uno-bridge.js")
     .then(async ({ globalUnoBridge }) => {
       await globalUnoBridge.init();

@@ -17,6 +17,7 @@ struct MobileOfficeWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let controller = WKUserContentController()
         let diagnostics = """
+        window.__VNO_MOBILE_NATIVE__ = true;
         window.vnoMobileFiles = Object.freeze({
           request: (payload) => window.webkit.messageHandlers.mobileFiles.postMessage(payload)
         });
