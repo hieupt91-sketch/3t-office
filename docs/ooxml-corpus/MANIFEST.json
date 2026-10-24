@@ -1,0 +1,949 @@
+{
+ "categories": [
+  "table",
+  "image",
+  "chart",
+  "formula",
+  "style",
+  "comment",
+  "notes",
+  "unicode"
+ ],
+ "files": [
+  {
+   "bytes": 2541,
+   "edit": {
+    "expect_changed": [
+     "word/document.xml"
+    ],
+    "op": "doc.appendParagraph"
+   },
+   "features": {
+    "chart": true,
+    "comment": false,
+    "formula": true,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "docx",
+   "known_source_issues": [],
+   "label": "synthetic — KHÔNG phải do Microsoft Office thật tạo; viết tay theo mẫu đầu ra Office, chỉ để kiểm cấu trúc",
+   "notes": "",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "synthetic",
+   "parts": 6,
+   "path": "docs/ooxml-corpus/synthetic/docx/gap-chart-math-vi.docx",
+   "sha256": "3bac644414f5663ba632a847389141dd79b6bf391e9a1d0f9add6f0d584e879c"
+  },
+  {
+   "bytes": 15613,
+   "edit": {
+    "expect_changed": [
+     "word/document.xml"
+    ],
+    "op": "doc.appendParagraph"
+   },
+   "features": {
+    "chart": false,
+    "comment": true,
+    "formula": false,
+    "image": true,
+    "notes": true,
+    "style": true,
+    "table": true,
+    "unicode": true
+   },
+   "format": "docx",
+   "known_source_issues": [],
+   "label": "synthetic — KHÔNG phải do Microsoft Office thật tạo; viết tay theo mẫu đầu ra Office, chỉ để kiểm cấu trúc",
+   "notes": "",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "synthetic",
+   "parts": 26,
+   "path": "docs/ooxml-corpus/synthetic/docx/rich-word.docx",
+   "sha256": "bfcb09fbfdb0be292569c31b43612cd34e239941041f07bc8ecac14b1a7c5b34"
+  },
+  {
+   "bytes": 4092,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": true,
+    "comment": false,
+    "formula": true,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "synthetic — KHÔNG phải do Microsoft Office thật tạo; viết tay theo mẫu đầu ra Office, chỉ để kiểm cấu trúc",
+   "notes": "",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "synthetic",
+   "parts": 10,
+   "path": "docs/ooxml-corpus/synthetic/xlsx/gap-chart-vi.xlsx",
+   "sha256": "7135204ddc1f5742cb7036dcb135e531f5caaec268b7782a0a36b363f87bc9d0"
+  },
+  {
+   "bytes": 2014,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": false
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "synthetic — KHÔNG phải do Microsoft Office thật tạo; viết tay theo mẫu đầu ra Office, chỉ để kiểm cấu trúc",
+   "notes": "",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "synthetic",
+   "parts": 6,
+   "path": "docs/ooxml-corpus/synthetic/xlsx/implicit-refs.xlsx",
+   "sha256": "3224876129f02257285b482915b4ea2ab2f04e65f6cfc9a6d088610ba91037d8"
+  },
+  {
+   "bytes": 2145,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "synthetic — KHÔNG phải do Microsoft Office thật tạo; viết tay theo mẫu đầu ra Office, chỉ để kiểm cấu trúc",
+   "notes": "",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "synthetic",
+   "parts": 6,
+   "path": "docs/ooxml-corpus/synthetic/xlsx/office-quirks.xlsx",
+   "sha256": "b62ca59a37a1e48625ec236513780505b886bd6eec0f76991ffbc3f0d78ac7a8"
+  },
+  {
+   "bytes": 2033,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "synthetic — KHÔNG phải do Microsoft Office thật tạo; viết tay theo mẫu đầu ra Office, chỉ để kiểm cấu trúc",
+   "notes": "",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "synthetic",
+   "parts": 6,
+   "path": "docs/ooxml-corpus/synthetic/xlsx/prefixed-x.xlsx",
+   "sha256": "4a2a0112881afac2bb9c393ee966914127a156c2d28d4c7e5d55e9e15905e7cc"
+  },
+  {
+   "bytes": 13909,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": true,
+    "formula": true,
+    "image": true,
+    "notes": false,
+    "style": true,
+    "table": true,
+    "unicode": true
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "synthetic — KHÔNG phải do Microsoft Office thật tạo; viết tay theo mẫu đầu ra Office, chỉ để kiểm cấu trúc",
+   "notes": "",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "synthetic",
+   "parts": 25,
+   "path": "docs/ooxml-corpus/synthetic/xlsx/rich-excel.xlsx",
+   "sha256": "b068ee7cb95cc6d1032b6fd199e177c8ff483c650584a16e903d4404908a41be"
+  },
+  {
+   "bytes": 1962,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": false
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "synthetic — KHÔNG phải do Microsoft Office thật tạo; viết tay theo mẫu đầu ra Office, chỉ để kiểm cấu trúc",
+   "notes": "",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "synthetic",
+   "parts": 6,
+   "path": "docs/ooxml-corpus/synthetic/xlsx/strict.xlsx",
+   "sha256": "e30e95c69a21d8c52c0d446d0866e33e86ab0f5849357cf197cc4a2d4d7d0ee4"
+  },
+  {
+   "bytes": 22759,
+   "edit": {
+    "expect_changed": [
+     "ppt/notesSlides/*.xml",
+     "ppt/slides/*.xml",
+     "ppt/slides/_rels/*.rels",
+     "ppt/notesSlides/_rels/*.rels",
+     "[Content_Types].xml"
+    ],
+    "op": "slide.setNotes"
+   },
+   "features": {
+    "chart": true,
+    "comment": true,
+    "formula": false,
+    "image": true,
+    "notes": true,
+    "style": true,
+    "table": true,
+    "unicode": true
+   },
+   "format": "pptx",
+   "known_source_issues": [],
+   "label": "synthetic — KHÔNG phải do Microsoft Office thật tạo; viết tay theo mẫu đầu ra Office, chỉ để kiểm cấu trúc",
+   "notes": "",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "synthetic",
+   "parts": 33,
+   "path": "docs/ooxml-corpus/synthetic/pptx/rich-deck.pptx",
+   "sha256": "d73e27d178ed195b000346dfb205c2d5348a83452e8a02c7fd47efe1e1d6ae31"
+  },
+  {
+   "bytes": 9858,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": true,
+    "comment": false,
+    "formula": true,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 17,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-sheet-charts.xlsx",
+   "sha256": "d75bc42a6a55b18d788117c1ca663ca5c990a4a62bc3838f517ba9a681938444"
+  },
+  {
+   "bytes": 7215,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": true,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 11,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-sheet-formulas.xlsx",
+   "sha256": "ecb13a38525768d2ad0c4b2be5033ee681ee7e74704c670388093093b42b610f"
+  },
+  {
+   "bytes": 6599,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": false
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 12,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-sheet-hidden-autofilter.xlsx",
+   "sha256": "160b728f534f7541b0200035cccbad896d0a34ffecf22211cf4e38478181d619"
+  },
+  {
+   "bytes": 10757,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": true,
+    "unicode": true
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 19,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-sheet-pivot.xlsx",
+   "sha256": "36c9b6dd25065123fea2de43770edcbfb214ee74115fad083d05261bc4f19cbd"
+  },
+  {
+   "bytes": 6129,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 10,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-sheet-validation.xlsx",
+   "sha256": "cbf58de8c899c27bdad033ddbce66de85dd54eb6c9d44555230b9b33102aba4b"
+  },
+  {
+   "bytes": 6932,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": true,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 11,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-sheet.xlsx",
+   "sha256": "f27e69a1b6e06f4104b33f804eb23a34bf902a68738d45a23aa1b8f46fef82c3"
+  },
+  {
+   "bytes": 11340,
+   "edit": {
+    "expect_changed": [
+     "ppt/notesSlides/*.xml",
+     "ppt/slides/*.xml",
+     "ppt/slides/_rels/*.rels",
+     "ppt/notesSlides/_rels/*.rels",
+     "[Content_Types].xml"
+    ],
+    "op": "slide.setNotes"
+   },
+   "features": {
+    "chart": false,
+    "comment": true,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": false
+   },
+   "format": "pptx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 20,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-slides-comments.pptx",
+   "sha256": "97f48d906a12e67accc15bfd1f5fb5de4a9b8e2df737f0463388f9befa00af43"
+  },
+  {
+   "bytes": 17175,
+   "edit": {
+    "expect_changed": [
+     "ppt/notesSlides/*.xml",
+     "ppt/slides/*.xml",
+     "ppt/slides/_rels/*.rels",
+     "ppt/notesSlides/_rels/*.rels",
+     "[Content_Types].xml"
+    ],
+    "op": "slide.setNotes"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": true,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "pptx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 27,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-slides-notes.pptx",
+   "sha256": "d746556a28a05e699ea2a6cfe1a430141624bce6e88b4874b19e9f6d93626dcf"
+  },
+  {
+   "bytes": 14522,
+   "edit": {
+    "expect_changed": [
+     "ppt/notesSlides/*.xml",
+     "ppt/slides/*.xml",
+     "ppt/slides/_rels/*.rels",
+     "ppt/notesSlides/_rels/*.rels",
+     "[Content_Types].xml"
+    ],
+    "op": "slide.setNotes"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "pptx",
+   "known_source_issues": [
+    "ppt/slideMasters/_rels/slideMaster1.xml.rels: quan hệ rId3 → ppt/slideLayouts/slideLayout2.xml không tồn tại"
+   ],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 19,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-slides-smartart.pptx",
+   "sha256": "a151be6321ab7cfd65c722cbf1ada8b9e44bf506cd77512114594e69dbf274a6"
+  },
+  {
+   "bytes": 10766,
+   "edit": {
+    "expect_changed": [
+     "ppt/notesSlides/*.xml",
+     "ppt/slides/*.xml",
+     "ppt/slides/_rels/*.rels",
+     "ppt/notesSlides/_rels/*.rels",
+     "[Content_Types].xml"
+    ],
+    "op": "slide.setNotes"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "pptx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 18,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-slides.pptx",
+   "sha256": "87e26b65d9a94f5442520b60ef53d503bf85a78cb371eff7639513d0e7763b1d"
+  },
+  {
+   "bytes": 6634,
+   "edit": {
+    "expect_changed": [
+     "word/document.xml"
+    ],
+    "op": "doc.appendParagraph"
+   },
+   "features": {
+    "chart": false,
+    "comment": true,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "docx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 12,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-writer-comments.docx",
+   "sha256": "25798f93802455d7bdc72bdff418b7f0397692a6518b4f40a8ead2426a0498f1"
+  },
+  {
+   "bytes": 7830,
+   "edit": {
+    "expect_changed": [
+     "word/document.xml"
+    ],
+    "op": "doc.appendParagraph"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": true,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "docx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 13,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-writer-footnotes.docx",
+   "sha256": "c3e2b425e1f062eb44235132ff4adfc155b48aee919d2eddd17ef2e308db0e6c"
+  },
+  {
+   "bytes": 7189,
+   "edit": {
+    "expect_changed": [
+     "word/document.xml"
+    ],
+    "op": "doc.appendParagraph"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "docx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 13,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-writer-headerfooter.docx",
+   "sha256": "4a0c5ea3519e815f785632e960433a56559a4a940a5e965d020cdfe44a7c86ca"
+  },
+  {
+   "bytes": 6538,
+   "edit": {
+    "expect_changed": [
+     "word/document.xml"
+    ],
+    "op": "doc.appendParagraph"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": true,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "docx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 12,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-writer-image.docx",
+   "sha256": "8fca5ac8ea73bd085b764625ffdcaa745100560c48e3135a46c3170a0f50f6b3"
+  },
+  {
+   "bytes": 6583,
+   "edit": {
+    "expect_changed": [
+     "word/document.xml"
+    ],
+    "op": "doc.appendParagraph"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": true,
+    "unicode": true
+   },
+   "format": "docx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 11,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-writer-tables.docx",
+   "sha256": "3e5696ff85cd05fd7516fc0d2cb50b766470710bb3c914091f3897b893069c53"
+  },
+  {
+   "bytes": 6003,
+   "edit": {
+    "expect_changed": [
+     "word/document.xml"
+    ],
+    "op": "doc.appendParagraph"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "docx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 11,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-writer-trackchanges.docx",
+   "sha256": "f4ed20fbed29f97e434a40d9b67b4e21fac59870a90c4658d85e5c35153b534a"
+  },
+  {
+   "bytes": 6579,
+   "edit": {
+    "expect_changed": [
+     "word/document.xml"
+    ],
+    "op": "doc.appendParagraph"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": true,
+    "unicode": true
+   },
+   "format": "docx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 11,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/sample-writer.docx",
+   "sha256": "20df39be3cec4965282e8000e47a0dcc359ecdc9c368ecf6a6e598836e418680"
+  },
+  {
+   "bytes": 20487,
+   "edit": {
+    "expect_changed": [
+     "ppt/notesSlides/*.xml",
+     "ppt/slides/*.xml",
+     "ppt/slides/_rels/*.rels",
+     "ppt/notesSlides/_rels/*.rels",
+     "[Content_Types].xml"
+    ],
+    "op": "slide.setNotes"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": true,
+    "style": true,
+    "table": false,
+    "unicode": true
+   },
+   "format": "pptx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 29,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/slides-saved-roundtrip.pptx",
+   "sha256": "8c933505cb99b25142966e2eba155c6c3afc4c9fd60a6b3ecd3835def2ed3cd9"
+  },
+  {
+   "bytes": 29364,
+   "edit": {
+    "expect_changed": [
+     "xl/worksheets/*.xml",
+     "xl/sharedStrings.xml",
+     "xl/calcChain.xml",
+     "xl/workbook.xml"
+    ],
+    "op": "sheet.setValue"
+   },
+   "features": {
+    "chart": false,
+    "comment": false,
+    "formula": false,
+    "image": false,
+    "notes": false,
+    "style": true,
+    "table": true,
+    "unicode": true
+   },
+   "format": "xlsx",
+   "known_source_issues": [],
+   "label": "libreoffice-generated (tệp sẵn có của repo) — KHÔNG phải do Microsoft Office thật tạo",
+   "notes": "tham chiếu tại chỗ, không chép",
+   "oracle": {
+    "libreoffice": "BLOCKED: LibreOffice không có trong môi trường tạo corpus",
+    "microsoft_office": "BLOCKED: chưa có kết quả mở bằng Office thật"
+   },
+   "origin": "libreoffice",
+   "parts": 12,
+   "path": "ports/ios/OOXMLKit/Tests/OOXMLTestSupport/Fixtures/real/ton-kho-3t.xlsx",
+   "sha256": "fb83ab99b54c31d77becace853bc0cf0adbede653cf7311e1ab519643d49a6bf"
+  }
+ ],
+ "honesty": "Không tệp nào trong corpus này do Microsoft Office thật tạo. 'baseline Office thật' còn BLOCKED (xem README).",
+ "schema": "ooxml-corpus-manifest/1"
+}
