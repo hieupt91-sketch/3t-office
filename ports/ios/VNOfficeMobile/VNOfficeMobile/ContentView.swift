@@ -95,6 +95,13 @@ struct MobileOfficeWebView: UIViewRepresentable {
                       }
                     })
                   });
+                  import('./platform/mobile/mobile-document-adapter.js')
+                    .then(({ MobileDocumentAdapter }) => {
+                      window.vnoMobileDocumentAdapter = new MobileDocumentAdapter(window.vnoMobileRuntime);
+                    })
+                    .catch((error) => {
+                      document.documentElement.dataset.vnoError = String(error?.message || error);
+                    });
                 })();
                 """)
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
