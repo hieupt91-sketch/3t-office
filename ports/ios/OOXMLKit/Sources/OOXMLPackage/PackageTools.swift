@@ -1,6 +1,44 @@
 import Foundation
 import OOXMLZip
 
+/// Các tiện ích chỉnh sửa metadata package dùng chung cho DOCX, XLSX và PPTX.
+public enum PackageTools {
+    /// Đặt các trường metadata cốt lõi. Giá trị `nil` giữ nguyên trường tương ứng.
+    public static func setProperties(package: OPCPackage, title: String? = nil, creator: String? = nil,
+                                     description: String? = nil, contentStatus: String? = nil) throws {
+        let part = try package.relatedPart(from: .root, .coreProperties) ?? PartName("/docProps/core.xml")
+        let document: XDocument
+        if package.hasPart(part) {
+            document = try package.xml(part)
+        } else {
+            let root = XElement(name: "cp:coreProperties", attributes: [
+                XAttribute(name: "xmlns:cp", value: NS.cp.primaryURI),
+                XAttribute(name: "xmlns:dc", value: NS.dc.primaryURI),
+                XAttribute(name: "xmlns:dcterms", value: NS.dcterms.primaryURI),
+                XAttribute(name: "xmlns:xsi", value: NS.xsi.primaryURI),
+            ])
+            document = XDocument(root: root)
+            let rels = try package.relationships(of: .root)
+            _ = rels.add(.coreProperties, to: part)
+            package.registerContentType(ContentType.coreProperties, for: part)
+        }
+        let schemaOrder = ["title", "subject", "creator", "keywords", "description", "lastModifiedBy", "revision",
+                           "created", "modified", "category", "contentStatus", "identifier", "language", "version"]
+        let values: [(String, XMLNamespace, String?)] = [
+            ("title", NS.dc, title), ("creator", NS.dc, creator), ("description", NS.dc, description),
+            ("contentStatus", NS.cp, contentStatus),
+        ]
+        for (name, namespace, value) in values {
+            guard let value else { continue }
+            for old in document.root.children(namespace, name) { old.removeFromParent() }
+            let elementName = document.root.qualifiedName(name, in: namespace).name
+            let element = XElement(name: elementName, children: [.text(value)])
+            document.root.insertChild(element, schemaOrder: schemaOrder)
+        }
+        package.setXML(document, for: part, contentType: ContentType.coreProperties)
+    }
+}
+
 /// Kiểm tra cấu trúc gói OOXML: dùng sau khi lưu (trước khi thay tệp người dùng) và trong test.
 public enum PackageValidator {
     /// Trả về danh sách vấn đề (rỗng = hợp lệ).

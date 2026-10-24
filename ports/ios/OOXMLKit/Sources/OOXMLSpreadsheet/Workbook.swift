@@ -24,6 +24,10 @@ public enum CalcMode: String, Sendable {
     case manual
 }
 
+public enum SheetThemePreset: Sendable {
+    case ocean
+}
+
 /// Sổ tính XLSX/XLSM/XLTX. Mở → sửa → `save()`: chỉ các phần bị sửa được ghi lại.
 public final class Workbook {
     public let package: OPCPackage
@@ -119,6 +123,51 @@ public final class Workbook {
         }()
         workbookPr.setAttribute("date1904", date1904 ? "1" : "0")
         package.markModified(workbookPart)
+    }
+
+    /// Áp dụng bảng màu xanh dương cho chủ đề workbook; giữ nguyên hiệu ứng và phần mở rộng không liên quan.
+    public func setTheme(preset: SheetThemePreset) throws {
+        guard let themePart = try package.relatedPart(from: workbookPart, .theme), package.hasPart(themePart) else {
+            throw SpreadsheetError.invalidSetting("workbook không có phần theme để cập nhật")
+        }
+        let theme = try package.xml(themePart)
+        let themeElements = theme.root.firstChild(NS.a, "themeElements") ?? {
+            let element = XElement(name: theme.root.qualifiedName("themeElements", in: NS.a).name)
+            theme.root.insertChild(element, schemaOrder: ["themeElements", "objectDefaults", "extraClrSchemeList"])
+            return element
+        }()
+        let colorScheme = themeElements.firstChild(NS.a, "clrScheme") ?? {
+            let element = XElement(name: themeElements.qualifiedName("clrScheme", in: NS.a).name,
+                                   attributes: [XAttribute(name: "name", value: "VN Office Ocean")])
+            themeElements.insertChild(element, schemaOrder: ["clrScheme", "fontScheme", "fmtScheme"])
+            return element
+        }()
+        let colors: [(String, String)] = [
+            ("dk1", "000000"), ("lt1", "FFFFFF"), ("dk2", "1F1F1F"), ("lt2", "E7E6E6"),
+            ("accent1", "0070C0"), ("accent2", "00B0F0"), ("accent3", "4472C4"),
+            ("accent4", "70AD47"), ("accent5", "FFC000"), ("accent6", "ED7D31"),
+            ("hlink", "0563C1"), ("folHlink", "954F72"),
+        ]
+        let colorOrder = ["dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"]
+        for (name, hex) in colors {
+            for old in colorScheme.children(NS.a, name) { old.removeFromParent() }
+            let color = XElement(name: colorScheme.qualifiedName(name, in: NS.a).name)
+            color.append(XElement(name: color.qualifiedName("srgbClr", in: NS.a).name,
+                                  attributes: [XAttribute(name: "val", value: hex)]))
+            colorScheme.insertChild(color, schemaOrder: colorOrder)
+        }
+        for fontKind in ["majorFont", "minorFont"] {
+            let fontScheme = themeElements.firstChild(NS.a, "fontScheme")
+            if let font = fontScheme?.firstChild(NS.a, fontKind) {
+                let latin = font.firstChild(NS.a, "latin") ?? {
+                    let element = XElement(name: font.qualifiedName("latin", in: NS.a).name)
+                    font.insertChild(element, schemaOrder: ["latin", "ea", "cs"])
+                    return element
+                }()
+                latin.setAttribute("typeface", "Aptos")
+            }
+        }
+        package.markModified(themePart)
     }
 
     /// Bật/tắt bảo vệ cấu trúc workbook bằng mật khẩu kiểu legacy SpreadsheetML nếu có.

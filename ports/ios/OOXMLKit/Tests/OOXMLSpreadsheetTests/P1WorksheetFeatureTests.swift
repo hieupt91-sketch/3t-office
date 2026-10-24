@@ -1,5 +1,6 @@
 import XCTest
 @testable import OOXMLSpreadsheet
+import OOXMLPackage
 import OOXMLTestSupport
 
 final class P1WorksheetFeatureTests: XCTestCase {
@@ -71,6 +72,25 @@ final class P1WorksheetFeatureTests: XCTestCase {
         try RoundTrip.verify(original: original, saved: saved,
                              allowedChanges: ["xl/worksheets/sheet1.xml"],
                              requireChanged: ["xl/worksheets/sheet1.xml"], name: "xlsx-p1-view-print.xlsx")
+    }
+
+    func testDocumentPropertiesAndThemeRoundTrip() throws {
+        let original = try Fixtures.data("xlsx/rich-excel.xlsx")
+        let workbook = try Workbook(data: original)
+        try PackageTools.setProperties(package: workbook.package, title: "Báo cáo", creator: "VN Office",
+                                       description: "Tổng hợp tháng", contentStatus: "Bản nháp")
+        try workbook.setTheme(preset: .ocean)
+        let saved = try workbook.save()
+        let core = try RoundTrip.partString(saved, "docProps/core.xml")
+        let theme = try RoundTrip.partString(saved, "xl/theme/theme1.xml")
+        XCTAssertTrue(core.contains("<dc:title>Báo cáo</dc:title>"), core)
+        XCTAssertTrue(core.contains("<dc:creator>VN Office</dc:creator>"), core)
+        XCTAssertTrue(core.contains("<cp:contentStatus>Bản nháp</cp:contentStatus>"), core)
+        XCTAssertTrue(theme.contains("val=\"0070C0\""), theme)
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["docProps/core.xml", "xl/theme/theme1.xml"],
+                             requireChanged: ["docProps/core.xml", "xl/theme/theme1.xml"],
+                             name: "xlsx-p1-properties-theme.xlsx")
     }
 
     func testConditionalFormattingAndValidationRoundTrip() throws {
