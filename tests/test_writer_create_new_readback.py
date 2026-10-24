@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -14,6 +15,7 @@ class WriterCreateNewReadbackTests(unittest.TestCase):
         scenario = source.split('SCENARIO = r"""', 1)[1].split('"""', 1)[0]
         self.assertIn("const PNG_1X1_RED =", scenario)
 
+    @unittest.skipUnless(sys.platform == "win32", "the readback self-test invokes Windows PowerShell and Office COM")
     def test_word_com_values_are_normalized_before_comparison(self):
         completed = subprocess.run(
             [

@@ -85,6 +85,7 @@ class ServicesMatchLegacyTests(unittest.TestCase):
             self.assertEqual(portable.PortableDataDirs().user_data_dir(), Path("/x/y") / "VNOffice")
         self.assertIsNotNone(pkg)
 
+    @unittest.skipUnless(sys.platform == "win32", "MessageBoxW is a Windows API; portable behavior is covered separately")
     def test_show_error_never_raises_and_reports_through_a_result(self):
         portable_like = vnmain._os_services().launcher
         with mock.patch("ctypes.windll", create=True) as windll:
