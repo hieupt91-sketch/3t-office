@@ -37,7 +37,8 @@ def test_postprocess_restores_embedded_fonts_and_relationships() -> None:
     source = _package(
         {
             "ppt/presentation.xml": (
-                f'<p:presentation xmlns:p="{P_NS}" xmlns:r="{R_NS}">'
+                f'<p:presentation xmlns:p="{P_NS}" xmlns:r="{R_NS}" '
+                'embedTrueTypeFonts="1" saveSubsetFonts="1">'
                 '<p:sldSz cx="100" cy="100"/>'
                 '<p:embeddedFontLst><p:embeddedFont><p:font typeface="Test Font"/>'
                 '<p:regular r:id="rId7"/></p:embeddedFont></p:embeddedFontLst>'
@@ -76,6 +77,8 @@ def test_postprocess_restores_embedded_fonts_and_relationships() -> None:
 
     assert entries.get(FONT_PATH) == FONT_BYTES
     presentation = ET.fromstring(entries["ppt/presentation.xml"])
+    assert presentation.attrib.get("embedTrueTypeFonts") == "1"
+    assert presentation.attrib.get("saveSubsetFonts") == "1"
     font_list = presentation.find(f"{{{P_NS}}}embeddedFontLst")
     assert font_list is not None
     child_tags = [child.tag for child in presentation]

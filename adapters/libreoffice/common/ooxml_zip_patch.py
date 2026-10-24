@@ -14306,6 +14306,28 @@ def _restore_slides_embedded_fonts(pptx_bytes: bytes, source_pptx: bytes | None)
             child.attrib[rid_key] = id_map[child.attrib[rid_key]]
     font_xml = ET.tostring(font_list, encoding="unicode")
     presentation_xml = output_presentation.decode("utf-8")
+    presentation_open = re.search(r"<(?:(?:[\w.-]+):)?presentation\b[^>]*>", presentation_xml)
+    if presentation_open:
+        presentation_tag = presentation_open.group(0)
+        for attribute_name in ("embedTrueTypeFonts", "saveSubsetFonts"):
+            attribute_value = source_root.attrib.get(attribute_name)
+            if attribute_value is None:
+                continue
+            presentation_tag = re.sub(
+                rf"\s+{attribute_name}\s*=\s*(['\"])[^'\"]*\1",
+                "",
+                presentation_tag,
+                flags=re.IGNORECASE,
+            )
+            presentation_tag = _insert_xml_tag_attribute(
+                presentation_tag,
+                f'{attribute_name}="{_escape_xml(attribute_value)}"',
+            )
+        presentation_xml = (
+            presentation_xml[:presentation_open.start()]
+            + presentation_tag
+            + presentation_xml[presentation_open.end():]
+        )
     closing = re.search(r"</(?P<tag>(?:[\w.-]+:)?presentation)\s*>", presentation_xml)
     if not closing:
         return pptx_bytes
