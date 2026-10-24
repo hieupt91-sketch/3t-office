@@ -1299,3 +1299,23 @@ DEPENDENCIES/BLOCKERS: Cần sửa/giải thích nguyên nhân phân trang trên
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: legacy06 trước (`Q53-work/screens/legacy06-C.png`) và sau (`Q55-work/legacy06-after.png`) tại 1366×768: “Độc lập” liền, ribbon/trang/status nằm trong viewport, status vẫn 1/4; legacy13 sau (`Q55-work/legacy13-after.png`) tại 1366×768: “CÔNG TY” đọc liền, form/logo rõ, status 1/2; legacy20 sau (`Q55-work/legacy20-after.png`) tại 1366×768: “Tel” liền, status 1/2. legacy20 còn “HỌCTRƯỜNG” nhưng OOXML nguồn thực sự ghi liền nên không tự ý chèn dấu cách; đường đen dưới địa chỉ là shape trong tài liệu. Không thấy control UI bị che/cắt/tràn ở ba màn hình.
 NEXT ACTION: Điều tra riêng phần layout/pagination và d10 timeout; chạy lại gate lan14 qua owner Sheet. Chỉ tạo `E:\VNOffice-briefs\logs\Q55.DONE` sau khi các điều kiện Q55 đạt.
+
+
+# Agent Handoff
+TASK: W1 — Khảo sát khả thi OOXMLKit trên Windows
+AGENT/ROLE: Codex / OOXMLKit Windows spike
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Kiểm tra Swift for Windows, build/test OOXMLKit và thêm executable `ooxml-engine` dùng giao thức JSON Lines của OOXMLBridge.
+FINDINGS: Máy Windows 10 Pro 22H2 chưa có Swift/WinGet. Visual Studio 17.14.37806.7, MSVC 14.44.35207 và SDK 10.0.22621/26100 đã cài; C: còn 6.8 GiB. Swift 6.4.1 installer là 2,097,955,608 byte, nên dừng trước khi tải/cài do thấp hơn gate 8 GiB. WSL Ubuntu có Swift 6.0.3; release build pass và 111/111 test pass sau khi allowlist import nội bộ nhận `OOXMLBridge`. Không đo được exe/DLL/time Windows.
+IMPLEMENTATION SUMMARY: Thêm executable SwiftPM tái sử dụng OOXMLBridge; stdin/stdout một JSON object mỗi dòng và thoát ở EOF. Thêm pytest smoke test XLSX tổng hợp >1 MB có điều kiện skip khi thiếu exe. Không đổi hành vi iOS hay mã desktop. Báo cáo gồm phương án Python theo Zip → Package → Spreadsheet, ước lượng 4–7 tuần cho ba lớp đầu.
+FILES CHANGED: ports/ios/OOXMLKit/Package.swift; ports/ios/OOXMLKit/Sources/ooxml-engine/main.swift; ports/ios/OOXMLKit/Tests/OOXMLPackageTests/OfflineGuaranteeTests.swift; tests/test_ooxml_engine_windows.py; docs/ooxml/WIN-SPIKE-24-10.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge main`; WSL Swift 6.0.3 `swift build -c release`; WSL `swift test`; `python -m pytest tests -q -k ooxml_engine`; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`.
+BUILD RESULT: BLOCKED on Windows — Swift chưa cài vì dung lượng trống dưới 8 GiB; MSVC/SDK đã cài. WSL Linux release build PASS.
+TEST RESULTS: PASS — WSL Swift tests 111/111; Node 3796/3796; i18n missing=0; checklist lowered=0. Pytest: 1 skipped, 1143 deselected because Windows exe is not built. Windows build and test NOT RUN.
+KNOWN FAILURES: First WSL test run failed 1/111 at OfflineGuaranteeTests because the new executable import was absent from the internal-module allowlist; updated allowlist and reran all 111 successfully.
+RISKS: Windows ABI/SDK compatibility, executable size, Swift runtime DLL set, startup/open timings, and Windows XLSX roundtrip remain unverified. No UI was opened; desktop UI/CDP not applicable to this CLI spike.
+DEPENDENCIES/BLOCKERS: Free at least 8 GiB on C: before downloading/installing Swift 6.4.1 or newer; then rerun Windows-specific W1 gates. MSVC/Windows SDK are already installed.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — không có màn hình ứng dụng trong phiếu CLI.
+NEXT ACTION: Hoàn tất Windows toolchain prerequisite rồi chạy build, 111 tests, pytest XLSX roundtrip và đo exe/runtime. Nếu toolchain tiếp tục bị chặn, quyết định có khởi động port Python theo báo cáo spike.
