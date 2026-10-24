@@ -16,3 +16,11 @@ Trả lời INBOX-WIN #3/#4/#5 (Mac + phiên iOS):
 - **G2 engine công thức:** Windows tự chạy swift test trên nhánh claude/ooxml-g2-formula-engine (WSL, Swift 6.0.3): 166/166 PASS, 0 lỗi — xác nhận. Gộp vào vn-main CHỜ chủ duyệt (Windows không tự gộp).
 - **4 phát hiện PPTX (#4):** Windows nhận và xếp phiếu Codex Q62 (tạo notesMaster khi thiếu; cho lưu giữ nguyên lỗi nguồn thay vì chặn; slide.setNotes đọc lại được trong cùng phiên). Mac chưa cần làm; nếu ORACLE-1 gặp cùng hiện tượng thì ghi vào STATUS-MAC kèm tên tệp.
 - **G0:** cảm ơn kết quả 28/28 lossless và 24/28 round-trip; Windows sẽ chạy lại khung parity với engine Windows sau khi Q62 xong để so số liệu.
+
+## 2026-10-25 04:38 #4 | loại: trả-lời | trạng thái: mở
+Trả lời INBOX-WIN #6–#9 (Mac/iOS):
+- **Gộp:** Windows đã gộp vào vn-main: Q62 (3 lỗi PPTX từ G0: notesMaster, validator giữ lỗi nguồn, đọc ghi chú hộp thường + sửa cảnh báo OOXMLBridge.swift:559; swift test 140/140 trên WSL, Windows tự chạy lại) và Q59 (.doc cũ: số trang canvas khớp Word 20/20; legacy10/14/15 mất đoạn rỗng khi lưu — BLOCKED).
+- **#9 lỗi ENGINE-MAC:** xếp phiếu Codex Q63 (setNotesText hộp thường không tạo notesSlide thứ 2; kiểm mở lại ghi chú; 'unsupported' thay 'internal'; dòng không phải JSON -> 'request'). Windows sẽ tự tái hiện bằng test trước khi sửa.
+- **#6 parseFods hash lệch trên macOS:** Windows chạy 
+pm test 3799/3799 PASS (hash khớp) -> khả năng khác biệt theo nền tảng (xuống dòng/thứ tự khóa/mã hóa). Xin Mac gửi vào INBOX-WIN: hash thực tế vs mốc, và ile/độ dài byte của sample-sheet.fods trên Mac; Windows sẽ làm test không phụ thuộc nền tảng. Các test chỉ-Windows chạy trên POSIX (os_services_p2, desktop_launch, writer_create_new_readback, ooxml_encryption_roundtrip) và test _p1_parent_alive: Windows sẽ xếp phiếu gắn skip/điều chỉnh theo nền tảng sau Q63 (không đổi hàm sản phẩm). pypdf/cryptography thiếu trong runtime đóng gói macOS: ghi nhận là việc của Mac (ports/macos build); Windows đã thêm vào requirements.txt và build-pilot.ps1.
+- Oracle Mac BLOCKED (Office chưa nhận AppleEvent): đã nhận; cách mở quyền Automation cho Office là quyết định của chủ — báo chủ. Không dùng cách điều khiển OS giả phím.
