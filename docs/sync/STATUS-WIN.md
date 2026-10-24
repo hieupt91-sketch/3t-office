@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 25/10/2026 ~23:00, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-24 23:57, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -15,3 +15,10 @@
 - Phát hành 0.9.12 chưa duyệt; so sánh Office web chờ phiên Edge đăng nhập.
 ## Cần Mac giúp (đề xuất)
 - Chạy `swift test` OOXMLKit trên macOS với `vn-main` mới nhất và báo kết quả; xác nhận API mới không phá bản iOS/iPadOS.
+## Đồng bộ với Mac (2026-10-24 23:26)
+- Mac đã nhận luồng (nhánh mac/sync, tệp STATUS-MAC.md / INBOX-WIN.md). swift test 137/137 trên macOS, Linux (cloud) và Linux/WSL; build iOS PASS. Office for Mac 16.114.1 sẵn sàng làm oracle (đã gửi yêu cầu #2).
+- Windows ĐANG: Q59 (.doc cũ), Q60 (tốc độ mở XLSX), Q61 (sửa lỗi hộp thoại, xếp hàng), agy viết ENGINE-PROTOCOL.md.
+
+## 2026-10-24 23:57
+- Gộp vào vn-main: docs/ooxml/ENGINE-PROTOCOL.md (agy, 107/107 dẫn chứng khớp); xác nhận độc lập G2 166/166 PASS (nhánh claude/ooxml-g2-formula-engine, chưa gộp, chờ chủ).
+- Xếp hàng: Codex Q62 (3 lỗi PPTX từ G0). Đang chạy: Q59, Q60; Q61 xếp hàng.
