@@ -1457,6 +1457,40 @@ def _seed_profile_dir(profile_kind: str, profile_dir: Path) -> None:
         shutil.rmtree(long_path(profile_dir), ignore_errors=True)
 
 
+ENGINE_FONTS_DIR_NAME = "engine-fonts"
+
+
+def _configure_document_engine_fonts() -> dict[str, str]:
+    """MAC-9: let the document engine see the OS fonts and substitute missing document fonts.
+
+    Only an OS backend that provides document_fonts (macOS) changes anything: its folders and substitution
+    table are written as the engine's font configuration under the user data folder, and the environment
+    variable selecting it is set for this process, so every engine process started later inherits it.
+    An explicit value already in the environment is respected. Any failure keeps the previous behaviour.
+    """
+    services = _os_services()
+    document_fonts = getattr(services, "document_fonts", None) if services is not None else None
+    if document_fonts is None:
+        return {}
+    try:
+        module_path = os.path.join(ROOT_DIR, "adapters", "libreoffice", "common", "engine_fonts.py")
+        spec = importlib.util.spec_from_file_location("vno_engine_fonts", module_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        result = module.write_engine_font_config(_user_data_dir() / ENGINE_FONTS_DIR_NAME, document_fonts)
+    except Exception as exc:  # the app must start even if this optional step breaks
+        _open_perf_log("engine_fonts_failed", error=str(exc)[:200])
+        return {}
+    if not result.ok:
+        _open_perf_log("engine_fonts_failed", error=result.reason)
+        return {}
+    environment = module.engine_environment(result)
+    for key, value in environment.items():
+        os.environ.setdefault(key, value)
+    _open_perf_log("engine_fonts_ready", changed=result.changed)
+    return environment
+
+
 def _persistent_writer_html_safe(source_path: str, app_kind: str | None, target_ext: str) -> bool:
     """Keep Writer text-box exports on the proven CLI path.
 
@@ -5967,6 +6001,7 @@ def main(argv: list[str] | None = None):
         return 2
 
     _initialize_process_tracker()
+    _configure_document_engine_fonts()
 
     restore_documents = []
     for argument in launch_argv:
