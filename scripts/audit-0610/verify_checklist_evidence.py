@@ -127,6 +127,34 @@ def resolve_file_path(repo_root: Path, file_str: str) -> Path | None:
     return None
 
 
+def split_checklist_row(line: str) -> list[str]:
+    """Split Markdown cells while keeping the path/needle separator inside {{L:...|...}}."""
+    parts = []
+    current = []
+    in_line_marker = False
+    index = 0
+    while index < len(line):
+        if line.startswith("{{L:", index):
+            in_line_marker = True
+            current.extend("{{L:")
+            index += 4
+            continue
+        if in_line_marker and line.startswith("}}", index):
+            in_line_marker = False
+            current.extend("}}")
+            index += 2
+            continue
+        char = line[index]
+        if char == "|" and not in_line_marker:
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(char)
+        index += 1
+    parts.append("".join(current))
+    return parts
+
+
 def verify_row_evidence(repo_root: Path, feature: str, note: str) -> tuple[bool, str, list[str]]:
     """Kiểm tra bằng chứng trích dẫn file:line trong ghi chú.
 
@@ -134,7 +162,8 @@ def verify_row_evidence(repo_root: Path, feature: str, note: str) -> tuple[bool,
       (is_valid, reason, valid_citations)
     """
     cite_matches = re.findall(r'([\w\/\.\-]+\.[A-Za-z0-9]+):(\d+)(?:-(\d+)|,(\d+))?', note)
-    if not cite_matches:
+    marker_matches = re.findall(r'\{\{L:([^|{}]+)\|(.+?)\}\}', note)
+    if not cite_matches and not marker_matches:
         return False, "Thiếu trích dẫn file:dòng trong ghi chú", []
 
     keywords = extract_keywords(feature, note)
@@ -179,6 +208,27 @@ def verify_row_evidence(repo_root: Path, feature: str, note: str) -> tuple[bool,
             valid_cites.append(f"{file_str}:{s_line}" + (f"-{e_line}" if e_line != s_line else ""))
         else:
             reasons.append(f"Dòng {s_line}-{e_line} trong {file_str} không chứa từ khóa đặc trưng ({', '.join(keywords[:5])})")
+
+    for file_str, needle in marker_matches:
+        fpath = resolve_file_path(repo_root, file_str.strip())
+        if not fpath:
+            reasons.append(f"Tệp không tồn tại trong trích dẫn L: {file_str}")
+            continue
+        try:
+            flines = fpath.read_text(encoding='utf-8').splitlines()
+        except Exception as ex:
+            reasons.append(f"Không đọc được {file_str}: {ex}")
+            continue
+        matched_line = next((index for index, line in enumerate(flines, 1) if needle in line), None)
+        if matched_line is None:
+            reasons.append(f"Không thấy '{needle}' trong {file_str} (trích dẫn L)")
+            continue
+        content_chunk = flines[matched_line - 1]
+        chunk_clean = strip_accents(content_chunk.lower())
+        if any(kw.lower() in content_chunk.lower() or strip_accents(kw.lower()) in chunk_clean for kw in keywords):
+            valid_cites.append(f"{file_str.strip()}:{matched_line}")
+        else:
+            reasons.append(f"Trích dẫn L {file_str}:{matched_line} không chứa từ khóa đặc trưng ({', '.join(keywords[:5])})")
 
     if valid_cites:
         return True, "Hợp lệ", valid_cites
@@ -291,7 +341,7 @@ def verify_checklist_file(checklist_path: Path, fix: bool = True) -> dict:
 
             # Dòng chi tiết có định dạng: | Nhóm | Tính năng | Trạng thái | Ưu tiên | Ghi chú... |
             if line_stripped.startswith('|') and not line_stripped.startswith('|---'):
-                parts = [p.strip() for p in line.split('|')]
+                parts = [p.strip() for p in split_checklist_row(line)]
                 if len(parts) == 7 and parts[0] == '' and parts[-1] == '':
                     col_group = parts[1]
                     col_feat = parts[2]
