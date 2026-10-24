@@ -1355,3 +1355,22 @@ DEPENDENCIES/BLOCKERS: Windows smoke test cần binary `ooxml-engine.exe` đư�
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Không áp dụng — backend/bridge; không chạy app/CDP.
 NEXT ACTION: Review commit; nối op vào luồng lưu ở phiếu kế tiếp sau phê duyệt.
+
+## W1B — 24/10/2026
+
+TASK: W1B — Cài Swift for Windows trên D: và xác minh OOXMLKit.
+AGENT/ROLE: Codex / OOXMLKit Windows spike.
+BRANCH: codex/w1b.
+WORKTREE: E:\VNOffice-codex-w1b. `git merge main` → Already up to date.
+OBJECTIVE: Cài Swift 6.4.1 + Windows SDK trong D:\swift, chạy release build/tests, smoke test XLSX >1 MB và ghi số liệu thực tế.
+IMPLEMENTATION SUMMARY: Toolchain cài trong D:\swift; `%LocalAppData%\Programs\Swift` chuyển qua junction tới D:\swift; TEMP/TMP đặt D:\tmp. Cần SDKROOT trỏ Windows.sdk và môi trường VsDevCmd. Sửa fixture pytest dùng ZIP_STORED để XLSX đạt 1,084,960 byte; xác nhận giá trị ô theo schema typed sẵn có của OOXMLBridge.
+FILES CHANGED: docs/ooxml/WIN-SPIKE-24-10.md; tests/test_ooxml_engine_windows.py; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge main`; Swift 6.4.1 `swift build -c release`; `swift test`; `python -m pytest tests/test_ooxml_engine_windows.py -q -s`; `python -m pytest tests -q -k ooxml_engine`; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`.
+BUILD RESULT: PASS — Windows x86_64 MSVC release build; Swift 6.4.1. SwiftPM did not create `.build\release` symlink (I/O 512); smoke test used executable in `.build\out\Products\Release-windows-x86_64`.
+TEST RESULTS: PASS — Swift 114 tests/0 failures; pytest 1 passed; Node 3796/3796; i18n missingVI=0/missingEN=0; checklist lowered=0. Smoke metrics: startup 0.004 s, open 1,084,960-byte XLSX 0.025 s. Executable 3,904,512 bytes; 18 imported runtime DLLs 59,655,976 bytes.
+KNOWN FAILURES: First Windows smoke run found the generated XLSX compressed under the 1 MB threshold (620,524 bytes); fixture now stores only the random padding part. The original assertion expected a raw string, while the existing bridge contract returns `{t,v}`; corrected the assertion to check that contract. Final smoke test passes.
+RISKS: `.build\release` symlink remains unavailable in this environment; use `OOXML_ENGINE_PATH` with the generated release executable. C: had 4.98 GiB free at final check; toolchain itself is on D: via junction.
+DEPENDENCIES/BLOCKERS: None. No `ucrt` modulemap error after SDKROOT is configured.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — phiếu CLI, không có màn hình ứng dụng.
+NEXT ACTION: Review/merge commit and retain Windows metrics in `docs/ooxml/WIN-SPIKE-24-10.md`; record completion at `E:\VNOffice-briefs\logs\W1B.DONE`.
