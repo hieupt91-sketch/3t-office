@@ -1249,3 +1249,22 @@ DEPENDENCIES/BLOCKERS: Không thêm dependency.
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Writer, Sheet, Slides ở sáng/tối tại 1366×768 và 1024×600 (ảnh sau trong docs/assets/q54-theme; ảnh nền trước lấy từ q54-theme cho sáng và q36-ui/ribbon-before cho tối). Đã xem từng màn theme panel ở cả hai kích thước, mẫu ảnh/màu tùy ý, cùng luồng Tệp > Tùy chọn. Panel nằm trong cửa sổ, chữ/nút rõ; không thấy chồng lấn/cắt. Slides có thanh cuộn ngang ở 1024×600.
 NEXT ACTION: Q54 complete; xem ảnh tại docs/assets/q54-theme và chi tiết tính năng trong docs/HANDOFF-DARK-MODE-THEME.md.
+# Agent Handoff
+TASK: Q55 — Legacy DOC text import whitespace repair (PARTIAL; not DONE)
+AGENT/ROLE: Codex / VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Remove false whitespace/newlines splitting Vietnamese words during legacy DOC import and eliminate the resulting extra page without degrading the 20 DOC, 24 DOCX, or 27 XLSX corpus.
+FINDINGS: The small synthetic DOCX with font/run variations did not reproduce the defect. Read-only copies of legacy06/13/20 confirmed LibreOffice StarWriter HTML inserts breaks around floating images while OOXML text stays contiguous; FODT conversion showed the same defect and dropped an image in legacy20. Source paragraphs in duplicate/ambiguous matches are skipped by the repair.
+IMPLEMENTATION SUMMARY: After HTML import, compare each paragraph’s non-whitespace text to OOXML w:p text and remove only whitespace at boundaries that OOXML says are contiguous. Preserve source spaces, skip unmatched/ambiguous paragraphs, and support fallback through globalThis.__VNO_WRITER_REPAIR_FLOAT_WORD_SPACES=false. Unit test covers the split, real source space, and fallback.
+FILES CHANGED: adapters/libreoffice/writer/writer-adapter.js; tests/unit/writer-floating-image-import.test.js; 09-templates/AGENT-HANDOFF.md.
+COMMITS: 069bdb6c fix(writer): repair imported Vietnamese word spacing.
+COMMANDS RUN: git merge main; focused Writer floating-image unit; node tests/run-tests.js; npm test; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python -m pytest tests -q; CDP screenshot at 1366x768 with unique VNO_CDP_LOCALAPPDATA; LibreOffice legacy XLS/XLSX audits.
+TEST RESULTS: PASS — focused unit 45/45; node tests/run-tests.js 3796/3796; npm test 3796/3796; i18n VI/EN 3200/3200, missing=0; checklist 3 files, lowered=0; pytest 1140 passed, 1 skipped (730.89s). CDP verifies legacy06 paragraphInnerText is “Độc lập - Tự do - Hạnh phúc”.
+KNOWN FAILURES: legacy06 remains 4 pages vs Word 3 (before/after app count 4); page/layout defect unresolved. legacy13 and legacy20 text repaired but remain 2 pages vs Word 1. The required 20 DOC audit and 24 DOCX bodyDom hash comparison were NOT RUN; no Q53 per-file DOM hash baseline was located. XLSX 27-file audit: 26 BLOCKED because Excel COM is disabled, LibreOffice diff=0/lint clean for those; lan14 FAIL (save API undefined). XLS legacy audit: 20 saved; 16 diff=0, known diffs legacy06=9, legacy08=6, legacy13=1, legacy18=1. One initial default XLSX runner invocation inadvertently opened lan01 via Excel COM; it was stopped immediately and the reported Q55 batch used a wrapper that disabled Excel COM.
+RISKS: The whitespace repair relies on matching imported paragraph text exactly after removing whitespace; unmatched or ambiguous paragraphs retain the old path. It does not address pagination/layout. Do not claim Q55 complete.
+DEPENDENCIES/BLOCKERS: Need safely isolate legacy06 page-count difference and run the required 20 DOC / 24 DOCX / 27 XLSX corpus gates. Excel COM remains blocked by task rules.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Continue Q55 page-layout diagnosis, collect DOC/DOCX baseline comparisons, rerun affected audits after any further change. Do not create Q55.DONE or advance the queue until all gates pass.
+
+---
