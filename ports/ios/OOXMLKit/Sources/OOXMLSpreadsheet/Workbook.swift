@@ -77,6 +77,61 @@ public final class Workbook {
 
     public var sheetNames: [String] { sheets.map(\.name) }
 
+    /// Đặt sheet ở trạng thái hiện, ẩn hoặc ẩn sâu.
+    /// Workbook luôn cần có ít nhất một sheet ở trạng thái hiện.
+    /// Dùng `sheets` để đọc lại trạng thái sau khi cập nhật.
+    public func setSheetState(named name: String, state: SheetState) throws {
+        let all = sheets
+        let elements = sheetsElement?.children(NS.s, "sheet") ?? []
+        guard let index = all.firstIndex(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }),
+              elements.indices.contains(index) else {
+            throw SpreadsheetError.sheetNotFound(name)
+        }
+        let element = elements[index]
+        if state != .visible && all.enumerated().filter({ $0.offset != index }).allSatisfy({ $0.element.state != "visible" }) {
+            throw SpreadsheetError.cannotDeleteLastVisibleSheet
+        }
+        let value = state == .visible ? nil : state.rawValue
+        guard element.attribute("state") != value else { return }
+        if let value { element.setAttribute("state", value) } else { element.removeAttribute("state") }
+        package.markModified(workbookPart)
+    }
+
+    /// Lưu vùng in cục bộ dưới tên định nghĩa OOXML chuẩn.
+    /// `localSheetId` được tính theo thứ tự sheet hiện tại trong workbook.
+    /// Phương thức này được gọi từ `Worksheet.setPrintArea(range:)`.
+    func setPrintArea(range: CellRange, for worksheet: Worksheet) throws {
+        guard let index = sheets.firstIndex(where: { $0.name.caseInsensitiveCompare(worksheet.name) == .orderedSame }) else {
+            throw SpreadsheetError.sheetNotFound(worksheet.name)
+        }
+        let definedNamesElement = document.root.firstChild(NS.s, "definedNames") ?? {
+            let element = XElement(name: document.root.qualifiedName("definedNames", in: NS.s).name)
+            document.root.insertChild(element, schemaOrder: Workbook.workbookOrder)
+            return element
+        }()
+        let existing = definedNamesElement.children(NS.s, "definedName").first {
+            $0.attribute("name") == "_xlnm.Print_Area" && $0.attribute("localSheetId") == String(index)
+        }
+        let sheetName = worksheet.name.replacingOccurrences(of: "'", with: "''")
+        func absolute(_ reference: CellReference) -> String {
+            "$\(CellReference.columnName(reference.column))$\(reference.row)"
+        }
+        let first = absolute(range.start)
+        let last = range.start == range.end ? "" : ":\(absolute(range.end))"
+        let formula = "'\(sheetName)'!\(first)\(last)"
+        if let existing {
+            guard existing.textContent != formula else { return }
+            existing.setText(formula)
+        } else {
+            let name = XElement(name: document.root.qualifiedName("definedName", in: NS.s).name, attributes: [
+                XAttribute(name: "name", value: "_xlnm.Print_Area"), XAttribute(name: "localSheetId", value: String(index)),
+            ])
+            name.setText(formula)
+            definedNamesElement.append(name)
+        }
+        package.markModified(workbookPart)
+    }
+
     public func worksheet(named name: String) throws -> Worksheet {
         guard let info = sheets.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
             throw SpreadsheetError.sheetNotFound(name)
