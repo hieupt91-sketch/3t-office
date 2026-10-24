@@ -41,3 +41,13 @@ test("appearance group has a translated labelKey in all three ribbons", async ()
     assert.equal(lookup(enStrings, group.labelKey), "Appearance");
   }
 });
+
+// FIX-MAC-1 C-2: handler Chế độ Tối/Sáng gắn ở AppShell cùng các lệnh common.view.* khác (một nơi duy nhất),
+// để audit nút chết / handler ribbon nhìn thấy; bootstrap không gắn lần thứ hai.
+test("toggleTheme handler is bound once, in AppShell with the other common.view commands", () => {
+  const shell = fs.readFileSync(new URL("../../platform/shell/app-shell.js", import.meta.url), "utf8");
+  const boot = fs.readFileSync(new URL("../../platform/bootstrap.js", import.meta.url), "utf8");
+  const bind = /bindHandler\(\s*["']common\.view\.toggleTheme["']/g;
+  assert.equal((shell.match(bind) || []).length, 1);
+  assert.equal((boot.match(bind) || []).length, 0);
+});

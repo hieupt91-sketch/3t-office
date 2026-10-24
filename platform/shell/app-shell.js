@@ -2689,6 +2689,10 @@ export class AppShell {
       return true;
     });
 
+    // Chế độ Tối/Sáng (Chế độ xem > Giao diện). Gắn ở đây cùng các lệnh common.view.* khác để
+    // ribbon, bảng lệnh và Trợ giúp cùng thấy một handler; nút ở thanh trên tự cập nhật qua onThemeChange.
+    globalCommandBus.bindHandler("common.view.toggleTheme", () => themeManager.toggleTheme());
+
     // Mở hộp thoại Giới thiệu 3T Office
     globalCommandBus.bindHandler("common.help.about", () => {
       this._showAboutDialog();
