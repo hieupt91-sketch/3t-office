@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		E8E6E8A0308C7DF3001419CC /* OOXMLKit in Frameworks */ = {isa = PBXBuildFile; productRef = E8E6E8A1308C7DF3001419CC /* OOXMLKit */; };
+		E8E6E8A2308C7DF3001419CC /* OOXMLBridge in Frameworks */ = {isa = PBXBuildFile; productRef = E8E6E8A3308C7DF3001419CC /* OOXMLBridge */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E8E6E8A0308C7DF3001419CC /* OOXMLKit in Frameworks */,
+				E8E6E8A2308C7DF3001419CC /* OOXMLBridge in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -60,6 +62,7 @@
 				E8E6E886308C7DF3001419CC /* Sources */,
 				E8E6E887308C7DF3001419CC /* Frameworks */,
 				E8E6E888308C7DF3001419CC /* Resources */,
+				E8E6E8B0308C7DF3001419CC /* Embed shared VN Office web app */,
 			);
 			buildRules = (
 			);
@@ -71,6 +74,7 @@
 			name = VNOfficeMobile;
 			packageProductDependencies = (
 				E8E6E8A1308C7DF3001419CC /* OOXMLKit */,
+				E8E6E8A3308C7DF3001419CC /* OOXMLBridge */,
 			);
 			productName = VNOfficeMobile;
 			productReference = E8E6E88A308C7DF3001419CC /* VNOfficeMobile.app */;
@@ -123,6 +127,26 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		E8E6E8B0308C7DF3001419CC /* Embed shared VN Office web app */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$SRCROOT/embed-web-app.sh",
+				"$SRCROOT/MobileWebApp.css",
+			);
+			name = "Embed shared VN Office web app";
+			outputPaths = (
+				"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/WebApp/index.html",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "sh \"$SRCROOT/embed-web-app.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		E8E6E886308C7DF3001419CC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -172,7 +196,7 @@
 				DEVELOPMENT_TEAM = 8L78RWCQ55;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -236,7 +260,7 @@
 				DEVELOPMENT_TEAM = 8L78RWCQ55;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -354,6 +378,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E8E6E898308C7E79001419CC /* XCLocalSwiftPackageReference "../OOXMLKit" */;
 			productName = OOXMLKit;
+		};
+		E8E6E8A3308C7DF3001419CC /* OOXMLBridge */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E8E6E898308C7E79001419CC /* XCLocalSwiftPackageReference "../OOXMLKit" */;
+			productName = OOXMLBridge;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

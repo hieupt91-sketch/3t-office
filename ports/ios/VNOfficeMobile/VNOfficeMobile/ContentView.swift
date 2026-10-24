@@ -1,71 +1,102 @@
-//
-//  ContentView.swift
-//  VNOfficeMobile
-//
-//  Created by Pham Trung Hieu on 24/10/26.
-//
-
 import SwiftUI
-import UniformTypeIdentifiers
-import OOXMLKit
+import WebKit
+import OOXMLBridge
 
 struct ContentView: View {
-    @State private var showingImporter = false
-    @State private var selectedFile = "Chưa mở tài liệu"
-    @State private var status = "Sẵn sàng offline"
+    var body: some View { MobileOfficeWebView().ignoresSafeArea(.container, edges: [.bottom]) }
+}
 
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Image(systemName: "doc.richtext")
-                    .font(.system(size: 52))
-                    .foregroundStyle(.tint)
-                Text("VN Office Mobile")
-                    .font(.title2.bold())
-                Text("OOXMLKit · DOCX · XLSX · PPTX")
-                    .foregroundStyle(.secondary)
-                Text(status)
-                    .font(.callout)
-                    .foregroundStyle(.green)
-                Button {
-                    showingImporter = true
-                } label: {
-                    Label("Mở tài liệu offline", systemImage: "folder")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                Text(selectedFile)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+/// Native shell for the shared VN Office Writer/Sheet/Slides renderer.
+/// The renderer is bundled from the monorepo at build time; OOXMLBridge remains
+/// in-process and offline on iOS/iPadOS.
+struct MobileOfficeWebView: UIViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let controller = WKUserContentController()
+        let diagnostics = """
+        window.addEventListener('error', function(e) {
+          document.documentElement.dataset.vnoError = String(e.message || e.error || 'unknown');
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+          document.documentElement.dataset.vnoError = String(e.reason || 'unhandled rejection');
+        });
+        """
+        controller.addUserScript(WKUserScript(source: diagnostics, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        let bridge = OOXMLWebViewBridge()
+        bridge.install(into: controller, name: "ooxml")
+        let config = WKWebViewConfiguration()
+        config.userContentController = controller
+        config.defaultWebpagePreferences.allowsContentJavaScript = true
+        config.setURLSchemeHandler(LocalWebSchemeHandler(), forURLScheme: "vno")
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
+        webView.load(URLRequest(url: URL(string: "vno://app/index.html")!))
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {}
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            webView.evaluateJavaScript("document.documentElement.dataset.vnoError || ''") { value, error in
+                if let value, !(value as? String ?? "").isEmpty { print("[VNOfficeMobile] Web UI error: \(value)") }
+                if let error { print("[VNOfficeMobile] Web UI diagnostic error: \(error)") }
             }
-            .padding(24)
-            .navigationTitle("Tài liệu")
-        }
-        .fileImporter(
-            isPresented: $showingImporter,
-            allowedContentTypes: [.data],
-            allowsMultipleSelection: false
-        ) { result in
-            switch result {
-            case .success(let urls):
-                guard let url = urls.first else { return }
-                let accessed = url.startAccessingSecurityScopedResource()
-                defer { if accessed { url.stopAccessingSecurityScopedResource() } }
-                do {
-                    let bytes = try Data(contentsOf: url).count
-                    selectedFile = "Đã mở: \(url.lastPathComponent) (\(bytes) bytes)"
-                    status = "Đọc tệp thành công · xử lý trong máy"
-                } catch {
-                    status = "Không đọc được tệp: \(error.localizedDescription)"
-                }
-            case .failure(let error):
-                status = "Mở tệp thất bại: \(error.localizedDescription)"
+            webView.evaluateJavaScript("""
+                (() => {
+                  if (!document.getElementById('vno-mobile-css')) {
+                    const link = document.createElement('link');
+                    link.id = 'vno-mobile-css'; link.rel = 'stylesheet'; link.href = 'MobileWebApp.css';
+                    document.head.appendChild(link);
+                  }
+                  window.vnoMobileRuntime = { offline: true, engine: 'OOXMLKit' };
+                })();
+                """)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                webView.evaluateJavaScript("""
+                    (() => {
+                      if (!document.querySelector('.vno-shell')) {
+                        const err = document.documentElement.dataset.vnoError || 'UI chưa mount; xem lỗi module trong console';
+                        document.body.innerHTML = '<pre style="padding:20px;white-space:pre-wrap;font:14px monospace">VN Office Mobile\\n' + err.replace(/[<>&]/g, '') + '</pre>';
+                      }
+                    })();
+                    """)
             }
         }
     }
 }
 
-#Preview {
-    ContentView()
+/// Serves only the read-only WebApp bundle. A custom scheme avoids iOS file:// module
+/// restrictions while keeping every resource local and offline.
+final class LocalWebSchemeHandler: NSObject, WKURLSchemeHandler {
+    func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
+        guard let url = urlSchemeTask.request.url else { return }
+        let relative = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard !relative.contains(".."), let root = Bundle.main.url(forResource: "WebApp", withExtension: nil) else {
+            urlSchemeTask.didFailWithError(NSError(domain: "VNOfficeMobile", code: 1)); return
+        }
+        let file = root.appendingPathComponent(relative)
+        guard let data = try? Data(contentsOf: file) else {
+            urlSchemeTask.didFailWithError(NSError(domain: "VNOfficeMobile", code: 2)); return
+        }
+        let mime: String
+        switch file.pathExtension.lowercased() {
+        case "html": mime = "text/html"
+        case "js": mime = "text/javascript"
+        case "css": mime = "text/css"
+        case "json": mime = "application/json"
+        case "svg": mime = "image/svg+xml"
+        case "ttf": mime = "font/ttf"
+        case "woff", "woff2": mime = "font/woff2"
+        default: mime = "application/octet-stream"
+        }
+        urlSchemeTask.didReceive(URLResponse(url: url, mimeType: mime, expectedContentLength: data.count, textEncodingName: "utf-8"))
+        urlSchemeTask.didReceive(data)
+        urlSchemeTask.didFinish()
+    }
+
+    func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
 }
+
+#Preview { ContentView() }
