@@ -74,6 +74,7 @@ public final class OOXMLBridge {
         case "save": return try save(args)
         case "xlsx.save": return try xlsxSaveDelta(args)
         case "docx.save": return try docxSaveDelta(args)
+        case "pptx.save": return try pptxSaveDelta(args)
 
         case "sheet.read": return try sheetRead(args)
         case "sheet.setValue": return try sheetSetValue(args)
@@ -274,6 +275,145 @@ public final class OOXMLBridge {
             for item in cells {
                 let cell = reopened.tables[item["table"] as! Int].cell(row: item["row"] as! Int, column: item["column"] as! Int)
                 guard cell?.text == item["text"] as? String else { throw BridgeError("reopen", "ô bảng sau khi mở lại không khớp") }
+            }
+            return ["ok": true, "changedParts": try Self.changedZipParts(before: sourceData, after: savedData), "unsupported": [String]()]
+        } catch {
+            try? FileManager.default.removeItem(at: targetURL)
+            throw error
+        }
+    }
+
+    /// Lưu delta PPTX vào staging, mở lại kiểm tra và chỉ báo thành công khi nội dung khớp.
+    private func pptxSaveDelta(_ args: Args) throws -> [String: Any] {
+        guard let sourcePath = args.optString("source_document_path") ?? args.optString("sourcePath"),
+              let targetPath = args.optString("target_path") ?? args.optString("targetPath") else {
+            throw BridgeError("args", "cần source_document_path và target_path")
+        }
+        let sourceURL = URL(fileURLWithPath: sourcePath).standardizedFileURL
+        let targetURL = URL(fileURLWithPath: targetPath).standardizedFileURL
+        guard sourceURL != targetURL else { throw BridgeError("path", "đường dẫn staging phải khác đường dẫn nguồn") }
+        guard let delta = args.raw["delta"] as? [String: Any] else {
+            throw BridgeError("delta", "delta phải là JSON object")
+        }
+
+        var unsupported: [String] = []
+        for key in delta.keys where key != "slides" { unsupported.append("delta.\(key)") }
+        let operations = delta["slides"] as? [[String: Any]] ?? []
+        if delta["slides"] != nil && !(delta["slides"] is [[String: Any]]) {
+            unsupported.append("slides must be an array")
+        }
+        for (i, operation) in operations.enumerated() {
+            let name = operation["op"] as? String ?? "unknown"
+            let allowed: Set<String>
+            switch name {
+            case "shape.replaceText": allowed = ["op", "slide", "shape", "find", "replace"]
+            case "shape.rename": allowed = ["op", "slide", "shape", "name"]
+            case "slide.setNotes", "slide.setTitle": allowed = ["op", "slide", "text"]
+            case "slide.add": allowed = ["op", "layoutName", "index"]
+            case "slide.delete": allowed = ["op", "slide"]
+            default:
+                unsupported.append("slides[\(i)]: \(name)")
+                continue
+            }
+            for key in operation.keys where !allowed.contains(key) { unsupported.append("slides[\(i)].\(key)") }
+            if name == "slide.add" {
+                if !(operation["layoutName"] is String) { unsupported.append("slides[\(i)].layoutName") }
+                if let index = operation["index"], !(index is Int) { unsupported.append("slides[\(i)].index") }
+            } else if !(operation["slide"] is Int) {
+                unsupported.append("slides[\(i)].slide")
+            }
+            if ["shape.replaceText", "shape.rename"].contains(name), !(operation["shape"] is String) {
+                unsupported.append("slides[\(i)].shape")
+            }
+            if name == "shape.replaceText" {
+                for key in ["find", "replace"] where !(operation[key] is String) { unsupported.append("slides[\(i)].\(key)") }
+            }
+            if name == "shape.rename", !(operation["name"] is String) { unsupported.append("slides[\(i)].name") }
+            if ["slide.setNotes", "slide.setTitle"].contains(name), !(operation["text"] is String) {
+                unsupported.append("slides[\(i)].text")
+            }
+        }
+        guard unsupported.isEmpty else {
+            return ["ok": false, "changedParts": [String](), "unsupported": unsupported.sorted()]
+        }
+
+        let sourceData = try Data(contentsOf: sourceURL)
+        let presentation = try Presentation(data: sourceData)
+        let sourceSlideCount = presentation.slides.count
+        for (i, operation) in operations.enumerated() {
+            let name = operation["op"] as! String
+            if name == "slide.add" {
+                let layoutName = operation["layoutName"] as! String
+                guard presentation.layouts.contains(where: { $0.name == layoutName }) else {
+                    throw BridgeError("delta", "slides[\(i)].layoutName không tồn tại: \(layoutName)")
+                }
+                continue
+            }
+            let index = operation["slide"] as! Int
+            guard (0..<sourceSlideCount).contains(index) else {
+                throw BridgeError("delta", "slides[\(i)].slide ngoài phạm vi")
+            }
+            if ["shape.replaceText", "shape.rename"].contains(name),
+               presentation.slides[index].shape(named: operation["shape"] as! String) == nil {
+                throw BridgeError("delta", "slides[\(i)].shape không tồn tại")
+            }
+            if name == "slide.setTitle", presentation.slides[index].titleShape == nil {
+                throw BridgeError("delta", "slides[\(i)] không có placeholder tiêu đề")
+            }
+        }
+
+        let deleteIndexes = operations.filter { $0["op"] as? String == "slide.delete" }.compactMap { $0["slide"] as? Int }
+        guard Set(deleteIndexes).count == deleteIndexes.count else {
+            throw BridgeError("delta", "không thể xóa cùng một slide nhiều lần")
+        }
+        guard deleteIndexes.count < sourceSlideCount else {
+            throw BridgeError("delta", "bản trình chiếu phải còn ít nhất một slide")
+        }
+        var remainingCount = sourceSlideCount - deleteIndexes.count
+        for (i, operation) in operations.enumerated() where operation["op"] as? String == "slide.add" {
+            if let index = operation["index"] as? Int, !(0...remainingCount).contains(index) {
+                throw BridgeError("delta", "slides[\(i)].index ngoài phạm vi")
+            }
+            remainingCount += 1
+        }
+
+        do {
+            for operation in operations where !["slide.add", "slide.delete"].contains(operation["op"] as? String ?? "") {
+                let slide = try presentation.slide(at: operation["slide"] as! Int)
+                switch operation["op"] as! String {
+                case "shape.replaceText":
+                    let shape = slide.shape(named: operation["shape"] as! String)!
+                    _ = shape.replaceText(operation["find"] as! String, with: operation["replace"] as! String)
+                case "shape.rename":
+                    try slide.shape(named: operation["shape"] as! String)!.rename(to: operation["name"] as! String)
+                case "slide.setNotes": try slide.setNotesText(operation["text"] as! String)
+                case "slide.setTitle": try slide.setTitle(operation["text"] as! String)
+                default: break
+                }
+            }
+            let deletes = operations.filter { $0["op"] as? String == "slide.delete" }.map { $0["slide"] as! Int }.sorted(by: >)
+            for index in deletes { try presentation.deleteSlide(at: index) }
+            for operation in operations where operation["op"] as? String == "slide.add" {
+                let layoutName = operation["layoutName"] as! String
+                guard let layout = presentation.layouts.first(where: { $0.name == layoutName })?.part else {
+                    throw BridgeError("delta", "layout không tồn tại: \(layoutName)")
+                }
+                _ = try presentation.addSlide(layout: layout, at: operation["index"] as? Int)
+            }
+
+            let expectedSlides = presentation.slides.map { ($0.title, $0.notesText, $0.allShapes.map(\.name), $0.text) }
+            try presentation.save(to: targetURL)
+            let savedData = try Data(contentsOf: targetURL)
+            let reopened = try Presentation(data: savedData)
+            guard reopened.slides.count == expectedSlides.count else {
+                throw BridgeError("reopen", "số slide sau khi mở lại không khớp")
+            }
+            for (index, expected) in expectedSlides.enumerated() {
+                let actual = reopened.slides[index]
+                guard actual.title == expected.0, actual.notesText == expected.1,
+                      actual.allShapes.map(\.name) == expected.2, actual.text == expected.3 else {
+                    throw BridgeError("reopen", "nội dung slide \(index + 1) sau khi mở lại không khớp")
+                }
             }
             return ["ok": true, "changedParts": try Self.changedZipParts(before: sourceData, after: savedData), "unsupported": [String]()]
         } catch {

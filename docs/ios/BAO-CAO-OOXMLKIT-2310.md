@@ -226,3 +226,9 @@ Phần còn cần người có thiết bị: chạy scheme trên iPhone/iPad th�
 `OOXMLBridge`/`ooxml-engine` nhận `xlsx.save` với `source_document_path`, `target_path` staging và delta theo kế hoạch. Lệnh hỗ trợ sửa giá trị/công thức/style index, xóa vùng ô, freeze panes, màu tab và print area bằng API OOXMLKit sẵn có. Thao tác ngoài phạm vi trả `unsupported` và không ghi staging; lệnh lưu staging, mở lại workbook, xác minh sheet/các ô sửa và trả `changedParts`.
 
 Kiểm thử: 2 test mới **FAIL trước sửa** do op chưa tồn tại, sau sửa **PASS 2/2**; toàn bộ Swift **PASS 123/123** (121 bài cũ + 2 bài mới); `node tests/run-tests.js` **PASS 3796/3796**; i18n `missing=0`; checklist evidence `lowered=0`. `python -m pytest tests -q -k ooxml_engine -rs`: **2 SKIPPED** vì chưa có `ooxml-engine.exe` trong worktree Windows. Không chạy app/CDP; thay đổi chỉ ở bridge/engine.
+
+## 8.13. W4B — API PPTX P0 và lệnh lưu delta (24/10/2026)
+
+OOXMLPresentation bổ sung API đổi tên hình, thay chữ qua các run và đặt tiêu đề slide. `pptx.save` nhận delta cho sửa chữ hình, đổi tên hình, ghi chú, tiêu đề, thêm slide theo tên bố cục và xóa slide; delta không hỗ trợ trả `unsupported` trước khi ghi staging. Lệnh mở lại tệp staging, kiểm tra số slide/nội dung và trả `changedParts`; các slide, media, theme không sửa giữ nguyên.
+
+Kiểm thử: bài bridge mới **FAIL trước sửa** do `pptx.save` chưa tồn tại; sau sửa **PASS 3/3** (text/notes/title/rename, add/delete, unsupported). Bộ `scripts/run-tests.sh`: **PASS 137/137** (134 test cũ + 3 mới); kiểm tra cấu trúc độc lập **PASS 86/86** ZIP/CRC/XML; thư viện đọc Office Python tùy chọn **NOT RUN** do thiếu thư viện. Không chạy app/CDP; thay đổi chỉ ở Swift API/bridge.
