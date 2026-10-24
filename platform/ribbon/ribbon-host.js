@@ -8,6 +8,7 @@ import { t } from "../i18n/i18n.js";
 import { ICONS } from "../ui-kit/icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
 import { showAboutDialog } from "../about/about-dialog.js";
+import { setKeyboardRibbonInvoker, clearKeyboardRibbonInvoker } from "../shell/focus-manager.js";
 
 function resolveGroupIcon(groupId, label) {
   const gid = (groupId || "").toLowerCase();
@@ -397,7 +398,9 @@ export class RibbonHost {
         launcherBtn.setAttribute("aria-label", tooltip);
         launcherBtn.setAttribute("data-command", group.launcherCommandId);
         launcherBtn.innerHTML = ICONS.dialogLauncher || "";
-        launcherBtn.addEventListener("click", () => {
+        launcherBtn.addEventListener("click", (event) => {
+          if (event.detail === 0) setKeyboardRibbonInvoker(launcherBtn);
+          else clearKeyboardRibbonInvoker();
           globalCommandBus?.execute?.(group.launcherCommandId);
         });
         labelRowEl.appendChild(launcherBtn);
