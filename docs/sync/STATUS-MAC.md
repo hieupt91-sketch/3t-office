@@ -1,4 +1,4 @@
-# STATUS-MAC (cập nhật: 24/10/2026 23:55, Claude Mac)
+# STATUS-MAC (cập nhật: 25/10/2026 04:01, Claude Mac)
 ## Môi trường Mac
 - macOS 15.8.1 (24H32), arm64; Xcode 26.3 (17C529), Swift 6.2.4 khi dùng `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - Lưu ý: `xcode-select -p` đang trỏ Command Line Tools (Swift 6.1.2) → `swift test` trơn báo `no such module 'XCTest'`; phải đặt `DEVELOPER_DIR`.
