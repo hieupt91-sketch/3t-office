@@ -40,7 +40,7 @@ export async function runSheetTemplateSaveTests() {
     try {
       const fods = path.resolve("tests/fixtures/real-office-samples/src/sample-sheet-charts.fods");
       const dest = path.join(dir, "mau.xltx");
-      const run = spawnSync("python", ["-I", "-c", "import sys,os;sys.path.insert(0,os.getcwd());exec(compile(sys.stdin.read(),'t','exec'))", fods, dest], {
+      const run = spawnSync(process.env.PYTHON || (process.platform === "win32" ? "python" : "python3"), ["-I", "-c", "import sys,os;sys.path.insert(0,os.getcwd());exec(compile(sys.stdin.read(),'t','exec'))", fods, dest], {
         cwd: path.resolve("."), encoding: "utf8", input: PY, timeout: 120000,
       });
       if (run.status !== 0) throw new Error(`python lỗi: ${(run.stderr || "").slice(-400)}`);
