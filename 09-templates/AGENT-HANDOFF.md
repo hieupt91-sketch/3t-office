@@ -1513,3 +1513,23 @@ GIAO DIỆN ĐÃ XEM:
 - lan01/lan03/lan06/lan09/lan10 full-grid warm screenshots at `E:\VNOffice-briefs\runs\q60-before\<file>\lap-4.png` — content/grid visible in all; lan09 had long tab/path spill, logged and fixed.
 - lan09.xlsx tab bar, 1366×768 — initial FAIL, then PASS after ellipsis + horizontal scrolling; final screenshot `E:\VNOffice-briefs\runs\q60-ui-final.png`.
 NEXT ACTION: Keep the speed objective BLOCKED until an output-equivalent candidate is demonstrated to cut >=15% of a dominant phase; do not bypass native metadata overlays or rely on unverified caches.
+---
+
+# Agent Handoff
+TASK: CODEX Q61 — Recheck and fix UI Sweep invalid-input/focus findings (complete)
+AGENT/ROLE: Codex / UI platform, Writer, Sheet, Slides
+BRANCH: codex/q61
+WORKTREE: E:\VNOffice-codex-q61
+OBJECTIVE: Reproduce the UI Sweep findings on the real app via CDP, fix confirmed invalid numeric actions and focus defects, inspect screenshots, and report verified outcomes.
+FINDINGS: Confirmed invalid actions in Writer Zoom/Page Setup, Sheet Goal Seek/Row Height/Conditional Formatting, Slides Zoom; confirmed focus defects in Writer Page Setup and six Sheet dialogs. Word Count and three reported Slides command/dialog claims were false positives and opened successfully.
+IMPLEMENTATION SUMMARY: Shared validation feedback and VI/EN strings were added in prior commits. This step makes Sheet Goal Seek's required inputs validate on open, records a keyboard dropdown's command launcher before execution, restores focus through the shared dialog close path, and scrolls the Page Setup focus target fully into view. All six Sheet dialogs trap Tab and return focus to their launcher on Esc.
+FILES CHANGED THIS STEP: `apps/sheet/page-setup-dialog.js`; `apps/sheet/sheet-grid.js`; `platform/ui-kit/components.js`; `platform/ui-kit/dialogs.js`; `tests/live/cdp/q61-sheet-dialog-focus.desktop.mjs`; `docs/Q61-UI-RECHECK.md`; generated evidence in `docs/EXCEL2016-FEATURE-CHECKLIST.md`; screenshots under `docs/assets/q61-ui/`.
+COMMANDS RUN: `git merge main`; `node tests/run-tests.js`; all three `scripts/audit-0610/gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `node scripts/audit-0610/i18n_parity.mjs`; `python -m pytest tests -q -k "sheet_scenarios or sheet_page_margins or sheet_print_setup"`; CDP validation, Writer focus, and six-dialog Sheet focus probes; DOCX batch audit for d01,d02,d03,d05,d07,d08,d09,d11.
+BUILD RESULT: NOT RUN — build system unchanged.
+TEST RESULTS: PASS — `node tests/run-tests.js` 3802/3802; Sheet CDP focus 6/6 Escape and 6/6 Tab traps; numeric validation CDP 120 assertions; Writer focus 1/1; pytest 7 passed/1156 deselected; DOCX round-trip 8/8 with unchanged page counts; VI=3203/EN=3203 and 0 missing; evidence verifier 0 downgraded rows.
+KNOWN FAILURES: None in this ticket's confirmed findings. Existing generator coverage remains Word priority-1 missing 0, Sheet missing 1, Slides missing 4.
+RISKS: Remaining Page Setup content extends below the viewport at 1024×600 and is accessible through its scroll bar. The initially focused paper-size control is fully visible after the scroll adjustment.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Writer Zoom/Page Setup, Sheet Row Height/Conditional Formatting, Slides Zoom; Writer Page Setup focus; all six Sheet dropdown menus, dialogs and Esc return screens. Sheet dialog screenshots include 1366×768 and 1024×600 in light/dark plus initial 1024×600 paper-size view; numeric dialog set includes 20 screenshots across both sizes/themes. All screenshots were visually inspected. See `docs/Q61-UI-RECHECK.md` and `docs/assets/q61-ui/`.
+NEXT ACTION: None. `E:\VNOffice-briefs\logs\Q61.DONE` created after the Q61 commits.

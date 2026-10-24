@@ -1,3 +1,6 @@
+import { bindNumericDialogValidation } from "../../platform/ui-kit/numeric-dialog-validation.js";
+import { t } from "../../platform/i18n/i18n.js";
+
 /** Hộp thoại Thu phóng của Slides: phần trăm chính xác (50–200%), nút nhanh và Vừa cửa sổ. */
 export const SLIDES_ZOOM_MIN = 50;
 export const SLIDES_ZOOM_MAX = 200;
@@ -24,6 +27,16 @@ export async function showSlidesZoomDialog(currentPercent = 100) {
     document.body.appendChild(overlay);
     const input = overlay.querySelector("#vno-slides-zoom-value");
     const error = overlay.querySelector("#vno-slides-zoom-error");
+    const applyButton = overlay.querySelector("#vno-slides-zoom-apply");
+    const validate = bindNumericDialogValidation({
+      inputs: input,
+      button: applyButton,
+      error,
+      min: SLIDES_ZOOM_MIN,
+      max: SLIDES_ZOOM_MAX,
+      integer: true,
+      message: () => t("slidesDialogs.zoomInvalid", { min: SLIDES_ZOOM_MIN, max: SLIDES_ZOOM_MAX })
+    });
     let settled = false;
     const close = (value) => {
       if (settled) return;
@@ -33,17 +46,15 @@ export async function showSlidesZoomDialog(currentPercent = 100) {
       resolve(value);
     };
     const apply = () => {
-      const value = Number(input.value);
-      if (input.value.trim() === "" || !Number.isInteger(value) || value < SLIDES_ZOOM_MIN || value > SLIDES_ZOOM_MAX) {
-        error.textContent = `Nhập số nguyên từ ${SLIDES_ZOOM_MIN} đến ${SLIDES_ZOOM_MAX}.`;
+      if (!validate()) {
         input.focus();
         return;
       }
-      close({ zoom: value });
+      close({ zoom: Number(input.value) });
     };
-    overlay.querySelectorAll("[data-zoom]").forEach((button) => button.addEventListener("click", () => { input.value = button.dataset.zoom; error.textContent = ""; input.focus(); }));
+    overlay.querySelectorAll("[data-zoom]").forEach((button) => button.addEventListener("click", () => { input.value = button.dataset.zoom; validate(); input.focus(); }));
     overlay.querySelectorAll("[data-fit]").forEach((button) => button.addEventListener("click", () => close({ fit: button.dataset.fit })));
-    overlay.querySelector("#vno-slides-zoom-apply").addEventListener("click", apply);
+    applyButton.addEventListener("click", apply);
     overlay.querySelectorAll(".vno-dialog-close-btn,.vno-dialog-close-footer-btn").forEach((button) => button.addEventListener("click", () => close(null)));
     overlay.addEventListener("keydown", (event) => {
       if (event.key === "Escape") { event.preventDefault(); close(null); }

@@ -256,7 +256,17 @@ export class PageSetupDialog {
       grid._printTitleSelect = null;
       overlay.closeDialog();
     });
-    overlay.querySelector(`#${focusId(focusField)}`)?.focus();
+    const initialFocus = overlay.querySelector(`#${focusId(focusField)}`);
+    initialFocus?.focus({ preventScroll: true });
+    initialFocus?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const scrollArea = initialFocus?.closest(".vno-dialog-body");
+    if (initialFocus && scrollArea) {
+      const controlRect = initialFocus.getBoundingClientRect();
+      const areaRect = scrollArea.getBoundingClientRect();
+      const padding = 20;
+      if (controlRect.bottom > areaRect.bottom - padding) scrollArea.scrollTop += controlRect.bottom - (areaRect.bottom - padding);
+      else if (controlRect.top < areaRect.top + padding) scrollArea.scrollTop -= areaRect.top + padding - controlRect.top;
+    }
     return true;
   }
 }

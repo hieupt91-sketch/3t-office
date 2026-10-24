@@ -6,6 +6,7 @@
 import { runCommandBusTests } from "./unit/command-bus.test.js";
 import { runWriterInteractiveRulerTests } from "./unit/writer-interactive-ruler.test.js";
 import { runWriterNavigationPaneTests } from "./unit/writer-nav-pane.test.js";
+import { runNumericDialogValidationTests } from "./unit/numeric-dialog-validation.test.js";
 import { runAdapterMappingTests } from "./unit/adapter-mapping.test.js";
 import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
 import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
@@ -623,6 +624,7 @@ async function runAll() {
     { title: "247. Unit Tests — VN Writer Trang bìa (Cover Page)", runner: runWriterCoverPageTests },
     { title: "248. Unit Tests — VN Writer Dialogs & Keyboard Focus (TICKET D16)", runner: runWriterDialogsD16Tests },
     { title: "249. Unit Tests — VN Writer Navigation Pane", runner: runWriterNavigationPaneTests },
+    { title: "250. Unit Tests — Shared numeric dialog validation", runner: runNumericDialogValidationTests },
     { title: "250. Unit Tests — VN Writer Line Spacing Rendering & Scale", runner: runWriterLineSpacingRenderTests },
     { title: "251. Unit Tests — VN Writer Heading Styles & Shortcuts", runner: runWriterHeadingShortcutsTests },
     { title: "251b. Unit Tests — VN Writer Text Box Word Default Size (FIX-T8)", runner: runWriterTextBoxDefaultsT8Tests },

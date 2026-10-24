@@ -740,6 +740,7 @@ export const viStrings = {
     pasteSpecialTitle: "Dán đặc biệt", pasteSource: "Giữ định dạng nguồn", pasteTheme: "Dùng chủ đề đích", pasteImage: "Hình ảnh (PNG)", pasteText: "Chỉ văn bản",
     actionTitle: "Tác vụ khi nhấp", actionType: "Khi nhấp đối tượng này", actionNone: "Không", actionNext: "Trang kế tiếp", actionPrevious: "Trang trước", actionFirst: "Trang đầu", actionLast: "Trang cuối", actionSpecific: "Trang cụ thể", actionWeb: "Mở địa chỉ web", actionSlide: "Chọn trang chiếu", actionUrl: "Địa chỉ web",
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
+    zoomInvalid: "Vui lòng nhập số nguyên từ {min} đến {max}.",
     canvasRegion: "Vùng trình chiếu",
     removeSectionKeepSlides: "Xóa Phần (giữ trang chiếu)",
     totalPrintSlides: "Tổng số trang chiếu in",
@@ -1654,6 +1655,7 @@ export const viStrings = {
   },
   writerDialogs: {
     pageSetup: {
+      marginInvalid: "Lề giấy phải là số từ {min} đến {max} mm.",
       title: "Thiết lập trang",
       paperSize: "Khổ giấy",
       orientation: "Hướng giấy",
@@ -1677,6 +1679,7 @@ export const viStrings = {
       close: "Đóng",
       marginRangeError: "Lề trang phải là số từ 0 đến 100 mm."
     },
+    zoom: { invalid: "Vui lòng nhập số nguyên từ {min} đến {max}." },
     paragraph: {
       leftIndent: "Thụt lề trái",
       rightIndent: "Thụt lề phải",
