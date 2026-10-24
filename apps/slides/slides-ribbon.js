@@ -818,6 +818,7 @@ export const SLIDES_RIBBON_TABS = [
       ,{
         id: "appearance",
         label: "Giao diện",
+        labelKey: "slidesRibbon.group.appearance",
         items: [{ type: "button", commandId: "common.view.toggleTheme", isLarge: true }]
       }
     ]

@@ -1006,6 +1006,7 @@ export const SHEET_RIBBON_TABS = [
       ,{
         id: "appearance",
         label: "Giao diện",
+        labelKey: "sheetRibbon.group.appearance",
         items: [{ type: "button", commandId: "common.view.toggleTheme", isLarge: true }]
       }
     ]

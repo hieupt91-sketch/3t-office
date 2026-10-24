@@ -27,10 +27,11 @@ const common = apps.flatMap((app) => [
     commandIds: ["common.view.toggleTheme"],
     title: "Chuyển giao diện Tối / Sáng",
     summary: `Đổi giao diện ${names[app]} giữa nền sáng và nền tối để dễ nhìn trong môi trường thiếu sáng. Lựa chọn được ghi nhớ cho lần mở sau.`,
-    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Phím tắt và thao tác nhanh" },
-    keywords: ["giao diện tối", "giao diện sáng", "dark mode", "chủ đề", "nền tối", "đổi màu giao diện"],
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Giao diện" },
+    keywords: ["giao diện tối", "giao diện sáng", "dark mode", "chủ đề", "nền tối", "đổi màu giao diện", "appearance"],
     steps: [
-      "Nhấn nút Tối (hoặc Sáng) ở thanh trên cùng, bên phải ô tìm kiếm, để đổi giao diện ngay lập tức.",
+      "Mở tab Chế độ xem, tìm nhóm Giao diện ở cuối ribbon và nhấn nút Chế độ Tối/Sáng để đổi giao diện ngay lập tức.",
+      "Cách khác: nhấn nút Tối (hoặc Sáng) ở thanh trên cùng, bên phải ô tìm kiếm. Khi cửa sổ hẹp, nút chỉ còn biểu tượng mặt trăng hoặc mặt trời.",
       "Nhấn lần nữa để quay lại giao diện trước đó. Nhãn của nút cho biết giao diện bạn sẽ chuyển sang.",
       "Giao diện chỉ đổi màu của ứng dụng, không đổi màu chữ hay màu nền trong tài liệu của bạn."
     ]
