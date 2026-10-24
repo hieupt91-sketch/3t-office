@@ -1,6 +1,8 @@
 import SwiftUI
+import UIKit
 import WebKit
 import OOXMLBridge
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     var body: some View { MobileOfficeWebView().ignoresSafeArea(.container, edges: [.bottom]) }
@@ -25,6 +27,8 @@ struct MobileOfficeWebView: UIViewRepresentable {
         controller.addUserScript(WKUserScript(source: diagnostics, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         let bridge = OOXMLWebViewBridge()
         bridge.install(into: controller, name: "ooxml")
+        let files = MobileFilesBridge()
+        files.install(into: controller, name: "mobileFiles")
         let config = WKWebViewConfiguration()
         config.userContentController = controller
         config.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -64,6 +68,101 @@ struct MobileOfficeWebView: UIViewRepresentable {
                     """)
             }
         }
+    }
+}
+
+/// Native Files bridge. It only moves bytes between the WebView and Files;
+/// OOXML parsing remains inside OOXMLBridge/OOXMLKit.
+@available(iOS 14.0, *)
+final class MobileFilesBridge: NSObject, WKScriptMessageHandlerWithReply, UIDocumentPickerDelegate {
+    private weak var webView: WKWebView?
+    private var pendingReply: ((Any?, String?) -> Void)?
+    private var pendingOperation: String?
+    private var pendingFilename: String?
+
+    func install(into controller: WKUserContentController, name: String) {
+        controller.addScriptMessageHandler(self, contentWorld: .page, name: name)
+    }
+
+    func userContentController(_ controller: WKUserContentController,
+                               didReceive message: WKScriptMessage,
+                               replyHandler: @escaping (Any?, String?) -> Void) {
+        guard let body = message.body as? [String: Any], let op = body["op"] as? String else {
+            replyHandler(nil, "mobileFiles: yêu cầu không hợp lệ"); return
+        }
+        guard let webView = message.webView else {
+            replyHandler(nil, "mobileFiles: không có WebView"); return
+        }
+        self.webView = webView
+        switch op {
+        case "open":
+            presentPicker(forOpening: true, filename: nil, reply: replyHandler)
+        case "save":
+            guard let base64 = body["base64"] as? String,
+                  let data = Data(base64Encoded: base64) else {
+                replyHandler(nil, "mobileFiles: base64 không hợp lệ"); return
+            }
+            presentPicker(forOpening: false,
+                          filename: body["filename"] as? String,
+                          data: data,
+                          reply: replyHandler)
+        default:
+            replyHandler(nil, "mobileFiles: op không hỗ trợ"); return
+        }
+    }
+
+    private func presentPicker(forOpening: Bool, filename: String?, data: Data? = nil,
+                               reply: @escaping (Any?, String?) -> Void) {
+        guard pendingReply == nil else { reply(nil, "mobileFiles: đang có thao tác Files khác"); return }
+        pendingReply = reply
+        pendingOperation = forOpening ? "open" : "save"
+        pendingFilename = filename
+        let picker: UIDocumentPickerViewController
+        if forOpening {
+            picker = UIDocumentPickerViewController(forOpeningContentTypes: [
+                UTType(filenameExtension: "docx")!, UTType(filenameExtension: "xlsx")!,
+                UTType(filenameExtension: "pptx")!,
+                UTType.pdf, .data
+            ], asCopy: true)
+        } else {
+            let ext = URL(fileURLWithPath: filename ?? "TaiLieu.docx").pathExtension
+            let type = UTType(filenameExtension: ext) ?? .data
+            let temp = FileManager.default.temporaryDirectory.appendingPathComponent(filename ?? "TaiLieu.docx")
+            try? data?.write(to: temp, options: .atomic)
+            picker = UIDocumentPickerViewController(forExporting: [temp], asCopy: true)
+            picker.allowsMultipleSelection = false
+            _ = type // the extension determines the Files document type.
+        }
+        picker.delegate = self
+        topViewController()?.present(picker, animated: true)
+    }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        defer { clearPending() }
+        guard let url = urls.first, let reply = pendingReply else { return }
+        if pendingOperation == "open" {
+            guard let data = try? Data(contentsOf: url) else { reply(nil, "mobileFiles: không đọc được tệp"); return }
+            reply(["ok": true, "filename": url.lastPathComponent, "base64": data.base64EncodedString()], nil)
+        } else {
+            reply(["ok": true, "path": url.path, "filename": url.lastPathComponent], nil)
+        }
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        pendingReply?(["ok": false, "cancelled": true], nil)
+        clearPending()
+    }
+
+    private func clearPending() {
+        pendingReply = nil; pendingOperation = nil; pendingFilename = nil
+    }
+
+    private func topViewController() -> UIViewController? {
+        guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first,
+              let root = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController else { return nil }
+        var current = root
+        while let presented = current.presentedViewController { current = presented }
+        return current
     }
 }
 
