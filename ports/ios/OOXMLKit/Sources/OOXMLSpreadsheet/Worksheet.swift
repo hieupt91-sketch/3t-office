@@ -19,6 +19,166 @@ public struct Cell: Equatable, Sendable {
     public let isRichText: Bool
 }
 
+/// Lề in theo đơn vị inch như trong OOXML.
+public struct PageMargins: Equatable, Sendable {
+    public let left: Double
+    public let right: Double
+    public let top: Double
+    public let bottom: Double
+    public let header: Double
+    public let footer: Double
+
+    public init(left: Double, right: Double, top: Double, bottom: Double, header: Double, footer: Double) {
+        self.left = left
+        self.right = right
+        self.top = top
+        self.bottom = bottom
+        self.header = header
+        self.footer = footer
+    }
+}
+
+/// Hướng giấy cho thiết lập trang in.
+public enum PageOrientation: String, Sendable {
+    case portrait
+    case landscape
+}
+
+/// Trạng thái hiển thị của một sheet.
+public enum SheetState: String, Sendable {
+    case visible
+    case hidden
+    case veryHidden
+}
+
+/// Quy tắc định dạng có điều kiện dạng OOXML. `formula` không bao gồm thẻ XML.
+public enum CFThresholdType: String, Sendable {
+    case minimum = "min"
+    case maximum = "max"
+    case number = "num"
+    case percent
+    case percentile
+    case formula
+    case autoMinimum = "autoMin"
+    case autoMaximum = "autoMax"
+}
+
+public struct CFThreshold: Equatable, Sendable {
+    public let type: CFThresholdType
+    public let value: String?
+
+    public init(type: CFThresholdType, value: String? = nil) {
+        self.type = type
+        self.value = value
+    }
+}
+
+public enum CFVisualFormat: Equatable, Sendable {
+    case colorScale(thresholds: [CFThreshold], colors: [String])
+    case dataBar(minimum: CFThreshold, maximum: CFThreshold, color: String, showValue: Bool = true)
+    case iconSet(name: String, thresholds: [CFThreshold], reverse: Bool = false, showValue: Bool = true)
+}
+
+public struct CFRule: Equatable, Sendable {
+    public let type: String
+    public let `operator`: String?
+    public let formula: [String]
+    public let priority: Int
+    public let differentialStyleID: Int?
+    public let stopIfTrue: Bool
+    public let visualFormat: CFVisualFormat?
+
+    public init(type: String, operator: String? = nil, formula: [String], priority: Int,
+                differentialStyleID: Int? = nil, stopIfTrue: Bool = false, visualFormat: CFVisualFormat? = nil) {
+        self.type = type
+        self.operator = `operator`
+        self.formula = formula
+        self.priority = priority
+        self.differentialStyleID = differentialStyleID
+        self.stopIfTrue = stopIfTrue
+        self.visualFormat = visualFormat
+    }
+}
+
+/// Quy tắc nhập liệu theo chuẩn SpreadsheetML.
+public struct DataValidationRule: Equatable, Sendable {
+    public let type: String
+    public let formula1: String?
+    public let formula2: String?
+    public let `operator`: String?
+    public let allowBlank: Bool
+
+    public init(type: String, formula1: String? = nil, formula2: String? = nil,
+                operator: String? = nil, allowBlank: Bool = false) {
+        self.type = type
+        self.formula1 = formula1
+        self.formula2 = formula2
+        self.operator = `operator`
+        self.allowBlank = allowBlank
+    }
+}
+
+/// Các cờ SpreadsheetML ghi vào `<sheetProtection>`. Cờ `true` có nghĩa là thao tác đó được bảo vệ.
+public struct SheetProtectionOptions: Equatable, Sendable {
+    public let sheet: Bool
+    public let objects: Bool
+    public let scenarios: Bool
+    public let formatCells: Bool
+    public let formatColumns: Bool
+    public let formatRows: Bool
+    public let insertColumns: Bool
+    public let insertRows: Bool
+    public let deleteColumns: Bool
+    public let deleteRows: Bool
+    public let selectLockedCells: Bool
+    public let selectUnlockedCells: Bool
+
+    public init(sheet: Bool = true, objects: Bool = false, scenarios: Bool = false,
+                formatCells: Bool = false, formatColumns: Bool = false, formatRows: Bool = false,
+                insertColumns: Bool = false, insertRows: Bool = false, deleteColumns: Bool = false,
+                deleteRows: Bool = false, selectLockedCells: Bool = false, selectUnlockedCells: Bool = false) {
+        self.sheet = sheet
+        self.objects = objects
+        self.scenarios = scenarios
+        self.formatCells = formatCells
+        self.formatColumns = formatColumns
+        self.formatRows = formatRows
+        self.insertColumns = insertColumns
+        self.insertRows = insertRows
+        self.deleteColumns = deleteColumns
+        self.deleteRows = deleteRows
+        self.selectLockedCells = selectLockedCells
+        self.selectUnlockedCells = selectUnlockedCells
+    }
+}
+
+public struct WorksheetViewOptions: Equatable, Sendable {
+    public let showGridLines: Bool
+    public let showRowColumnHeaders: Bool
+    public let zoomScale: Int?
+
+    public init(showGridLines: Bool, showRowColumnHeaders: Bool, zoomScale: Int? = nil) {
+        self.showGridLines = showGridLines
+        self.showRowColumnHeaders = showRowColumnHeaders
+        self.zoomScale = zoomScale
+    }
+}
+
+public struct WorksheetPrintOptions: Equatable, Sendable {
+    public let gridLines: Bool
+    public let headings: Bool
+    public let horizontalCentered: Bool
+    public let verticalCentered: Bool
+
+    public init(gridLines: Bool = false, headings: Bool = false,
+                horizontalCentered: Bool = false, verticalCentered: Bool = false) {
+        self.gridLines = gridLines
+        self.headings = headings
+        self.horizontalCentered = horizontalCentered
+        self.verticalCentered = verticalCentered
+    }
+}
+
 public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
     case notASpreadsheet
     case sheetNotFound(String)
@@ -31,6 +191,7 @@ public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
     case stringTooLong(Int)
     case cannotDeleteLastVisibleSheet
     case invalidRowOperation(String)
+    case invalidSetting(String)
 
     public var description: String {
         switch self {
@@ -45,6 +206,7 @@ public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
         case .stringTooLong(let n): return "Chuỗi dài \(n) ký tự vượt giới hạn 32.767 của Excel"
         case .cannotDeleteLastVisibleSheet: return "Sổ tính phải còn ít nhất một sheet hiển thị"
         case .invalidRowOperation(let m): return "Không chèn/xóa hàng được: \(m)"
+        case .invalidSetting(let m): return "Thiết lập bảng tính không hợp lệ: \(m)"
         }
     }
 }
@@ -169,6 +331,52 @@ public final class Worksheet {
         } ?? []
     }
 
+    /// Đặt hoặc thay liên kết ngoài hay liên kết tới vị trí trong workbook cho một ô.
+    public func setHyperlink(at a1: String, target: String, location: String? = nil, isExternal: Bool = true) throws {
+        let reference = try parse(a1)
+        guard !target.isEmpty else { throw SpreadsheetError.invalidSetting("đích liên kết không được để trống") }
+        let links = document.root.firstChild(NS.s, "hyperlinks") ?? {
+            let element = XElement(name: q("hyperlinks"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        let old = links.children(NS.s, "hyperlink").first { $0.attribute("ref") == reference.a1 }
+        let oldID = old?.attribute("id", in: NS.r)
+        old?.removeFromParent()
+        let element = XElement(name: q("hyperlink"), attributes: [XAttribute(name: "ref", value: reference.a1)])
+        if isExternal {
+            let rels = try workbook.package.relationships(of: part)
+            let rid = rels.addExternal(.hyperlink, target: target)
+            element.setAttribute("r:id", rid)
+        } else {
+            element.setAttribute("location", location ?? target)
+        }
+        if let location, isExternal { element.setAttribute("location", location) }
+        links.append(element)
+        if let oldID, !links.children(NS.s, "hyperlink").contains(where: { $0.attribute("id", in: NS.r) == oldID }) {
+            let rels = try workbook.package.relationships(of: part)
+            rels.remove(id: oldID)
+        }
+        workbook.package.markModified(part)
+    }
+
+    /// Xóa siêu liên kết của ô và quan hệ ngoài tương ứng nếu quan hệ đó không còn được dùng.
+    public func removeHyperlink(at a1: String) throws {
+        let reference = try parse(a1)
+        guard let links = document.root.firstChild(NS.s, "hyperlinks"),
+              let element = links.children(NS.s, "hyperlink").first(where: { $0.attribute("ref") == reference.a1 }) else { return }
+        let rid = element.attribute("id", in: NS.r)
+        element.removeFromParent()
+        if links.children(NS.s, "hyperlink").isEmpty { links.removeFromParent() }
+        if let rid {
+            let rels = try workbook.package.relationships(of: part)
+            if !(document.root.firstChild(NS.s, "hyperlinks")?.children(NS.s, "hyperlink").contains { $0.attribute("id", in: NS.r) == rid } ?? false) {
+                rels.remove(id: rid)
+            }
+        }
+        workbook.package.markModified(part)
+    }
+
     public func columnWidth(_ column: Int) -> Double? {
         for col in document.root.firstChild(NS.s, "cols")?.children(NS.s, "col") ?? [] {
             if let a = Int(col.attribute("min") ?? ""), let b = Int(col.attribute("max") ?? ""), (a...b).contains(column) {
@@ -180,6 +388,405 @@ public final class Worksheet {
 
     public func rowHeight(_ row: Int) -> Double? {
         rows[row].flatMap { Double($0.attribute("ht") ?? "") }
+    }
+
+    /// Cố định số hàng và cột đầu của trang tính.
+    /// Ô ngay sau vùng cố định trở thành ô đang chọn.
+    /// Gọi `removeFreezePanes()` để bỏ cố định.
+    public func setFreezePanes(rows frozenRows: Int, cols frozenColumns: Int) throws {
+        guard frozenRows >= 0, frozenRows < CellReference.maxRow,
+              frozenColumns >= 0, frozenColumns < CellReference.maxColumn,
+              frozenRows > 0 || frozenColumns > 0 else {
+            throw SpreadsheetError.invalidSetting("freeze panes cần ít nhất một hàng hoặc cột hợp lệ")
+        }
+        let view = sheetViewElement()
+        for element in view.children(NS.s, "pane") { element.removeFromParent() }
+        for element in view.children(NS.s, "selection") { element.removeFromParent() }
+
+        let activePane: String
+        if frozenRows > 0 && frozenColumns > 0 { activePane = "bottomRight" }
+        else if frozenRows > 0 { activePane = "bottomLeft" }
+        else { activePane = "topRight" }
+        let topLeft = CellReference(column: frozenColumns + 1, row: frozenRows + 1).a1
+        var attributes: [XAttribute] = []
+        if frozenColumns > 0 { attributes.append(XAttribute(name: "xSplit", value: String(frozenColumns))) }
+        if frozenRows > 0 { attributes.append(XAttribute(name: "ySplit", value: String(frozenRows))) }
+        attributes += [XAttribute(name: "topLeftCell", value: topLeft),
+                      XAttribute(name: "activePane", value: activePane),
+                      XAttribute(name: "state", value: "frozen")]
+        let pane = XElement(name: q("pane"), attributes: attributes)
+        view.insertChild(pane, schemaOrder: ["pane", "selection", "pivotSelection"])
+        let selection = XElement(name: q("selection"), attributes: [
+            XAttribute(name: "pane", value: activePane), XAttribute(name: "activeCell", value: topLeft),
+            XAttribute(name: "sqref", value: topLeft),
+        ])
+        view.insertChild(selection, schemaOrder: ["pane", "selection", "pivotSelection"])
+        workbook.package.markModified(part)
+    }
+
+    /// Bỏ cố định hàng và cột trên trang tính hiện tại.
+    /// Các ngăn và vùng chọn được tạo cùng trạng thái cố định sẽ bị xóa.
+    /// Những ô và dữ liệu trong bảng không bị thay đổi.
+    public func removeFreezePanes() throws {
+        guard let view = document.root.firstChild(NS.s, "sheetViews")?.firstChild(NS.s, "sheetView"),
+              !view.children(NS.s, "pane").isEmpty else { return }
+        for element in view.children(NS.s, "pane") { element.removeFromParent() }
+        for element in view.children(NS.s, "selection") { element.removeFromParent() }
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt tùy chọn hiển thị lưới, tiêu đề hàng/cột và mức thu phóng của sheet.
+    public func setViewOptions(_ options: WorksheetViewOptions) throws {
+        if let zoom = options.zoomScale, !(10...400).contains(zoom) {
+            throw SpreadsheetError.invalidSetting("mức thu phóng phải từ 10 đến 400 phần trăm")
+        }
+        let view = sheetViewElement()
+        view.setAttribute("showGridLines", options.showGridLines ? "1" : "0")
+        view.setAttribute("showRowColHeaders", options.showRowColumnHeaders ? "1" : "0")
+        if let zoom = options.zoomScale { view.setAttribute("zoomScale", String(zoom)) }
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt tùy chọn in đường lưới, tiêu đề hàng/cột và căn giữa trang.
+    public func setPrintOptions(_ options: WorksheetPrintOptions) throws {
+        let element = document.root.firstChild(NS.s, "printOptions") ?? {
+            let node = XElement(name: q("printOptions"))
+            document.root.insertChild(node, schemaOrder: Worksheet.worksheetOrder)
+            return node
+        }()
+        element.setAttribute("gridLines", options.gridLines ? "1" : "0")
+        element.setAttribute("gridLinesSet", "1")
+        element.setAttribute("headings", options.headings ? "1" : "0")
+        element.setAttribute("headingsSet", "1")
+        element.setAttribute("horizontalCentered", options.horizontalCentered ? "1" : "0")
+        element.setAttribute("verticalCentered", options.verticalCentered ? "1" : "0")
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt địa chỉ vùng lọc tự động cho trang tính.
+    /// Các tiêu chí lọc hiện có trong vùng được giữ nguyên.
+    /// Lưu workbook để ghi thay đổi vào tệp XLSX.
+    public func setAutoFilter(range: CellRange) throws {
+        let filter = document.root.firstChild(NS.s, "autoFilter") ?? {
+            let element = XElement(name: q("autoFilter"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        filter.setAttribute("ref", range.description)
+        workbook.package.markModified(part)
+    }
+
+    /// Bỏ vùng lọc tự động của trang tính hiện tại.
+    /// Dữ liệu và định dạng các ô trong vùng không bị thay đổi.
+    /// Lưu workbook để ghi thay đổi vào tệp XLSX.
+    public func removeAutoFilter() throws {
+        guard let filter = document.root.firstChild(NS.s, "autoFilter") else { return }
+        filter.removeFromParent()
+        workbook.package.markModified(part)
+    }
+
+    /// Thêm một quy tắc định dạng có điều kiện cho vùng ô.
+    /// Công thức được ghi trực tiếp vào `<formula>`; định dạng khác của sheet được giữ nguyên.
+    public func addConditionalFormatting(range: CellRange, rule: CFRule) throws {
+        let types: Set<String> = ["cellIs", "expression", "colorScale", "dataBar", "iconSet", "containsText",
+                                  "notContainsText", "beginsWith", "endsWith", "containsBlanks", "notContainsBlanks",
+                                  "containsErrors", "notContainsErrors", "timePeriod", "aboveAverage", "duplicateValues",
+                                  "uniqueValues", "top10"]
+        let operators: Set<String> = ["between", "notBetween", "equal", "notEqual", "greaterThan", "lessThan",
+                                      "greaterThanOrEqual", "lessThanOrEqual"]
+        let visualTypeMatches: Bool = switch rule.visualFormat {
+        case nil: !["colorScale", "dataBar", "iconSet"].contains(rule.type)
+        case .colorScale?: rule.type == "colorScale"
+        case .dataBar?: rule.type == "dataBar"
+        case .iconSet?: rule.type == "iconSet"
+        }
+        let visualIsValid = validateVisualFormat(rule.visualFormat)
+        guard types.contains(rule.type), rule.priority > 0, visualTypeMatches, visualIsValid,
+              rule.differentialStyleID.map({ $0 >= 0 }) ?? true,
+              rule.operator.map({ operators.contains($0) }) ?? true,
+              (!(["cellIs", "expression"].contains(rule.type)) || !rule.formula.isEmpty) else {
+            throw SpreadsheetError.invalidSetting("quy tắc định dạng có điều kiện không hợp lệ")
+        }
+        let formatting = XElement(name: q("conditionalFormatting"), attributes: [XAttribute(name: "sqref", value: range.description)])
+        var attributes = [XAttribute(name: "type", value: rule.type), XAttribute(name: "priority", value: String(rule.priority))]
+        if let op = rule.operator { attributes.append(XAttribute(name: "operator", value: op)) }
+        if let style = rule.differentialStyleID { attributes.append(XAttribute(name: "dxfId", value: String(style))) }
+        if rule.stopIfTrue { attributes.append(XAttribute(name: "stopIfTrue", value: "1")) }
+        let ruleElement = XElement(name: q("cfRule"), attributes: attributes)
+        for formula in rule.formula { ruleElement.append(XElement(name: q("formula"), children: [.text(formula)])) }
+        appendVisualFormat(rule.visualFormat, to: ruleElement)
+        formatting.append(ruleElement)
+        document.root.insertChild(formatting, schemaOrder: Worksheet.worksheetOrder)
+        workbook.package.markModified(part)
+    }
+
+    private func validateVisualFormat(_ format: CFVisualFormat?) -> Bool {
+        func validThreshold(_ threshold: CFThreshold) -> Bool {
+            switch threshold.type {
+            case .minimum, .maximum, .autoMinimum, .autoMaximum: return threshold.value == nil
+            case .number, .percent, .percentile, .formula: return threshold.value != nil
+            }
+        }
+        func validColor(_ color: String) -> Bool {
+            (color.count == 6 || color.count == 8) && color.allSatisfy(\.isHexDigit)
+        }
+        switch format {
+        case nil: return true
+        case .colorScale(let thresholds, let colors):
+            return (thresholds.count == 2 || thresholds.count == 3) && colors.count == thresholds.count
+                && thresholds.allSatisfy(validThreshold) && colors.allSatisfy(validColor)
+        case .dataBar(let minimum, let maximum, let color, _):
+            return validThreshold(minimum) && validThreshold(maximum) && validColor(color)
+        case .iconSet(let name, let thresholds, _, _):
+            let iconSets: Set<String> = ["3Arrows", "3ArrowsGray", "3Flags", "3TrafficLights1", "3TrafficLights2",
+                                         "3Signs", "3Symbols", "3Symbols2", "4Arrows", "4ArrowsGray", "4RedToBlack",
+                                         "4Rating", "4TrafficLights", "5Arrows", "5ArrowsGray", "5Rating", "5Quarters"]
+            let expected = name.hasPrefix("3") ? 3 : name.hasPrefix("4") ? 4 : name.hasPrefix("5") ? 5 : 0
+            return iconSets.contains(name) && thresholds.count == expected && thresholds.allSatisfy(validThreshold)
+        }
+    }
+
+    private func appendVisualFormat(_ format: CFVisualFormat?, to rule: XElement) {
+        func thresholdElement(_ value: CFThreshold) -> XElement {
+            var attributes = [XAttribute(name: "type", value: value.type.rawValue)]
+            if let text = value.value { attributes.append(XAttribute(name: "val", value: text)) }
+            return XElement(name: q("cfvo"), attributes: attributes)
+        }
+        func colorElement(_ text: String) -> XElement {
+            let hex = text.count == 6 ? "FF" + text : text.uppercased()
+            return XElement(name: q("color"), attributes: [XAttribute(name: "rgb", value: hex)])
+        }
+        switch format {
+        case nil: break
+        case .colorScale(let thresholds, let colors):
+            let element = XElement(name: q("colorScale"))
+            thresholds.forEach { element.append(thresholdElement($0)) }
+            colors.forEach { element.append(colorElement($0)) }
+            rule.append(element)
+        case .dataBar(let minimum, let maximum, let color, let showValue):
+            let element = XElement(name: q("dataBar"), attributes: [XAttribute(name: "showValue", value: showValue ? "1" : "0")])
+            element.append(thresholdElement(minimum))
+            element.append(thresholdElement(maximum))
+            element.append(colorElement(color))
+            rule.append(element)
+        case .iconSet(let name, let thresholds, let reverse, let showValue):
+            let element = XElement(name: q("iconSet"), attributes: [
+                XAttribute(name: "iconSet", value: name), XAttribute(name: "showValue", value: showValue ? "1" : "0"),
+                XAttribute(name: "reverse", value: reverse ? "1" : "0"),
+            ])
+            thresholds.forEach { element.append(thresholdElement($0)) }
+            rule.append(element)
+        }
+    }
+
+    /// Xóa các quy tắc định dạng cho vùng đã chọn; truyền `nil` để xóa toàn bộ.
+    public func clearConditionalFormatting(range: CellRange? = nil) throws {
+        guard document.root.firstChild(NS.s, "conditionalFormatting") != nil else { return }
+        let matches = document.root.children(NS.s, "conditionalFormatting").filter { element in
+            guard let range else { return true }
+            return element.attribute("sqref")?.split(whereSeparator: { $0.isWhitespace }).contains { String($0) == range.description } == true
+        }
+        guard !matches.isEmpty else { return }
+        for element in matches { element.removeFromParent() }
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt hoặc xóa bảo vệ sheet; các cờ `true` trong options là thao tác bị khóa.
+    /// Mật khẩu được ghi dưới dạng hash legacy 16-bit của SpreadsheetML, không mã hóa nội dung tệp.
+    public func setSheetProtection(password: String? = nil, options: SheetProtectionOptions = SheetProtectionOptions()) throws {
+        guard options.sheet else {
+            document.root.firstChild(NS.s, "sheetProtection")?.removeFromParent()
+            workbook.package.markModified(part)
+            return
+        }
+        let protection = document.root.firstChild(NS.s, "sheetProtection") ?? {
+            let element = XElement(name: q("sheetProtection"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        let flags: [(String, Bool)] = [
+            ("sheet", options.sheet), ("objects", options.objects), ("scenarios", options.scenarios),
+            ("formatCells", options.formatCells), ("formatColumns", options.formatColumns),
+            ("formatRows", options.formatRows), ("insertColumns", options.insertColumns),
+            ("insertRows", options.insertRows), ("deleteColumns", options.deleteColumns),
+            ("deleteRows", options.deleteRows), ("selectLockedCells", options.selectLockedCells),
+            ("selectUnlockedCells", options.selectUnlockedCells),
+        ]
+        for (name, enabled) in flags { protection.setAttribute(name, enabled ? "1" : "0") }
+        if let password { protection.setAttribute("password", Self.legacyPasswordHash(password)) }
+        else { protection.removeAttribute("password") }
+        workbook.package.markModified(part)
+    }
+
+    private static func legacyPasswordHash(_ password: String) -> String {
+        var hash: UInt16 = 0
+        for byte in password.utf16 {
+            let rotate = (hash & 0x4000) != 0
+            hash = (hash << 1) & 0x7fff
+            if rotate { hash |= 1 }
+            hash ^= byte
+        }
+        hash = ((hash & 0x4000) != 0 ? ((hash << 1) & 0x7fff) | 1 : (hash << 1) & 0x7fff)
+        hash ^= UInt16(password.utf16.count)
+        hash ^= 0xCE4B
+        return String(format: "%04X", hash)
+    }
+
+    /// Thêm một quy tắc kiểm tra dữ liệu cho vùng ô.
+    public func addDataValidation(range: CellRange, validation: DataValidationRule) throws {
+        let types: Set<String> = ["none", "whole", "decimal", "list", "date", "time", "textLength", "custom"]
+        let operators: Set<String> = ["between", "notBetween", "equal", "notEqual", "greaterThan", "lessThan",
+                                      "greaterThanOrEqual", "lessThanOrEqual"]
+        guard types.contains(validation.type), validation.operator.map({ operators.contains($0) }) ?? true,
+              validation.type != "list" || validation.formula1 != nil,
+              validation.operator == nil || (validation.formula1 != nil && validation.formula2 != nil) else {
+            throw SpreadsheetError.invalidSetting("quy tắc kiểm tra dữ liệu không hợp lệ")
+        }
+        let validations = document.root.firstChild(NS.s, "dataValidations") ?? {
+            let element = XElement(name: q("dataValidations"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        var attributes = [XAttribute(name: "type", value: validation.type),
+                          XAttribute(name: "sqref", value: range.description)]
+        if validation.allowBlank { attributes.append(XAttribute(name: "allowBlank", value: "1")) }
+        if let op = validation.operator { attributes.append(XAttribute(name: "operator", value: op)) }
+        let item = XElement(name: q("dataValidation"), attributes: attributes)
+        if let formula = validation.formula1 { item.append(XElement(name: q("formula1"), children: [.text(formula)])) }
+        if let formula = validation.formula2 { item.append(XElement(name: q("formula2"), children: [.text(formula)])) }
+        validations.append(item)
+        validations.setAttribute("count", String(validations.children(NS.s, "dataValidation").count))
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt màu thẻ bằng mã RGB 6 ký tự hoặc ARGB 8 ký tự.
+    /// Mã RGB được tự thêm alpha `FF`; truyền chuỗi rỗng để xóa màu.
+    /// Ví dụ: `setTabColor(rgbHex: "35A7FF")`.
+    public func setTabColor(rgbHex: String) throws {
+        let color = rgbHex.uppercased()
+        if !color.isEmpty, !((color.count == 6 || color.count == 8) && color.allSatisfy({ $0.isHexDigit })) {
+            throw SpreadsheetError.invalidSetting("màu tab cần 6 ký tự RGB hoặc 8 ký tự ARGB")
+        }
+        let properties = document.root.firstChild(NS.s, "sheetPr") ?? {
+            let element = XElement(name: q("sheetPr"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        if color.isEmpty {
+            properties.firstChild(NS.s, "tabColor")?.removeFromParent()
+        } else {
+            let argb = color.count == 6 ? "FF" + color : color
+            let tabColor = properties.firstChild(NS.s, "tabColor") ?? {
+                let element = XElement(name: q("tabColor"))
+                properties.insertChild(element, schemaOrder: ["tabColor", "outlinePr", "pageSetUpPr"])
+                return element
+            }()
+            tabColor.setAttribute("rgb", argb)
+        }
+        if properties.elements.isEmpty { properties.removeFromParent() }
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt độ rộng cột theo đơn vị ký tự và tùy chọn ẩn cột.
+    /// Giữ các thuộc tính định dạng khác trong dải cột ban đầu.
+    /// Ví dụ: `setColumnWidth(col: 3, width: 18, hidden: false)`.
+    public func setColumnWidth(col: Int, width: Double, hidden: Bool = false) throws {
+        guard (1...CellReference.maxColumn).contains(col), width.isFinite, (0...255).contains(width) else {
+            throw SpreadsheetError.invalidSetting("cột hoặc độ rộng nằm ngoài giới hạn")
+        }
+        setColumnWidth(col, width)
+        try setColumnHidden(col: col, hidden: hidden)
+    }
+
+    /// Ẩn hoặc hiện một cột cụ thể.
+    /// Các cột bên cạnh trong cùng dải không bị thay đổi.
+    /// Ví dụ: `setColumnHidden(col: 3, hidden: true)`.
+    public func setColumnHidden(col: Int, hidden: Bool) throws {
+        guard (1...CellReference.maxColumn).contains(col) else {
+            throw SpreadsheetError.invalidSetting("số cột nằm ngoài giới hạn")
+        }
+        let existing = document.root.firstChild(NS.s, "cols")?.children(NS.s, "col").first(where: {
+            guard let first = Int($0.attribute("min") ?? ""), let last = Int($0.attribute("max") ?? ""), first <= last else { return false }
+            return (first...last).contains(col)
+        })
+        guard hidden || existing != nil else { return }
+        if let existing, (existing.attribute("hidden") == "1") == hidden { return }
+        let cols = document.root.firstChild(NS.s, "cols") ?? {
+            let element = XElement(name: q("cols"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        let column = columnElement(col, in: cols)
+        if hidden { column.setAttribute("hidden", "1") } else { column.removeAttribute("hidden") }
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt chiều cao hàng theo point và tùy chọn ẩn hàng.
+    /// Hàng được đánh dấu chiều cao tùy chỉnh để trình đọc áp dụng giá trị.
+    /// Ví dụ: `setRowHeight(row: 4, height: 24, hidden: false)`.
+    public func setRowHeight(row: Int, height: Double, hidden: Bool = false) throws {
+        guard (1...CellReference.maxRow).contains(row), height.isFinite, (0...409.5).contains(height) else {
+            throw SpreadsheetError.invalidSetting("hàng hoặc chiều cao nằm ngoài giới hạn")
+        }
+        materializeIfNeeded()
+        let element = rowElement(row)
+        element.setAttribute("ht", Worksheet.format(height))
+        element.setAttribute("customHeight", "1")
+        if hidden { element.setAttribute("hidden", "1") } else { element.removeAttribute("hidden") }
+        workbook.package.markModified(part)
+    }
+
+    /// Ẩn hoặc hiện một hàng cụ thể.
+    /// Dữ liệu, công thức và định dạng của hàng được giữ nguyên.
+    /// Ví dụ: `setRowHidden(row: 4, hidden: true)`.
+    public func setRowHidden(row: Int, hidden: Bool) throws {
+        guard (1...CellReference.maxRow).contains(row) else {
+            throw SpreadsheetError.invalidSetting("số hàng nằm ngoài giới hạn")
+        }
+        guard hidden || rows[row] != nil else { return }
+        materializeIfNeeded()
+        let element = rowElement(row)
+        if hidden {
+            guard element.attribute("hidden") != "1" else { return }
+            element.setAttribute("hidden", "1")
+        } else {
+            guard element.attribute("hidden") != nil else { return }
+            element.removeAttribute("hidden")
+        }
+        workbook.package.markModified(part)
+    }
+
+    /// Thiết lập sáu lề, hướng giấy và mã khổ giấy cho trang in.
+    /// Lề tính bằng inch; chiều cao hàng in không bị thay đổi.
+    /// Lưu workbook để ghi cấu hình trang vào tệp XLSX.
+    public func setPageSetup(margins: PageMargins, orientation: PageOrientation, paperSize: Int) throws {
+        let values = [margins.left, margins.right, margins.top, margins.bottom, margins.header, margins.footer]
+        guard values.allSatisfy({ $0.isFinite && $0 >= 0 }), (0...118).contains(paperSize) else {
+            throw SpreadsheetError.invalidSetting("lề hoặc khổ giấy nằm ngoài giới hạn")
+        }
+        let marginsElement = document.root.firstChild(NS.s, "pageMargins") ?? {
+            let element = XElement(name: q("pageMargins"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        for (name, value) in zip(["left", "right", "top", "bottom", "header", "footer"], values) {
+            marginsElement.setAttribute(name, Worksheet.format(value))
+        }
+        let setup = document.root.firstChild(NS.s, "pageSetup") ?? {
+            let element = XElement(name: q("pageSetup"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        setup.setAttribute("orientation", orientation.rawValue)
+        setup.setAttribute("paperSize", String(paperSize))
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt vùng ô sẽ được in trên trang tính hiện tại.
+    /// Vùng được lưu thành tên in cục bộ theo thứ tự sheet trong workbook.
+    /// Ví dụ: `setPrintArea(range: CellRange("A1:F24")!)`.
+    public func setPrintArea(range: CellRange) throws {
+        try workbook.setPrintArea(range: range, for: self)
     }
 
     private func makeCell(_ ref: CellReference, _ c: XElement) -> Cell {
@@ -360,6 +967,48 @@ public final class Worksheet {
 
     private func q(_ local: String) -> String {
         document.root.qualifiedName(local, in: NS.s).name
+    }
+
+    private func sheetViewElement() -> XElement {
+        let views = document.root.firstChild(NS.s, "sheetViews") ?? {
+            let element = XElement(name: q("sheetViews"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        return views.firstChild(NS.s, "sheetView") ?? {
+            let element = XElement(name: q("sheetView"), attributes: [XAttribute(name: "workbookViewId", value: "0")])
+            views.insertChild(element, schemaOrder: ["sheetView"])
+            return element
+        }()
+    }
+
+    private func columnElement(_ column: Int, in cols: XElement) -> XElement {
+        for element in cols.children(NS.s, "col") {
+            guard let first = Int(element.attribute("min") ?? ""),
+                  let last = Int(element.attribute("max") ?? ""), first <= last, (first...last).contains(column) else { continue }
+            if first < column {
+                let left = element.deepCopy()
+                left.setAttribute("max", String(column - 1))
+                cols.insert(left, before: element)
+            }
+            if last > column {
+                let right = element.deepCopy()
+                right.setAttribute("min", String(column + 1))
+                cols.insert(right, after: element)
+            }
+            element.setAttribute("min", String(column))
+            element.setAttribute("max", String(column))
+            return element
+        }
+        let element = XElement(name: q("col"), attributes: [
+            XAttribute(name: "min", value: String(column)), XAttribute(name: "max", value: String(column)),
+        ])
+        if let next = cols.children(NS.s, "col").first(where: { (Int($0.attribute("min") ?? "") ?? 0) > column }) {
+            cols.insert(element, before: next)
+        } else {
+            cols.append(element)
+        }
+        return element
     }
 
     func parse(_ a1: String) throws -> CellReference {

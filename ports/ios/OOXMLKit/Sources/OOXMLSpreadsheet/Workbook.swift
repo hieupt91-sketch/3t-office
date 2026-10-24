@@ -18,6 +18,16 @@ public struct DefinedName: Equatable, Sendable {
     public let hidden: Bool
 }
 
+public enum CalcMode: String, Sendable {
+    case automatic
+    case automaticExceptTables = "autoNoTable"
+    case manual
+}
+
+public enum SheetThemePreset: Sendable {
+    case ocean
+}
+
 /// Sổ tính XLSX/XLSM/XLTX. Mở → sửa → `save()`: chỉ các phần bị sửa được ghi lại.
 public final class Workbook {
     public let package: OPCPackage
@@ -76,6 +86,160 @@ public final class Workbook {
     }
 
     public var sheetNames: [String] { sheets.map(\.name) }
+
+    /// Đặt sheet ở trạng thái hiện, ẩn hoặc ẩn sâu.
+    /// Workbook luôn cần có ít nhất một sheet ở trạng thái hiện.
+    /// Dùng `sheets` để đọc lại trạng thái sau khi cập nhật.
+    public func setSheetState(named name: String, state: SheetState) throws {
+        let all = sheets
+        let elements = sheetsElement?.children(NS.s, "sheet") ?? []
+        guard let index = all.firstIndex(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }),
+              elements.indices.contains(index) else {
+            throw SpreadsheetError.sheetNotFound(name)
+        }
+        let element = elements[index]
+        if state != .visible && all.enumerated().filter({ $0.offset != index }).allSatisfy({ $0.element.state != "visible" }) {
+            throw SpreadsheetError.cannotDeleteLastVisibleSheet
+        }
+        let value = state == .visible ? nil : state.rawValue
+        guard element.attribute("state") != value else { return }
+        if let value { element.setAttribute("state", value) } else { element.removeAttribute("state") }
+        package.markModified(workbookPart)
+    }
+
+    /// Ghi chế độ tính toán OOXML. OOXMLKit không tự tính công thức; chế độ áp dụng khi mở bằng ứng dụng bảng tính.
+    public func setCalculationOptions(calcMode: CalcMode, iterate: Bool, date1904: Bool) throws {
+        let calcPr = document.root.firstChild(NS.s, "calcPr") ?? {
+            let element = XElement(name: document.root.qualifiedName("calcPr", in: NS.s).name)
+            document.root.insertChild(element, schemaOrder: Workbook.workbookOrder)
+            return element
+        }()
+        calcPr.setAttribute("calcMode", calcMode.rawValue)
+        calcPr.setAttribute("iterate", iterate ? "1" : "0")
+        let workbookPr = document.root.firstChild(NS.s, "workbookPr") ?? {
+            let element = XElement(name: document.root.qualifiedName("workbookPr", in: NS.s).name)
+            document.root.insertChild(element, schemaOrder: Workbook.workbookOrder)
+            return element
+        }()
+        workbookPr.setAttribute("date1904", date1904 ? "1" : "0")
+        package.markModified(workbookPart)
+    }
+
+    /// Áp dụng bảng màu xanh dương cho chủ đề workbook; giữ nguyên hiệu ứng và phần mở rộng không liên quan.
+    public func setTheme(preset: SheetThemePreset) throws {
+        guard let themePart = try package.relatedPart(from: workbookPart, .theme), package.hasPart(themePart) else {
+            throw SpreadsheetError.invalidSetting("workbook không có phần theme để cập nhật")
+        }
+        let theme = try package.xml(themePart)
+        let themeElements = theme.root.firstChild(NS.a, "themeElements") ?? {
+            let element = XElement(name: theme.root.qualifiedName("themeElements", in: NS.a).name)
+            theme.root.insertChild(element, schemaOrder: ["themeElements", "objectDefaults", "extraClrSchemeList"])
+            return element
+        }()
+        let colorScheme = themeElements.firstChild(NS.a, "clrScheme") ?? {
+            let element = XElement(name: themeElements.qualifiedName("clrScheme", in: NS.a).name,
+                                   attributes: [XAttribute(name: "name", value: "VN Office Ocean")])
+            themeElements.insertChild(element, schemaOrder: ["clrScheme", "fontScheme", "fmtScheme"])
+            return element
+        }()
+        let colors: [(String, String)] = [
+            ("dk1", "000000"), ("lt1", "FFFFFF"), ("dk2", "1F1F1F"), ("lt2", "E7E6E6"),
+            ("accent1", "0070C0"), ("accent2", "00B0F0"), ("accent3", "4472C4"),
+            ("accent4", "70AD47"), ("accent5", "FFC000"), ("accent6", "ED7D31"),
+            ("hlink", "0563C1"), ("folHlink", "954F72"),
+        ]
+        let colorOrder = ["dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"]
+        for (name, hex) in colors {
+            for old in colorScheme.children(NS.a, name) { old.removeFromParent() }
+            let color = XElement(name: colorScheme.qualifiedName(name, in: NS.a).name)
+            color.append(XElement(name: color.qualifiedName("srgbClr", in: NS.a).name,
+                                  attributes: [XAttribute(name: "val", value: hex)]))
+            colorScheme.insertChild(color, schemaOrder: colorOrder)
+        }
+        for fontKind in ["majorFont", "minorFont"] {
+            let fontScheme = themeElements.firstChild(NS.a, "fontScheme")
+            if let font = fontScheme?.firstChild(NS.a, fontKind) {
+                let latin = font.firstChild(NS.a, "latin") ?? {
+                    let element = XElement(name: font.qualifiedName("latin", in: NS.a).name)
+                    font.insertChild(element, schemaOrder: ["latin", "ea", "cs"])
+                    return element
+                }()
+                latin.setAttribute("typeface", "Aptos")
+            }
+        }
+        package.markModified(themePart)
+    }
+
+    /// Bật/tắt bảo vệ cấu trúc workbook bằng mật khẩu kiểu legacy SpreadsheetML nếu có.
+    /// Hash mật khẩu 16-bit của định dạng này chỉ ngăn sửa nhầm, không mã hóa dữ liệu.
+    public func setWorkbookProtection(lockStructure: Bool, password: String? = nil) throws {
+        guard lockStructure || password == nil else {
+            throw SpreadsheetError.invalidSetting("không thể đặt mật khẩu khi tắt bảo vệ workbook")
+        }
+        guard lockStructure else {
+            document.root.firstChild(NS.s, "workbookProtection")?.removeFromParent()
+            package.markModified(workbookPart)
+            return
+        }
+        let protection = document.root.firstChild(NS.s, "workbookProtection") ?? {
+            let element = XElement(name: document.root.qualifiedName("workbookProtection", in: NS.s).name)
+            document.root.insertChild(element, schemaOrder: Workbook.workbookOrder)
+            return element
+        }()
+        protection.setAttribute("lockStructure", "1")
+        if let password { protection.setAttribute("workbookPassword", Self.legacyPasswordHash(password)) }
+        else { protection.removeAttribute("workbookPassword") }
+        package.markModified(workbookPart)
+    }
+
+    private static func legacyPasswordHash(_ password: String) -> String {
+        var hash: UInt16 = 0
+        for byte in password.utf16 {
+            let rotate = (hash & 0x4000) != 0
+            hash = (hash << 1) & 0x7fff
+            if rotate { hash |= 1 }
+            hash ^= byte
+        }
+        hash = ((hash & 0x4000) != 0 ? ((hash << 1) & 0x7fff) | 1 : (hash << 1) & 0x7fff)
+        hash ^= UInt16(password.utf16.count)
+        hash ^= 0xCE4B
+        return String(format: "%04X", hash)
+    }
+
+    /// Lưu vùng in cục bộ dưới tên định nghĩa OOXML chuẩn.
+    /// `localSheetId` được tính theo thứ tự sheet hiện tại trong workbook.
+    /// Phương thức này được gọi từ `Worksheet.setPrintArea(range:)`.
+    func setPrintArea(range: CellRange, for worksheet: Worksheet) throws {
+        guard let index = sheets.firstIndex(where: { $0.name.caseInsensitiveCompare(worksheet.name) == .orderedSame }) else {
+            throw SpreadsheetError.sheetNotFound(worksheet.name)
+        }
+        let definedNamesElement = document.root.firstChild(NS.s, "definedNames") ?? {
+            let element = XElement(name: document.root.qualifiedName("definedNames", in: NS.s).name)
+            document.root.insertChild(element, schemaOrder: Workbook.workbookOrder)
+            return element
+        }()
+        let existing = definedNamesElement.children(NS.s, "definedName").first {
+            $0.attribute("name") == "_xlnm.Print_Area" && $0.attribute("localSheetId") == String(index)
+        }
+        let sheetName = worksheet.name.replacingOccurrences(of: "'", with: "''")
+        func absolute(_ reference: CellReference) -> String {
+            "$\(CellReference.columnName(reference.column))$\(reference.row)"
+        }
+        let first = absolute(range.start)
+        let last = range.start == range.end ? "" : ":\(absolute(range.end))"
+        let formula = "'\(sheetName)'!\(first)\(last)"
+        if let existing {
+            guard existing.textContent != formula else { return }
+            existing.setText(formula)
+        } else {
+            let name = XElement(name: document.root.qualifiedName("definedName", in: NS.s).name, attributes: [
+                XAttribute(name: "name", value: "_xlnm.Print_Area"), XAttribute(name: "localSheetId", value: String(index)),
+            ])
+            name.setText(formula)
+            definedNamesElement.append(name)
+        }
+        package.markModified(workbookPart)
+    }
 
     public func worksheet(named name: String) throws -> Worksheet {
         guard let info = sheets.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
