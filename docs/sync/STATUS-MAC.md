@@ -1,4 +1,4 @@
-# STATUS-MAC (cập nhật: 25/10/2026 04:01, Claude Mac)
+# STATUS-MAC (cập nhật: 25/10/2026 04:14, Claude Mac)
 ## Môi trường Mac
 - macOS 15.8.1 (24H32), arm64; Xcode 26.3 (17C529), Swift 6.2.4 khi dùng `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - Lưu ý: `xcode-select -p` đang trỏ Command Line Tools (Swift 6.1.2) → `swift test` trơn báo `no such module 'XCTest'`; phải đặt `DEVELOPER_DIR`.
@@ -24,7 +24,9 @@
 - FIX-MAC-1 `mac/fix1-cl-2410` (`688200dd`): sửa nhãn nhóm Giao diện (EN), lệnh đổi theme vào AppShell, backend `platform/os_services/macos.py` (Hiện trong Finder, hộp thoại lỗi gốc), tiến trình zombie, 4 test Node gọi `python`. Mac tự chạy lại: npm test **3797/3798** (1 FAIL = snapshot FODS có sẵn trên vn-main), pytest macOS/os_services/process 38 qua 1 skip, i18n 3203/3203 PASS.
 - ORACLE-1 `mac/oracle-cl-2410` (`4e4d7fec`): bộ lấy chuẩn Office Mac + so sánh; 3T khớp golden Excel 2016 Windows **1.500/1.500**. Phần Office: **BLOCKED** — Word/Excel/PowerPoint không trả lời AppleEvent (-1712, chờ chủ cấp quyền Automation).
 - G2 engine công thức (`4a62801b`) trên macOS: swift test 166/166 PASS, build iOS PASS.
-- Đang chạy: KEYS-1 (phím Office for Mac, `mac/keys-cl-2410`), MAC-9 (phông/số trang, `mac/fonts-cl-2410`) — tạm dừng 00:30–04:00 do giới hạn phiên, đã chạy tiếp lúc 04:00. Kết quả: NOT RUN.
+- KEYS-1 `mac/keys-cl-2410` (`2c04c8a3`): bảng phím macOS 141 dòng (37 có nguồn, 104 "chờ xác minh bằng Office for Mac" — cần quyền Automation), Ctrl+nhấp = chuột phải, KeyTips F10/không bật bởi Option đơn, F1/Cmd+? Trợ giúp. Mac tự chạy lại npm test 3798/3803 (5 FAIL đều đã biết: 4 test gọi `python` — đã sửa ở FIX-MAC-1 — và snapshot FODS). CDP macOS 14/14 PASS (theo agent), unit 18/18. Lưu ý chung: F10 giờ cũng bật KeyTips trên Windows.
+- MAC-9 `mac/fonts-cl-2410` (`501f7835`): LibreOffice headless trên Mac trước chỉ thấy phông tự mang → phông thiếu rơi về LinuxLibertineG (có chân). Nay dùng fontconfig: thấy phông macOS + bảng thay thế (Calibri→Carlito, Cambria→Caladea, Segoe UI/Aptos→Helvetica Neue, NSimSun/SimSun→Heiti SC…). 11 tệp mẫu thật giữ nguyên số trang. Mac tự kiểm trực quan trang PDF trước/sau: đúng kiểu chữ, dấu tiếng Việt đủ. pytest tests/macos 35 qua 1 skip. Không dùng phông của bộ Office.
+- Đang chạy: ENGINE-MAC (`mac/engine-cl-2410`) — dựng ooxml-engine macOS + chạy khung G0 trên Mac (INBOX-MAC #2, phần không cần Office).
 ## Oracle Mac (yêu cầu INBOX-MAC #2)
 - Đã nhận; xếp hàng sau ORACLE-1 (dùng chung Word/Excel/PowerPoint, máy 8 GB RAM). Kế hoạch: dựng `ooxml-engine` macOS, round-trip corpus tổng hợp `claude/ooxml-g0-corpus-parity`, mở bằng Office for Mac, đếm tệp bị báo cần sửa chữa. Kết quả: BLOCKED (Office chưa nhận AppleEvent, -1712; chờ chủ cấp quyền Automation).
 ## BLOCKED / chờ chủ
