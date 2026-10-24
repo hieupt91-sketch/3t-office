@@ -79,11 +79,14 @@ public final class Slide {
         guard let np = notesPart else { return nil }
         let doc = try package.xml(np)
         guard let tree = doc.root.firstChild(NS.p, "cSld")?.firstChild(NS.p, "spTree") else { return nil }
+        var textShape: XElement?
         for sp in tree.children(NS.p, "sp") {
             let ph = sp.firstChild(NS.p, "nvSpPr")?.firstChild(NS.p, "nvPr")?.firstChild(NS.p, "ph")
-            if ph?.attribute("type") == "body", let tx = sp.firstChild(NS.p, "txBody") { return (np, tx) }
+            guard let tx = sp.firstChild(NS.p, "txBody") else { continue }
+            if ph?.attribute("type") == "body" { return (np, tx) }
+            if textShape == nil { textShape = tx }
         }
-        return nil
+        return textShape.map { (np, $0) }
     }
 
     /// Ghi chú của người trình bày (nil nếu slide chưa có ghi chú).
