@@ -42,7 +42,11 @@ def test_engine_opens_edits_saves_and_reopens_synthetic_xlsx(tmp_path):
     ) as target:
         for item in original.infolist():
             target.writestr(item, original.read(item.filename))
-        target.writestr("customXml/spike-padding.xml", b"<p>" + padding + b"</p>")
+        target.writestr(
+            "customXml/spike-padding.xml",
+            b"<p>" + padding + b"</p>",
+            compress_type=zipfile.ZIP_STORED,
+        )
     source = repacked
     assert source.stat().st_size >= 1_000_000
 
@@ -92,7 +96,7 @@ def test_engine_opens_edits_saves_and_reopens_synthetic_xlsx(tmp_path):
                 "args": {"handle": reopened["handle"], "range": "A1"},
             }
         )
-        assert read["cells"][0]["value"] == "after"
+        assert read["cells"][0]["value"] == {"t": "s", "v": "after"}
     finally:
         process.stdin.close()
         process.wait(timeout=30)
