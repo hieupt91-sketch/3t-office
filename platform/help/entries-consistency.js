@@ -18,7 +18,7 @@ export const CONSISTENCY_HELP_ENTRIES = [
     ribbon: { tab: "Trợ giúp", tabId: "help", group: "Phím tắt" },
     keywords: ["phím tắt", "keytips", "alt", "phím alt", "bàn phím", "huy hiệu", "truy cập nhanh"],
     steps: [
-      "Bấm và thả phím Alt: các huy hiệu chữ cái tiếng Việt sẽ lập tức xuất hiện nổi trên từng tab ribbon (T cho Tệp, D cho Trang đầu, C cho Chèn, B cho Bố cục, M cho Công thức, L cho Dữ liệu, S cho Tham chiếu/Trình chiếu, U cho Gửi thư, P cho Chuyển tiếp, H cho Hoạt hình, X cho Xem lại, V cho Xem, G cho Trợ giúp, A cho 3T AI).",
+      "Bấm và thả phím Alt hoặc nhấn F10 (trên macOS: F10/Fn+F10, Option đơn không bật KeyTips): các huy hiệu chữ cái tiếng Việt sẽ lập tức xuất hiện nổi trên từng tab ribbon (T cho Tệp, D cho Trang đầu, C cho Chèn, B cho Bố cục, M cho Công thức, L cho Dữ liệu, S cho Tham chiếu/Trình chiếu, U cho Gửi thư, P cho Chuyển tiếp, H cho Hoạt hình, X cho Xem lại, V cho Xem, G cho Trợ giúp, A cho 3T AI).",
       "Bấm ký tự tương ứng với tab muốn mở (ví dụ nhấn phím D để mở tab Trang đầu): tab tương ứng sẽ mở ra và các huy hiệu ký tự cấp 2 hiển thị trên toàn bộ nút lệnh trong tab đó.",
       "Bấm tiếp ký tự trên nút lệnh mong muốn (ví dụ 1 cho Đậm, 2 cho Nghiêng, V cho Dán, C cho Sao chép...) để thực thi lệnh ngay tức thì.",
       "Nhấn phím Esc bất cứ lúc nào để quay lại cấp trước đó (từ nút lệnh quay về tab, hoặc từ tab thoát hoàn toàn khỏi KeyTips)."

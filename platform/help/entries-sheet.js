@@ -470,7 +470,7 @@ export const SHEET_HELP_ENTRIES = [
       "Trong lưới bên dưới thanh công thức, nhấn giữ nút chuột trái ở ô đầu rồi kéo tới ô cuối. Khung chọn cập nhật khi kéo; thả chuột để giữ nguyên vùng. Kéo ngược lên trên hoặc sang trái để chọn theo hướng ngược.",
       "Giữ Shift rồi nhấp ô cuối để mở rộng từ ô neo hiện tại. Sau khi chọn bằng chuột, giữ Shift và nhấn một phím hướng để tiếp tục mở rộng từ ô đang hoạt động; giữ Ctrl và nhấn phím hướng để đi tới ranh giới vùng dữ liệu liền kề.",
       "Nhấn Ctrl+A khi lưới được tiêu điểm để chọn trang tính; Ctrl+Space chọn cột hiện tại và Shift+Space chọn hàng hiện tại.",
-      "Giữ Ctrl rồi nhấp hoặc kéo vùng thứ hai để thêm vùng rời; hộp tên hiển thị các địa chỉ cách nhau bằng dấu phẩy. Chọn lại một ô bình thường để bỏ các vùng rời và bắt đầu lựa chọn mới.",
+      "Giữ Ctrl (Command trên macOS) rồi nhấp hoặc kéo vùng thứ hai để thêm vùng rời; hộp tên hiển thị các địa chỉ cách nhau bằng dấu phẩy. Chọn lại một ô bình thường để bỏ các vùng rời và bắt đầu lựa chọn mới.",
       "Kéo từ số hàng bên trái để chọn nhiều hàng, hoặc kéo từ chữ cột phía trên để chọn nhiều cột. Có thể đưa con trỏ sát mép lưới trong lúc giữ chuột để tự cuộn và tiếp tục mở rộng vùng; các hàng/cột đã cố định vẫn giữ nguyên.",
       "Hộp tên phía trên lưới hiện địa chỉ vùng. Thanh trạng thái dưới cùng cập nhật số ô số (ĐẾM), TRUNG BÌNH và TỔNG CỘNG của các ô đang chọn.",
       "Muốn xem thêm số liệu khác: chuột phải lên thanh trạng thái dưới cùng, tích hoặc bỏ tích Đếm số, Đếm ô có dữ liệu, Nhỏ nhất, Lớn nhất, Trung bình, Tổng cộng. Lựa chọn được nhớ cho lần mở sau. Đếm số chỉ tính ô là số; Đếm ô có dữ liệu tính mọi ô không trống.",
@@ -708,7 +708,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
     keywords: ["đậm", "nghiêng", "gạch chân", "phông chữ", "cỡ chữ", "màu nền", "màu chữ", "viền ô", "bold", "font", "fill", "border", "ctrl+b"],
     steps: [
-      "Chọn ô hoặc bôi vùng. Tab Trang đầu, nhóm Phông chữ: hàng trên là hộp Phông chữ / Cỡ chữ và Tăng/Giảm cỡ; hàng dưới là Đậm, Nghiêng, Gạch chân, Viền ô, Màu nền, Màu chữ. Mũi tên launcher góc dưới phải mở nhanh hộp thoại Định dạng ô (Ctrl+1).",
+      "Chọn ô hoặc bôi vùng. Tab Trang đầu, nhóm Phông chữ: hàng trên là hộp Phông chữ / Cỡ chữ và Tăng/Giảm cỡ; hàng dưới là Đậm, Nghiêng, Gạch chân, Viền ô, Màu nền, Màu chữ. Mũi tên launcher góc dưới phải mở nhanh hộp thoại Định dạng ô (Ctrl+1 trên Windows/Linux; Command+1 trên macOS).",
       "Phông: Times New Roman, Be Vietnam Pro, Arial, Calibri (mặc định), Roboto. Cỡ: 8, 9, 10, 11 (mặc định), 12, 14, 16, 18, 20, 24, 28, 36, 48, 72. Tăng/Giảm cỡ nhảy theo các nấc đó.",
       "Đậm Ctrl+B, Nghiêng Ctrl+I, Gạch chân Ctrl+U — nhấn lại để tắt. Viền ô kẻ khung 2px xám đậm (#0f172a) cho vùng chọn. Màu nền tô vàng (#FFF200). Màu chữ đổi sang đỏ (#DC2626).",
       "Muốn kiểu số (tiền, %, ngày): dùng nhóm Định dạng số bên phải, hoặc Ctrl+1. Ctrl+Z hoàn tác từng bước định dạng."
@@ -1096,7 +1096,7 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["dán đặc biệt", "paste special", "ctrl+alt+v", "chỉ giá trị", "công thức", "định dạng", "chuyển vị", "transpose", "cộng", "trừ", "nhân", "chia", "bỏ qua ô trống"],
     steps: [
       "Bôi đen vùng nguồn cần sao chép rồi nhấn Ctrl+C hoặc nút Sao chép. Chọn ô đích (hoặc vùng đích) cần dán.",
-      "Mở hộp thoại: vào tab Trang đầu, nhóm Bảng nhớ tạm, bấm vào mũi tên nút Dán rồi chọn Dán đặc biệt... (hoặc nhấn tổ hợp phím Ctrl+Alt+V, hay bấm chuột phải vào ô đích chọn Dán đặc biệt).",
+      "Mở hộp thoại: vào tab Trang đầu, nhóm Bảng nhớ tạm, bấm vào mũi tên nút Dán rồi chọn Dán đặc biệt... (hoặc nhấn tổ hợp phím Ctrl+Alt+V — trên macOS Cmd+Control+V —, hay bấm chuột phải vào ô đích chọn Dán đặc biệt).",
       "Nhóm Dán gồm các lựa chọn: Tất cả (dán đầy đủ dữ liệu, công thức và định dạng), Chỉ giá trị (loại bỏ công thức, chỉ giữ số hoặc văn bản đã tính toán, không ảnh hưởng định dạng đích), Chỉ công thức (dán công thức kèm tịnh tiến tham chiếu tương đối, giữ nguyên định dạng ô đích), Chỉ định dạng (dán màu sắc, kiểu chữ, kiểu số mà không làm đổi dữ liệu đích), Tất cả trừ đường viền (dán toàn bộ nhưng giữ nguyên đường viền sẵn có của ô đích), Chuyển vị (đổi hàng thành cột và cột thành hàng, các công thức tự động xoay trục tham chiếu tương ứng).",
       "Hai lựa chọn nữa trong nhóm Dán: Quy tắc nhập liệu (chỉ chép các quy tắc kiểm tra dữ liệu như danh sách thả xuống, giới hạn số — dán sang vùng đích tương ứng, không đổi giá trị ô) và Độ rộng cột (chỉ áp độ rộng các cột nguồn lên các cột đích, không đổi dữ liệu). Nếu vùng nguồn chưa có quy tắc nhập liệu nào, hộp báo không có gì để dán.",
       "Nhóm Thao tác cho phép tính toán trực tiếp lên ô đích: Không (mặc định), Cộng (cộng thêm giá trị nguồn vào ô đích), Trừ (lấy ô đích trừ đi giá trị nguồn), Nhân (nhân ô đích với giá trị nguồn), Chia (chia ô đích cho giá trị nguồn). Nếu ô đích có công thức, phép tính được ghép nối an toàn vào biểu thức.",
@@ -1356,7 +1356,7 @@ export const SHEET_HELP_ENTRIES = [
       "sheet.edit.clearHyperlinks"
     ],
     title: "Điền xuống/phải/lên/trái, điền chuỗi và xóa nội dung hay định dạng",
-    summary: "Ctrl+D sao chép ô trên xuống (công thức tự lệch hàng); Ctrl+R sao chép sang phải (lệch cột); menu Điền còn có Điền lên, Điền trái và Chuỗi (tuyến tính, tăng trưởng, ngày). Menu Xóa: Tất cả, chỉ định dạng, hoặc chỉ nội dung (giữ kiểu).",
+    summary: "Ctrl+D sao chép ô trên xuống (công thức tự lệch hàng); Ctrl+R sao chép sang phải (lệch cột) — trên macOS là Command+D và Command+R; menu Điền còn có Điền lên, Điền trái và Chuỗi (tuyến tính, tăng trưởng, ngày). Menu Xóa: Tất cả, chỉ định dạng, hoặc chỉ nội dung (giữ kiểu).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
     keywords: ["điền xuống", "điền phải", "điền lên", "điền trái", "chuỗi", "series", "tuyến tính", "tăng trưởng", "ngày làm việc", "ctrl+d", "ctrl+r", "xóa tất cả", "xóa định dạng", "xóa nội dung", "xóa ghi chú", "xóa siêu liên kết", "clear comments", "clear hyperlinks", "fill down", "fill series", "clear"],
     steps: [
@@ -1394,7 +1394,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
     keywords: ["nhóm trang tính", "group sheets", "chọn nhiều trang", "điền trên các trang", "across worksheets", "ctrl nhấp thẻ trang", "shift nhấp thẻ", "bỏ nhóm"],
     steps: [
-      "Nhóm trang: giữ Ctrl và nhấp từng thẻ trang tính cần nhóm (thẻ đổi màu nền và có vạch xanh bên dưới). Giữ Shift và nhấp để chọn cả dải thẻ liền nhau. Chuột phải một thẻ rồi chọn Chọn tất cả các trang tính để nhóm mọi trang.",
+      "Nhóm trang: giữ Ctrl (Command trên macOS) và nhấp từng thẻ trang tính cần nhóm (thẻ đổi màu nền và có vạch xanh bên dưới). Giữ Shift và nhấp để chọn cả dải thẻ liền nhau. Chuột phải một thẻ rồi chọn Chọn tất cả các trang tính để nhóm mọi trang.",
       "Khi đang nhóm, nhập hoặc xóa giá trị/công thức hay đổi định dạng ô ở trang hiện tại sẽ được áp dụng cùng lúc cho mọi trang trong nhóm (cùng địa chỉ ô). Một lần Ctrl+Z hoàn tác cho cả nhóm.",
       "Điền trên các trang: giữ nhóm, chọn vùng ô ở trang hiện tại, mở Trang đầu > Chỉnh sửa > Điền > Trên các trang... rồi chọn Tất cả, Nội dung hoặc Định dạng và nhấn Đồng ý. Vùng được chép sang cùng vị trí ở các trang khác trong nhóm; nếu chưa nhóm thì chương trình nhắc bạn nhóm trang trước.",
       "Bỏ nhóm: nhấp vào một thẻ trang tính nằm ngoài nhóm, hoặc chuột phải một thẻ rồi chọn Bỏ nhóm trang tính. Thao tác chèn/xóa hàng cột và dán hiện chỉ áp dụng cho trang đang xem — hãy bỏ nhóm trước khi sửa cấu trúc để tránh nhầm."
@@ -1801,9 +1801,9 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["chuột", "nhấp đúp ô", "kéo chọn vùng", "Shift+click", "Ctrl+click", "tay cầm điền", "AutoFill", "di chuyển ô", "sao chép ô", "viền cột", "viền hàng", "tự vừa cột", "tràn chữ", "overflow"],
     steps: [
       "Nhấp đúp chuột trái vào một ô để vào chế độ chỉnh sửa trực tiếp nội dung trong ô (tương đương phím F2).",
-      "Kéo chuột qua các ô để chọn một dải ô. Nhấp vào ô đầu, giữ phím Shift và nhấp vào ô cuối để mở rộng vùng chọn (ví dụ B2:E6). Giữ phím Ctrl và nhấp chuột vào các ô khác nhau để chọn đồng thời nhiều vùng rời rạc.",
+      "Kéo chuột qua các ô để chọn một dải ô. Nhấp vào ô đầu, giữ phím Shift và nhấp vào ô cuối để mở rộng vùng chọn (ví dụ B2:E6). Giữ phím Ctrl (Command trên macOS) và nhấp chuột vào các ô khác nhau để chọn đồng thời nhiều vùng rời rạc. Trên macOS, Control+nhấp mở menu ngữ cảnh như nhấp chuột phải.",
       "Kéo tay cầm điền (hình vuông nhỏ màu xanh ở góc dưới bên phải ô đang chọn) để tự động điền dãy số, ngày tháng hoặc sao chép công thức (AutoFill).",
-      "Di chuột tới viền bao quanh ô/vùng chọn đến khi con trỏ đổi sang hình bàn tay / mũi tên bốn hướng; kéo chuột để di chuyển dữ liệu sang vị trí mới. Giữ phím Ctrl trong lúc kéo để sao chép ô mà không làm mất dữ liệu gốc. Nhấn Ctrl+Z để hoàn tác.",
+      "Di chuột tới viền bao quanh ô/vùng chọn đến khi con trỏ đổi sang hình bàn tay / mũi tên bốn hướng; kéo chuột để di chuyển dữ liệu sang vị trí mới. Giữ phím Ctrl (Option trên macOS) trong lúc kéo để sao chép ô mà không làm mất dữ liệu gốc. Nhấn Ctrl+Z để hoàn tác.",
       "Nhấp vào tiêu đề cột (A, B, C...) hoặc hàng (1, 2, 3...) để chọn trọn vẹn cả cột hoặc hàng; kéo chuột qua các tiêu đề để chọn nhiều cột/hàng liên tiếp.",
       "Di chuột tới vạch phân cách giữa hai tiêu đề cột/hàng để kéo thay đổi độ rộng/chiều cao. Nhấp đúp vào vạch phân cách cột để tự động vừa khít độ rộng theo nội dung dài nhất (Auto-fit).",
       "Khi đang soạn thảo văn bản hoặc gõ công thức dài trong ô, nếu các ô bên phải còn trống, nội dung đang gõ sẽ tự động hiển thị tràn sang các ô bên phải một cách tự nhiên, không bị cắt ngắn."
@@ -1892,7 +1892,7 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["chốt điền", "tự điền", "autofill", "nhấp đúp chốt điền", "tùy chọn tự điền", "auto fill options", "sao chép ô", "điền chuỗi", "chỉ điền định dạng", "điền không định dạng", "điền ngày", "điền ngày làm việc", "điền tháng", "điền năm", "flash fill", "điền nhanh", "Ctrl kéo"],
     steps: [
       "Chọn một hoặc nhiều ô chứa dữ liệu mẫu hoặc công thức. Đưa con trỏ chuột vào góc dưới bên phải vùng chọn, con trỏ sẽ đổi thành hình dấu cộng mảnh màu đen (chốt điền).",
-      "Kéo chốt điền theo hướng cần điền: kéo bình thường sẽ tiếp nối chuỗi số hoặc ngày tháng; nếu giữ phím Ctrl trong khi kéo, con trỏ hiện thêm dấu cộng nhỏ để chuyển đổi giữa Sao chép ô và Điền chuỗi.",
+      "Kéo chốt điền theo hướng cần điền: kéo bình thường sẽ tiếp nối chuỗi số hoặc ngày tháng; nếu giữ phím Ctrl (Option trên macOS) trong khi kéo, con trỏ hiện thêm dấu cộng nhỏ để chuyển đổi giữa Sao chép ô và Điền chuỗi.",
       "Nhấp đúp chuột trái vào chốt điền để điền nhanh xuống phía dưới cho đến hết vùng dữ liệu của cột bên cạnh (ưu tiên cột bên trái rồi tới cột bên phải; nếu nằm trong bảng dữ liệu, sẽ điền đến hết hàng cuối của bảng).",
       "Sau khi kéo hoặc nhấp đúp chốt điền, nút nổi Tùy chọn Tự điền xuất hiện ở góc dưới bên phải vùng điền. Bấm vào nút (hoặc nhấn phím Ctrl) để mở bảng menu lựa chọn.",
       "Dùng phím mũi tên Lên/Xuống và Enter (hoặc nhấp chuột) để chọn chế độ mong muốn: Sao chép ô, Điền chuỗi, Chỉ điền định dạng, Điền không định dạng, Điền ngày, Điền ngày làm việc (bỏ qua Thứ Bảy và Chủ Nhật), Điền tháng, Điền năm, hoặc Điền nhanh. Nhấn phím Esc để đóng menu; thao tác tự điền có thể hoàn tác ngay bằng tổ hợp phím Ctrl+Z."
@@ -1909,7 +1909,7 @@ export const SHEET_HELP_ENTRIES = [
     steps: [
       "Chọn ô hoặc vùng ô cần thao tác. Rà con trỏ chuột lên bất kỳ cạnh viền nào của vùng chọn (trên, dưới, trái hoặc phải, tránh góc dưới bên phải của chốt điền). Con trỏ chuột sẽ đổi thành biểu tượng di chuyển bốn hướng.",
       "Di chuyển ô: Nhấn giữ chuột trái và kéo đến vị trí đích, đường viền nét đứt sẽ chạy theo vị trí con trỏ; khi thả chuột, ô sẽ được chuyển tới vùng mới, toàn bộ công thức tham chiếu đến các ô này trong sổ làm việc sẽ tự động cập nhật chính xác.",
-      "Sao chép ô: Trong khi kéo viền, nhấn và giữ phím Ctrl (con trỏ chuột sẽ hiện biểu tượng sao chép kèm dấu cộng). Khi thả chuột, dữ liệu và công thức được sao chép đến vị trí mới và các tham chiếu tương đối sẽ tịnh tiến tương ứng.",
+      "Sao chép ô: Trong khi kéo viền, nhấn và giữ phím Ctrl — Option trên macOS — (con trỏ chuột sẽ hiện biểu tượng sao chép kèm dấu cộng). Khi thả chuột, dữ liệu và công thức được sao chép đến vị trí mới và các tham chiếu tương đối sẽ tịnh tiến tương ứng.",
       "Chèn ô: Trong khi kéo viền, nhấn và giữ phím Shift. Một thanh chỉ thị vị trí chèn nằm ngang hoặc nằm dọc sẽ xuất hiện; khi thả chuột, các ô lân cận sẽ được tự động đẩy xuống dưới hoặc đẩy sang phải để chèn vùng ô vào mà không ghi đè dữ liệu cũ.",
       "Chuyển sang trang tính khác: Trong khi kéo viền, giữ phím Alt và rê chuột qua tên tab trang tính ở cạnh dưới cửa sổ để chuyển trang tính đích, sau đó thả chuột vào vị trí ô mong muốn. Mọi thao tác kéo-thả đều có thể hoàn tác bằng một lần nhấn phím Ctrl+Z."
     ]

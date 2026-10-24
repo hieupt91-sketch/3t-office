@@ -22,6 +22,7 @@ import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js
 import { showDocumentPasswordDialog } from "../dialogs/document-password-dialog.js";
 import { NotificationBar } from "../ui-kit/notification-bar.js";
 import { installQuickAccess } from "./quick-access.js";
+import { installSecondaryClickNormalizer } from "../ui-kit/context-menu.js";
 import { installGlobalFocusGuard, captureEditorFocus, restoreEditorFocus, isEditorElement } from "./focus-manager.js";
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showUnsavedChangesDialog } = createLazyDialogs("common");
@@ -2649,6 +2650,8 @@ export class AppShell {
 
   _setupGlobalShortcuts() {
     globalShortcutManager.attach(window);
+    // MAC-5: Control+nhấp = nhấp phụ trên macOS (idempotent, không làm gì trên Windows/Linux).
+    installSecondaryClickNormalizer(window);
 
     // Thu gọn / mở rộng Ribbon (Ctrl+F1)
     // Lưu ý: dùng bindHandler() chứ không phải register() — các lệnh này đã được

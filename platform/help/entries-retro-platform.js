@@ -164,7 +164,7 @@ export const RETRO_PLATFORM_HELP_ENTRIES = [
     ribbon: { tab: "Trợ giúp", tabId: "help", group: "Phím tắt" },
     keywords: ["keytips", "phím alt", "phím tắt ribbon", "điều hướng bàn phím", "huy hiệu phím tắt", "không cần chuột"],
     steps: [
-      "Bấm và thả phím Alt trên bàn phím: các huy hiệu chữ cái tiếng Việt sẽ lập tức nổi lên trên từng tab Ribbon.",
+      "Bấm và thả phím Alt (hoặc nhấn F10) trên Windows/Linux: các huy hiệu chữ cái tiếng Việt sẽ lập tức nổi lên trên từng tab Ribbon. Trên macOS nhấn F10 (Fn+F10); bấm-thả Option đơn không bật KeyTips vì Option dùng để gõ ký tự đặc biệt.",
       "Ví dụ: nhấn phím T cho Tệp, D cho Trang đầu, C cho Chèn, B cho Bố cục, M cho Công thức, L cho Dữ liệu, S cho Trình chiếu, V cho Xem, G cho Trợ giúp.",
       "Sau khi bấm phím chọn tab: thanh Ribbon chuyển tab và hiển thị tiếp các ký tự phím tắt cho từng nút bấm bên trong.",
       "Bấm tiếp ký tự trên nút lệnh để thực thi tính năng ngay tức thì (ví dụ 1 cho Đậm, 2 cho Nghiêng, V cho Dán...).",
