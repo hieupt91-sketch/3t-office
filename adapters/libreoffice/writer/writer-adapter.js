@@ -4642,6 +4642,7 @@ export class WriterAdapter {
   _editorDomFingerprint() {
     const normalized = this._stripAutoPageGaps(this.editorDom?.innerHTML || "")
       .replace(/\s+data-vno-(?:src-hash|src-props|untouched)=["'][^"']*["']/gi, "")
+      .replace(/\s+(?:aria-readonly|data-track-display)=["'][^"']*["']/gi, "")
       .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")
       .replace(/\r\n?/g, "\n")
       .trim();

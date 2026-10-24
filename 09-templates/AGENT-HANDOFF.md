@@ -1458,3 +1458,25 @@ DEPENDENCIES/BLOCKERS: Không có.
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: 18 ảnh 1366×768: d20 sáng/tối; d01,d02,d03,d06,d07,d13,d24 sáng; d03 chụp lại sau 10 giây; legacy06,legacy13,legacy14,legacy20 sáng/tối. DOCX: `E:\VNOffice-profiles\q58-docx-ui\` và d20/legacy: `E:\VNOffice-profiles\ui-shots\live-writer\`, `E:\VNOffice-profiles\q58-legacy-docs\q57-screenshots\`. Ribbon/status không bị che; ghi nhận d03 đầu trang chồng chữ và số trang app 3 so với Word 1, d24 bìa chồng hình/chữ, d20 dòng hướng dẫn sít. Chế độ tối: chữ đen/xanh đậm khó đọc; logo legacy13 và ô bảng legacy14 còn nền trắng. Đã mở và xem tất cả ảnh.
 NEXT ACTION: Review commit Q58; sau commit tạo `E:\VNOffice-briefs\logs\Q58.DONE`.
+
+
+## CODEX Q59 — 25/10/2026
+
+TASK: Đo lại 20 tệp `.doc` cũ, đối chiếu trang và cấu trúc Word nguồn/DOCX lưu; xử lý sai lệch có thể sửa an toàn.
+AGENT/ROLE: Codex / Writer Adapter.
+BRANCH: codex/q57.
+WORKTREE: E:\VNOffice-codex-q57. `git merge main` → fast-forward lên `e293fe6a`.
+OBJECTIVE: Đo chính xác bằng Word COM ẩn và app thật qua CDP; sửa lỗi trang/đoạn có test FAIL trước/PASS sau; bảo vệ bộ DOCX chuẩn 8/8.
+FINDINGS: Word page count nguồn/lưu và canvas trùng 20/20; từ, bảng, ảnh nội tuyến cũng trùng 20/20. Paragraph count FAIL ở legacy10 91→86, legacy14 1034→1020, legacy15 91→86. legacy20 Word shape count 2→1 nhưng Line 3 được thể hiện thành paragraph border; ảnh app vẫn có đường kẻ. Bằng chứng chi tiết: `E:\VNOffice-briefs\logs\Q59-work\Q59-measurement.md`.
+IMPLEMENTATION SUMMARY: Giữ source-aware cleanup page break ở cuối postprocess để bỏ `pageBreakBefore` do chuyển đổi sinh ra trước manual break nguồn, nhưng giữ intentional double break. Chuẩn hóa fingerprint để bỏ `aria-readonly` và `data-track-display` vốn chỉ là trạng thái UI. Commit nhóm: `0c623659`, `a8866779`. Không sửa heuristic khôi phục đoạn rỗng: nguồn DOCX 10/15→HTML round-trip loại 5 đoạn rỗng mỗi tệp; 14 mất 14 đoạn rỗng. Khôi phục theo số lượng có thể chèn sai vị trí và đổi trang, cần mapping nguồn ổn định; BLOCKED cho nhóm này, đề xuất phiếu riêng.
+FILES CHANGED: `adapters/libreoffice/common/ooxml_zip_patch.py`; `main.py`; `tests/test_writer_section_headerfooter_postprocess.py`; `adapters/libreoffice/writer/writer-adapter.js`; `tests/unit/writer-floating-image-import.test.js`; `docs/WORD2016-FEATURE-CHECKLIST.md` (tham chiếu dòng sinh lại); `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; regression Python trước/sau; regression Node trước/sau; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; ba script `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer or pagination"`; CDP kiểm 4 tệp mục tiêu + batch 20 app mở/lưu/chụp; Word COM ẩn đọc 20 nguồn/lưu và đo bù legacy07/14; batch DOCX 8 mẫu; xem ảnh sáng 20/20 và ảnh tối 4/4; `git diff --check`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — Node 3799/3799; pytest 315 passed, 848 deselected; i18n missingVI=0, missingEN=0; checklist verify 0 dòng hạ; CDP legacy06/13/14/20 4/4 đúng 3/1/15/1 và 20/20 tệp mở/lưu; Word/saved pages 20/20; DOCX set d01,d02,d03,d06,d07,d13,d20,d24 giữ số trang và edit PASS 8/8. Three page-break Python tests: FAIL 3/3 trước, PASS 3/3 sau. Fingerprint Node regression: FAIL 1/1 trước, PASS sau; full suite PASS.
+PRE-CHANGE TEST: FAIL — page-break regression 3 failures trước fix; fingerprint regression 1 failure trước fix. Cả hai nhóm đã PASS sau sửa.
+KNOWN FAILURES: Paragraphs legacy10 91→86, legacy14 1034→1020, legacy15 91→86: BLOCKED vì round-trip làm rơi đoạn rỗng và chưa có source mapping an toàn. Shape count legacy20 2→1, nhưng đường kẻ còn hiển thị. Ảnh tối legacy06/13/14/20 có chữ thiếu tương phản và nền trắng còn lại; ảnh sáng legacy07 có thanh cuộn ngang dài dưới vùng soạn thảo. Ghi nhận, chưa sửa vì ngoài mục tiêu sửa phân trang và chưa có xác định nguyên nhân an toàn.
+RISKS: Cleanup page break chỉ sửa khi chuỗi đoạn nguồn/đã chuyển khớp số lượng, nội dung rỗng và manual break; deliberate source breaks được giữ. Khôi phục đoạn rỗng theo heuristic có thể làm sai nội dung/vị trí hoặc pagination.
+DEPENDENCIES/BLOCKERS: Phục hồi đoạn rỗng cần mapping paragraph nguồn ổn định qua HTML import/export, sau đó phải đo Word lại và chạy đủ DOCX regression 8/8.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: 20 ảnh sáng 1366×768: `legacy01`, `legacy02`, `legacy03`, `legacy04`, `legacy05`, `legacy06`, `legacy07`, `legacy08`, `legacy09`, `legacy10`, `legacy11`, `legacy12`, `legacy13`, `legacy14`, `legacy15`, `legacy16`, `legacy17`, `legacy18`, `legacy19`, `legacy20` (mỗi ảnh `-1366x768.png` trong `E:\VNOffice-briefs\logs\Q59-work\screens\`). Thêm 8 ảnh CDP đã xem: legacy06/13/14/20 từng cặp `light` và `dark` (`-1366x768.png`) tại `E:\VNOffice-profiles\q59-final-20261025-02\q57-screenshots\`. 4 mục tiêu trang không bị cắt; ghi nhận tương phản tối và thanh cuộn ngang legacy07 như trên.
+NEXT ACTION: Tiếp tục phiếu riêng cho mapping/phục hồi đoạn rỗng legacy10/14/15; tạo `E:\VNOffice-briefs\logs\Q59.DONE` cho phiếu này.
