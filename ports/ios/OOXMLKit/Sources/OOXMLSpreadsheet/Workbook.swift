@@ -18,6 +18,12 @@ public struct DefinedName: Equatable, Sendable {
     public let hidden: Bool
 }
 
+public enum CalcMode: String, Sendable {
+    case automatic
+    case automaticExceptTables = "autoNoTable"
+    case manual
+}
+
 /// Sổ tính XLSX/XLSM/XLTX. Mở → sửa → `save()`: chỉ các phần bị sửa được ghi lại.
 public final class Workbook {
     public let package: OPCPackage
@@ -95,6 +101,60 @@ public final class Workbook {
         guard element.attribute("state") != value else { return }
         if let value { element.setAttribute("state", value) } else { element.removeAttribute("state") }
         package.markModified(workbookPart)
+    }
+
+    /// Ghi chế độ tính toán OOXML. OOXMLKit không tự tính công thức; chế độ áp dụng khi mở bằng ứng dụng bảng tính.
+    public func setCalculationOptions(calcMode: CalcMode, iterate: Bool, date1904: Bool) throws {
+        let calcPr = document.root.firstChild(NS.s, "calcPr") ?? {
+            let element = XElement(name: document.root.qualifiedName("calcPr", in: NS.s).name)
+            document.root.insertChild(element, schemaOrder: Workbook.workbookOrder)
+            return element
+        }()
+        calcPr.setAttribute("calcMode", calcMode.rawValue)
+        calcPr.setAttribute("iterate", iterate ? "1" : "0")
+        let workbookPr = document.root.firstChild(NS.s, "workbookPr") ?? {
+            let element = XElement(name: document.root.qualifiedName("workbookPr", in: NS.s).name)
+            document.root.insertChild(element, schemaOrder: Workbook.workbookOrder)
+            return element
+        }()
+        workbookPr.setAttribute("date1904", date1904 ? "1" : "0")
+        package.markModified(workbookPart)
+    }
+
+    /// Bật/tắt bảo vệ cấu trúc workbook bằng mật khẩu kiểu legacy SpreadsheetML nếu có.
+    /// Hash mật khẩu 16-bit của định dạng này chỉ ngăn sửa nhầm, không mã hóa dữ liệu.
+    public func setWorkbookProtection(lockStructure: Bool, password: String? = nil) throws {
+        guard lockStructure || password == nil else {
+            throw SpreadsheetError.invalidSetting("không thể đặt mật khẩu khi tắt bảo vệ workbook")
+        }
+        guard lockStructure else {
+            document.root.firstChild(NS.s, "workbookProtection")?.removeFromParent()
+            package.markModified(workbookPart)
+            return
+        }
+        let protection = document.root.firstChild(NS.s, "workbookProtection") ?? {
+            let element = XElement(name: document.root.qualifiedName("workbookProtection", in: NS.s).name)
+            document.root.insertChild(element, schemaOrder: Workbook.workbookOrder)
+            return element
+        }()
+        protection.setAttribute("lockStructure", "1")
+        if let password { protection.setAttribute("workbookPassword", Self.legacyPasswordHash(password)) }
+        else { protection.removeAttribute("workbookPassword") }
+        package.markModified(workbookPart)
+    }
+
+    private static func legacyPasswordHash(_ password: String) -> String {
+        var hash: UInt16 = 0
+        for byte in password.utf16 {
+            let rotate = (hash & 0x4000) != 0
+            hash = (hash << 1) & 0x7fff
+            if rotate { hash |= 1 }
+            hash ^= byte
+        }
+        hash = ((hash & 0x4000) != 0 ? ((hash << 1) & 0x7fff) | 1 : (hash << 1) & 0x7fff)
+        hash ^= UInt16(password.utf16.count)
+        hash ^= 0xCE4B
+        return String(format: "%04X", hash)
     }
 
     /// Lưu vùng in cục bộ dưới tên định nghĩa OOXML chuẩn.

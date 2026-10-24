@@ -3,6 +3,34 @@ import XCTest
 import OOXMLTestSupport
 
 final class P1WorksheetFeatureTests: XCTestCase {
+    func testCalculationAndProtectionSettingsRoundTrip() throws {
+        let original = try Fixtures.data("xlsx/rich-excel.xlsx")
+        let workbook = try Workbook(data: original)
+        try workbook.setCalculationOptions(calcMode: .manual, iterate: true, date1904: true)
+        try workbook.setWorkbookProtection(lockStructure: true, password: "demo")
+        try workbook.worksheet(named: "Dữ liệu").setSheetProtection(
+            password: "demo",
+            options: SheetProtectionOptions(sheet: true, objects: true, scenarios: true, formatCells: true)
+        )
+
+        let saved = try workbook.save()
+        let workbookXML = try RoundTrip.partString(saved, "xl/workbook.xml")
+        let sheetXML = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(workbookXML.contains("calcMode=\"manual\""), workbookXML)
+        XCTAssertTrue(workbookXML.contains("iterate=\"1\""), workbookXML)
+        XCTAssertTrue(workbookXML.contains("date1904=\"1\""), workbookXML)
+        XCTAssertTrue(workbookXML.contains("lockStructure=\"1\""), workbookXML)
+        XCTAssertTrue(sheetXML.contains("<sheetProtection"), sheetXML)
+        XCTAssertTrue(sheetXML.contains("formatCells=\"1\""), sheetXML)
+        try RoundTrip.verify(
+            original: original,
+            saved: saved,
+            allowedChanges: ["xl/workbook.xml", "xl/worksheets/sheet1.xml"],
+            requireChanged: ["xl/workbook.xml", "xl/worksheets/sheet1.xml"],
+            name: "xlsx-p1-calc-protection.xlsx"
+        )
+    }
+
     func testConditionalFormattingAndValidationRoundTrip() throws {
         let original = try Fixtures.data("xlsx/rich-excel.xlsx")
         let workbook = try Workbook(data: original)

@@ -89,6 +89,40 @@ public struct DataValidationRule: Equatable, Sendable {
     }
 }
 
+/// Các cờ SpreadsheetML ghi vào `<sheetProtection>`. Cờ `true` có nghĩa là thao tác đó được bảo vệ.
+public struct SheetProtectionOptions: Equatable, Sendable {
+    public let sheet: Bool
+    public let objects: Bool
+    public let scenarios: Bool
+    public let formatCells: Bool
+    public let formatColumns: Bool
+    public let formatRows: Bool
+    public let insertColumns: Bool
+    public let insertRows: Bool
+    public let deleteColumns: Bool
+    public let deleteRows: Bool
+    public let selectLockedCells: Bool
+    public let selectUnlockedCells: Bool
+
+    public init(sheet: Bool = true, objects: Bool = false, scenarios: Bool = false,
+                formatCells: Bool = false, formatColumns: Bool = false, formatRows: Bool = false,
+                insertColumns: Bool = false, insertRows: Bool = false, deleteColumns: Bool = false,
+                deleteRows: Bool = false, selectLockedCells: Bool = false, selectUnlockedCells: Bool = false) {
+        self.sheet = sheet
+        self.objects = objects
+        self.scenarios = scenarios
+        self.formatCells = formatCells
+        self.formatColumns = formatColumns
+        self.formatRows = formatRows
+        self.insertColumns = insertColumns
+        self.insertRows = insertRows
+        self.deleteColumns = deleteColumns
+        self.deleteRows = deleteRows
+        self.selectLockedCells = selectLockedCells
+        self.selectUnlockedCells = selectUnlockedCells
+    }
+}
+
 public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
     case notASpreadsheet
     case sheetNotFound(String)
@@ -358,6 +392,47 @@ public final class Worksheet {
         guard !matches.isEmpty else { return }
         for element in matches { element.removeFromParent() }
         workbook.package.markModified(part)
+    }
+
+    /// Đặt hoặc xóa bảo vệ sheet; các cờ `true` trong options là thao tác bị khóa.
+    /// Mật khẩu được ghi dưới dạng hash legacy 16-bit của SpreadsheetML, không mã hóa nội dung tệp.
+    public func setSheetProtection(password: String? = nil, options: SheetProtectionOptions = SheetProtectionOptions()) throws {
+        guard options.sheet else {
+            document.root.firstChild(NS.s, "sheetProtection")?.removeFromParent()
+            workbook.package.markModified(part)
+            return
+        }
+        let protection = document.root.firstChild(NS.s, "sheetProtection") ?? {
+            let element = XElement(name: q("sheetProtection"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        let flags: [(String, Bool)] = [
+            ("sheet", options.sheet), ("objects", options.objects), ("scenarios", options.scenarios),
+            ("formatCells", options.formatCells), ("formatColumns", options.formatColumns),
+            ("formatRows", options.formatRows), ("insertColumns", options.insertColumns),
+            ("insertRows", options.insertRows), ("deleteColumns", options.deleteColumns),
+            ("deleteRows", options.deleteRows), ("selectLockedCells", options.selectLockedCells),
+            ("selectUnlockedCells", options.selectUnlockedCells),
+        ]
+        for (name, enabled) in flags { protection.setAttribute(name, enabled ? "1" : "0") }
+        if let password { protection.setAttribute("password", Self.legacyPasswordHash(password)) }
+        else { protection.removeAttribute("password") }
+        workbook.package.markModified(part)
+    }
+
+    private static func legacyPasswordHash(_ password: String) -> String {
+        var hash: UInt16 = 0
+        for byte in password.utf16 {
+            let rotate = (hash & 0x4000) != 0
+            hash = (hash << 1) & 0x7fff
+            if rotate { hash |= 1 }
+            hash ^= byte
+        }
+        hash = ((hash & 0x4000) != 0 ? ((hash << 1) & 0x7fff) | 1 : (hash << 1) & 0x7fff)
+        hash ^= UInt16(password.utf16.count)
+        hash ^= 0xCE4B
+        return String(format: "%04X", hash)
     }
 
     /// Thêm một quy tắc kiểm tra dữ liệu cho vùng ô.
