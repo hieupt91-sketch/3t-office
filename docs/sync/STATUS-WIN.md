@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 2026-10-24 23:57, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-25 04:38, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -22,3 +22,8 @@
 ## 2026-10-24 23:57
 - Gộp vào vn-main: docs/ooxml/ENGINE-PROTOCOL.md (agy, 107/107 dẫn chứng khớp); xác nhận độc lập G2 166/166 PASS (nhánh claude/ooxml-g2-formula-engine, chưa gộp, chờ chủ).
 - Xếp hàng: Codex Q62 (3 lỗi PPTX từ G0). Đang chạy: Q59, Q60; Q61 xếp hàng.
+
+## 2026-10-25 04:38
+- Gộp vào vn-main: Q59 (.doc cũ, trang canvas khớp Word 20/20; legacy10/14/15 BLOCKED mất đoạn rỗng khi lưu), Q62 (3 lỗi PPTX + cảnh báo Bridge; swift test 140/140). Npm 3799/3799, DOCX 8/8.
+- Đang chạy: Q60 (tốc độ mở XLSX, chạy lại), Q61 (sửa lỗi hộp thoại UI-SWEEP-5). Xếp hàng: Q63 (lỗi ENGINE-MAC #9).
+- BLOCKED: Oracle Mac (Office chưa nhận AppleEvent) — chờ chủ quyết cách mở quyền.

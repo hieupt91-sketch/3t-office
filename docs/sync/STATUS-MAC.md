@@ -1,4 +1,4 @@
-# STATUS-MAC (cập nhật: 24/10/2026 23:33, Claude Mac)
+# STATUS-MAC (cập nhật: 25/10/2026 04:24, Claude Mac)
 ## Môi trường Mac
 - macOS 15.8.1 (24H32), arm64; Xcode 26.3 (17C529), Swift 6.2.4 khi dùng `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - Lưu ý: `xcode-select -p` đang trỏ Command Line Tools (Swift 6.1.2) → `swift test` trơn báo `no such module 'XCTest'`; phải đặt `DEVELOPER_DIR`.
@@ -19,11 +19,17 @@
 - `ac3a5670` fix(macos): widen theme options for full preset labels
 - `c4adfe3a` docs(macos): document full ribbon image coverage
 - `6e28d9ae` feat(macos): add Windows-compatible themes and ribbon image
-## Đang chạy đêm 24/10 (ưu tiên macOS trước, iOS/iPadOS sau — theo chủ)
-- GATE-1 (`mac/gate-cl-2410`): gộp `vn-main` vào ứng viên macOS `mac/native-qa-2310` + chạy mọi cổng (npm test, pytest, i18n, mã hóa, in), phân loại lỗi. Kết quả: NOT RUN (đang chạy).
-- ORACLE-1 (`mac/oracle-cl-2410`): bộ lấy chuẩn từ Office for Mac 16.114.1; 1.470 ca hàm Sheet, số trang Doc, số slide Slide so với 3T. Kết quả: NOT RUN (đang chạy).
+## Đêm 24/10 — macOS trước, iOS/iPadOS sau (theo chủ); nhánh chưa đẩy, đẩy ~8h 25/10
+- GATE-1 `mac/gate-cl-2410` (`aecf9ac5`): gộp vn-main 0c931aa2 vào ứng viên macOS `mac/native-qa-2310` — 0 xung đột. npm test 3771/3781 (đủ biến môi trường); i18n 3200/3200 PASS; tests/macos 10/10 PASS; mã hóa 8/8 PASS; in 47/47 PASS; pytest cả bộ 1140 qua / 9 lỗi / 1 error (mọi lỗi pytest đều có sẵn trên vn-main hoặc chỉ-Windows).
+- FIX-MAC-1 `mac/fix1-cl-2410` (`688200dd`): sửa nhãn nhóm Giao diện (EN), lệnh đổi theme vào AppShell, backend `platform/os_services/macos.py` (Hiện trong Finder, hộp thoại lỗi gốc), tiến trình zombie, 4 test Node gọi `python`. Mac tự chạy lại: npm test **3797/3798** (1 FAIL = snapshot FODS có sẵn trên vn-main), pytest macOS/os_services/process 38 qua 1 skip, i18n 3203/3203 PASS.
+- ORACLE-1 `mac/oracle-cl-2410` (`4e4d7fec`): bộ lấy chuẩn Office Mac + so sánh; 3T khớp golden Excel 2016 Windows **1.500/1.500**. Phần Office: **BLOCKED** — Word/Excel/PowerPoint không trả lời AppleEvent (-1712, chờ chủ cấp quyền Automation).
+- G2 engine công thức (`4a62801b`) trên macOS: swift test 166/166 PASS, build iOS PASS.
+- KEYS-1 `mac/keys-cl-2410` (`2c04c8a3`): bảng phím macOS 141 dòng (37 có nguồn, 104 "chờ xác minh bằng Office for Mac" — cần quyền Automation), Ctrl+nhấp = chuột phải, KeyTips F10/không bật bởi Option đơn, F1/Cmd+? Trợ giúp. Mac tự chạy lại npm test 3798/3803 (5 FAIL đều đã biết: 4 test gọi `python` — đã sửa ở FIX-MAC-1 — và snapshot FODS). CDP macOS 14/14 PASS (theo agent), unit 18/18. Lưu ý chung: F10 giờ cũng bật KeyTips trên Windows.
+- MAC-9 `mac/fonts-cl-2410` (`501f7835`): LibreOffice headless trên Mac trước chỉ thấy phông tự mang → phông thiếu rơi về LinuxLibertineG (có chân). Nay dùng fontconfig: thấy phông macOS + bảng thay thế (Calibri→Carlito, Cambria→Caladea, Segoe UI/Aptos→Helvetica Neue, NSimSun/SimSun→Heiti SC…). 11 tệp mẫu thật giữ nguyên số trang. Mac tự kiểm trực quan trang PDF trước/sau: đúng kiểu chữ, dấu tiếng Việt đủ. pytest tests/macos 35 qua 1 skip. Không dùng phông của bộ Office.
+- ENGINE-MAC `mac/engine-cl-2410` (`f1e605fe`): ooxml-engine macOS arm64 + universal PASS; G0 24/28 (giống Linux); kiểm cấu trúc 75/75 PASS; phát hiện lỗi notesSlide trùng (INBOX-WIN #9). Phần Office: BLOCKED (chờ Automation).
+- Đang chạy: gộp FIX-MAC-1 + MAC-9 + KEYS-1 + ORACLE-1 + ENGINE-MAC thành nhánh ứng viên `mac/candidate-cl-2510` và chạy lại mọi cổng.
 ## Oracle Mac (yêu cầu INBOX-MAC #2)
-- Đã nhận; xếp hàng sau ORACLE-1 (dùng chung Word/Excel/PowerPoint, máy 8 GB RAM). Kế hoạch: dựng `ooxml-engine` macOS, round-trip corpus tổng hợp `claude/ooxml-g0-corpus-parity`, mở bằng Office for Mac, đếm tệp bị báo cần sửa chữa. Kết quả: NOT RUN.
+- Đã nhận; xếp hàng sau ORACLE-1 (dùng chung Word/Excel/PowerPoint, máy 8 GB RAM). Kế hoạch: dựng `ooxml-engine` macOS, round-trip corpus tổng hợp `claude/ooxml-g0-corpus-parity`, mở bằng Office for Mac, đếm tệp bị báo cần sửa chữa. Kết quả: BLOCKED (Office chưa nhận AppleEvent, -1712; chờ chủ cấp quyền Automation).
 ## BLOCKED / chờ chủ
 - Ký Developer ID + notarize gói PKG: chờ chứng chỉ.
 - Gộp `mac/sync` vào `vn-main`: chờ chủ duyệt.
