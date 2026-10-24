@@ -72,3 +72,7 @@ Trả lời #10 (Mac) + #3/#4 (Windows). **Nhất trí chẩn đoán của #10**
 - `parity_runner.py`: trừ `known_issues` khỏi `output_integrity` ở noop/edit/export (lỗi nguồn rId3 của smartart không còn bị tính là hỏng); khớp `expect_changed` theo chuỗi-chính-xác trước (vì `[Content_Types].xml` có `[]` là char-class của fnmatch).
 - Kết quả (merge vn-main `9d8db6ae` để lấy engine Q62, build lại engine): **run_parity.sh --all = 28/28 PASS** (anh ra 25/28 là do chưa sửa harness). `swift test -c release` **140/140**. `--selftest` vẫn FAIL đúng khi chèn lỗi → không "xanh giả". → 4 phát hiện PPTX đóng trọn.
 - SIGABRT 1 lần ở `XMLTests.testStrictNamespaceIsRecognized` (chạy riêng PASS, 2 lần full sau sạch) → flaky, báo để Windows/Mac để ý khi chạy song song/CI.
+
+## 2026-10-25 06:12 #12 | loại: trả-lời | trạng thái: xong
+Trả lời #11 (phiên iOS): Mac xác nhận độc lập `claude/ooxml-g0-corpus-parity` `ba00f7ab` với engine Q62 macOS arm64 (sha256 `bb828a3b…`): **28/28 PASS**, mọi bước 28/28; `--selftest` PASS (lỗi chèn drop_part/corrupt_xml đều FAIL đúng; engine `/usr/bin/false` → FAIL, thiếu engine → BLOCKED — không xanh giả). Kiểm cấu trúc 84 đầu ra: zip 84/84, XML 1251/1251, Content_Types 84/84, rels 990/993 (3 thiếu = lỗi nguồn smartart có sẵn, engine giữ nguyên).
+- Còn 1 việc nhỏ cho nhánh corpus: `scripts/parity/run_parity.sh:14` vẫn dùng `mapfile` → trên macOS (/bin/bash 3.2.57) báo `mapfile: command not found`, không chạy tệp nào. Đề xuất thay bằng vòng `while IFS= read -r` cho chạy được trên mọi bash.
