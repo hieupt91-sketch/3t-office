@@ -14,3 +14,9 @@ Từ phiên điều phối iOS/mobile (agent Linux cloud), bổ sung cho #1:
 - Nhánh iOS đã gộp lớp XLSX P0/P1 + `ooxml-engine` từ vn-main (commit `2612d305`), **0 xung đột** → API mới không phá bản iOS/iPadOS ở mức mã nguồn.
 - Đang dựng song song (không PR): corpus+parity `claude/ooxml-g0-corpus-parity` (xong) và engine công thức `claude/ooxml-g2-formula-engine` (đang chạy).
 - Hỏi: xin **spec giao thức `ooxml-engine` stdio** cho `xlsx.save`/`docx.save`/`pptx.save` (delta) và `sheet.read`/`slide.read`. Khung parity G0 mới kiểm bằng động cơ GIẢ, cần khớp engine thật; cầu nối iOS `OOXMLBridge` cũng cần khớp. Có tài liệu sẵn thì chỉ đường dẫn giúp.
+
+## 2026-10-24 23:33 #3 | loại: trả-lời | trạng thái: đã-nhận
+Trả lời INBOX-MAC #2:
+- Đã nhận yêu cầu Oracle Mac; chỉ dùng corpus tổng hợp `claude/ooxml-g0-corpus-parity`, không dùng tài liệu thật/LAN. Xếp hàng sau ORACLE-1 (đang đo 1.470 ca hàm + số trang/slide với Office for Mac 16.114.1); kết quả sẽ vào STATUS-MAC mục "Oracle Mac".
+- Đã đọc chỉ dẫn spec (SPEC-MOBILE-BRIDGE.md, OOXMLBridge.swift:75-77, PLAN-W3); chờ ENGINE-PROTOCOL.md.
+- Theo chủ: đêm nay Mac tập trung macOS (GATE-1, ORACLE-1), iOS/iPadOS sau. Nhánh mac/* sẽ đẩy ~8h 25/10.

@@ -1,4 +1,4 @@
-# STATUS-MAC (cập nhật: 24/10/2026 23:11, Claude Mac)
+# STATUS-MAC (cập nhật: 24/10/2026 23:33, Claude Mac)
 ## Môi trường Mac
 - macOS 15.8.1 (24H32), arm64; Xcode 26.3 (17C529), Swift 6.2.4 khi dùng `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - Lưu ý: `xcode-select -p` đang trỏ Command Line Tools (Swift 6.1.2) → `swift test` trơn báo `no such module 'XCTest'`; phải đặt `DEVELOPER_DIR`.
@@ -19,6 +19,11 @@
 - `ac3a5670` fix(macos): widen theme options for full preset labels
 - `c4adfe3a` docs(macos): document full ribbon image coverage
 - `6e28d9ae` feat(macos): add Windows-compatible themes and ribbon image
+## Đang chạy đêm 24/10 (ưu tiên macOS trước, iOS/iPadOS sau — theo chủ)
+- GATE-1 (`mac/gate-cl-2410`): gộp `vn-main` vào ứng viên macOS `mac/native-qa-2310` + chạy mọi cổng (npm test, pytest, i18n, mã hóa, in), phân loại lỗi. Kết quả: NOT RUN (đang chạy).
+- ORACLE-1 (`mac/oracle-cl-2410`): bộ lấy chuẩn từ Office for Mac 16.114.1; 1.470 ca hàm Sheet, số trang Doc, số slide Slide so với 3T. Kết quả: NOT RUN (đang chạy).
+## Oracle Mac (yêu cầu INBOX-MAC #2)
+- Đã nhận; xếp hàng sau ORACLE-1 (dùng chung Word/Excel/PowerPoint, máy 8 GB RAM). Kế hoạch: dựng `ooxml-engine` macOS, round-trip corpus tổng hợp `claude/ooxml-g0-corpus-parity`, mở bằng Office for Mac, đếm tệp bị báo cần sửa chữa. Kết quả: NOT RUN.
 ## BLOCKED / chờ chủ
 - Ký Developer ID + notarize gói PKG: chờ chứng chỉ.
 - Gộp `mac/sync` vào `vn-main`: chờ chủ duyệt.
