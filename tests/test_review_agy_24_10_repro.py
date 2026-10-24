@@ -32,7 +32,6 @@ def _package(pivot_xml: str) -> bytes:
 
 
 class PivotSelfClosingTagRegressionTests(unittest.TestCase):
-    @unittest.expectedFailure
     def test_locations_from_fods_keeps_self_closing_definition_well_formed(self):
         """A. _apply_refreshed_pivot_locations_from_fods với pivotTableDefinition tự đóng."""
         pivot = f'<pivotTableDefinition xmlns="{SHEET_NS}" name="abc"/>'
@@ -47,7 +46,6 @@ class PivotSelfClosingTagRegressionTests(unittest.TestCase):
         updated = replacements["xl/pivotTables/pivotTable1.xml"]
         ET.fromstring(updated)  # XML phải well-formed; hiện tại parse lỗi
 
-    @unittest.expectedFailure
     def test_overlay_to_fods_keeps_self_closing_data_pilot_table_well_formed(self):
         """B. overlay_pivot_filter_metadata_to_fods với data-pilot-table tự đóng."""
         filters = json.dumps(
@@ -66,6 +64,29 @@ class PivotSelfClosingTagRegressionTests(unittest.TestCase):
         )
         overlaid = overlay_pivot_filter_metadata_to_fods(_package(pivot), fods)
         ET.fromstring(overlaid)  # XML phải well-formed; hiện tại parse lỗi
+
+    def test_locations_from_fods_keeps_normal_definition_well_formed(self):
+        pivot = f'<pivotTableDefinition xmlns="{SHEET_NS}" name="abc"></pivotTableDefinition>'
+        fods = (
+            '<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+            'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">'
+            '<table:data-pilot-table table:name="abc" vno:xlsx-location="A1:B2" vno:filters="{}"></table:data-pilot-table>'
+            '</office:document>'
+        )
+        replacements: dict[str, str] = {}
+        _apply_refreshed_pivot_locations_from_fods(_package(pivot), fods, replacements)
+        ET.fromstring(replacements["xl/pivotTables/pivotTable1.xml"])
+
+    def test_overlay_to_fods_keeps_normal_data_pilot_table_well_formed(self):
+        filters = json.dumps([{"field": "Nhân viên", "selectedValues": ["NV1"]}], ensure_ascii=False)
+        encoded = filters.replace("&", "&amp;").replace('"', "&quot;")
+        pivot = f'<pivotTableDefinition xmlns="{SHEET_NS}" xmlns:vno="{VNO_NS}" name="abc" vno:filters="{encoded}"></pivotTableDefinition>'
+        fods = (
+            '<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+            'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">'
+            '<table:data-pilot-table table:name="abc"></table:data-pilot-table></office:document>'
+        )
+        ET.fromstring(overlay_pivot_filter_metadata_to_fods(_package(pivot), fods))
 
 
 if __name__ == "__main__":
