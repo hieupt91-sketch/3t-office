@@ -1480,3 +1480,24 @@ DEPENDENCIES/BLOCKERS: Phục hồi đoạn rỗng cần mapping paragraph ngu�
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: 20 ảnh sáng 1366×768: `legacy01`, `legacy02`, `legacy03`, `legacy04`, `legacy05`, `legacy06`, `legacy07`, `legacy08`, `legacy09`, `legacy10`, `legacy11`, `legacy12`, `legacy13`, `legacy14`, `legacy15`, `legacy16`, `legacy17`, `legacy18`, `legacy19`, `legacy20` (mỗi ảnh `-1366x768.png` trong `E:\VNOffice-briefs\logs\Q59-work\screens\`). Thêm 8 ảnh CDP đã xem: legacy06/13/14/20 từng cặp `light` và `dark` (`-1366x768.png`) tại `E:\VNOffice-profiles\q59-final-20261025-02\q57-screenshots\`. 4 mục tiêu trang không bị cắt; ghi nhận tương phản tối và thanh cuộn ngang legacy07 như trên.
 NEXT ACTION: Tiếp tục phiếu riêng cho mapping/phục hồi đoạn rỗng legacy10/14/15; tạo `E:\VNOffice-briefs\logs\Q59.DONE` cho phiếu này.
+
+---
+
+# Agent Handoff
+TASK: CODEX Q61 — Recheck and fix UI Sweep invalid-input/focus findings
+AGENT/ROLE: Codex / UI platform, Writer, Sheet, Slides
+BRANCH: codex/q61
+WORKTREE: E:\VNOffice-codex-q61
+OBJECTIVE: Reproduce agy UI Sweep findings on the real app via CDP, fix confirmed invalid numeric actions and focus defects, inspect screenshots, and report verified outcomes.
+FINDINGS: Confirmed invalid numeric actions in Writer Zoom/Page Setup, Sheet Row Height/Conditional Formatting, Slides Zoom; confirmed Writer Page Setup Esc focus regression. Sheet Esc focus was reproduced for six dialogs; one experimental common-path iteration passed only Row Height and was reverted, leaving five focus cases unresolved. Word Count command and three reported Slides command/dialog claims were false positives: each opened successfully on the app.
+IMPLEMENTATION SUMMARY: Added shared live numeric dialog validation and VI/EN feedback, applied it to Writer, Sheet, Slides; restored Writer Page Setup focus to its keyboard launcher. No Sheet focus patch was retained because the attempted common fix did not meet the six-case CDP gate.
+FILES CHANGED: `platform/ui-kit/numeric-dialog-validation.js`; `platform/ui-kit/dialogs.js`; `apps/writer/writer-zoom-dialog.js`; `adapters/libreoffice/writer/writer-adapter.js`; `apps/sheet/sheet-grid.js`; `apps/slides/slides-zoom-dialog.js`; `platform/i18n/strings-vi.js`; `platform/i18n/strings-en.js`; `platform/ribbon/ribbon-host.js`; `tests/unit/numeric-dialog-validation.test.js`; `tests/live/cdp/q61-dialog-focus.desktop.mjs`; `tests/live/cdp/q61-dialog-validation.desktop.mjs`; generated checklist evidence; `docs/Q61-UI-RECHECK.md`; Q61 screenshots under `docs/assets/q61-ui/`.
+COMMANDS RUN: `node tests/run-tests.js`; `node --experimental-websocket tests/live/cdp/q61-dialog-validation.desktop.mjs`; `node --experimental-websocket tests/live/cdp/q61-dialog-focus.desktop.mjs`; Sheet six-dialog focus CDP probe; `node scripts/audit-0610/i18n_parity.mjs`; all three `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k dialog`.
+BUILD RESULT: NOT RUN — build system unchanged.
+TEST RESULTS: PASS — JS 3802/3802; numeric validation CDP 120/120 with 20 screenshots; Writer keyboard launcher focus 1/1; i18n parity 0 missing; evidence verifier 0 downgraded rows. FAIL — Sheet focus probe only 1/6 after temporary experiment, which was reverted. FAIL — pytest 34 passed/1 failed/1128 deselected; unrelated `PermissionError [WinError 32]` cleanup on `lock.xlsx` while LibreOffice held the file.
+KNOWN FAILURES: Sheet Esc focus remains failing on Goal Seek, Data Table, Scenario Manager, Page Margins, Paper Size. Sheet focus correction is required before the ticket can be considered complete. DOCX 8/8 was NOT RUN.
+RISKS: Do not mark Q61 complete or create its DONE marker until six Sheet focus cases pass; pytest lock cleanup should be rerun after the file is released without killing processes by name.
+DEPENDENCIES/BLOCKERS: None external; remaining Sheet focus fix and its before/after CDP evidence.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Writer Zoom, Writer Page Setup, Sheet Row Height, Sheet Conditional Formatting, Slides Zoom at 1366×768 and 1024×600 in light/dark (20 images); Writer Page Setup open/return at 1366×768; six Sheet dialogs open/return at 1366×768 light (12 images); Word Count and Slides diagram/header-footer/setup-show dialogs. All screenshots were visually inspected; report records the loading toast under Row Height and unresolved focus return on five Sheet dialogs. See `docs/Q61-UI-RECHECK.md` and `docs/assets/q61-ui/`.
+NEXT ACTION: Fix and retest Sheet focus through one shared mechanism (six dialogs, CDP fail before/pass after); rerun required gates and DOCX 8/8; then append final handoff and create `E:\VNOffice-briefs\logs\Q61.DONE`.
