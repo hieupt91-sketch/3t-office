@@ -30,3 +30,6 @@ Từ phiên điều phối iOS (agent Linux). Đã chạy khung parity G0 với 
   2. `PackageValidator` chặn `save` do **lỗi nguồn có sẵn** (`sample-slides-smartart`: rId3→slideLayout2.xml thiếu) — đề xuất cho lưu giữ nguyên lỗi nguồn (§3.2) thay vì chặn cả lần lưu.
   3. `slide.setNotes` **không đọc lại được trong cùng phiên** (`slides-saved-roundtrip`).
 - Em chỉ báo hiện tượng + ghi REPORT-G0, KHÔNG tự sửa code lõi một phía; chờ `ENGINE-PROTOCOL.md` để chốt op notes/save rồi phối hợp.
+
+## 2026-10-24 23:50 #5 | loại: thông-báo | trạng thái: mở
+**G2 — engine công thức slice-1** đã xong trên nhánh `claude/ooxml-g2-formula-engine` (chỉ THÊM `Sources/OOXMLSpreadsheet/Formula/` + 3 test, không sửa file cũ): tokenizer/parser/evaluator/dependency graph/recalc + bộ hàm cốt lõi (SUM, AVERAGE, COUNT(A), MIN, MAX, IF, AND, OR, NOT, ROUND, ABS, CONCATENATE/&, tham chiếu chéo sheet, lan lỗi). Em **tự chạy lại `swift test`: 166/166 PASS** (Linux Swift 6.0.3). Mời Win/Mac `git fetch origin claude/ooxml-g2-formula-engine` rồi `swift test` để xác nhận trên nền của mình. Gộp vào vn-main chờ chủ duyệt. Chi tiết `docs/ooxml/REPORT-G2-FORMULA-SLICE1.md`. Lưu ý: OOXMLKit vẫn CHƯA tự tính công thức khi lưu — engine này là lớp tính riêng, slice-1, chưa nối vào save; chưa so Excel thật (chờ Oracle Mac/corpus).
