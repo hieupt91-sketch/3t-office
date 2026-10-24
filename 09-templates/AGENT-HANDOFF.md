@@ -1437,3 +1437,24 @@ DEPENDENCIES/BLOCKERS: Real engine smoke requires resolving the missing runtime 
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Không áp dụng — backend client/luồng lưu; không mở app/CDP.
 NEXT ACTION: Review and commit this W5A change; after commit write `E:\VNOffice-briefs\logs\W5A.DONE`.
+
+## CODEX Q58 — 24/10/2026
+
+TASK: Sửa hồi quy d20.docx lưu 4 trang do `_repairImportedTextWhitespaceFromOoxml`.
+AGENT/ROLE: Codex / Writer Adapter.
+BRANCH: codex/q57.
+WORKTREE: E:\VNOffice-codex-q57. `git merge main` → Already up to date.
+OBJECTIVE: Giữ tab/ngắt dòng trong nguồn OOXML để khôi phục `pPr`, đồng thời tiếp tục sửa khoảng trắng rác giữa chữ tiếng Việt khi nhập DOC/DOCX.
+FINDINGS: Trước sửa, unit tái hiện xóa `<w:tab/>`, tạo `Actual ship valueWhereofHull`; nguồn OOXML chỉ đọc `<w:t>`, khiến chữ ký whitespace đánh dấu tab là khoảng trắng rác. Q57 đã xác nhận 4 mẫu DOC cũ đạt 3/1/15/1 trang sau sửa marker phân trang.
+IMPLEMENTATION SUMMARY: Trích `<w:t>`, `<w:tab/>`, `<w:br/>` theo thứ tự; map tab thành `\t`, br thành `\n`. Thêm unit bao phủ tab, br và chữ Việt tách; test cũ tiếp tục xác nhận “Độc lập” được nối và dấu cách thật trong “T el” không bị xóa.
+FILES CHANGED: `adapters/libreoffice/writer/writer-adapter.js`; `tests/unit/writer-floating-image-import.test.js`; `docs/WORD2016-FEATURE-CHECKLIST.md` (2 tham chiếu dòng được sinh lại); `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; unit Writer spacing trước sửa (FAIL: tab bị xóa) và sau sửa; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; ba script `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer and (whitespace or floating or import or ooxml)"`; d20 batch 3 lượt; batch DOCX d01,d02,d03,d06,d07,d13,d20,d24; `tests/live/cdp/writer-hidden-hyphenation-pagination.desktop.mjs`; Word COM ẩn, chỉ đọc 20 tệp `.doc`; `git diff --check`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — Node 3798/3798; pytest 46 passed, 1114 deselected; i18n 3200 VI/3200 EN, 0 missing; checklist 0 dòng hạ. d20: 3/3 lượt Word=3/saved=3/edit PASS. DOCX: 8/8 trang không đổi và edit PASS. DOC legacy CDP: 4/4 đạt 3/1/15/1. 20 DOC gốc đọc bằng Word COM ẩn: `? ?c`=0, `T el`=0.
+PRE-CHANGE TEST: FAIL — unit mới báo `OOXML tabs changed: "Actual ship valueWhereofHull"`; cùng unit PASS sau sửa, giữ tab, br và sửa “Độc lập”.
+KNOWN FAILURES: Ảnh tối cho thấy chữ đen/xanh đậm trong d20 và legacy06 chìm trên nền tối; logo legacy13 và ô bảng legacy14 giữ nền trắng. Dòng hướng dẫn đầu trang d20 khá sít. D03 có đầu trang chồng chữ và app hiện 3 trang sau 10 giây trong khi batch Word/saved=1/1; d24 có chữ bìa đè lên hình nền. Đây là lỗi bố cục tài liệu ngoài phạm vi whitespace, ghi nhận để tách phiếu.
+RISKS: Ký hiệu chữ ký hiện phân biệt khoảng trắng có/không có giữa ký tự, không phân biệt loại khoảng trắng; map `<w:br/>` thành newline để giữ ranh giới và không đổi phép chuẩn hóa hiện tại.
+DEPENDENCIES/BLOCKERS: Không có.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: 18 ảnh 1366×768: d20 sáng/tối; d01,d02,d03,d06,d07,d13,d24 sáng; d03 chụp lại sau 10 giây; legacy06,legacy13,legacy14,legacy20 sáng/tối. DOCX: `E:\VNOffice-profiles\q58-docx-ui\` và d20/legacy: `E:\VNOffice-profiles\ui-shots\live-writer\`, `E:\VNOffice-profiles\q58-legacy-docs\q57-screenshots\`. Ribbon/status không bị che; ghi nhận d03 đầu trang chồng chữ và số trang app 3 so với Word 1, d24 bìa chồng hình/chữ, d20 dòng hướng dẫn sít. Chế độ tối: chữ đen/xanh đậm khó đọc; logo legacy13 và ô bảng legacy14 còn nền trắng. Đã mở và xem tất cả ảnh.
+NEXT ACTION: Review commit Q58; sau commit tạo `E:\VNOffice-briefs\logs\Q58.DONE`.

@@ -92,6 +92,24 @@ export async function runWriterFloatingImageImportTests() {
     }
   });
 
+  test("Imported spacing repair preserves OOXML tabs and line breaks while repairing split Vietnamese text", () => {
+    const textNode = (value) => ({ nodeType: 3, nodeValue: value });
+    const paragraph = (value) => {
+      const node = { nodeType: 1, childNodes: [textNode(value)] };
+      Object.defineProperty(node, "textContent", { get() { return this.childNodes.map((child) => child.nodeValue || "").join(""); } });
+      return node;
+    };
+    const tabPara = paragraph("Actual ship value\tWhereof\tHull");
+    const breakPara = paragraph("Tiêu đề\nNội dung");
+    const splitPara = paragraph("Đ\nộc l\nập");
+    const root = { querySelectorAll: () => [tabPara, breakPara, splitPara] };
+    const xml = '<w:document><w:body><w:p><w:r><w:t>Actual ship value</w:t><w:tab/><w:t>Whereof</w:t><w:tab/><w:t>Hull</w:t></w:r></w:p><w:p><w:r><w:t>Tiêu đề</w:t><w:br/><w:t>Nội dung</w:t></w:r></w:p><w:p><w:r><w:t>Độc lập</w:t></w:r></w:p></w:body></w:document>';
+    new WriterAdapter(null)._repairImportedTextWhitespaceFromOoxml(root, xml);
+    check(tabPara.textContent === "Actual ship value\tWhereof\tHull", `OOXML tabs changed: ${JSON.stringify(tabPara.textContent)}`);
+    check(breakPara.textContent === "Tiêu đề\nNội dung", `OOXML line break changed: ${JSON.stringify(breakPara.textContent)}`);
+    check(splitPara.textContent === "Độc lập", `Split Vietnamese text was not repaired: ${JSON.stringify(splitPara.textContent)}`);
+  });
+
   test("Floating import preserves textbox content, negative geometry and wrap", () => {
     const adapter = new WriterAdapter(null);
     const body = adapter._normalizeImportedHtml(HTML, OOXML).body;

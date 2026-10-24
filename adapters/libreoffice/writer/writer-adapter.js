@@ -8404,8 +8404,10 @@ export class WriterAdapter {
   _repairImportedTextWhitespaceFromOoxml(root, documentXml) {
     if (!root?.querySelectorAll || !documentXml || globalThis.__VNO_WRITER_REPAIR_FLOAT_WORD_SPACES === false) return;
     const sourceParagraphs = [...String(documentXml).matchAll(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi)].map((paragraph) =>
-      [...paragraph[1].matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi)]
-        .map((text) => this._decodeXmlEntities(text[1]))
+      [...paragraph[1].matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t\s*>|<w:tab\b[^>]*\/?\s*>|<w:br\b[^>]*\/?\s*>/gi)]
+        .map((part) => part[1] !== undefined
+          ? this._decodeXmlEntities(part[1])
+          : /^<w:tab\b/i.test(part[0]) ? "\t" : "\n")
         .join("")
     ).filter(Boolean);
     const whitespaceSignature = (value) => {
