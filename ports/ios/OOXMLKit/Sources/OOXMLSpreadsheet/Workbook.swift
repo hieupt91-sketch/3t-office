@@ -133,7 +133,7 @@ public final class Workbook {
         let theme = try package.xml(themePart)
         let themeElements = theme.root.firstChild(NS.a, "themeElements") ?? {
             let element = XElement(name: theme.root.qualifiedName("themeElements", in: NS.a).name)
-            theme.root.insertChild(element, schemaOrder: ["themeElements", "objectDefaults", "extraClrSchemeList"])
+            theme.root.insertChild(element, schemaOrder: ["themeElements", "objectDefaults", "extraClrSchemeLst"])
             return element
         }()
         let colorScheme = themeElements.firstChild(NS.a, "clrScheme") ?? {
@@ -194,14 +194,14 @@ public final class Workbook {
 
     private static func legacyPasswordHash(_ password: String) -> String {
         var hash: UInt16 = 0
-        for byte in password.utf16 {
+        for byte in password.utf16.reversed() {
             let rotate = (hash & 0x4000) != 0
             hash = (hash << 1) & 0x7fff
             if rotate { hash |= 1 }
             hash ^= byte
         }
         hash = ((hash & 0x4000) != 0 ? ((hash << 1) & 0x7fff) | 1 : (hash << 1) & 0x7fff)
-        hash ^= UInt16(password.utf16.count)
+        hash ^= UInt16(truncatingIfNeeded: password.utf16.count)
         hash ^= 0xCE4B
         return String(format: "%04X", hash)
     }

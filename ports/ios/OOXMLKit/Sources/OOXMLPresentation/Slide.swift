@@ -38,6 +38,12 @@ public final class Slide {
 
     public var title: String? { titleShape?.text }
 
+    /// Đặt tiêu đề qua placeholder hiện có để giữ định dạng của tiêu đề.
+    public func setTitle(_ text: String) throws {
+        guard let titleShape else { throw PresentationError.shapeHasNoText }
+        try titleShape.setText(text)
+    }
+
     public var layoutPart: PartName? { try? package.relatedPart(from: part, .slideLayout) }
 
     public var text: String {
@@ -176,6 +182,13 @@ public final class Shape {
     public var name: String { cNvPr?.attribute("name") ?? "" }
     public var altText: String? { cNvPr?.attribute("descr") }
 
+    /// Đổi tên hiển thị của hình mà không thay đổi ID hay thuộc tính khác.
+    public func rename(to name: String) throws {
+        guard let cNvPr else { throw PresentationError.shapeHasNoName }
+        cNvPr.setAttribute("name", name)
+        markModified()
+    }
+
     /// title | ctrTitle | subTitle | body | dt | ftr | sldNum | pic… ("body" khi chỉ có idx).
     public var placeholderType: String? {
         guard let ph = nonVisual?.firstChild(NS.p, "nvPr")?.firstChild(NS.p, "ph") else { return nil }
@@ -204,6 +217,15 @@ public final class Shape {
         guard let tx = txBody else { throw PresentationError.shapeHasNoText }
         DrawingText.setParagraphs(tx, text.components(separatedBy: "\n"))
         markModified()
+    }
+
+    /// Thay văn bản khớp qua các run, giữ nguyên ranh giới và định dạng run hiện có.
+    @discardableResult
+    public func replaceText(_ find: String, with replacement: String) -> Int {
+        guard let txBody else { return 0 }
+        let count = DrawingText.replace(in: txBody, find, with: replacement)
+        if count > 0 { markModified() }
+        return count
     }
 
     private var tableElement: XElement? {

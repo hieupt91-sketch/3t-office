@@ -4,7 +4,7 @@ import Foundation
 /// dịch tham chiếu tương đối (mở rộng công thức chia sẻ) và đổi tên sheet trong tham chiếu.
 /// Bỏ qua chuỗi "…", tên hàm, tham chiếu có cấu trúc […] và liên kết sổ ngoài [n].
 public enum FormulaRewriter {
-    /// Rewrites scalar `CONCAT(a,b,...)` calls as ` (a)&(b)&... ` without touching strings or names.
+    /// Rewrites scalar `CONCAT(a,b,...)` calls as `((a)&(b)&...)` without touching strings or names.
     /// Range arguments are left intact because joining arrays requires Excel's array semantics.
     public static func rewriteScalarConcat(_ formula: String) -> String {
         let chars = Array(formula)
@@ -20,7 +20,16 @@ public enum FormulaRewriter {
             if isIdentifierStart(chars[index]) {
                 var end = index + 1
                 while end < chars.count && isIdentifierPart(chars[end]) { end += 1 }
-                let identifier = String(chars[index..<end])
+                var identifier = String(chars[index..<end])
+                if identifier.caseInsensitiveCompare("_xlfn") == .orderedSame,
+                   end + 1 < chars.count, chars[end] == "." {
+                    var nameEnd = end + 1
+                    while nameEnd < chars.count && isIdentifierPart(chars[nameEnd]) { nameEnd += 1 }
+                    if String(chars[(end + 1)..<nameEnd]).caseInsensitiveCompare("CONCAT") == .orderedSame {
+                        identifier = "CONCAT"
+                        end = nameEnd
+                    }
+                }
                 var open = end
                 while open < chars.count && chars[open].isWhitespace { open += 1 }
                 if identifier.caseInsensitiveCompare("CONCAT") == .orderedSame,
@@ -29,7 +38,8 @@ public enum FormulaRewriter {
                     let body = Array(chars[(open + 1)..<close])
                     let arguments = splitArguments(body)
                     if arguments.count >= 2 && !arguments.contains(where: containsRangeOperator) {
-                        output += arguments.map { "(\(rewriteScalarConcat($0.trimmingCharacters(in: .whitespacesAndNewlines))))" }.joined(separator: "&")
+                        let joined = arguments.map { "(\(rewriteScalarConcat($0.trimmingCharacters(in: .whitespacesAndNewlines))))" }.joined(separator: "&")
+                        output += "(\(joined))"
                         index = close + 1
                         continue
                     }
@@ -64,6 +74,7 @@ public enum FormulaRewriter {
         var i = open
         while i < chars.count {
             if chars[i] == "\"" { i = stringEnd(in: chars, from: i); continue }
+            if chars[i] == "'" { i = quotedSheetEnd(in: chars, from: i); continue }
             if chars[i] == "(" { depth += 1 }
             if chars[i] == ")" {
                 depth -= 1
@@ -78,12 +89,16 @@ public enum FormulaRewriter {
         var parts: [String] = []
         var start = 0
         var depth = 0
+        var arrayDepth = 0
         var i = 0
         while i < chars.count {
             if chars[i] == "\"" { i = stringEnd(in: chars, from: i); continue }
+            if chars[i] == "'" { i = quotedSheetEnd(in: chars, from: i); continue }
             if chars[i] == "(" { depth += 1 }
             else if chars[i] == ")" { depth -= 1 }
-            else if chars[i] == "," && depth == 0 {
+            else if chars[i] == "{" { arrayDepth += 1 }
+            else if chars[i] == "}" { arrayDepth -= 1 }
+            else if chars[i] == "," && depth == 0 && arrayDepth == 0 {
                 parts.append(String(chars[start..<i]))
                 start = i + 1
             }
@@ -93,11 +108,24 @@ public enum FormulaRewriter {
         return parts
     }
 
+    private static func quotedSheetEnd(in chars: [Character], from start: Int) -> Int {
+        var i = start + 1
+        while i < chars.count {
+            if chars[i] == "'" {
+                if i + 1 < chars.count && chars[i + 1] == "'" { i += 2; continue }
+                return i + 1
+            }
+            i += 1
+        }
+        return chars.count
+    }
+
     private static func containsRangeOperator(_ argument: String) -> Bool {
         let chars = Array(argument)
         var i = 0
         while i < chars.count {
             if chars[i] == "\"" { i = stringEnd(in: chars, from: i); continue }
+            if chars[i] == "'" { i = quotedSheetEnd(in: chars, from: i); continue }
             if chars[i] == ":" { return true }
             i += 1
         }

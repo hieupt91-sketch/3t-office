@@ -1395,3 +1395,24 @@ DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Không áp dụng — thư viện Swift/bridge, không mở app hay màn hình UI.
 NEXT ACTION: Review commit riêng của W4A; ghi E:\VNOffice-briefs\logs\W4A.DONE sau commit.
+
+## CODEX W4B — 24/10/2026
+
+TASK: API PPTX P0 và lệnh `pptx.save` lưu delta tiếng Việt.
+AGENT/ROLE: Codex / OOXMLKit.
+BRANCH: codex/ooxml-w3a.
+WORKTREE: E:\VNOffice-codex-ooxmlw3a. `git merge main` → Already up to date.
+OBJECTIVE: Bổ sung API PPTX P0 theo mapping; ghi delta vào staging, mở lại xác minh và giữ nguyên byte các part không sửa.
+FINDINGS: Presentation đã có thêm/xóa slide; Slide có ghi chú và sửa text toàn khung; bridge chưa có `pptx.save`. `DrawingText.replace` thay chữ qua nhiều run mà giữ nguyên run/format.
+IMPLEMENTATION SUMMARY: Thêm API `Shape.rename(to:)`, `Shape.replaceText(_:with:)`, `Slide.setTitle(_:)`; thêm `pptx.save` cho thay chữ/đổi tên hình, tiêu đề, ghi chú, thêm theo layout và xóa slide. Validate delta trước khi ghi; unsupported không tạo staging; lưu/mở lại kiểm nội dung và trả `changedParts`.
+FILES CHANGED: ports/ios/OOXMLKit/Sources/OOXMLPresentation/Presentation.swift; ports/ios/OOXMLKit/Sources/OOXMLPresentation/Slide.swift; ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift; ports/ios/OOXMLKit/Tests/OOXMLBridgeTests/OOXMLBridgeTests.swift; docs/ios/BAO-CAO-OOXMLKIT-2310.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge main`; WSL `swift test --filter OOXMLBridgeTests.testPptxSaveDelta` trước sửa và sau sửa; WSL `scripts/run-tests.sh`; `git diff --stat --ignore-cr-at-eol`.
+BUILD RESULT: PASS — SwiftPM build hoàn tất trong bộ test.
+TEST RESULTS: PASS — Swift 137/137 (134 cũ + 3 mới); kiểm tra độc lập 86/86 gói ZIP/CRC/XML. Kiểm tra thư viện đọc Office Python tùy chọn NOT RUN vì thiếu thư viện.
+PRE-CHANGE TEST: FAIL — test `testPptxSaveDeltaWritesReopensAndPreservesUntouchedParts` nhận `op 'pptx.save' không hỗ trợ`.
+KNOWN FAILURES: Không có test fail sau sửa.
+RISKS: Delta structural chỉ hỗ trợ thêm/xóa slide đơn giản; transition, animation và thao tác khác trả `unsupported`. Không chạy Microsoft Office thật.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — chỉ thư viện Swift/bridge, không mở app.
+NEXT ACTION: Review commit riêng W4B; sau commit ghi `E:\VNOffice-briefs\logs\W4B.DONE`.

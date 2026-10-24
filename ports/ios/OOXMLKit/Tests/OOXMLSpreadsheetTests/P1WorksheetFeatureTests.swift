@@ -44,7 +44,7 @@ final class P1WorksheetFeatureTests: XCTestCase {
         let links = try reopened.worksheet(named: "Dữ liệu").hyperlinks
         XCTAssertTrue(links.contains { $0.cell == "B2" && $0.target.contains("example.test/a?x=1&y=2") })
         XCTAssertTrue(links.contains { $0.cell == "C2" && $0.target == "'Tổng hợp'!A1" })
-        XCTAssertEqual(FormulaRewriter.rewriteScalarConcat("CONCAT(A1, \"x,y\", UPPER(B1))"), "(A1)&(\"x,y\")&(UPPER(B1))")
+        XCTAssertEqual(FormulaRewriter.rewriteScalarConcat("CONCAT(A1, \"x,y\", UPPER(B1))"), "((A1)&(\"x,y\")&(UPPER(B1)))")
         XCTAssertEqual(FormulaRewriter.rewriteScalarConcat("MYCONCAT(A1,B1)"), "MYCONCAT(A1,B1)")
         try RoundTrip.verify(
             original: original,
@@ -53,6 +53,99 @@ final class P1WorksheetFeatureTests: XCTestCase {
             requireChanged: ["xl/worksheets/sheet1.xml", "xl/worksheets/_rels/sheet1.xml.rels"],
             name: "xlsx-p1-hyperlinks.xlsx"
         )
+    }
+
+    func testReviewW3FormulaConcatCases() {
+        XCTAssertEqual(FormulaRewriter.rewriteScalarConcat("_xlfn.CONCAT(A1, B1)"), "((A1)&(B1))")
+        XCTAssertEqual(FormulaRewriter.rewriteScalarConcat("CONCAT('Doanh thu, 2024'!A1, B1)"), "(('Doanh thu, 2024'!A1)&(B1))")
+        XCTAssertEqual(FormulaRewriter.rewriteScalarConcat("CONCAT(A1, B1) * 2"), "((A1)&(B1)) * 2")
+        XCTAssertEqual(FormulaRewriter.rewriteScalarConcat("CONCAT({\"a\", \"b\"}, C1)"), "(({\"a\", \"b\"})&(C1))")
+    }
+
+    func testReviewW3SingleFormulaValidationAndPasswordHash() throws {
+        let workbook = try Workbook(data: Fixtures.data("xlsx/rich-excel.xlsx"))
+        let sheet = try workbook.worksheet(named: "Dữ liệu")
+        XCTAssertNoThrow(try sheet.addDataValidation(range: CellRange("A1")!, validation: DataValidationRule(type: "whole", formula1: "100", operator: "greaterThan")))
+        try workbook.setWorkbookProtection(lockStructure: true, password: "demo")
+        try sheet.setSheetProtection(password: "demo")
+        let saved = try workbook.save()
+        let workbookXML = try RoundTrip.partString(saved, "xl/workbook.xml")
+        let sheetXML = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(workbookXML.contains("workbookPassword=\"CA8B\""), workbookXML)
+        XCTAssertTrue(sheetXML.contains("password=\"CA8B\""), sheetXML)
+    }
+
+    func testReviewW3PreservesSheetPropertiesWhenClearingTabColor() throws {
+        let workbook = try Workbook(data: Fixtures.data("xlsx/rich-excel.xlsx"))
+        let sheet = try workbook.worksheet(named: "Dữ liệu")
+        let properties = try XCTUnwrap(sheet.document.root.firstChild(NS.s, "sheetPr"))
+        for child in properties.elements { child.removeFromParent() }
+        properties.setAttribute("codeName", "Sheet1")
+        try sheet.setTabColor(rgbHex: "")
+        let saved = try workbook.save()
+        let xml = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(xml.contains("<sheetPr codeName=\"Sheet1\""), xml)
+    }
+
+    func testReviewW3ExternalHyperlinkDeclaresRelationshipNamespaceOnNewSheet() throws {
+        let workbook = try Workbook(data: Fixtures.data("xlsx/rich-excel.xlsx"))
+        let sheet = try workbook.addWorksheet(named: "Liên kết")
+        try sheet.setHyperlink(at: "A1", target: "https://example.test")
+        XCTAssertEqual(sheet.document.root.attribute("xmlns:r"), NS.r.primaryURI)
+        let saved = try workbook.save()
+        XCTAssertNoThrow(try Workbook(data: saved))
+    }
+
+    func testReviewW3ClearConditionalFormattingKeepsOtherSqrefAreas() throws {
+        let workbook = try Workbook(data: Fixtures.data("xlsx/rich-excel.xlsx"))
+        let sheet = try workbook.worksheet(named: "Dữ liệu")
+        let formatting = XElement(name: "conditionalFormatting", attributes: [XAttribute(name: "sqref", value: "B2:B10 D2:D10")])
+        formatting.append(XElement(name: "cfRule", attributes: [XAttribute(name: "type", value: "expression"), XAttribute(name: "priority", value: "9")]))
+        sheet.document.root.append(formatting)
+        try sheet.clearConditionalFormatting(range: CellRange("B2:B10")!)
+        let saved = try workbook.save()
+        let xml = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(xml.contains("sqref=\"D2:D10\""), xml)
+    }
+
+    func testReviewW3EditingSharedFormulaSlaveExpandsWholeGroup() throws {
+        let workbook = try Workbook(data: Fixtures.data("xlsx/rich-excel.xlsx"))
+        let sheet = try workbook.worksheet(named: "Dữ liệu")
+        try sheet.setValue(123, at: "E3")
+        let saved = try workbook.save()
+        let xml = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
+        XCTAssertFalse(xml.contains("<f t=\"shared\" ref=\"E2:E6\""), xml)
+        XCTAssertTrue(xml.contains("<c r=\"E3\" s=\"3\"><v>123</v></c>"), xml)
+        XCTAssertTrue(xml.contains("<c r=\"E4\" s=\"3\"><f>C4*D4</f>"), xml)
+    }
+
+    func testReviewW3RemovingFreezePanesRestoresSelection() throws {
+        let workbook = try Workbook(data: Fixtures.data("xlsx/rich-excel.xlsx"))
+        let sheet = try workbook.worksheet(named: "Dữ liệu")
+        try sheet.removeFreezePanes()
+        let saved = try workbook.save()
+        let xml = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(xml.contains("<selection activeCell=\"A1\" sqref=\"A1\""), xml)
+    }
+
+    func testReviewW3OversizedPasswordDoesNotTrap() throws {
+        let workbook = try Workbook(data: Fixtures.data("xlsx/rich-excel.xlsx"))
+        try workbook.setWorkbookProtection(lockStructure: true, password: String(repeating: "x", count: 65_536))
+        XCTAssertNoThrow(try workbook.save())
+    }
+
+    func testReviewW3ThemeElementsAreInsertedBeforeExtraColorSchemes() throws {
+        let workbook = try Workbook(data: Fixtures.data("xlsx/rich-excel.xlsx"))
+        let themePart = try XCTUnwrap(workbook.package.relatedPart(from: workbook.workbookPart, .theme))
+        let theme = try workbook.package.xml(themePart)
+        theme.root.firstChild(NS.a, "themeElements")?.removeFromParent()
+        let extra = XElement(name: theme.root.qualifiedName("extraClrSchemeLst", in: NS.a).name)
+        theme.root.append(extra)
+        try workbook.setTheme(preset: .ocean)
+        let saved = try workbook.save()
+        let xml = try RoundTrip.partString(saved, "xl/theme/theme1.xml")
+        XCTAssertLessThan(try XCTUnwrap(xml.range(of: "<a:themeElements" )).lowerBound,
+                          try XCTUnwrap(xml.range(of: "<a:extraClrSchemeLst" )).lowerBound)
     }
 
     func testViewAndPrintOptionsRoundTrip() throws {

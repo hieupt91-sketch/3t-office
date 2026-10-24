@@ -277,4 +277,87 @@ final class OOXMLBridgeTests: XCTestCase {
         XCTAssertFalse((result["unsupported"] as? [String] ?? []).isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
     }
+
+    func testPptxSaveDeltaWritesReopensAndPreservesUntouchedParts() throws {
+        let dir = try Fixtures.scratchDirectory("pptx-save-delta")
+        let source = dir.appendingPathComponent("source.pptx")
+        let target = dir.appendingPathComponent("staging.pptx")
+        let sourceData = try Fixtures.data("pptx/rich-deck.pptx")
+        try sourceData.write(to: source)
+
+        let result = try call("pptx.save", [
+            "source_document_path": source.path,
+            "target_path": target.path,
+            "delta": [
+                "slides": [
+                    ["op": "shape.replaceText", "slide": 0, "shape": "Tiêu đề 1", "find": "2027", "replace": "2028"],
+                    ["op": "shape.rename", "slide": 0, "shape": "Tiêu đề 1", "name": "Tiêu đề chính"],
+                    ["op": "slide.setNotes", "slide": 0, "text": "Ghi chú đã cập nhật"],
+                    ["op": "slide.setTitle", "slide": 1, "text": "Mục tiêu 2028"],
+                ],
+            ],
+        ])
+
+        XCTAssertEqual(result["ok"] as? Bool, true)
+        XCTAssertEqual(result["unsupported"] as? [String], [])
+        let changedParts = result["changedParts"] as? [String] ?? []
+        XCTAssertTrue(changedParts.contains("ppt/slides/slide1.xml"))
+        XCTAssertTrue(changedParts.contains { $0.hasPrefix("ppt/notesSlides/") })
+        XCTAssertFalse(changedParts.contains { $0.hasPrefix("ppt/media/") })
+        XCTAssertTrue(changedParts.contains("ppt/slides/slide2.xml"))
+        XCTAssertFalse(changedParts.contains("ppt/slides/slide3.xml"))
+        XCTAssertFalse(changedParts.contains("ppt/theme/theme1.xml"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: target.path))
+
+        let savedData = try Data(contentsOf: target)
+        let reopenedHandle = try call("open", ["base64": savedData.base64EncodedString()])["handle"] as! String
+        let slide = try call("slide.read", ["handle": reopenedHandle, "index": 0])
+        XCTAssertEqual(slide["title"] as? String, "Kế hoạch kinh doanh 2028")
+        XCTAssertEqual(slide["notes"] as? String, "Ghi chú đã cập nhật")
+        let shapes = slide["shapes"] as? [[String: Any]] ?? []
+        XCTAssertTrue(shapes.contains { $0["name"] as? String == "Tiêu đề chính" })
+        XCTAssertEqual(try call("slide.read", ["handle": reopenedHandle, "index": 1])["title"] as? String, "Mục tiêu 2028")
+    }
+
+    func testPptxSaveDeltaUnsupportedDoesNotWriteTarget() throws {
+        let dir = try Fixtures.scratchDirectory("pptx-save-unsupported")
+        let source = dir.appendingPathComponent("source.pptx")
+        let target = dir.appendingPathComponent("staging.pptx")
+        try Fixtures.data("pptx/rich-deck.pptx").write(to: source)
+
+        let result = try call("pptx.save", [
+            "source_document_path": source.path,
+            "target_path": target.path,
+            "delta": ["slides": [["op": "slide.setTransition", "slide": 0]]],
+        ])
+
+        XCTAssertEqual(result["ok"] as? Bool, false)
+        XCTAssertEqual(result["changedParts"] as? [String], [])
+        XCTAssertFalse((result["unsupported"] as? [String] ?? []).isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
+    }
+
+    func testPptxSaveDeltaAddsAndDeletesSlide() throws {
+        let dir = try Fixtures.scratchDirectory("pptx-slide-structure-delta")
+        let source = dir.appendingPathComponent("source.pptx")
+        let target = dir.appendingPathComponent("staging.pptx")
+        try Fixtures.data("pptx/rich-deck.pptx").write(to: source)
+
+        let result = try call("pptx.save", [
+            "source_document_path": source.path,
+            "target_path": target.path,
+            "delta": ["slides": [
+                ["op": "slide.delete", "slide": 1],
+                ["op": "slide.add", "layoutName": "Title and Content", "index": 1],
+            ]],
+        ])
+
+        XCTAssertEqual(result["ok"] as? Bool, true)
+        XCTAssertEqual(result["unsupported"] as? [String], [])
+        XCTAssertTrue((result["changedParts"] as? [String] ?? []).contains("ppt/presentation.xml"))
+        let savedData = try Data(contentsOf: target)
+        let reopenedHandle = try call("open", ["base64": savedData.base64EncodedString()])["handle"] as! String
+        XCTAssertEqual(try call("info", ["handle": reopenedHandle])["slides"] as? Int, 3)
+        XCTAssertEqual(try call("slide.read", ["handle": reopenedHandle, "index": 1])["title"] as? String, "")
+    }
 }
