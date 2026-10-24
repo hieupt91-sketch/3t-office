@@ -73,7 +73,9 @@ def diff_parts(a, b, expect_changed=()):
         try: same = is_xmlish(n) and canon_xml(a[n]) == canon_xml(b[n])
         except expat.ExpatError: same = False
         (res["canonical_equal_only"] if same else res["changed"]).append(n)
-    res["unexpected_changed"] = [n for n in res["changed"] if not any(fnmatch.fnmatch(n, g) for g in expect_changed)]
+    # Khớp CHÍNH XÁC trước (vd. "[Content_Types].xml" có dấu [] là char-class của fnmatch → phải so literal),
+    # rồi mới tới glob ("xl/worksheets/*.xml").
+    res["unexpected_changed"] = [n for n in res["changed"] if not any(n == g or fnmatch.fnmatch(n, g) for g in expect_changed)]
     return res
 
 def diff_ok(d): return not d["removed"] and not d["unexpected_changed"]
@@ -201,9 +203,16 @@ def manifest_entry(path, mpath):
     except OSError: return None
     return next((f for f in m["files"] if f["path"] == rel), None)
 
+# Phần OPC "đương nhiên đổi" khi engine TẠO MỚI một part do sửa (vd. đặt chuỗi vào ô mà tệp nguồn chưa có
+# sharedStrings.xml → phải thêm part đó, khai báo trong [Content_Types].xml và nối quan hệ trong workbook.xml.rels).
+# Đây không phải nới lỏng để "làm xanh": byte-identity phần không đổi, integrity (XML well-formed, rels trỏ part
+# có thật, CRC) và "sửa đổi còn thấy sau khi mở lại" vẫn kiểm nghiêm; expect_changed chỉ quyết cổng unexpected_changed.
 def default_expect(fmt):
-    return {"docx": ["word/document.xml"], "xlsx": ["xl/worksheets/*.xml", "xl/sharedStrings.xml", "xl/calcChain.xml", "xl/workbook.xml", "docProps/*.xml"],
-            "pptx": ["ppt/notesSlides/*.xml", "ppt/notesSlides/_rels/*.rels", "ppt/slides/*.xml", "ppt/slides/_rels/*.rels", "[Content_Types].xml"]}[fmt]
+    return {"docx": ["word/document.xml", "[Content_Types].xml", "word/_rels/document.xml.rels"],
+            "xlsx": ["xl/worksheets/*.xml", "xl/sharedStrings.xml", "xl/calcChain.xml", "xl/workbook.xml", "docProps/*.xml",
+                     "[Content_Types].xml", "xl/_rels/workbook.xml.rels"],
+            "pptx": ["ppt/notesSlides/*.xml", "ppt/notesSlides/_rels/*.rels", "ppt/slides/*.xml", "ppt/slides/_rels/*.rels",
+                     "ppt/_rels/presentation.xml.rels", "ppt/presentation.xml", "[Content_Types].xml"]}[fmt]
 
 def selftest():
     """Chứng minh harness BẮT được lỗi: mock đúng → PASS; mock làm rơi phần / hỏng XML → FAIL. Chỉ docx."""

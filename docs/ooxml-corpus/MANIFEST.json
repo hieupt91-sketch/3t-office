@@ -79,7 +79,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -113,7 +115,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -147,7 +151,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -181,7 +187,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -215,7 +223,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -249,7 +259,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -318,7 +330,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -352,7 +366,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -386,7 +402,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -420,7 +438,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -454,7 +474,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -488,7 +510,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },
@@ -916,7 +940,9 @@
      "xl/worksheets/*.xml",
      "xl/sharedStrings.xml",
      "xl/calcChain.xml",
-     "xl/workbook.xml"
+     "xl/workbook.xml",
+     "[Content_Types].xml",
+     "xl/_rels/workbook.xml.rels"
     ],
     "op": "sheet.setValue"
    },

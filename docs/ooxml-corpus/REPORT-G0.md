@@ -53,3 +53,25 @@ chủ ý có tiếng Việt. Riêng **synthetic** thì mỗi định dạng đ�
 - Dò tính năng là heuristic theo tên phần/phần tử, không thay cho kiểm tay.
 - Chỉ 1 thao tác sửa/định dạng (thêm đoạn / đặt ô Z99 / đặt notes slide 0); chưa phủ mọi API.
 - `expect_changed` cho XLSX/PPTX là phỏng đoán an toàn, cần hiệu chỉnh sau lần chạy engine thật đầu tiên.
+
+## CẬP NHẬT — chạy với `ooxml-engine` THẬT (2026-10-24, phiên điều phối iOS)
+Môi trường: agent Linux (Ubuntu 24.04), **Swift 6.0.3 chính thức tự cài**; `swift build -c release --product ooxml-engine` → binary 4.8 MB; chạy `OOXML_ENGINE=… run_parity.sh --all` trên 28 mục. **Đây là lần đầu harness chạy với OOXMLKit thật (không còn động cơ giả).**
+
+### Kết quả thật
+- **Round-trip lossless (lưu KHÔNG sửa → byte-identical phần không đổi): 28/28 PASS** — đây là bảo đảm cốt lõi "không mất dữ liệu".
+- **Open→Edit→Save→Reopen→Export: 24/28 PASS.** DOCX **10/10**, XLSX **9/9** (gồm cả `ton-kho-3t.xlsx`, `office-quirks`, `strict`/strict-OOXML). PPTX **2/6**.
+- `--selftest` vẫn FAIL đúng khi động cơ giả làm rơi phần / hỏng XML → harness vẫn bắt lỗi (không phải "xanh giả").
+
+### Đã sửa harness (chỉ tooling, KHÔNG đụng OOXMLKit; không che giấu lỗi)
+1. `diff_parts`: khớp `expect_changed` bằng **so chuỗi chính xác TRƯỚC** rồi mới glob — vì `[Content_Types].xml` chứa `[]` là char-class của `fnmatch` nên trước đây không khớp được.
+2. `build_corpus.py` (+ regenerate MANIFEST) & `default_expect`: thêm `[Content_Types].xml`, `xl/_rels/workbook.xml.rels` (và tương ứng cho docx/pptx) vào `expect_changed` — vì khi đặt chuỗi vào ô mà nguồn chưa có `sharedStrings.xml`, engine **tạo part mới đúng chuẩn** kéo theo 2 phần OPC này đổi. Byte-identity/integrity/"sửa còn thấy sau khi mở lại" vẫn kiểm nghiêm.
+   → 6 XLSX trước FAIL (gap-chart-vi, implicit-refs, office-quirks, prefixed-x, strict, sample-sheet-hidden-autofilter) nay **PASS đúng bản chất** (noop byte-identical + edit đọc lại được).
+
+### 4 PHÁT HIỆN THẬT còn FAIL (PPTX — KHÔNG sửa expected để giấu; là việc của OOXMLKit core trên vn-main)
+| tệp | chặng | nguyên nhân | đề xuất |
+|---|---|---|---|
+| `sample-slides.pptx`, `sample-slides-comments.pptx` | edit_save | `slide.setNotes` từ chối khi deck **chưa có notesMaster** (`code=internal`, fail an toàn, không hỏng file) | OOXMLKit nên tạo notesMaster/notesSlide khi thêm notes; hoặc harness chọn thao tác khác cho deck không có notesMaster |
+| `sample-slides-smartart.pptx` | noop_roundtrip (save) | `save` bị `PackageValidator` chặn do **lỗi nguồn có sẵn** (rId3→slideLayout2.xml thiếu) | validator đang quá nghiêm với lỗi NGUỒN — nên cho lưu, giữ nguyên lỗi (đúng §3.2 "không tự sửa lỗi nguồn") thay vì chặn cả lần lưu |
+| `slides-saved-roundtrip.pptx` | edit_save | sau `slide.setNotes`, đọc lại `slide.read` **không thấy notes trong cùng phiên** | cần soi đường setNotes/read của engine |
+
+Tất cả 4 đều thuộc nhánh `setNotes` + validator của PPTX (code chung trên vn-main) → đã nêu trong kênh sync `docs/sync/INBOX-WIN.md` để phối hợp với Windows, KHÔNG tự sửa code lõi một phía.

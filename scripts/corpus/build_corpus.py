@@ -82,7 +82,7 @@ def entry(rel, abspath, origin, label, notes=""):
     fmt, feats, extra = detect(abspath)
     data = open(abspath, "rb").read()
     edit = {"docx": {"op": "doc.appendParagraph", "expect_changed": ["word/document.xml"]},
-            "xlsx": {"op": "sheet.setValue", "expect_changed": ["xl/worksheets/*.xml", "xl/sharedStrings.xml", "xl/calcChain.xml", "xl/workbook.xml"]},
+            "xlsx": {"op": "sheet.setValue", "expect_changed": ["xl/worksheets/*.xml", "xl/sharedStrings.xml", "xl/calcChain.xml", "xl/workbook.xml", "[Content_Types].xml", "xl/_rels/workbook.xml.rels"]},
             "pptx": {"op": "slide.setNotes", "expect_changed": ["ppt/notesSlides/*.xml", "ppt/slides/*.xml", "ppt/slides/_rels/*.rels", "ppt/notesSlides/_rels/*.rels", "[Content_Types].xml"]}}[fmt]
     return {"path": rel, "format": fmt, "origin": origin, "label": label, "sha256": sha(data), "bytes": len(data),
             "known_source_issues": KNOWN_SOURCE_ISSUES.get(os.path.basename(abspath), []), "features": feats, "parts": extra["parts"], "edit": edit, "notes": notes,
