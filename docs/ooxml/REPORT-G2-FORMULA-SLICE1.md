@@ -17,7 +17,7 @@ Quy ước (ghi để G0/parity đối chiếu Excel sau): cú pháp sai và hà
 
 ## Test (thật)
 Môi trường có Swift 6.0.3 (Linux x86_64). `cd ports/ios/OOXMLKit && swift test`:
-**166/166 PASS, 0 failures** (trước đó 138; thêm 28 test mới trong `Tests/OOXMLSpreadsheetTests/Formula{Syntax,Evaluator,Recalc}Tests.swift`: tokenizer 4, parser 4, evaluator 12 — mỗi hàm có test đường đúng + từng đường lỗi, recalc/vòng lặp/chéo sheet/nạp Workbook 11... tổng 28). `OfflineGuaranteeTests` vẫn chạy và PASS. Chưa chạy macOS/iOS/CI.
+**166/166 PASS, 0 failures** (trước đó 138; thêm 28 test mới trong `Tests/OOXMLSpreadsheetTests/Formula{Syntax,Evaluator,Recalc}Tests.swift`: syntax 5 (tokenizer+parser), evaluator 12 (mỗi hàm: đường đúng + từng đường lỗi), recalc 11 (topo, vòng lặp, chéo sheet, nạp Workbook) = 28). `OfflineGuaranteeTests` vẫn chạy và PASS. Chưa chạy macOS/iOS/CI.
 Lưu ý trung thực: lần chạy đầu có 2 assert fail do lỗi trong test (quên truyền dữ liệu mẫu) — đã sửa dữ liệu truyền vào test, KHÔNG đổi giá trị kỳ vọng.
 
 ## Giới hạn còn lại (chưa làm)
