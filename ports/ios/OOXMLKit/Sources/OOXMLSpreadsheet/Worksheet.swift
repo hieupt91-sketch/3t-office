@@ -52,6 +52,33 @@ public enum SheetState: String, Sendable {
 }
 
 /// Quy tắc định dạng có điều kiện dạng OOXML. `formula` không bao gồm thẻ XML.
+public enum CFThresholdType: String, Sendable {
+    case minimum = "min"
+    case maximum = "max"
+    case number = "num"
+    case percent
+    case percentile
+    case formula
+    case autoMinimum = "autoMin"
+    case autoMaximum = "autoMax"
+}
+
+public struct CFThreshold: Equatable, Sendable {
+    public let type: CFThresholdType
+    public let value: String?
+
+    public init(type: CFThresholdType, value: String? = nil) {
+        self.type = type
+        self.value = value
+    }
+}
+
+public enum CFVisualFormat: Equatable, Sendable {
+    case colorScale(thresholds: [CFThreshold], colors: [String])
+    case dataBar(minimum: CFThreshold, maximum: CFThreshold, color: String, showValue: Bool = true)
+    case iconSet(name: String, thresholds: [CFThreshold], reverse: Bool = false, showValue: Bool = true)
+}
+
 public struct CFRule: Equatable, Sendable {
     public let type: String
     public let `operator`: String?
@@ -59,15 +86,17 @@ public struct CFRule: Equatable, Sendable {
     public let priority: Int
     public let differentialStyleID: Int?
     public let stopIfTrue: Bool
+    public let visualFormat: CFVisualFormat?
 
     public init(type: String, operator: String? = nil, formula: [String], priority: Int,
-                differentialStyleID: Int? = nil, stopIfTrue: Bool = false) {
+                differentialStyleID: Int? = nil, stopIfTrue: Bool = false, visualFormat: CFVisualFormat? = nil) {
         self.type = type
         self.operator = `operator`
         self.formula = formula
         self.priority = priority
         self.differentialStyleID = differentialStyleID
         self.stopIfTrue = stopIfTrue
+        self.visualFormat = visualFormat
     }
 }
 
@@ -465,7 +494,14 @@ public final class Worksheet {
                                   "uniqueValues", "top10"]
         let operators: Set<String> = ["between", "notBetween", "equal", "notEqual", "greaterThan", "lessThan",
                                       "greaterThanOrEqual", "lessThanOrEqual"]
-        guard types.contains(rule.type), rule.priority > 0,
+        let visualTypeMatches: Bool = switch rule.visualFormat {
+        case nil: !["colorScale", "dataBar", "iconSet"].contains(rule.type)
+        case .colorScale?: rule.type == "colorScale"
+        case .dataBar?: rule.type == "dataBar"
+        case .iconSet?: rule.type == "iconSet"
+        }
+        let visualIsValid = validateVisualFormat(rule.visualFormat)
+        guard types.contains(rule.type), rule.priority > 0, visualTypeMatches, visualIsValid,
               rule.differentialStyleID.map({ $0 >= 0 }) ?? true,
               rule.operator.map({ operators.contains($0) }) ?? true,
               (!(["cellIs", "expression"].contains(rule.type)) || !rule.formula.isEmpty) else {
@@ -478,9 +514,69 @@ public final class Worksheet {
         if rule.stopIfTrue { attributes.append(XAttribute(name: "stopIfTrue", value: "1")) }
         let ruleElement = XElement(name: q("cfRule"), attributes: attributes)
         for formula in rule.formula { ruleElement.append(XElement(name: q("formula"), children: [.text(formula)])) }
+        appendVisualFormat(rule.visualFormat, to: ruleElement)
         formatting.append(ruleElement)
         document.root.insertChild(formatting, schemaOrder: Worksheet.worksheetOrder)
         workbook.package.markModified(part)
+    }
+
+    private func validateVisualFormat(_ format: CFVisualFormat?) -> Bool {
+        func validThreshold(_ threshold: CFThreshold) -> Bool {
+            switch threshold.type {
+            case .minimum, .maximum, .autoMinimum, .autoMaximum: return threshold.value == nil
+            case .number, .percent, .percentile, .formula: return threshold.value != nil
+            }
+        }
+        func validColor(_ color: String) -> Bool {
+            (color.count == 6 || color.count == 8) && color.allSatisfy(\.isHexDigit)
+        }
+        switch format {
+        case nil: return true
+        case .colorScale(let thresholds, let colors):
+            return (thresholds.count == 2 || thresholds.count == 3) && colors.count == thresholds.count
+                && thresholds.allSatisfy(validThreshold) && colors.allSatisfy(validColor)
+        case .dataBar(let minimum, let maximum, let color, _):
+            return validThreshold(minimum) && validThreshold(maximum) && validColor(color)
+        case .iconSet(let name, let thresholds, _, _):
+            let iconSets: Set<String> = ["3Arrows", "3ArrowsGray", "3Flags", "3TrafficLights1", "3TrafficLights2",
+                                         "3Signs", "3Symbols", "3Symbols2", "4Arrows", "4ArrowsGray", "4RedToBlack",
+                                         "4Rating", "4TrafficLights", "5Arrows", "5ArrowsGray", "5Rating", "5Quarters"]
+            let expected = name.hasPrefix("3") ? 3 : name.hasPrefix("4") ? 4 : name.hasPrefix("5") ? 5 : 0
+            return iconSets.contains(name) && thresholds.count == expected && thresholds.allSatisfy(validThreshold)
+        }
+    }
+
+    private func appendVisualFormat(_ format: CFVisualFormat?, to rule: XElement) {
+        func thresholdElement(_ value: CFThreshold) -> XElement {
+            var attributes = [XAttribute(name: "type", value: value.type.rawValue)]
+            if let text = value.value { attributes.append(XAttribute(name: "val", value: text)) }
+            return XElement(name: q("cfvo"), attributes: attributes)
+        }
+        func colorElement(_ text: String) -> XElement {
+            let hex = text.count == 6 ? "FF" + text : text.uppercased()
+            return XElement(name: q("color"), attributes: [XAttribute(name: "rgb", value: hex)])
+        }
+        switch format {
+        case nil: break
+        case .colorScale(let thresholds, let colors):
+            let element = XElement(name: q("colorScale"))
+            thresholds.forEach { element.append(thresholdElement($0)) }
+            colors.forEach { element.append(colorElement($0)) }
+            rule.append(element)
+        case .dataBar(let minimum, let maximum, let color, let showValue):
+            let element = XElement(name: q("dataBar"), attributes: [XAttribute(name: "showValue", value: showValue ? "1" : "0")])
+            element.append(thresholdElement(minimum))
+            element.append(thresholdElement(maximum))
+            element.append(colorElement(color))
+            rule.append(element)
+        case .iconSet(let name, let thresholds, let reverse, let showValue):
+            let element = XElement(name: q("iconSet"), attributes: [
+                XAttribute(name: "iconSet", value: name), XAttribute(name: "showValue", value: showValue ? "1" : "0"),
+                XAttribute(name: "reverse", value: reverse ? "1" : "0"),
+            ])
+            thresholds.forEach { element.append(thresholdElement($0)) }
+            rule.append(element)
+        }
     }
 
     /// Xóa các quy tắc định dạng cho vùng đã chọn; truyền `nil` để xóa toàn bộ.

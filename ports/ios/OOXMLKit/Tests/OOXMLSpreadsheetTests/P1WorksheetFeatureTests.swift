@@ -137,7 +137,47 @@ final class P1WorksheetFeatureTests: XCTestCase {
             rule: CFRule(type: "expression", formula: ["B2>100"], priority: 1)
         )
         try sheet.clearConditionalFormatting()
-        let xml = try RoundTrip.partString(workbook.save(), "xl/worksheets/sheet1.xml")
+        let saved = try workbook.save()
+        let xml = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
         XCTAssertFalse(xml.contains("<conditionalFormatting"), xml)
+    }
+
+    func testConditionalFormattingVisualRuleStructures() throws {
+        let original = try Fixtures.data("xlsx/rich-excel.xlsx")
+        let workbook = try Workbook(data: original)
+        let sheet = try workbook.worksheet(named: "Dữ liệu")
+        try sheet.addConditionalFormatting(
+            range: CellRange("A1:A10")!,
+            rule: CFRule(type: "colorScale", formula: [], priority: 1,
+                         visualFormat: .colorScale(
+                            thresholds: [CFThreshold(type: .minimum), CFThreshold(type: .maximum)],
+                            colors: ["FFF8696B", "FF63BE7B"]
+                         ))
+        )
+        try sheet.addConditionalFormatting(
+            range: CellRange("B1:B10")!,
+            rule: CFRule(type: "dataBar", formula: [], priority: 2,
+                         visualFormat: .dataBar(minimum: CFThreshold(type: .minimum),
+                                               maximum: CFThreshold(type: .maximum), color: "FF638EC6"))
+        )
+        try sheet.addConditionalFormatting(
+            range: CellRange("C1:C10")!,
+            rule: CFRule(type: "iconSet", formula: [], priority: 3,
+                         visualFormat: .iconSet(name: "3TrafficLights1", thresholds: [
+                            CFThreshold(type: .percent, value: "0"),
+                            CFThreshold(type: .percent, value: "33"),
+                            CFThreshold(type: .percent, value: "67"),
+                         ]))
+        )
+        let saved = try workbook.save()
+        let xml = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(xml.contains("<colorScale>"), xml)
+        XCTAssertTrue(xml.contains("<dataBar showValue=\"1\">"), xml)
+        XCTAssertTrue(xml.contains("<iconSet iconSet=\"3TrafficLights1\""), xml)
+        XCTAssertTrue(xml.contains("<color rgb=\"FFF8696B\"/>"), xml)
+        XCTAssertTrue(xml.contains("<cfvo type=\"percent\" val=\"33\"/>"), xml)
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["xl/worksheets/sheet1.xml"],
+                             requireChanged: ["xl/worksheets/sheet1.xml"], name: "xlsx-p1-cf-visuals.xlsx")
     }
 }
