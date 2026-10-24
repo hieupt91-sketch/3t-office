@@ -238,7 +238,7 @@ export async function runRealOfficeImportFidelityTests() {
 
   test("Sheet: parseFods workbook snapshots match pre-optimization results", () => {
     const baselineHashes = new Map([
-      ["sample-sheet.fods", "27d6a029634b9d23b3018034ec3ac3e31f2695dc336f60a081eac86a2de15129"],
+      ["sample-sheet.fods", "6490dc31f4627743669263da9e197bf0ff13c6ced1943e2aa61ffb9d93dfef9f"],
       ["sample-sheet-validation.fods", "5a61f84f3e86fec0fbda3ce2f3184723f5282a2109e2669ac85bd5c7343bf4d0"],
       ["sample-sheet-pivot.fods", "9da11d96699646fd171f3e71d520aeeb5c3ce61fea3683e1657fd601195c56c5"],
       ["sample-sheet-formulas.fods", "6fe5161ffbdb734037194fd132e3ddfd615074142f7a4ff2c00f9b3b9f19d9db"]
@@ -256,7 +256,9 @@ export async function runRealOfficeImportFidelityTests() {
       return item instanceof Map ? { __map: [...item.entries()] } : item instanceof Set ? { __set: [...item.values()] } : item;
     });
     for (const [filename, expectedHash] of baselineHashes) {
-      const xml = fs.readFileSync(`tests/fixtures/real-office-samples/src/${filename}`, "utf8");
+      // FODS files are text fixtures. Normalize checkout line endings before parsing so raw XML
+      // retained by parseFods (including currency-style source fragments) hashes identically on LF/CRLF.
+      const xml = fs.readFileSync(`tests/fixtures/real-office-samples/src/${filename}`, "utf8").replace(/\r\n/g, "\n");
       const workbook = new SheetAdapter(null).parseFods(xml);
       const hash = crypto.createHash("sha256").update(normalizeWorkbook(workbook)).digest("hex");
       if (hash !== expectedHash) throw new Error(`${filename}: workbook hash ${hash} != baseline ${expectedHash}`);
