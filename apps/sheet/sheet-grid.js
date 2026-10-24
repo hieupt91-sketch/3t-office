@@ -28,6 +28,7 @@ import { EditLinksDialog } from "./edit-links-dialog.js";
 import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS, findTableStylePreset } from "./cell-style-presets.js";
 import { SHEET_THEMES, SHEET_COLOR_PALETTES, SHEET_FONT_SCHEMES, DEFAULT_SHEET_THEME, resolveTheme, getThemeColorPickerMatrix } from "./sheet-themes.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { getDialogKeyboardRibbonInvoker } from "../../platform/shell/focus-manager.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
@@ -21275,9 +21276,9 @@ export class SheetGridController {
   showGoalSeekDialog() {
     const selected = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const overlay = this._createSheetDialog(t("sheetDialogs.goalSeekTitle", "Dò tìm mục tiêu"), `
-      <label for="vno-goal-set-cell">${t("sheetDialogs.goalSeekSetCell", "Ô đặt")}<input id="vno-goal-set-cell" value="${this._escapeHtml(selected)}" autocomplete="off"></label>
-      <label for="vno-goal-value">${t("sheetDialogs.goalSeekToValue", "Đến giá trị")}<input id="vno-goal-value" type="number" step="any" autocomplete="off"></label>
-      <label for="vno-goal-changing-cell">${t("sheetDialogs.goalSeekByChangingCell", "Bằng cách đổi ô")}<input id="vno-goal-changing-cell" autocomplete="off"></label>
+      <label for="vno-goal-set-cell">${t("sheetDialogs.goalSeekSetCell", "Ô đặt")}<input id="vno-goal-set-cell" value="${this._escapeHtml(selected)}" autocomplete="off" required></label>
+      <label for="vno-goal-value">${t("sheetDialogs.goalSeekToValue", "Đến giá trị")}<input id="vno-goal-value" type="number" step="any" autocomplete="off" required></label>
+      <label for="vno-goal-changing-cell">${t("sheetDialogs.goalSeekByChangingCell", "Bằng cách đổi ô")}<input id="vno-goal-changing-cell" autocomplete="off" required></label>
       <div class="vno-rule-error" role="alert" aria-live="assertive"></div>
       <div class="vno-goal-result" role="status" aria-live="polite" hidden></div>`);
     if (!overlay) return false;
@@ -21564,8 +21565,13 @@ export class SheetGridController {
       errorObserver?.disconnect();
       document.removeEventListener("keydown", onKey);
       overlay.remove();
-      if (previousActive && typeof previousActive.focus === "function") {
-        try { previousActive.focus(); } catch (_) {}
+      const focusTarget = getDialogKeyboardRibbonInvoker() || previousActive;
+      if (focusTarget && typeof focusTarget.focus === "function") {
+        setTimeout(() => {
+          if (focusTarget.isConnected) {
+            try { focusTarget.focus({ preventScroll: true }); } catch (_) {}
+          }
+        }, 50);
       }
     };
     overlay.closeDialog = close;
@@ -21630,6 +21636,7 @@ export class SheetGridController {
     });
     document.addEventListener("keydown", onKey);
     document.body.appendChild(overlay);
+    syncValidationState();
     const initialFocus = overlay.querySelector("input:not([disabled]):not([type='hidden']), select:not([disabled]), textarea:not([disabled]), .vno-btn-primary");
     initialFocus?.focus();
     return overlay;

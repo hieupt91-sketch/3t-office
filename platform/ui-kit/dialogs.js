@@ -7,7 +7,7 @@
 import { ICONS } from "./icons.js";
 import { t } from "../i18n/i18n.js";
 import { bindNumericDialogValidation } from "./numeric-dialog-validation.js";
-import { captureEditorFocus, restoreEditorFocus, isEditorElement } from "../shell/focus-manager.js";
+import { captureEditorFocus, restoreEditorFocus, isEditorElement, getDialogKeyboardRibbonInvoker } from "../shell/focus-manager.js";
 
 let dialogIdCounter = 0;
 
@@ -376,7 +376,15 @@ export function showPromptDialog({
     const finish = (val) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      if (previousFocused && isEditorElement(previousFocused)) {
+      const dialogInvoker = getDialogKeyboardRibbonInvoker();
+      const focusTarget = dialogInvoker || (previousFocused && !isEditorElement(previousFocused) ? previousFocused : null);
+      if (focusTarget && typeof focusTarget.focus === "function") {
+        setTimeout(() => {
+          if (focusTarget.isConnected) {
+            try { focusTarget.focus({ preventScroll: true }); } catch (_) {}
+          }
+        }, 50);
+      } else if (previousFocused && isEditorElement(previousFocused)) {
         try { previousFocused.focus(); } catch (_) {}
       } else {
         restoreEditorFocus();
