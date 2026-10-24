@@ -153,7 +153,7 @@ def run_file(path, fmt, engine_exe, outdir, expect_changed, label="", known_issu
         def s_noop():
             p = os.path.join(outdir, "noop-" + os.path.basename(path)); eng.call("save", handle=ctx["h0"], path=p)
             out, crc_ = read_zip(p); d = diff_parts(src_parts, out, ())
-            e = integrity(out, crc_)
+            e = [x for x in integrity(out, crc_) if x not in known_issues]  # chỉ lỗi MỚI tính; lỗi nguồn có sẵn (known_issues) được engine giữ nguyên, không tính là hỏng (§3.2)
             return {"status": "PASS" if diff_ok(d) and not e else "FAIL", "diff": d, "output_integrity": e, "output": p}
         st.append(stage("noop_roundtrip", s_noop))
         def s_edit():
@@ -161,7 +161,7 @@ def run_file(path, fmt, engine_exe, outdir, expect_changed, label="", known_issu
             verify = edit_and_verify(eng, h, fmt); ctx["verify"] = verify
             if not verify(eng, h): return {"status": "FAIL", "error": "sửa đổi không đọc lại được trong cùng phiên"}
             p = os.path.join(outdir, "edit-" + os.path.basename(path)); eng.call("save", handle=h, path=p); ctx["saved"] = p
-            out, crc_ = read_zip(p); d = diff_parts(src_parts, out, expect_changed); e = integrity(out, crc_)
+            out, crc_ = read_zip(p); d = diff_parts(src_parts, out, expect_changed); e = [x for x in integrity(out, crc_) if x not in known_issues]  # chỉ lỗi MỚI tính; lỗi nguồn có sẵn (known_issues) được engine giữ nguyên, không tính là hỏng (§3.2)
             ctx["saved_parts"] = out
             return {"status": "PASS" if diff_ok(d) and not e else "FAIL", "diff": d, "output_integrity": e, "output": p, "expect_changed": list(expect_changed)}
         st.append(stage("edit_save", s_edit))
@@ -178,7 +178,7 @@ def run_file(path, fmt, engine_exe, outdir, expect_changed, label="", known_issu
             b = base64.b64decode(eng.call("exportBytes", handle=ctx["h2"])["base64"])
             p = os.path.join(outdir, "export-" + os.path.basename(path)); open(p, "wb").write(b)
             out, crc_ = read_zip(b); d = diff_parts(ctx["saved_parts"], out, ())
-            e = integrity(out, crc_)
+            e = [x for x in integrity(out, crc_) if x not in known_issues]  # chỉ lỗi MỚI tính; lỗi nguồn có sẵn (known_issues) được engine giữ nguyên, không tính là hỏng (§3.2)
             return {"status": "PASS" if diff_ok(d) and not e else "FAIL", "diff_vs_saved": d, "output_integrity": e, "output": p}
         st.append(stage("export", s_export))
     finally:

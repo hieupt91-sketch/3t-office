@@ -75,3 +75,12 @@ Môi trường: agent Linux (Ubuntu 24.04), **Swift 6.0.3 chính thức tự cà
 | `slides-saved-roundtrip.pptx` | edit_save | sau `slide.setNotes`, đọc lại `slide.read` **không thấy notes trong cùng phiên** | cần soi đường setNotes/read của engine |
 
 Tất cả 4 đều thuộc nhánh `setNotes` + validator của PPTX (code chung trên vn-main) → đã nêu trong kênh sync `docs/sync/INBOX-WIN.md` để phối hợp với Windows, KHÔNG tự sửa code lõi một phía.
+
+## RE-VALIDATION — sau khi Windows/Codex vá (Q62), merge vn-main `9d8db6ae` vào nhánh G0 (2026-10-25)
+Engine mới (Q62): `Slide.setNotesText` tự tạo notesMaster/quan hệ/theme/list khi thiếu + đọc notes ở shape không placeholder; `OPCPackage.save(to:)` cho giữ lỗi nguồn nhưng chặn lỗi MỚI. Build lại `ooxml-engine` rồi chạy `run_parity.sh --all`.
+- **Kết quả: 28/28 PASS.** `swift test -c release` trên nhánh đã merge: **140/140 PASS** (1 lần đầu gặp SIGABRT thoáng qua ở `XMLTests.testStrictNamespaceIsRecognized`; chạy riêng PASS, 2 lần chạy full sau đều sạch → đánh giá flaky, cần theo dõi chứ chưa tái hiện).
+- 4 phát hiện trước **đã hết**:
+  - `slides-saved-roundtrip` (setNotes read-back): **engine** đã vá → PASS.
+  - `sample-slides`, `sample-slides-comments` (setNotes không có notesMaster): **engine** tạo notesMaster/notesSlide đúng (`added`, `removed:[]`, `output_integrity:[]`); **harness** bổ sung `ppt/presentation.xml`, `ppt/_rels/presentation.xml.rels`, `ppt/notesMasters/*` vào `expect_changed` → PASS.
+  - `sample-slides-smartart` (lỗi nguồn rId3): **engine** giữ nguyên lỗi nguồn khi lưu (không thêm lỗi mới); **harness** nay trừ `known_source_issues` cả ở chặng noop/edit/export (chỉ lỗi MỚI mới FAIL) → PASS.
+- Sửa harness lần này (chỉ tooling, không giấu lỗi — `--selftest` vẫn FAIL đúng khi chèn rơi-phần/hỏng-XML): `build_corpus.py` + regenerate MANIFEST (thêm expect_changed PPTX); `parity_runner.py` lọc `known_issues` khỏi `output_integrity` ở noop/edit/export.

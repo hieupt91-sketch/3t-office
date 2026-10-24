@@ -296,7 +296,11 @@
      "ppt/slides/*.xml",
      "ppt/slides/_rels/*.rels",
      "ppt/notesSlides/_rels/*.rels",
-     "[Content_Types].xml"
+     "[Content_Types].xml",
+     "ppt/presentation.xml",
+     "ppt/_rels/presentation.xml.rels",
+     "ppt/notesMasters/*.xml",
+     "ppt/notesMasters/_rels/*.rels"
     ],
     "op": "slide.setNotes"
    },
@@ -547,7 +551,11 @@
      "ppt/slides/*.xml",
      "ppt/slides/_rels/*.rels",
      "ppt/notesSlides/_rels/*.rels",
-     "[Content_Types].xml"
+     "[Content_Types].xml",
+     "ppt/presentation.xml",
+     "ppt/_rels/presentation.xml.rels",
+     "ppt/notesMasters/*.xml",
+     "ppt/notesMasters/_rels/*.rels"
     ],
     "op": "slide.setNotes"
    },
@@ -582,7 +590,11 @@
      "ppt/slides/*.xml",
      "ppt/slides/_rels/*.rels",
      "ppt/notesSlides/_rels/*.rels",
-     "[Content_Types].xml"
+     "[Content_Types].xml",
+     "ppt/presentation.xml",
+     "ppt/_rels/presentation.xml.rels",
+     "ppt/notesMasters/*.xml",
+     "ppt/notesMasters/_rels/*.rels"
     ],
     "op": "slide.setNotes"
    },
@@ -617,7 +629,11 @@
      "ppt/slides/*.xml",
      "ppt/slides/_rels/*.rels",
      "ppt/notesSlides/_rels/*.rels",
-     "[Content_Types].xml"
+     "[Content_Types].xml",
+     "ppt/presentation.xml",
+     "ppt/_rels/presentation.xml.rels",
+     "ppt/notesMasters/*.xml",
+     "ppt/notesMasters/_rels/*.rels"
     ],
     "op": "slide.setNotes"
    },
@@ -654,7 +670,11 @@
      "ppt/slides/*.xml",
      "ppt/slides/_rels/*.rels",
      "ppt/notesSlides/_rels/*.rels",
-     "[Content_Types].xml"
+     "[Content_Types].xml",
+     "ppt/presentation.xml",
+     "ppt/_rels/presentation.xml.rels",
+     "ppt/notesMasters/*.xml",
+     "ppt/notesMasters/_rels/*.rels"
     ],
     "op": "slide.setNotes"
    },
@@ -906,7 +926,11 @@
      "ppt/slides/*.xml",
      "ppt/slides/_rels/*.rels",
      "ppt/notesSlides/_rels/*.rels",
-     "[Content_Types].xml"
+     "[Content_Types].xml",
+     "ppt/presentation.xml",
+     "ppt/_rels/presentation.xml.rels",
+     "ppt/notesMasters/*.xml",
+     "ppt/notesMasters/_rels/*.rels"
     ],
     "op": "slide.setNotes"
    },
