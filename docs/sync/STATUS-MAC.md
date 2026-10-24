@@ -1,4 +1,4 @@
-# STATUS-MAC (cập nhật: 25/10/2026 04:14, Claude Mac)
+# STATUS-MAC (cập nhật: 25/10/2026 04:24, Claude Mac)
 ## Môi trường Mac
 - macOS 15.8.1 (24H32), arm64; Xcode 26.3 (17C529), Swift 6.2.4 khi dùng `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - Lưu ý: `xcode-select -p` đang trỏ Command Line Tools (Swift 6.1.2) → `swift test` trơn báo `no such module 'XCTest'`; phải đặt `DEVELOPER_DIR`.
@@ -26,7 +26,8 @@
 - G2 engine công thức (`4a62801b`) trên macOS: swift test 166/166 PASS, build iOS PASS.
 - KEYS-1 `mac/keys-cl-2410` (`2c04c8a3`): bảng phím macOS 141 dòng (37 có nguồn, 104 "chờ xác minh bằng Office for Mac" — cần quyền Automation), Ctrl+nhấp = chuột phải, KeyTips F10/không bật bởi Option đơn, F1/Cmd+? Trợ giúp. Mac tự chạy lại npm test 3798/3803 (5 FAIL đều đã biết: 4 test gọi `python` — đã sửa ở FIX-MAC-1 — và snapshot FODS). CDP macOS 14/14 PASS (theo agent), unit 18/18. Lưu ý chung: F10 giờ cũng bật KeyTips trên Windows.
 - MAC-9 `mac/fonts-cl-2410` (`501f7835`): LibreOffice headless trên Mac trước chỉ thấy phông tự mang → phông thiếu rơi về LinuxLibertineG (có chân). Nay dùng fontconfig: thấy phông macOS + bảng thay thế (Calibri→Carlito, Cambria→Caladea, Segoe UI/Aptos→Helvetica Neue, NSimSun/SimSun→Heiti SC…). 11 tệp mẫu thật giữ nguyên số trang. Mac tự kiểm trực quan trang PDF trước/sau: đúng kiểu chữ, dấu tiếng Việt đủ. pytest tests/macos 35 qua 1 skip. Không dùng phông của bộ Office.
-- Đang chạy: ENGINE-MAC (`mac/engine-cl-2410`) — dựng ooxml-engine macOS + chạy khung G0 trên Mac (INBOX-MAC #2, phần không cần Office).
+- ENGINE-MAC `mac/engine-cl-2410` (`f1e605fe`): ooxml-engine macOS arm64 + universal PASS; G0 24/28 (giống Linux); kiểm cấu trúc 75/75 PASS; phát hiện lỗi notesSlide trùng (INBOX-WIN #9). Phần Office: BLOCKED (chờ Automation).
+- Đang chạy: gộp FIX-MAC-1 + MAC-9 + KEYS-1 + ORACLE-1 + ENGINE-MAC thành nhánh ứng viên `mac/candidate-cl-2510` và chạy lại mọi cổng.
 ## Oracle Mac (yêu cầu INBOX-MAC #2)
 - Đã nhận; xếp hàng sau ORACLE-1 (dùng chung Word/Excel/PowerPoint, máy 8 GB RAM). Kế hoạch: dựng `ooxml-engine` macOS, round-trip corpus tổng hợp `claude/ooxml-g0-corpus-parity`, mở bằng Office for Mac, đếm tệp bị báo cần sửa chữa. Kết quả: BLOCKED (Office chưa nhận AppleEvent, -1712; chờ chủ cấp quyền Automation).
 ## BLOCKED / chờ chủ
