@@ -1,0 +1,581 @@
+import Foundation
+import OOXMLPackage
+
+public enum CellValue: Equatable, Sendable {
+    case empty
+    case number(Double)
+    case string(String)
+    case bool(Bool)
+    case error(String)
+}
+
+public struct Cell: Equatable, Sendable {
+    public let reference: CellReference
+    public let value: CellValue
+    /// Công thức (không có "="). Ô phụ thuộc của công thức chia sẻ được trả về dạng đã dịch.
+    public let formula: String?
+    public let formulaType: String?
+    public let styleIndex: Int
+    public let isRichText: Bool
+}
+
+public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
+    case notASpreadsheet
+    case sheetNotFound(String)
+    case notAWorksheet(String)
+    case invalidReference(String)
+    case invalidSheetName(String)
+    case duplicateSheetName(String)
+    case partOfArrayFormula(cell: String, range: String)
+    case overlappingMerge(String)
+    case stringTooLong(Int)
+    case cannotDeleteLastVisibleSheet
+    case invalidRowOperation(String)
+
+    public var description: String {
+        switch self {
+        case .notASpreadsheet: return "Tệp không phải bảng tính XLSX"
+        case .sheetNotFound(let n): return "Không có sheet \"\(n)\""
+        case .notAWorksheet(let n): return "\"\(n)\" không phải trang tính (chart sheet/dialog sheet chỉ được giữ nguyên)"
+        case .invalidReference(let r): return "Địa chỉ ô không hợp lệ: \(r)"
+        case .invalidSheetName(let n): return "Tên sheet không hợp lệ: \"\(n)\" (1–31 ký tự, không chứa : \\ / ? * [ ])"
+        case .duplicateSheetName(let n): return "Đã có sheet tên \"\(n)\""
+        case .partOfArrayFormula(let c, let r): return "Ô \(c) thuộc công thức mảng \(r): chỉ sửa được ô đầu vùng"
+        case .overlappingMerge(let r): return "Vùng gộp \(r) chồng lên vùng gộp khác"
+        case .stringTooLong(let n): return "Chuỗi dài \(n) ký tự vượt giới hạn 32.767 của Excel"
+        case .cannotDeleteLastVisibleSheet: return "Sổ tính phải còn ít nhất một sheet hiển thị"
+        case .invalidRowOperation(let m): return "Không chèn/xóa hàng được: \(m)"
+        }
+    }
+}
+
+/// Một trang tính. Sửa trực tiếp trên DOM của sheetN.xml: chỉ phần tử ô/hàng được đụng tới thay đổi,
+/// mọi phần khác (định dạng có điều kiện, xác thực, ảnh, bảng, extLst…) giữ nguyên.
+public final class Worksheet {
+    /// Giữ tham chiếu mạnh tới sổ: trang tính vẫn dùng được khi người gọi chỉ giữ trang tính.
+    public let workbook: Workbook
+    public internal(set) var name: String
+    public let part: PartName
+    let document: XDocument
+    let sheetData: XElement
+    private var rows: [Int: XElement] = [:]
+    private var cellElements: [CellReference: XElement] = [:]
+    private var hasImplicitReferences = false
+    private var maxRowNumber = 0
+    private var sharedMasters: [String: (ref: CellReference, formula: String)] = [:]
+    private var arrayRanges: [(range: CellRange, master: CellReference)] = []
+
+    static let worksheetOrder = ["sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData", "sheetCalcPr",
+                                 "sheetProtection", "protectedRanges", "scenarios", "autoFilter", "sortState", "dataConsolidate",
+                                 "customSheetViews", "mergeCells", "phoneticPr", "conditionalFormatting", "dataValidations",
+                                 "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks",
+                                 "customProperties", "cellWatches", "ignoredErrors", "smartTags", "drawing", "legacyDrawing",
+                                 "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems",
+                                 "tableParts", "extLst"]
+    static let cellChildOrder = ["f", "v", "is", "extLst"]
+
+    init(workbook: Workbook, name: String, part: PartName) throws {
+        self.workbook = workbook
+        self.name = name
+        self.part = part
+        document = try workbook.package.xml(part)
+        guard let sd = document.root.firstChild(NS.s, "sheetData") else {
+            throw PackageError.invalidPart(part, "thiếu sheetData")
+        }
+        sheetData = sd
+        buildIndex()
+    }
+
+    private func buildIndex() {
+        rows.removeAll()
+        maxRowNumber = 0
+        cellElements.removeAll()
+        sharedMasters.removeAll()
+        arrayRanges.removeAll()
+        var nextRow = 1
+        for row in sheetData.children(NS.s, "row") {
+            let r: Int
+            if let s = row.attribute("r"), let v = Int(s) {
+                r = v
+            } else {
+                r = nextRow
+                hasImplicitReferences = true
+            }
+            nextRow = r + 1
+            rows[r] = row
+            maxRowNumber = max(maxRowNumber, r)
+            var nextCol = 1
+            for c in row.children(NS.s, "c") {
+                let ref: CellReference
+                if let s = c.attribute("r"), let v = CellReference(s) {
+                    ref = v
+                } else {
+                    ref = CellReference(column: nextCol, row: r)
+                    hasImplicitReferences = true
+                }
+                nextCol = ref.column + 1
+                cellElements[ref] = c
+                if let f = c.firstChild(NS.s, "f") {
+                    let t = f.attribute("t")
+                    if t == "shared", let si = f.attribute("si"), f.attribute("ref") != nil {
+                        sharedMasters[si] = (ref, f.textContent)
+                    } else if t == "array" || t == "dataTable", let rs = f.attribute("ref"), let range = CellRange(rs) {
+                        arrayRanges.append((range, ref))
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Đọc
+
+    public func cell(_ ref: CellReference) -> Cell? {
+        guard let c = cellElements[ref] else { return nil }
+        return makeCell(ref, c)
+    }
+
+    public func cell(_ a1: String) throws -> Cell? {
+        cell(try parse(a1))
+    }
+
+    public func value(_ a1: String) throws -> CellValue {
+        try cell(a1)?.value ?? .empty
+    }
+
+    /// Mọi ô có trong tệp, theo thứ tự hàng rồi cột.
+    public var cells: [Cell] {
+        cellElements.keys.sorted().compactMap(cell)
+    }
+
+    /// Vùng thực sự có ô.
+    public var usedRange: CellRange? {
+        guard let first = cellElements.keys.first else { return nil }
+        var r = CellRange(first, first)
+        for k in cellElements.keys { r = r.union(CellRange(k, k)) }
+        return r
+    }
+
+    public var mergedCells: [CellRange] {
+        document.root.firstChild(NS.s, "mergeCells")?.children(NS.s, "mergeCell").compactMap { $0.attribute("ref").flatMap(CellRange.init) } ?? []
+    }
+
+    /// Liên kết: (ô, địa chỉ ngoài hoặc vị trí trong sổ).
+    public var hyperlinks: [(cell: String, target: String)] {
+        let rels = try? workbook.package.relationships(of: part)
+        return document.root.firstChild(NS.s, "hyperlinks")?.children(NS.s, "hyperlink").compactMap { h in
+            guard let ref = h.attribute("ref") else { return nil }
+            if let rid = h.attribute("id", in: NS.r), let rel = rels?[rid] { return (ref, rel.target) }
+            return h.attribute("location").map { (ref, $0) }
+        } ?? []
+    }
+
+    public func columnWidth(_ column: Int) -> Double? {
+        for col in document.root.firstChild(NS.s, "cols")?.children(NS.s, "col") ?? [] {
+            if let a = Int(col.attribute("min") ?? ""), let b = Int(col.attribute("max") ?? ""), (a...b).contains(column) {
+                return Double(col.attribute("width") ?? "")
+            }
+        }
+        return nil
+    }
+
+    public func rowHeight(_ row: Int) -> Double? {
+        rows[row].flatMap { Double($0.attribute("ht") ?? "") }
+    }
+
+    private func makeCell(_ ref: CellReference, _ c: XElement) -> Cell {
+        let t = c.attribute("t")
+        let vText = c.firstChild(NS.s, "v")?.textContent
+        var rich = false
+        let value: CellValue
+        switch t {
+        case "s":
+            if let i = vText.flatMap({ Int($0.trimmingCharacters(in: .whitespaces)) }), let s = workbook.sharedStrings?[i] {
+                value = .string(s)
+                rich = workbook.sharedStrings?.isRichText(i) ?? false
+            } else {
+                value = .empty
+            }
+        case "inlineStr":
+            if let isEl = c.firstChild(NS.s, "is") {
+                value = .string(SharedStrings.text(of: isEl))
+                rich = isEl.firstChild(NS.s, "r") != nil
+            } else {
+                value = vText.map { .string($0) } ?? .empty
+            }
+        case "str", "d": value = vText.map { .string(SharedStrings.unescape($0)) } ?? .string("")
+        case "b": value = .bool(vText?.trimmingCharacters(in: .whitespaces) == "1" || vText == "true")
+        case "e": value = vText.map { .error($0) } ?? .empty
+        default:
+            if let v = vText, let d = Double(v.trimmingCharacters(in: .whitespaces)) { value = .number(d) } else { value = .empty }
+        }
+        var formula: String?
+        var ftype: String?
+        if let f = c.firstChild(NS.s, "f") {
+            ftype = f.attribute("t")
+            let text = f.textContent
+            if !text.isEmpty {
+                formula = text
+            } else if ftype == "shared", let si = f.attribute("si"), let m = sharedMasters[si] {
+                formula = FormulaRewriter.shift(m.formula, rows: ref.row - m.ref.row, columns: ref.column - m.ref.column)
+            }
+        }
+        return Cell(reference: ref, value: value, formula: formula, formulaType: ftype,
+                    styleIndex: Int(c.attribute("s") ?? "0") ?? 0, isRichText: rich)
+    }
+
+    // MARK: Sửa
+
+    /// Ghi giá trị (xóa công thức nếu có, giữ style của ô).
+    public func setValue(_ value: CellValue, at a1: String) throws {
+        let ref = try parse(a1)
+        try prepareForEdit(ref)
+        let hadFormula = cellElements[ref]?.firstChild(NS.s, "f") != nil
+        let c = cellElement(ref)
+        try write(value, formula: nil, into: c)
+        if hadFormula { workbook.invalidateCalcChain() }
+        touched(ref)
+    }
+
+    public func setValue(_ number: Double, at a1: String) throws { try setValue(.number(number), at: a1) }
+    public func setValue(_ text: String, at a1: String) throws { try setValue(.string(text), at: a1) }
+
+    /// Ghi công thức (không có "=" ở đầu cũng được). Không tính toán: giá trị đệm `cachedValue`
+    /// (nếu có) được ghi kèm; Excel/ứng dụng sẽ tính lại khi mở (fullCalcOnLoad).
+    public func setFormula(_ formula: String, at a1: String, cachedValue: CellValue = .empty) throws {
+        let ref = try parse(a1)
+        try prepareForEdit(ref)
+        let text = formula.hasPrefix("=") ? String(formula.dropFirst()) : formula
+        let c = cellElement(ref)
+        try write(cachedValue, formula: text, into: c)
+        workbook.invalidateCalcChain()
+        touched(ref)
+    }
+
+    /// Xóa nội dung, giữ định dạng ô.
+    public func clear(_ a1: String) throws {
+        let ref = try parse(a1)
+        guard let c = cellElements[ref] else { return }
+        try prepareForEdit(ref)
+        let hadFormula = c.firstChild(NS.s, "f") != nil
+        try write(.empty, formula: nil, into: c)
+        let style = c.attribute("s")
+        if (style == nil || style == "0") && c.elements.isEmpty && c.attributes.allSatisfy({ $0.name == "r" || $0.name == "s" }) {
+            c.removeFromParent()
+            cellElements[ref] = nil
+        }
+        if hadFormula { workbook.invalidateCalcChain() }
+        workbook.package.markModified(part)
+        workbook.requestRecalculation()
+    }
+
+    public func setStyleIndex(_ index: Int, at a1: String) throws {
+        let ref = try parse(a1)
+        materializeIfNeeded()
+        let c = cellElement(ref)
+        if index == 0 { c.removeAttribute("s") } else { setAttributeAfterR(c, "s", String(index)) }
+        workbook.package.markModified(part)
+        updateDimension(ref)
+    }
+
+    /// Áp định dạng (đậm, nghiêng, màu, định dạng số…) cho ô — tạo style mới dựa trên style hiện có.
+    public func applyFormat(_ change: CellFormatChange, at a1: String) throws {
+        let ref = try parse(a1)
+        guard let styles = workbook.styles else { return }
+        let base = cell(ref)?.styleIndex ?? 0
+        try setStyleIndex(styles.cellFormat(applying: change, to: base), at: ref.a1)
+    }
+
+    public func merge(_ rangeText: String) throws {
+        guard let range = CellRange(rangeText) else { throw SpreadsheetError.invalidReference(rangeText) }
+        if mergedCells.contains(where: { $0.intersects(range) }) { throw SpreadsheetError.overlappingMerge(rangeText) }
+        let mc = document.root.firstChild(NS.s, "mergeCells") ?? {
+            let e = XElement(name: q("mergeCells"))
+            document.root.insertChild(e, schemaOrder: Worksheet.worksheetOrder)
+            return e
+        }()
+        mc.append(XElement(name: q("mergeCell"), attributes: [XAttribute(name: "ref", value: range.description)]))
+        mc.setAttribute("count", String(mc.children(NS.s, "mergeCell").count))
+        workbook.package.markModified(part)
+    }
+
+    public func unmerge(_ rangeText: String) {
+        guard let range = CellRange(rangeText), let mc = document.root.firstChild(NS.s, "mergeCells") else { return }
+        for e in mc.children(NS.s, "mergeCell") where e.attribute("ref").flatMap(CellRange.init) == range {
+            e.removeFromParent()
+        }
+        let n = mc.children(NS.s, "mergeCell").count
+        if n == 0 { mc.removeFromParent() } else { mc.setAttribute("count", String(n)) }
+        workbook.package.markModified(part)
+    }
+
+    /// Đặt độ rộng cột (đơn vị ký tự như Excel). Tách vùng <col min max> có sẵn để giữ thuộc tính các cột khác.
+    public func setColumnWidth(_ column: Int, _ width: Double) {
+        let cols = document.root.firstChild(NS.s, "cols") ?? {
+            let e = XElement(name: q("cols"))
+            document.root.insertChild(e, schemaOrder: Worksheet.worksheetOrder)
+            return e
+        }()
+        var target: XElement?
+        for col in cols.children(NS.s, "col") {
+            guard let a = Int(col.attribute("min") ?? ""), let b = Int(col.attribute("max") ?? ""), (a...b).contains(column) else { continue }
+            if a < column {
+                let left = col.deepCopy()
+                left.setAttribute("max", String(column - 1))
+                cols.insert(left, before: col)
+            }
+            if b > column {
+                let right = col.deepCopy()
+                right.setAttribute("min", String(column + 1))
+                cols.insert(right, after: col)
+            }
+            col.setAttribute("min", String(column))
+            col.setAttribute("max", String(column))
+            target = col
+            break
+        }
+        let col = target ?? {
+            let e = XElement(name: q("col"), attributes: [XAttribute(name: "min", value: String(column)),
+                                                            XAttribute(name: "max", value: String(column))])
+            if let after = cols.children(NS.s, "col").first(where: { (Int($0.attribute("min") ?? "") ?? 0) > column }) {
+                cols.insert(e, before: after)
+            } else {
+                cols.append(e)
+            }
+            return e
+        }()
+        col.setAttribute("width", Worksheet.format(width))
+        col.setAttribute("customWidth", "1")
+        workbook.package.markModified(part)
+    }
+
+    public func setRowHeight(_ row: Int, _ height: Double) {
+        materializeIfNeeded()
+        let r = rowElement(row)
+        r.setAttribute("ht", Worksheet.format(height))
+        r.setAttribute("customHeight", "1")
+        workbook.package.markModified(part)
+    }
+
+    // MARK: Nội bộ
+
+    private func q(_ local: String) -> String {
+        document.root.qualifiedName(local, in: NS.s).name
+    }
+
+    func parse(_ a1: String) throws -> CellReference {
+        guard let r = CellReference(a1) else { throw SpreadsheetError.invalidReference(a1) }
+        return r
+    }
+
+    /// Ghi thuộc tính r tường minh cho mọi hàng/ô trước khi chèn (nếu tệp dùng vị trí ngầm định).
+    private func materializeIfNeeded() {
+        guard hasImplicitReferences else { return }
+        for (r, row) in rows { setAttributeFirst(row, "r", String(r)) }
+        for (ref, c) in cellElements { setAttributeFirst(c, "r", ref.a1) }
+        hasImplicitReferences = false
+        workbook.package.markModified(part)
+    }
+
+    private func setAttributeFirst(_ e: XElement, _ name: String, _ value: String) {
+        if e.attribute(name) != nil { e.setAttribute(name, value); return }
+        e.attributes.insert(XAttribute(name: name, value: value), at: 0)
+    }
+
+    private func setAttributeAfterR(_ e: XElement, _ name: String, _ value: String) {
+        if e.attribute(name) != nil { e.setAttribute(name, value); return }
+        let i = (e.attributes.firstIndex { $0.name == "r" }).map { $0 + 1 } ?? 0
+        e.attributes.insert(XAttribute(name: name, value: value), at: i)
+    }
+
+    private func prepareForEdit(_ ref: CellReference) throws {
+        materializeIfNeeded()
+        if let i = arrayRanges.firstIndex(where: { $0.range.contains(ref) }) {
+            let (range, master) = arrayRanges[i]
+            guard master == ref else {
+                throw SpreadsheetError.partOfArrayFormula(cell: ref.a1, range: range.description)
+            }
+            // Sửa ô đầu của công thức mảng = xóa cả mảng (như Excel): các ô khác mất giá trị đệm.
+            for (r, c) in cellElements where range.contains(r) && r != master {
+                for v in c.children(NS.s, "v") { v.removeFromParent() }
+                c.removeAttribute("t")
+            }
+            arrayRanges.remove(at: i)
+            workbook.invalidateCalcChain()
+        }
+        if let f = cellElements[ref]?.firstChild(NS.s, "f"), f.attribute("t") == "shared",
+           f.attribute("ref") != nil, let si = f.attribute("si") {
+            expandSharedFormula(si)
+        }
+    }
+
+    /// Đổi cả nhóm công thức chia sẻ thành công thức thường (đã dịch tham chiếu) để có thể sửa ô chủ.
+    private func expandSharedFormula(_ si: String) {
+        guard let master = sharedMasters[si] else { return }
+        for (ref, c) in cellElements {
+            guard let f = c.firstChild(NS.s, "f"), f.attribute("t") == "shared", f.attribute("si") == si else { continue }
+            let text = FormulaRewriter.shift(master.formula, rows: ref.row - master.ref.row, columns: ref.column - master.ref.column)
+            f.removeAttribute("t")
+            f.removeAttribute("si")
+            f.removeAttribute("ref")
+            f.setText(text)
+        }
+        sharedMasters[si] = nil
+        workbook.invalidateCalcChain()
+        workbook.package.markModified(part)
+    }
+
+    private func rowElement(_ r: Int) -> XElement {
+        if let row = rows[r] { return row }
+        let row = XElement(name: q("row"), attributes: [XAttribute(name: "r", value: String(r))])
+        if r > maxRowNumber {
+            // Nhanh: thêm vào cuối, nhưng vẫn trước phần tử không phải <row> (nếu có).
+            if let lastRow = rows[maxRowNumber] {
+                if sheetData.children.last?.element === lastRow { sheetData.append(row) } else { sheetData.insert(row, after: lastRow) }
+            } else {
+                sheetData.insert(row, at: 0)
+            }
+        } else if let next = rows.keys.filter({ $0 > r }).min(), let after = rows[next] {
+            sheetData.insert(row, before: after)
+        } else {
+            sheetData.append(row)
+        }
+        rows[r] = row
+        maxRowNumber = max(maxRowNumber, r)
+        return row
+    }
+
+    private func cellElement(_ ref: CellReference) -> XElement {
+        if let c = cellElements[ref] { return c }
+        let row = rowElement(ref.row)
+        let c = XElement(name: q("c"), attributes: [XAttribute(name: "r", value: ref.a1)])
+        var inserted = false
+        for (i, node) in row.children.enumerated() {
+            guard let e = node.element else { continue }
+            if e.is(NS.s, "c"), let r = e.attribute("r").flatMap(CellReference.init), r.column > ref.column {
+                row.insert(c, at: i)
+                inserted = true
+                break
+            }
+            if !e.is(NS.s, "c") {
+                row.insert(c, at: i)
+                inserted = true
+                break
+            }
+        }
+        if !inserted { row.append(c) }
+        cellElements[ref] = c
+        if let spans = row.attribute("spans") {
+            let p = spans.split(separator: ":").compactMap { Int($0) }
+            if p.count == 2 { row.setAttribute("spans", "\(min(p[0], ref.column)):\(max(p[1], ref.column))") }
+        }
+        return c
+    }
+
+    private func write(_ value: CellValue, formula: String?, into c: XElement) throws {
+        c.removeChildren { node in
+            guard let e = node.element else { return false }
+            return e.is(NS.s, "f") || e.is(NS.s, "v") || e.is(NS.s, "is")
+        }
+        c.removeAttribute("t")
+        c.removeAttribute("cm")
+        c.removeAttribute("vm")
+        var newChildren: [XElement] = []
+        if let formula {
+            let f = XElement(name: q("f"))
+            f.setText(formula)
+            newChildren.append(f)
+        }
+        func v(_ s: String) -> XElement {
+            let e = XElement(name: q("v"))
+            e.setText(s)
+            return e
+        }
+        switch value {
+        case .empty:
+            break
+        case .number(let d):
+            if d.isFinite {
+                newChildren.append(v(Worksheet.format(d)))
+            } else {
+                setAttributeAfterR(c, "t", "e")
+                newChildren.append(v("#NUM!"))
+            }
+        case .string(let s):
+            guard s.count <= 32_767 else { throw SpreadsheetError.stringTooLong(s.count) }
+            if formula != nil {
+                setAttributeAfterR(c, "t", "str")
+                newChildren.append(v(SharedStrings.escape(s)))
+            } else {
+                let sst = try workbook.sharedStringsCreatingIfNeeded()
+                setAttributeAfterR(c, "t", "s")
+                newChildren.append(v(String(sst.index(for: s))))
+            }
+        case .bool(let b):
+            setAttributeAfterR(c, "t", "b")
+            newChildren.append(v(b ? "1" : "0"))
+        case .error(let e):
+            setAttributeAfterR(c, "t", "e")
+            newChildren.append(v(e))
+        }
+        // t phải đứng sau s theo thói quen Excel (r, s, t).
+        if let s = c.attribute("s"), let ti = c.attributes.firstIndex(where: { $0.name == "t" }),
+           let si = c.attributes.firstIndex(where: { $0.name == "s" }), ti < si {
+            c.removeAttribute("s")
+            c.attributes.insert(XAttribute(name: "s", value: s), at: ti)
+        }
+        for e in newChildren { c.insertChild(e, schemaOrder: Worksheet.cellChildOrder) }
+    }
+
+    private func touched(_ ref: CellReference) {
+        updateDimension(ref)
+        workbook.package.markModified(part)
+        workbook.requestRecalculation()
+    }
+
+    private func updateDimension(_ ref: CellReference) {
+        let dim = document.root.firstChild(NS.s, "dimension") ?? {
+            let e = XElement(name: q("dimension"), attributes: [XAttribute(name: "ref", value: ref.a1)])
+            document.root.insertChild(e, schemaOrder: Worksheet.worksheetOrder)
+            return e
+        }()
+        let current = dim.attribute("ref").flatMap(CellRange.init) ?? CellRange(ref, ref)
+        dim.setAttribute("ref", current.union(CellRange(ref, ref)).description)
+    }
+
+    /// Dạng số như Excel ghi: số nguyên không có ".0", số thực dạng ngắn nhất khôi phục được.
+    static func format(_ d: Double) -> String {
+        if d == d.rounded(), abs(d) < 1e15 {
+            return String(Int64(d))
+        }
+        return "\(d)".replacingOccurrences(of: "e", with: "E")
+    }
+
+    /// Đổi mọi nhóm công thức chia sẻ của sheet thành công thức thường.
+    func expandAllSharedFormulas() {
+        for si in Array(sharedMasters.keys) { expandSharedFormula(si) }
+    }
+
+    func reindex() { buildIndex() }
+
+    /// Áp hàm đổi văn bản công thức cho mọi công thức/điều kiện/liên kết trong sheet (đổi tên sheet).
+    func rewriteFormulas(_ transform: (String) -> String) -> Bool {
+        var changed = false
+        let formulaElements: Set<String> = ["f", "formula", "formula1", "formula2"]
+        document.root.forEachDescendant { e in
+            if formulaElements.contains(e.localName), e.elements.isEmpty {
+                let old = e.textContent
+                let new = transform(old)
+                if new != old { e.setText(new); changed = true }
+            }
+            if e.is(NS.s, "hyperlink"), let loc = e.attribute("location") {
+                let new = transform(loc)
+                if new != loc { e.setAttribute("location", new); changed = true }
+            }
+        }
+        if changed {
+            buildIndex()
+            workbook.package.markModified(part)
+        }
+        return changed
+    }
+}

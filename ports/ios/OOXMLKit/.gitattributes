@@ -1,0 +1,9 @@
+# OOXMLKit: ma Swift LF tren moi nen (CRLF tren Windows lam hong 34 bai kiem Linux/WSL); fixture la nhi phan byte-exact
+* text=auto eol=lf
+*.swift text eol=lf
+Tests/OOXMLTestSupport/Fixtures/** -text
+*.docx binary
+*.xlsx binary
+*.pptx binary
+*.deflate binary
+*.zip binary
