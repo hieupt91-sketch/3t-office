@@ -1374,3 +1374,24 @@ DEPENDENCIES/BLOCKERS: None. No `ucrt` modulemap error after SDKROOT is configur
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Không áp dụng — phiếu CLI, không có màn hình ứng dụng.
 NEXT ACTION: Review/merge commit and retain Windows metrics in `docs/ooxml/WIN-SPIKE-24-10.md`; record completion at `E:\VNOffice-briefs\logs\W1B.DONE`.
+
+## CODEX W4A — 24/10/2026
+
+TASK: Bổ sung API DOCX P0 cho chỉnh sửa văn bản, đoạn, ô bảng, header/footer và lệnh docx.save.
+AGENT/ROLE: Codex / OOXMLKit.
+BRANCH: codex/ooxml-w3a.
+WORKTREE: E:\VNOffice-codex-ooxmlw3a. git merge main → Already up to date.
+OBJECTIVE: Tái sử dụng API OOXMLWord sẵn có; thêm delta DOCX an toàn, từ chối phần chưa hỗ trợ, xác minh mở lại và parts không sửa.
+FINDINGS: OOXMLWord đã có thay đoạn, thay một phần chữ giữ run, chèn/xóa đoạn, căn lề, ô bảng và story header/footer. OOXMLBridge chưa có docx.save; W4 chỉ thiếu đường delta/save cho các thao tác P0.
+IMPLEMENTATION SUMMARY: Thêm docx.save hỗ trợ setText, replaceText, alignment, insert, delete, append, sửa chữ ô bảng và paragraph header/footer; validate toàn batch trước khi ghi, lưu staging, mở lại xác minh text và trả changedParts/unsupported. doc.read trả alignment, run properties và nội dung bảng để kiểm tra qua bridge.
+FILES CHANGED: ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift; ports/ios/OOXMLKit/Tests/OOXMLBridgeTests/OOXMLBridgeTests.swift; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: git merge main; WSL E:\VNOffice-briefs\okit-test.sh với git archive và overlay 2 file Swift; git diff --check; git diff --stat --ignore-cr-at-eol.
+BUILD RESULT: PASS — SwiftPM build hoàn tất trong WSL.
+TEST RESULTS: PASS — Swift 125/125, 0 failures (123 hiện hữu + 2 mới); docx.save test chứng minh chỉ word/document.xml đổi và batch không hỗ trợ không ghi staging.
+PRE-CHANGE TEST: FAIL — 125 bài, 4 failures khi replaceText chưa được xử lý bởi docx.save.
+KNOWN FAILURES: Không có sau sửa.
+RISKS: Delta theo chỉ số đoạn; thao tác cấu trúc ngoài các op đã liệt kê trả unsupported. TOC/field và parts khác giữ nguyên nếu không nằm trong delta.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — thư viện Swift/bridge, không mở app hay màn hình UI.
+NEXT ACTION: Review commit riêng của W4A; ghi E:\VNOffice-briefs\logs\W4A.DONE sau commit.

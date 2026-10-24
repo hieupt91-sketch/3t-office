@@ -73,6 +73,7 @@ public final class OOXMLBridge {
         case "exportBytes": return ["base64": try exportBytes(args).base64EncodedString()]
         case "save": return try save(args)
         case "xlsx.save": return try xlsxSaveDelta(args)
+        case "docx.save": return try docxSaveDelta(args)
 
         case "sheet.read": return try sheetRead(args)
         case "sheet.setValue": return try sheetSetValue(args)
@@ -149,6 +150,136 @@ public final class OOXMLBridge {
         case .presentation(let p): try p.save(to: url)
         }
         return [:]
+    }
+
+    /// Lưu một batch delta DOCX vào staging; batch không hỗ trợ sẽ bị từ chối trước khi ghi tệp.
+    private func docxSaveDelta(_ args: Args) throws -> [String: Any] {
+        guard let sourcePath = args.optString("source_document_path") ?? args.optString("sourcePath"),
+              let targetPath = args.optString("target_path") ?? args.optString("targetPath") else {
+            throw BridgeError("args", "cần source_document_path và target_path")
+        }
+        let sourceURL = URL(fileURLWithPath: sourcePath).standardizedFileURL
+        let targetURL = URL(fileURLWithPath: targetPath).standardizedFileURL
+        guard sourceURL != targetURL else { throw BridgeError("path", "đường dẫn staging phải khác đường dẫn nguồn") }
+        guard let delta = args.raw["delta"] as? [String: Any] else {
+            throw BridgeError("delta", "delta phải là JSON object")
+        }
+
+        var unsupported: [String] = []
+        let allowedKeys: Set<String> = ["paragraphs", "cells", "stories"]
+        for key in delta.keys where !allowedKeys.contains(key) { unsupported.append("delta.\(key)") }
+        let paragraphs = delta["paragraphs"] as? [[String: Any]] ?? []
+        let cells = delta["cells"] as? [[String: Any]] ?? []
+        let stories = delta["stories"] as? [[String: Any]] ?? []
+        for key in allowedKeys where delta[key] != nil && !(delta[key] is [[String: Any]]) {
+            unsupported.append("\(key) must be an array")
+        }
+        for (i, item) in paragraphs.enumerated() {
+            let op = item["op"] as? String ?? "unknown"
+            let keys: Set<String>
+            switch op {
+            case "setText": keys = ["op", "index", "text"]
+            case "replaceText": keys = ["op", "index", "find", "replace"]
+            case "alignment": keys = ["op", "index", "value"]
+            case "insert": keys = ["op", "index", "text", "style"]
+            case "delete": keys = ["op", "index"]
+            case "append": keys = ["op", "text", "style"]
+            default: unsupported.append("paragraphs[\(i)]: \(op)"); continue
+            }
+            for key in item.keys where !keys.contains(key) { unsupported.append("paragraphs[\(i)].\(key)") }
+            if op != "append" && !(item["index"] is Int) { unsupported.append("paragraphs[\(i)].index") }
+            if ["setText", "insert", "append"].contains(op) && !(item["text"] is String) { unsupported.append("paragraphs[\(i)].text") }
+            if op == "replaceText" && (!(item["find"] is String) || !(item["replace"] is String)) { unsupported.append("paragraphs[\(i)].find/replace") }
+            if op == "alignment", let value = item["value"] {
+                guard let alignment = value as? String, ["left", "center", "right", "both"].contains(alignment) else {
+                    unsupported.append("paragraphs[\(i)].value")
+                    continue
+                }
+            }
+            if let style = item["style"], !(style is String) { unsupported.append("paragraphs[\(i)].style") }
+        }
+        for (i, item) in cells.enumerated() {
+            let keys: Set<String> = ["table", "row", "column", "text"]
+            for key in item.keys where !keys.contains(key) { unsupported.append("cells[\(i)].\(key)") }
+            for key in ["table", "row", "column"] where !(item[key] is Int) { unsupported.append("cells[\(i)].\(key)") }
+            if !(item["text"] is String) { unsupported.append("cells[\(i)].text") }
+        }
+        for (i, item) in stories.enumerated() {
+            let keys: Set<String> = ["kind", "story", "paragraph", "text"]
+            for key in item.keys where !keys.contains(key) { unsupported.append("stories[\(i)].\(key)") }
+            if !["header", "footer"].contains(item["kind"] as? String ?? "") { unsupported.append("stories[\(i)].kind") }
+            for key in ["story", "paragraph"] where !(item[key] is Int) { unsupported.append("stories[\(i)].\(key)") }
+            if !(item["text"] is String) { unsupported.append("stories[\(i)].text") }
+        }
+        guard unsupported.isEmpty else {
+            return ["ok": false, "changedParts": [String](), "unsupported": unsupported.sorted()]
+        }
+
+        let sourceData = try Data(contentsOf: sourceURL)
+        let document = try WordDocument(data: sourceData)
+        // Kiểm tra chỉ số trước khi sửa để lỗi delta không tạo tệp đích dở dang.
+        for (i, item) in paragraphs.enumerated() where item["op"] as? String != "append" {
+            guard let index = item["index"] as? Int, document.paragraphs.indices.contains(index) else {
+                throw BridgeError("delta", "paragraphs[\(i)].index ngoài phạm vi")
+            }
+        }
+        for (i, item) in cells.enumerated() {
+            guard let ti = item["table"] as? Int, document.tables.indices.contains(ti),
+                  let ri = item["row"] as? Int, let ci = item["column"] as? Int,
+                  document.tables[ti].cell(row: ri, column: ci) != nil else {
+                throw BridgeError("delta", "cells[\(i)] ngoài phạm vi")
+            }
+        }
+        for (i, item) in stories.enumerated() {
+            let list = (item["kind"] as? String) == "header" ? document.headers : document.footers
+            guard let si = item["story"] as? Int, list.indices.contains(si),
+                  let pi = item["paragraph"] as? Int, list[si].paragraphs.indices.contains(pi) else {
+                throw BridgeError("delta", "stories[\(i)] ngoài phạm vi")
+            }
+        }
+
+        for item in paragraphs {
+            let op = item["op"] as! String
+            let text = item["text"] as? String ?? ""
+            let index = item["index"] as? Int
+            switch op {
+            case "setText": document.paragraphs[index!].setText(text)
+            case "replaceText": _ = document.paragraphs[index!].replaceText(item["find"] as! String, with: item["replace"] as! String)
+            case "alignment": document.paragraphs[index!].alignment = item["value"] as? String
+            case "insert": _ = try document.insertParagraph(text, style: item["style"] as? String, after: document.paragraphs[index!])
+            case "delete": try document.removeParagraph(document.paragraphs[index!])
+            case "append": _ = document.appendParagraph(text, style: item["style"] as? String)
+            default: break
+            }
+        }
+        for item in cells {
+            document.tables[item["table"] as! Int].cell(row: item["row"] as! Int, column: item["column"] as! Int)!.setText(item["text"] as! String)
+        }
+        for item in stories {
+            let list = (item["kind"] as! String) == "header" ? document.headers : document.footers
+            list[item["story"] as! Int].paragraphs[item["paragraph"] as! Int].setText(item["text"] as! String)
+        }
+
+        let expectedParagraphTexts = document.paragraphs.map(\.text)
+        let expectedStoryTexts = document.allStories.map(\.text)
+        do {
+            try document.save(to: targetURL)
+            let savedData = try Data(contentsOf: targetURL)
+            let reopened = try WordDocument(data: savedData)
+            guard reopened.paragraphs.map(\.text) == expectedParagraphTexts,
+                  reopened.allStories.map(\.text) == expectedStoryTexts,
+                  reopened.tables.count == document.tables.count else {
+                throw BridgeError("reopen", "nội dung DOCX sau khi mở lại không khớp")
+            }
+            for item in cells {
+                let cell = reopened.tables[item["table"] as! Int].cell(row: item["row"] as! Int, column: item["column"] as! Int)
+                guard cell?.text == item["text"] as? String else { throw BridgeError("reopen", "ô bảng sau khi mở lại không khớp") }
+            }
+            return ["ok": true, "changedParts": try Self.changedZipParts(before: sourceData, after: savedData), "unsupported": [String]()]
+        } catch {
+            try? FileManager.default.removeItem(at: targetURL)
+            throw error
+        }
     }
 
     /// Lưu một batch delta XLSX vào staging; từ chối toàn batch nếu có thao tác chưa hỗ trợ.
@@ -474,8 +605,15 @@ public final class OOXMLBridge {
         return ["total": ps.count, "paragraphs": slice.map { (i, p) -> [String: Any] in
             var o: [String: Any] = ["index": i, "text": p.text]
             if let s = p.styleId { o["style"] = s }
+            if let alignment = p.alignment { o["alignment"] = alignment }
+            o["runs"] = p.runs.map { run -> [String: Any] in
+                var value: [String: Any] = ["text": run.text, "bold": run.isBold, "italic": run.isItalic]
+                if let color = run.color { value["color"] = color }
+                if let size = run.fontSize { value["fontSize"] = size }
+                return value
+            }
             return o
-        }]
+        }, "tables": try word(args).tables.map { table in table.rows.map { row in row.map(\.text) } }]
     }
 
     private func docInsertParagraph(_ args: Args) throws -> [String: Any] {

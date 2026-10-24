@@ -214,4 +214,67 @@ final class OOXMLBridgeTests: XCTestCase {
         let re = try call("sheet.read", ["handle": h2, "sheetIndex": 0, "range": "Z99:Z99"])
         XCTAssertEqual(((re["cells"] as! [[String: Any]]).first?["value"] as? [String: Any])?["v"] as? Double, 7)
     }
+
+    func testDocxSaveDeltaWritesReopensAndPreservesUntouchedParts() throws {
+        let dir = try Fixtures.scratchDirectory("docx-save-delta")
+        let source = dir.appendingPathComponent("source.docx")
+        let target = dir.appendingPathComponent("staging.docx")
+        let sourceData = try Fixtures.data("docx/rich-word.docx")
+        try sourceData.write(to: source)
+        let originalHandle = try call("open", ["base64": sourceData.base64EncodedString()])["handle"] as! String
+        let originalParagraphs = try call("doc.read", ["handle": originalHandle])["paragraphs"] as! [[String: Any]]
+        let originalRuns = originalParagraphs[1]["runs"] as! [[String: Any]]
+
+        let result = try call("docx.save", [
+            "source_document_path": source.path,
+            "target_path": target.path,
+            "delta": [
+                "paragraphs": [
+                    ["op": "setText", "index": 0, "text": "Đã sửa qua delta"],
+                    ["op": "alignment", "index": 1, "value": "center"],
+                    ["op": "replaceText", "index": 1, "find": "Ban Giám đốc", "replace": "Ban điều hành"],
+                ],
+                "cells": [["table": 0, "row": 0, "column": 0, "text": "Ô đã sửa"]],
+            ],
+        ])
+
+        XCTAssertEqual(result["ok"] as? Bool, true)
+        XCTAssertEqual(result["unsupported"] as? [String], [])
+        XCTAssertEqual(result["changedParts"] as? [String], ["word/document.xml"])
+        let savedData = try Data(contentsOf: target)
+        let reopenedHandle = try call("open", ["base64": savedData.base64EncodedString()])["handle"] as! String
+        let read = try call("doc.read", ["handle": reopenedHandle])
+        let paragraphs = read["paragraphs"] as! [[String: Any]]
+        XCTAssertEqual(paragraphs[0]["text"] as? String, "Đã sửa qua delta")
+        XCTAssertEqual(paragraphs[1]["alignment"] as? String, "center")
+        XCTAssertTrue((paragraphs[1]["text"] as? String)?.contains("Ban điều hành") == true)
+        let savedRuns = paragraphs[1]["runs"] as! [[String: Any]]
+        XCTAssertEqual(savedRuns.count, originalRuns.count, "thay một phần chữ giữ nguyên ranh giới run")
+        for (before, after) in zip(originalRuns, savedRuns) {
+            XCTAssertEqual(after["bold"] as? Bool, before["bold"] as? Bool)
+            XCTAssertEqual(after["italic"] as? Bool, before["italic"] as? Bool)
+            XCTAssertEqual(after["color"] as? String, before["color"] as? String)
+            XCTAssertEqual(after["fontSize"] as? Double, before["fontSize"] as? Double)
+        }
+        let tables = read["tables"] as! [[[String]]]
+        XCTAssertEqual(tables[0][0][0], "Ô đã sửa")
+    }
+
+    func testDocxSaveDeltaUnsupportedDoesNotWriteTarget() throws {
+        let dir = try Fixtures.scratchDirectory("docx-save-unsupported")
+        let source = dir.appendingPathComponent("source.docx")
+        let target = dir.appendingPathComponent("staging.docx")
+        try Fixtures.data("docx/rich-word.docx").write(to: source)
+
+        let result = try call("docx.save", [
+            "source_document_path": source.path,
+            "target_path": target.path,
+            "delta": ["paragraphs": [["op": "insertImage", "index": 0]]],
+        ])
+
+        XCTAssertEqual(result["ok"] as? Bool, false)
+        XCTAssertEqual(result["changedParts"] as? [String], [])
+        XCTAssertFalse((result["unsupported"] as? [String] ?? []).isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
+    }
 }
