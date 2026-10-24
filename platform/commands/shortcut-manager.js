@@ -7,10 +7,26 @@
 import { globalCommandBus } from "./command-bus.js";
 import { globalKeyTipsManager } from "../ribbon/keytips.js";
 import { findHelpEntryForContext } from "../help/help-service.js";
-import { usesPrimaryModifier } from "./keymap-macos.js";
+import {
+  usesPrimaryModifier,
+  getKeyboardPlatform,
+  setKeyboardPlatform,
+  detectKeyboardPlatform,
+  getKeyboardCapabilities,
+  buildMacReverseMap,
+  macCombosFromEvent,
+  isMacOSReservedCombo
+} from "./keymap-macos.js";
 
 export class ShortcutManager {
-  constructor() {
+  /**
+   * @param {{ platform?: "macos"|"windows" }} [options] Nền tảng bàn phím. Bỏ trống: theo
+   *   `getKeyboardPlatform()` (mặc định "windows", được `attach()` phát hiện từ navigator).
+   */
+  constructor(options = {}) {
+    this._platform = options.platform === "macos" || options.platform === "windows" ? options.platform : null;
+    /** @type {Map<string, string>} Tổ hợp Mac chuẩn hóa -> tổ hợp Windows chuẩn hóa (chỉ dùng trên Mac) */
+    this._macReverse = new Map();
     /** @type {Map<string, string>} Chuỗi phím chuẩn hóa -> Command ID */
     this._shortcuts = new Map();
     /** @type {Map<string, Map<string, string>>} Scope -> (phím -> Command ID) */
@@ -60,6 +76,44 @@ export class ShortcutManager {
     if (common) for (const [combo, commandId] of common) this._shortcuts.set(combo, commandId);
     const active = this._activeScope && this._scopedShortcuts.get(this._activeScope);
     if (active) for (const [combo, commandId] of active) this._shortcuts.set(combo, commandId);
+    this._macReverse = this.getPlatform() === "macos" ? buildMacReverseMap(this._shortcuts) : new Map();
+  }
+
+  /** Nền tảng bàn phím đang dùng ("macos" | "windows"). */
+  getPlatform() {
+    return this._platform || getKeyboardPlatform();
+  }
+
+  /**
+   * Đặt nền tảng bàn phím (cờ capability). Gọi với tham số rỗng để theo cài đặt chung.
+   * Khác biệt Mac nằm trong `keymap-macos.js`; app không tự kiểm tra hệ điều hành.
+   */
+  setPlatform(platform) {
+    this._platform = platform === "macos" || platform === "windows" ? platform : null;
+    this._rebuildActiveShortcuts();
+    return this.getPlatform();
+  }
+
+  /**
+   * Trên Mac: đổi sự kiện thành tổ hợp Windows đang bind (theo bảng `MACOS_KEYMAP`).
+   * Trả `null` nếu là phím hệ thống macOS (để hệ điều hành xử lý), "" nếu không khớp lệnh nào.
+   */
+  _resolveMacCombo(e) {
+    const candidates = macCombosFromEvent(e);
+    if (candidates.some((combo) => isMacOSReservedCombo(combo))) return null;
+    for (const combo of candidates) {
+      const windowsCombo = this._macReverse.get(combo);
+      if (windowsCombo) return windowsCombo;
+    }
+    return "";
+  }
+
+  /** Phím mở Trợ giúp theo ngữ cảnh: F1 ở mọi nền tảng; Mac thêm Cmd+? (Cmd+Shift+/). */
+  _isContextualHelpKey(e, isMac) {
+    if (e.key === "F1" && !e.ctrlKey && !e.altKey && !e.metaKey) return true;
+    if (!isMac) return false;
+    return Boolean(e.metaKey && e.shiftKey && !e.altKey && !e.ctrlKey
+      && (e.key === "?" || e.key === "/" || e.code === "Slash"));
   }
 
   _normalizeCombo(combo) {
@@ -107,6 +161,11 @@ export class ShortcutManager {
     // Lỗi thật đã phát hiện: Ctrl+Z gọi undo() 2 lần liên tiếp, hoàn tác luôn cả bước trước đó.
     if (this._attachedWindow === windowObj) return;
     this._attachedWindow = windowObj;
+    // Cờ capability nền tảng: phát hiện MỘT lần từ navigator của cửa sổ thật.
+    if (!this._platform && windowObj?.navigator) {
+      setKeyboardPlatform(detectKeyboardPlatform(windowObj.navigator));
+      this._rebuildActiveShortcuts();
+    }
     windowObj.addEventListener("keydown", (e) => this._handleKeyDown(e), true);
     windowObj.addEventListener("keyup", (e) => this._handleKeyUp(e), true);
   }
@@ -119,15 +178,27 @@ export class ShortcutManager {
       }
     }
 
-    // 1. Xử lý phím Alt độc lập để bật/tắt KeyTips (Chuẩn Office)
+    const capabilities = getKeyboardCapabilities(this.getPlatform());
+    const isMac = capabilities.platform === "macos";
+
+    // 1. Xử lý phím Alt độc lập để bật/tắt KeyTips (Chuẩn Office). Trên macOS Option dùng để
+    // nhập ký tự đặc biệt nên Option đơn KHÔNG bật KeyTips (capability soloAltShowsKeyTips).
     if (e.key === "Alt" && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
-      this._altPressedAlone = true;
+      this._altPressedAlone = capabilities.soloAltShowsKeyTips;
       return;
     }
     this._altPressedAlone = false;
 
-    // 2. Xử lý phím F1 mở Trợ giúp theo ngữ cảnh (CH-8.3)
-    if (e.key === "F1" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    // 1b. F10 (không modifier) bật/tắt KeyTips ở mọi nền tảng — trên Mac là cách chính (Fn+F10).
+    if (e.key === capabilities.keyTipsKey && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      globalKeyTipsManager.toggle();
+      return;
+    }
+
+    // 2. Xử lý phím F1 mở Trợ giúp theo ngữ cảnh (CH-8.3); Mac thêm Cmd+?
+    if (this._isContextualHelpKey(e, isMac)) {
       e.preventDefault();
       e.stopPropagation();
       this.openContextualHelp();
@@ -154,7 +225,14 @@ export class ShortcutManager {
     // Tạo chuỗi tổ hợp phím
     // `Command` là primary modifier trên macOS. Hàm dùng chung giữ nguyên Ctrl
     // trên Windows/Linux và tránh rải kiểm tra hệ điều hành vào từng ứng dụng.
-    const combo = `${usesPrimaryModifier(e) ? "CTRL+" : ""}${e.altKey ? "ALT+" : ""}${e.shiftKey ? "SHIFT+" : ""}${keyName}`;
+    let combo = `${usesPrimaryModifier(e) ? "CTRL+" : ""}${e.altKey ? "ALT+" : ""}${e.shiftKey ? "SHIFT+" : ""}${keyName}`;
+    if (isMac) {
+      // Mac: tra bảng MACOS_KEYMAP ra tổ hợp Windows đang bind. Phím hệ thống (Cmd+H, Cmd+M,
+      // Control+Space…) trả null → để macOS xử lý, không preventDefault.
+      const resolved = this._resolveMacCombo(e);
+      if (resolved === null) return;
+      combo = resolved || "UNMAPPED";
+    }
 
     // Guard: single keys without modifier in text inputs or contenteditable must type/delete naturally
     const target = e.target;
@@ -194,7 +272,9 @@ export class ShortcutManager {
     }
 
     let cmdId = this._shortcuts.get(combo);
-    if (!cmdId && (e.shiftKey || keyName === ":")) {
+    if (isMac) {
+      // Tổ hợp Mac đã tra đúng tổ hợp Windows; không áp các phép thử Shift kiểu Windows.
+    } else if (!cmdId && (e.shiftKey || keyName === ":")) {
       cmdId = this._shortcuts.get(combo.replace(":", ";"));
     }
     if (!cmdId && (e.shiftKey || keyName === "~")) {
@@ -218,8 +298,8 @@ export class ShortcutManager {
       return;
     }
 
-    // Một số phím đơn không có Ctrl/Alt: F1..F12, Escape, Delete
-    if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+    // Một số phím đơn không có Ctrl/Alt: F1..F12, Escape, Delete (Mac đã tra qua bảng ở trên)
+    if (!isMac && !e.ctrlKey && !e.altKey && !e.metaKey) {
       if (this._shortcuts.has(keyName)) {
         const singleCmdId = this._shortcuts.get(keyName);
         e.preventDefault();
@@ -230,7 +310,8 @@ export class ShortcutManager {
   }
 
   _handleKeyUp(e) {
-    if (e.key === "Alt" && this._altPressedAlone && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+    if (getKeyboardCapabilities(this.getPlatform()).soloAltShowsKeyTips
+      && e.key === "Alt" && this._altPressedAlone && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
       globalKeyTipsManager.toggle();
     }
     this._altPressedAlone = false;

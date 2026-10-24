@@ -27,6 +27,7 @@ import { EditLinksDialog } from "./edit-links-dialog.js";
 import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS, findTableStylePreset } from "./cell-style-presets.js";
 import { SHEET_THEMES, SHEET_COLOR_PALETTES, SHEET_FONT_SCHEMES, DEFAULT_SHEET_THEME, resolveTheme, getThemeColorPickerMatrix } from "./sheet-themes.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { isPrimaryModifier, isAdditiveSelect, isCopyDrag, isCopyDragKey, matchesShortcut } from "../../platform/commands/keymap-macos.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
@@ -2283,7 +2284,7 @@ export class SheetGridController {
     handle.className = "vno-cell-autofill-handle";
     handle.title = "Kéo để tự động điền (AutoFill)";
     handle.addEventListener("mouseenter", (e) => {
-      handle.classList.toggle("is-ctrl-copy", Boolean(e.ctrlKey || e.metaKey));
+      handle.classList.toggle("is-ctrl-copy", isCopyDrag(e));
     });
     handle.addEventListener("mousedown", (e) => {
       e.preventDefault();
@@ -2304,7 +2305,7 @@ export class SheetGridController {
     mh.className = `vno-cell-move-handle ${side}`;
     mh.title = "Kéo viền để di chuyển ô (Drag border to move)";
     mh.addEventListener("mouseenter", (e) => {
-      mh.classList.toggle("is-ctrl-copy", Boolean(e.ctrlKey || e.metaKey));
+      mh.classList.toggle("is-ctrl-copy", isCopyDrag(e));
       mh.classList.toggle("is-shift-insert", Boolean(e.shiftKey));
     });
     mh.addEventListener("mousedown", (e) => {
@@ -3011,7 +3012,8 @@ export class SheetGridController {
     this._commitEditBeforeRangeSelection();
     this._isSelectingRange = true;
     const extendRange = !!(e && e.shiftKey && this.selectionRange);
-    const additive = !!(e && e.ctrlKey && !e.shiftKey && kind === "cell");
+    // Chọn thêm vùng rời: Ctrl+nhấp (Windows) / Cmd+nhấp (macOS) — theo bảng phím nền tảng.
+    const additive = !!(e && isAdditiveSelect(e) && !e.shiftKey && kind === "cell");
     const anchor = extendRange
       ? { ...(this._rangeAnchor || this.selectedCoord || this.selectionRange.start) }
       : kind === "row"
@@ -3210,7 +3212,7 @@ export class SheetGridController {
     const norm = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     this._autofillSource = norm;
     this._autofillTarget = null;
-    this._autofillCtrl = Boolean(e && (e.ctrlKey || e.metaKey));
+    this._autofillCtrl = Boolean(e && isCopyDrag(e));
 
     const onKeyDown = (ke) => {
       if (ke.key === "Control" || ke.key === "Meta") {
@@ -3225,7 +3227,7 @@ export class SheetGridController {
       }
     };
     const onMove = (moveEvt) => {
-      this._autofillCtrl = Boolean(moveEvt.ctrlKey || moveEvt.metaKey);
+      this._autofillCtrl = isCopyDrag(moveEvt);
       this._onAutofillMouseMove(moveEvt);
     };
     const onUp = (upEvt) => {
@@ -3308,7 +3310,7 @@ export class SheetGridController {
   _onAutofillMouseUp(upEvent) {
     this.container?.querySelectorAll?.(".is-autofill-preview").forEach(c => c.classList.remove("is-autofill-preview"));
     this._isAutofilling = false;
-    const ctrlKey = Boolean(this._autofillCtrl || (upEvent && (upEvent.ctrlKey || upEvent.metaKey)));
+    const ctrlKey = Boolean(this._autofillCtrl || (upEvent && isCopyDrag(upEvent)));
     if (this._autofillSource && this._autofillTarget) {
       this._executeAutofill(this._autofillSource, { ...this._autofillTarget, ctrlKey });
     }
@@ -3972,19 +3974,20 @@ export class SheetGridController {
     this._moveTarget = null;
     this._moveShiftInsert = Boolean(e && e.shiftKey);
     this._moveShiftDir = "down";
-    this._isCopyMove = Boolean(e && (e.ctrlKey || e.metaKey));
+    // Sao chép khi kéo: Ctrl (Windows) / Option (macOS) — theo bảng phím nền tảng.
+    this._isCopyMove = Boolean(e && isCopyDrag(e));
 
     const onKeyDown = (ke) => {
-      if (ke.key === "Control" || ke.key === "Meta") this._isCopyMove = true;
+      if (isCopyDragKey(ke.key)) this._isCopyMove = true;
       if (ke.key === "Shift") this._moveShiftInsert = true;
     };
     const onKeyUp = (ke) => {
-      if (ke.key === "Control" || ke.key === "Meta") this._isCopyMove = false;
+      if (isCopyDragKey(ke.key)) this._isCopyMove = false;
       if (ke.key === "Shift") this._moveShiftInsert = false;
     };
 
     const onMove = (moveEvt) => {
-      this._isCopyMove = Boolean(moveEvt.ctrlKey || moveEvt.metaKey);
+      this._isCopyMove = isCopyDrag(moveEvt);
       this._moveShiftInsert = Boolean(moveEvt.shiftKey);
 
       // Alt + kéo sang tab trang tính khác
@@ -4052,7 +4055,7 @@ export class SheetGridController {
         c.classList.remove("is-move-target-preview", "is-insert-preview-top", "is-insert-preview-left");
       });
       this._isMovingCell = false;
-      const isCopy = this._isCopyMove || Boolean(upEvt && (upEvt.ctrlKey || upEvt.metaKey));
+      const isCopy = this._isCopyMove || Boolean(upEvt && isCopyDrag(upEvt));
       const isInsert = this._moveShiftInsert || Boolean(upEvt && upEvt.shiftKey);
       if (this._moveTarget) {
         if (isInsert) {
@@ -5504,7 +5507,7 @@ export class SheetGridController {
       tab.addEventListener("mousedown", event => this._beginSheetTabDrag(event, tab, sheetName, tabsListEl));
       tab.addEventListener("click", event => {
         if (this._sheetTabDragged) { this._sheetTabDragged = false; return; }
-        if (event.ctrlKey || event.metaKey) { this.toggleSheetInGroup(sheetName); return; }
+        if (isAdditiveSelect(event)) { this.toggleSheetInGroup(sheetName); return; }
         if (event.shiftKey) { this.selectSheetRange(sheetName); return; }
         const pointMode = this.formulaEntry && this._canInsertPointReference();
         this.switchSheet(sheetName, pointMode ? { pointMode: true } : {});
@@ -6521,7 +6524,7 @@ export class SheetGridController {
     });
     td.addEventListener("click", event => {
       if (event.detail !== 0 || event.defaultPrevented) return;
-      this.selectCell(c, r, event.shiftKey, event.ctrlKey);
+      this.selectCell(c, r, event.shiftKey, isAdditiveSelect(event));
     });
     td.addEventListener("dblclick", (e) => {
       e.preventDefault();
@@ -7020,28 +7023,28 @@ export class SheetGridController {
       let extendRange = false;
 
       if (e.key === "ArrowUp") {
-        if (e.ctrlKey) {
+        if (isPrimaryModifier(e)) {
           nextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, -1);
         } else {
           nextRow = Math.max(1, nextRow - 1);
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowDown") {
-        if (e.ctrlKey) {
+        if (isPrimaryModifier(e)) {
           nextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, 1);
         } else {
           nextRow = Math.min(this.rowCount, nextRow + 1);
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowLeft") {
-        if (e.ctrlKey) {
+        if (isPrimaryModifier(e)) {
           nextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, -1);
         } else {
           nextCol = this.cols[Math.max(0, colIdx - 1)];
         }
         extendRange = e.shiftKey;
       } else if (e.key === "ArrowRight") {
-        if (e.ctrlKey) {
+        if (isPrimaryModifier(e)) {
           nextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, 1);
         } else {
           nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
@@ -7050,10 +7053,10 @@ export class SheetGridController {
       } else if (e.key === "Home" && !e.ctrlKey && !e.altKey && !e.metaKey) {
         nextCol = "A";
         extendRange = e.shiftKey;
-      } else if (e.key === "Home" && e.ctrlKey) {
+      } else if (e.key === "Home" && isPrimaryModifier(e)) {
         nextCol = "A";
         nextRow = 1;
-      } else if (e.key === "End" && e.ctrlKey) {
+      } else if (e.key === "End" && isPrimaryModifier(e)) {
         let maxC = 0;
         let maxR = 1;
         for (const [coord, data] of this.cellsData.entries()) {
@@ -7249,19 +7252,20 @@ export class SheetGridController {
         }
         if (this.formulaInput) this.formulaInput.value = "";
         return;
-      } else if (e.ctrlKey && e.altKey && !e.metaKey && (e.key === "v" || e.key === "V")) {
+      } else if (matchesShortcut(e, "Ctrl+Alt+V", { commandId: "sheet.edit.pasteSpecial" })) {
+        // Tổ hợp theo nền tảng (Windows Ctrl+Alt+V; macOS theo keymap-macos.js) — áp lại ý 652fc182.
         e.preventDefault();
         globalCommandBus?.execute?.("sheet.edit.pasteSpecial");
         return;
-      } else if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "1") {
+      } else if (matchesShortcut(e, "Ctrl+1", { commandId: "sheet.format.cellsDialog" })) {
         e.preventDefault();
         this.showFormatCellsDialog();
         return;
-      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "d" || e.key === "D")) {
+      } else if (matchesShortcut(e, "Ctrl+D", { commandId: "sheet.edit.fillDown" })) {
         e.preventDefault();
         this.fillDown();
         return;
-      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "r" || e.key === "R")) {
+      } else if (matchesShortcut(e, "Ctrl+R", { commandId: "sheet.edit.fillRight" })) {
         e.preventDefault();
         this.fillRight();
         return;
