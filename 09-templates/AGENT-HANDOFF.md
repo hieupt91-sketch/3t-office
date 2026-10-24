@@ -1268,3 +1268,14 @@ CORE PATCH ID (if any): None.
 NEXT ACTION: Continue Q55 page-layout diagnosis, collect DOC/DOCX baseline comparisons, rerun affected audits after any further change. Do not create Q55.DONE or advance the queue until all gates pass.
 
 ---
+
+## Q55 continuation — 24/10/2026 (chưa hoàn tất)
+
+BRANCH/WORKTREE: `codex/queue-19-10` / `E:\VNOffice-codex-queue`; `git merge main` đã thực hiện.
+SYNTHETIC REPRO: Bên cạnh fixture runs trước đó, đã tạo DOCX OOXML tối giản ngoài repo tại `E:\VNOffice-briefs\logs\Q55-work\q55-synthetic.docx`, có `wp:anchor` giữa các run Times New Roman với language tag khác nhau. Bộ lọc HTML hiện dùng tạo `<img ...>` giữa chữ và newline trước `ộc`; xác nhận lỗi có thể tái hiện trên fixture. HTML xuất ở `Q55-work\html`.
+IMPLEMENTATION: Không thêm mã trong continuation này; giữ bản vá đã commit `069bdb6c`. Cờ fallback hiện có là `globalThis.__VNO_WRITER_REPAIR_FLOAT_WORD_SPACES=false`. Đã chạy lại DOM repair và xác nhận nguồn có khoảng trắng thật vẫn giữ nguyên qua unit test.
+TEST RESULTS: PASS — `node tests/run-tests.js` 3796/3796; `npm test` 3796/3796; i18n VI=3200/EN=3200, missing=0; checklist evidence 3 tệp, 0 dòng bị hạ; `python -m pytest tests -q` 1140 passed, 1 skipped, 2 xfailed (745.84s).
+CORPUS: XLSX audit report hiện có 26/27 saved, 26 BLOCKED do Excel COM bị cấm, `lan14` FAIL trước lưu vì `saveRealFileInPlace` undefined; các bản đã lưu có LibreOffice diff=0 và lint clean. XLS 20: 16/20 diff=0, 4 FAIL mismatch đã biết. So sánh 20 DOC và baseline bodyDom hash 24 DOCX: NOT RUN; chưa có baseline tin cậy theo từng tệp.
+CDP/GIAO DIỆN ĐÃ XEM: legacy06 trước — `Q53-work\screens\legacy06-C.png` (“Đ ộc lập”), sau — `Q55-work\legacy06-after.png` (“Độc lập”); app innerText khớp, trang vẫn 4/4 so với Word 3. legacy13 sau — `Q55-work\legacy13-after.png`, CÔNG TY liền, vẫn 2 trang so Word 1. legacy20 sau — `Q55-work\legacy20-after.png`, Tel liền, vẫn 2 trang so Word 1. Cả ba ảnh sau 1366×768; đã xem từng ảnh, không thấy control bị cắt/che.
+KNOWN BLOCKER: Q55 chưa hoàn tất: lỗi chữ đã sửa, nhưng chênh trang còn; gate 20 DOC/24 DOCX chưa chạy; XLSX report có 1 FAIL và 26 BLOCKED. Không tạo `Q55.DONE`, không chuyển phiếu tiếp theo.
+NEXT ACTION: Điều tra độc lập nguồn dư trang cho 06/13/20; tạo baseline theo từng tệp cho 20 DOC/24 DOCX và chạy lại gate tương ứng. Chỉ tạo `Q55.DONE` sau khi các cổng bắt buộc đạt hoặc được người phụ trách quyết định ngoại lệ.
