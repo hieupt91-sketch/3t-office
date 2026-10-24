@@ -59,6 +59,7 @@ def test_postprocess_restores_embedded_fonts_and_relationships() -> None:
         {
             "ppt/presentation.xml": (
                 f'<p:presentation xmlns:p="{P_NS}"><p:sldSz cx="100" cy="100"/>'
+                '<p:defaultTextStyle/><p:extLst/>'
                 '</p:presentation>'
             ).encode(),
             "ppt/_rels/presentation.xml.rels": (
@@ -77,6 +78,9 @@ def test_postprocess_restores_embedded_fonts_and_relationships() -> None:
     presentation = ET.fromstring(entries["ppt/presentation.xml"])
     font_list = presentation.find(f"{{{P_NS}}}embeddedFontLst")
     assert font_list is not None
+    child_tags = [child.tag for child in presentation]
+    assert child_tags.index(f"{{{P_NS}}}embeddedFontLst") < child_tags.index(f"{{{P_NS}}}defaultTextStyle")
+    assert child_tags.index(f"{{{P_NS}}}embeddedFontLst") < child_tags.index(f"{{{P_NS}}}extLst")
     font_entry = font_list.find(f"{{{P_NS}}}embeddedFont/{{{P_NS}}}regular")
     assert font_entry is not None
     font_ref = font_entry.attrib.get(f"{{{R_NS}}}id")

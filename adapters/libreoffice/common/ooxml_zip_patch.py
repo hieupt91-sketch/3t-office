@@ -14309,7 +14309,12 @@ def _restore_slides_embedded_fonts(pptx_bytes: bytes, source_pptx: bytes | None)
     closing = re.search(r"</(?P<tag>(?:[\w.-]+:)?presentation)\s*>", presentation_xml)
     if not closing:
         return pptx_bytes
-    presentation_xml = presentation_xml[:closing.start()] + font_xml + presentation_xml[closing.start():]
+    following_presentation_child = re.search(
+        r"<(?:(?:[\w.-]+):)?(?:custShowLst|photoAlbum|custDataLst|kinsoku|defaultTextStyle|modifyVerifier|extLst)\b",
+        presentation_xml,
+    )
+    insert_at = following_presentation_child.start() if following_presentation_child else closing.start()
+    presentation_xml = presentation_xml[:insert_at] + font_xml + presentation_xml[insert_at:]
 
     if font_default is not None:
         existing_default = next(
