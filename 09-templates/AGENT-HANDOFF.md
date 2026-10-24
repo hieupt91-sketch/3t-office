@@ -1319,3 +1319,18 @@ DEPENDENCIES/BLOCKERS: Free at least 8 GiB on C: before downloading/installing S
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Không áp dụng — không có màn hình ứng dụng trong phiếu CLI.
 NEXT ACTION: Hoàn tất Windows toolchain prerequisite rồi chạy build, 111 tests, pytest XLSX roundtrip và đo exe/runtime. Nếu toolchain tiếp tục bị chặn, quyết định có khởi động port Python theo báo cáo spike.
+
+
+## Q56 — 24/10/2026
+
+TASK: Q56 — C1/C2 XML pivot, PP3 encrypted save, PP2 embedded fonts, PP4 profile isolation.
+AGENT/ROLE: Codex / OOXML, Save pipeline, Slides.
+BRANCH/WORKTREE: codex/queue-19-10 / E:\VNOffice-codex-queue. `git merge main` → Already up to date. `CODEX-COMMON-RULES.md` không có trong worktree.
+OBJECTIVE: Fix malformed self-closing XML, preserve source during atomic encryption, restore PresentationML embedded fonts, isolate Sheet roundtrip profile.
+IMPLEMENTATION SUMMARY: Shared tag-attribute helper preserves `/>`; encrypted temp atomically replaces source and errors wrap as `DocumentEngineError`; font list inserted in schema order and root embed flags restored; roundtrip uses isolated profile. Commits 38216701, afd30977, bc06fb4d, 73710b0b, 8903ec53, 9ca1337a.
+FILES CHANGED: adapters/libreoffice/common/ooxml_zip_patch.py; main.py; tests/test_review_agy_24_10_repro.py; tests/test_ooxml_encryption_main.py; tests/test_slides_pptx_embedded_fonts.py; tests/test_sheet_save_roundtrip.py; tests/live/cdp/slides-q18-verification.desktop.mjs.
+TEST RESULTS: PASS — pivot 4/4; encryption 5/5; embedded fonts 1/1; npm 3796/3796; pytest 1145 passed, 2 skipped; i18n missing=0; checklist lowered=0. PP4 failure not reproduced in this run; isolated roundtrip passes.
+CORPUS: XLSX 27/27 saved, LO diff=0/lint clean, Excel COM BLOCKED. Legacy XLS CDP 20/20. DOCX 7/8: d20 Word=3, saved=4 on two runs. Q27 28 pass/2 unsupported/0 fail; Q18 17/17. Sample-3 retained 10/10 font payloads and COM reported embedded used fonts.
+GIAO DIỆN ĐÃ XEM: 20 XLS, 8 DOCX, 11 Q18 screenshots, Q27 final and sample-3 before/after at 1366×768. Major test-state Slides issue: date/body duplicate and overlap in editor/notes/slideshow/print preview; Q27 has overlap and a white canvas overlay. DOCX d24 title overlaps; legacy08 shows #NAME? in document. Full images in E:\VNOffice-briefs\logs\Q56-work.
+KNOWN FAILURES: Required DOCX corpus is FAIL 7/8 because d20 adds one page, reproduced twice. Two Q27 cases are NOT SUPPORTED. Excel COM not run per ticket rules.
+NEXT ACTION: Triage d20 pagination and the captured Slides overlaps in owning tickets. Q56 implementation is complete but corpus gate remains failed; record in E:\VNOffice-briefs\logs\Q56.DONE.
