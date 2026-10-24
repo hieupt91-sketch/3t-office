@@ -69,9 +69,16 @@ class SheetSaveRoundtripTests(unittest.TestCase):
     @unittest.skipUnless(main.SOFFICE_PATH, "LibreOffice soffice is not installed")
     def test_all_fixtures_roundtrip(self):
         self.assertGreater(len(FIXTURES), 0, "No .xlsx fixtures found")
-        for xlsx_path in FIXTURES:
-            with self.subTest(file=xlsx_path.name):
-                self._do_roundtrip(xlsx_path)
+        # Do not share a LibreOffice profile with a live desktop app or another
+        # test run. The persistent UNO worker and CLI fallback both use this URI.
+        with tempfile.TemporaryDirectory(prefix="vno-sheet-roundtrip-profile-") as profile_dir:
+            with patch.object(main, "_profile_uri", return_value=Path(profile_dir).as_uri()):
+                try:
+                    for xlsx_path in FIXTURES:
+                        with self.subTest(file=xlsx_path.name):
+                            self._do_roundtrip(xlsx_path)
+                finally:
+                    main._PERSISTENT_SOFFICE.release_for_cli_fallback("sheet")
 
     def _do_roundtrip(self, xlsx_path: Path):
         api = main.VnOfficeApi("sheet", str(xlsx_path))

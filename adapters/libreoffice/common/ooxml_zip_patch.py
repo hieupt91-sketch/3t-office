@@ -6032,9 +6032,9 @@ def _apply_refreshed_pivot_locations_from_fods(
                 tag = definition.group(0)
                 tag = re.sub(r"\s+vno:filters\s*=\s*(['\"])[^'\"]*\1", "", tag, flags=re.IGNORECASE)
                 if not re.search(r"\sxmlns:vno\s*=", tag, re.IGNORECASE):
-                    tag = tag[:-1] + f' xmlns:vno="{SHEET_VNO_NS}">'
+                    tag = _insert_xml_tag_attribute(tag, f'xmlns:vno="{SHEET_VNO_NS}"')
                 escaped = _escape_xml(filter_json)
-                tag = tag[:-1] + f' vno:filters="{escaped}">'
+                tag = _insert_xml_tag_attribute(tag, f'vno:filters="{escaped}"')
                 updated = updated[:definition.start()] + tag + updated[definition.end():]
         if updated != current:
             replacements[entry] = updated
@@ -6069,7 +6069,7 @@ def overlay_pivot_filter_metadata_to_fods(xlsx_bytes: bytes, fods_xml: str | Non
         if not filters:
             return tag
         tag = re.sub(r"\s+vno:filters\s*=\s*(['\"])[^'\"]*\1", "", tag, flags=re.IGNORECASE)
-        return tag[:-1] + f' vno:filters="{_escape_xml(filters)}">'
+        return _insert_xml_tag_attribute(tag, f'vno:filters="{_escape_xml(filters)}"')
     xml = re.sub(r"<table:data-pilot-table\b[^>]*>", add_filters, xml, flags=re.IGNORECASE)
     if not _declares_vno_namespace(xml):
         root = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
@@ -14306,10 +14306,37 @@ def _restore_slides_embedded_fonts(pptx_bytes: bytes, source_pptx: bytes | None)
             child.attrib[rid_key] = id_map[child.attrib[rid_key]]
     font_xml = ET.tostring(font_list, encoding="unicode")
     presentation_xml = output_presentation.decode("utf-8")
+    presentation_open = re.search(r"<(?:(?:[\w.-]+):)?presentation\b[^>]*>", presentation_xml)
+    if presentation_open:
+        presentation_tag = presentation_open.group(0)
+        for attribute_name in ("embedTrueTypeFonts", "saveSubsetFonts"):
+            attribute_value = source_root.attrib.get(attribute_name)
+            if attribute_value is None:
+                continue
+            presentation_tag = re.sub(
+                rf"\s+{attribute_name}\s*=\s*(['\"])[^'\"]*\1",
+                "",
+                presentation_tag,
+                flags=re.IGNORECASE,
+            )
+            presentation_tag = _insert_xml_tag_attribute(
+                presentation_tag,
+                f'{attribute_name}="{_escape_xml(attribute_value)}"',
+            )
+        presentation_xml = (
+            presentation_xml[:presentation_open.start()]
+            + presentation_tag
+            + presentation_xml[presentation_open.end():]
+        )
     closing = re.search(r"</(?P<tag>(?:[\w.-]+:)?presentation)\s*>", presentation_xml)
     if not closing:
         return pptx_bytes
-    presentation_xml = presentation_xml[:closing.start()] + font_xml + presentation_xml[closing.start():]
+    following_presentation_child = re.search(
+        r"<(?:(?:[\w.-]+):)?(?:custShowLst|photoAlbum|custDataLst|kinsoku|defaultTextStyle|modifyVerifier|extLst)\b",
+        presentation_xml,
+    )
+    insert_at = following_presentation_child.start() if following_presentation_child else closing.start()
+    presentation_xml = presentation_xml[:insert_at] + font_xml + presentation_xml[insert_at:]
 
     if font_default is not None:
         existing_default = next(
@@ -15594,6 +15621,15 @@ def _put_back_table_bodies(skeleton_xml: str, bodies: list[str]) -> str:
     if index != len(bodies):
         raise ValueError("table count changed while overlaying the sheet head")
     return result
+
+
+def _insert_xml_tag_attribute(tag: str, attribute: str) -> str:
+    """Insert an attribute before a tag's closing delimiter, preserving `/>`."""
+    if tag.endswith("/>"):
+        return tag[:-2] + f" {attribute}/>"
+    if tag.endswith(">"):
+        return tag[:-1] + f" {attribute}>"
+    return tag
 
 
 def _xml_attrs(raw: str) -> dict[str, str]:

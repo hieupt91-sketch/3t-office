@@ -8401,6 +8401,86 @@ export class WriterAdapter {
       .replace(/&apos;/g, "'");
   }
 
+  _repairImportedTextWhitespaceFromOoxml(root, documentXml) {
+    if (!root?.querySelectorAll || !documentXml || globalThis.__VNO_WRITER_REPAIR_FLOAT_WORD_SPACES === false) return;
+    const sourceParagraphs = [...String(documentXml).matchAll(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi)].map((paragraph) =>
+      [...paragraph[1].matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi)]
+        .map((text) => this._decodeXmlEntities(text[1]))
+        .join("")
+    ).filter(Boolean);
+    const whitespaceSignature = (value) => {
+      const boundaries = [];
+      let hasText = false;
+      let hasWhitespace = false;
+      for (const character of String(value || "")) {
+        if (/\s/u.test(character)) {
+          if (hasText) hasWhitespace = true;
+        } else {
+          if (hasText) boundaries.push(hasWhitespace ? "1" : "0");
+          hasText = true;
+          hasWhitespace = false;
+        }
+      }
+      return boundaries.join("");
+    };
+
+    for (const paragraph of Array.from(root.querySelectorAll("p, h1, h2, h3, h4, h5, h6"))) {
+      const segments = [];
+      let globalOffset = 0;
+      const visit = (node) => {
+        if (node?.nodeType === 3) {
+          const value = String(node.nodeValue || "");
+          segments.push({ node, start: globalOffset, value });
+          globalOffset += value.length;
+        } else {
+          for (const child of Array.from(node?.childNodes || [])) visit(child);
+        }
+      };
+      visit(paragraph);
+      const actualText = segments.map((segment) => segment.value).join("");
+      const compactActual = actualText.replace(/\s/gu, "");
+      if (!compactActual) continue;
+      const matches = sourceParagraphs.filter((source) => source.replace(/\s/gu, "") === compactActual);
+      if (!matches.length) continue;
+      const signatures = new Set(matches.map(whitespaceSignature));
+      if (signatures.size !== 1) continue;
+
+      const actualCharacters = [];
+      globalOffset = 0;
+      for (const segment of segments) {
+        for (let localOffset = 0; localOffset < segment.value.length;) {
+          const character = String.fromCodePoint(segment.value.codePointAt(localOffset));
+          const end = localOffset + character.length;
+          if (!/\s/u.test(character)) actualCharacters.push({ start: globalOffset + localOffset, end: globalOffset + end });
+          localOffset = end;
+        }
+        globalOffset += segment.value.length;
+      }
+
+      const targetSignature = [...signatures][0];
+      const removals = new Map();
+      for (let boundary = 0; boundary < actualCharacters.length - 1; boundary += 1) {
+        if (targetSignature[boundary] !== "0") continue;
+        const gapStart = actualCharacters[boundary].end;
+        const gapEnd = actualCharacters[boundary + 1].start;
+        if (gapStart >= gapEnd) continue;
+        for (const segment of segments) {
+          const localStart = Math.max(0, gapStart - segment.start);
+          const localEnd = Math.min(segment.value.length, gapEnd - segment.start);
+          if (localStart >= localEnd || !/^\s+$/u.test(segment.value.slice(localStart, localEnd))) continue;
+          const ranges = removals.get(segment.node) || [];
+          ranges.push([localStart, localEnd]);
+          removals.set(segment.node, ranges);
+        }
+      }
+      for (const [node, ranges] of removals) {
+        let value = String(node.nodeValue || "");
+        for (const [start, end] of ranges.sort((a, b) => b[0] - a[0])) value = value.slice(0, start) + value.slice(end);
+        node.nodeValue = value;
+      }
+    }
+  }
+
   _escapeRegExp(value) {
     return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
@@ -18775,6 +18855,7 @@ export class WriterAdapter {
       } else if (this.editorDom) {
         this.editorDom.innerHTML = imported.body;
       }
+      this._repairImportedTextWhitespaceFromOoxml(this.bodyDom || this.editorDom, result.ooxmlDocumentXml);
       // Quy ước W1/W8/W23a: tỉ số font theo font THẬT đang vẽ của từng phần tử và strut của <p> = font của run (cả thân lẫn header/footer).
       // Chạy trước khi băm "chưa sửa" nên không làm tài liệu thành "đã sửa".
       try {

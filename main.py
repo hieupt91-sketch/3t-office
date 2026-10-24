@@ -1747,22 +1747,35 @@ def _encrypt_ooxml_output(source_path: str, target_format: str, password: str | 
             encrypted = encryptor.encrypt_package(source.read(), password)
     except encryptor.OfficeEncryptionError as exc:
         raise DocumentEngineError("Không thể mã hóa gói OOXML. Tệp đích chưa bị thay đổi.") from exc
-    fd, encrypted_path = tempfile.mkstemp(
-        prefix="vnoffice_encrypted_", suffix=f".{target_format}", dir=os.path.dirname(source_path)
-    )
+    fd = None
+    encrypted_path = None
     try:
+        fd, encrypted_path = tempfile.mkstemp(
+            prefix="vnoffice_encrypted_", suffix=f".{target_format}", dir=os.path.dirname(source_path)
+        )
         with os.fdopen(fd, "wb") as output:
+            fd = None
             output.write(encrypted)
             output.flush()
             os.fsync(output.fileno())
-        os.remove(source_path)
-        return encrypted_path
-    except BaseException:
-        try:
-            os.unlink(encrypted_path)
-        except OSError:
-            pass
+        _atomic_replace_file(encrypted_path, source_path)
+        encrypted_path = None
+        return source_path
+    except DocumentEngineError:
         raise
+    except Exception as exc:
+        raise DocumentEngineError("Không thể hoàn tất việc mã hóa tệp. Tệp nguồn chưa bị thay đổi.") from exc
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        if encrypted_path:
+            try:
+                os.unlink(encrypted_path)
+            except OSError:
+                pass
 
 
 def _sheet_xlsx_preview():

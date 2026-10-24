@@ -6,7 +6,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import main
 
@@ -38,11 +38,23 @@ class OoxmlEncryptionMainTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "plain.docx"
             path.write_bytes(raw)
-            encrypted_path = Path(main._encrypt_ooxml_output(str(path), "docx", PASSWORD))
-            self.assertFalse(path.exists())
-            encrypted = encrypted_path.read_bytes()
+            result_path = Path(main._encrypt_ooxml_output(str(path), "docx", PASSWORD))
+            self.assertEqual(result_path, path)
+            encrypted = result_path.read_bytes()
             self.assertTrue(main._ooxml_encryption().is_encrypted_package(encrypted))
             self.assertEqual(main._ooxml_encryption().decrypt_package(encrypted, PASSWORD), raw)
+
+    def test_atomic_replace_failure_preserves_plaintext_stage(self):
+        raw = package_bytes()
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "plain.docx"
+            path.write_bytes(raw)
+            with patch.object(main, "_atomic_replace_file", side_effect=OSError("replace failed")) as replace:
+                with self.assertRaises(main.DocumentEngineError):
+                    main._encrypt_ooxml_output(str(path), "docx", PASSWORD)
+            replace.assert_called_once()
+            self.assertTrue(path.is_file())
+            self.assertEqual(path.read_bytes(), raw)
 
     def test_protected_document_never_writes_autorecovery_content(self):
         api = object.__new__(main.VnOfficeApi)
