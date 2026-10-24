@@ -143,6 +143,8 @@
   --vno-color-accent: var(--vno-app-current);
   --vno-color-accent-hover: var(--vno-app-current-hover);
   --vno-color-accent-light: var(--vno-app-current-light);
+  --vno-accent: #2563eb;
+  --vno-accent-fg: #ffffff;
 }
 
 [data-app="writer"] {

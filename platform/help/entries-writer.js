@@ -914,10 +914,10 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["writer.design.themeGallery"],
     title: "Chủ đề văn bản",
     summary: "Sáu bộ chủ đề đổi đồng loạt phông, màu tiêu đề và giãn dòng cho cả tài liệu. Mặc định Tiêu chuẩn (Office) — Times New Roman. Có bộ Hành chính Việt Nam (NĐ 30).",
-    ribbon: { tab: "Thiết kế", tabId: "design", group: "Định dạng tài liệu" },
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Giao diện tài liệu" },
     keywords: ["chủ đề", "theme", "nđ 30", "hành chính", "office", "be vietnam pro", "georgia", "thiết kế", "design", "kiểu dáng", "style set", "document formatting"],
     steps: [
-      "Tab Thiết kế, nhóm Định dạng tài liệu, nhấn nút lớn Chủ đề văn bản.",
+      "Tab Thiết kế, nhóm Giao diện tài liệu, nhấn nút lớn Chủ đề văn bản.",
       "Hộp «Thư viện Kiểu & Chủ đề tài liệu»: chọn bộ rồi Áp dụng kiểu. Sáu mẫu — Tiêu chuẩn (Office, Times New Roman), Hành chính Việt Nam (NĐ 30, TNR chữ đen), Hiện đại (Be Vietnam Pro), Trang nhã (Georgia), Tối giản (Arial), Sáng tạo Emerald (Calibri).",
       "Nhấn Áp dụng để đổi phông, màu và giãn dòng trên toàn bộ tài liệu. Tùy chọn này không có các biến thể chủ đề. Kiểm tra bố cục sau khi áp dụng; nhấn Ctrl+Z nếu muốn trở về cách trình bày trước đó.",
       "Esc / Hủy bỏ đóng không đổi. Ctrl+Z hoàn tác lần áp chủ đề."

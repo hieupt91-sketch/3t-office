@@ -159,12 +159,13 @@ export async function runHelpCoverageTests() {
     }
   });
 
-  await test("Help Coverage: Toàn bộ 9 tính năng Shared Platform cốt lõi đều có bài Help chuyên biệt", () => {
+  await test("Help Coverage: Toàn bộ 10 tính năng Shared Platform cốt lõi đều có bài Help chuyên biệt", () => {
     const platformIds = [
       "common.platform.pasteSpecialHelp",
       "common.platform.printAndExportPdfHelp",
       "common.platform.findReplaceHelp",
       "common.platform.themeDarkLightHelp",
+      "common.platform.headerThemeHelp",
       "common.platform.quickStartHelp",
       "common.platform.contextualF1Help",
       "common.platform.keyTipsHelp",
@@ -176,6 +177,14 @@ export async function runHelpCoverageTests() {
       if (!entry) {
         throw new Error(`Thiếu bài Help cho tính năng Shared Platform: ${pid}`);
       }
+    }
+  });
+
+  await test("Help: hướng dẫn giao diện phân biệt giao diện ứng dụng với giao diện tài liệu", () => {
+    const entry = HELP_ENTRIES.find((e) => e.id === "common.platform.themeDarkLightHelp");
+    const text = [entry?.title || "", entry?.summary || "", ...(entry?.steps || [])].join(" ");
+    if (!text.includes("giao diện ứng dụng") || !text.includes("Giao diện tài liệu") || !text.includes("Theo hệ thống")) {
+      throw new Error("Hướng dẫn cần nêu rõ chế độ Theo hệ thống và phân biệt hai loại giao diện");
     }
   });
 

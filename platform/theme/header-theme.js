@@ -6,22 +6,24 @@
 
 export const HEADER_THEME_STORAGE_KEY = "vno-header-theme";
 export const HEADER_PRESET_COLORS = [
-  { value: "#0f4c81", label: "Xanh Doc" },
-  { value: "#15803d", label: "Xanh lá Sheet" },
-  { value: "#c2410c", label: "Cam Slide" },
-  { value: "#6d28d9", label: "Tím" },
-  { value: "#be123c", label: "Đỏ mận" },
-  { value: "#0f766e", label: "Xanh ngọc" },
-  { value: "#334155", label: "Xám đá" },
-  { value: "#111827", label: "Đen" },
-  { value: "#fef3c7", label: "Vàng kem" },
-  { value: "#e0f2fe", label: "Xanh nhạt" }
+  { value: "#0f4c81", label: "Xanh dương", labelEn: "Blue" },
+  { value: "#15803d", label: "Xanh lá", labelEn: "Green" },
+  { value: "#c2410c", label: "Cam", labelEn: "Orange" },
+  { value: "#6d28d9", label: "Tím", labelEn: "Purple" },
+  { value: "#be123c", label: "Đỏ mận", labelEn: "Crimson" },
+  { value: "#0f766e", label: "Xanh ngọc", labelEn: "Teal" },
+  { value: "#334155", label: "Xám đá", labelEn: "Slate" },
+  { value: "#111827", label: "Đen", labelEn: "Black" },
+  { value: "#fef3c7", label: "Vàng kem", labelEn: "Cream" },
+  { value: "#e0f2fe", label: "Xanh nhạt", labelEn: "Light blue" },
+  { value: "#6b21a8", label: "Tím đậm", labelEn: "Deep purple" },
+  { value: "#155e75", label: "Lam đậm", labelEn: "Deep teal" }
 ];
 
 const DEFAULTS = Object.freeze({ mode: "default", color: "#0f4c81", image: "", imageColor: "#1f2937", dim: 0.25, position: 50 });
 const HEX = /^#([0-9a-f]{6})$/i;
 // Dải ảnh lưu tối đa ~600 KB để không làm đầy bộ nhớ cục bộ.
-const MAX_IMAGE_CHARS = 800000;
+export const MAX_IMAGE_CHARS = 800000;
 
 export function normalizeHeaderTheme(raw) {
   const source = raw && typeof raw === "object" ? raw : {};
@@ -153,15 +155,15 @@ export const headerTheme = new HeaderThemeManager();
  * Đọc ảnh người dùng chọn, thu nhỏ và cắt thành dải đúng tỉ lệ khu vực tiêu đề.
  * Trả về { source, strip(position) } — `source` là ảnh đã thu nhỏ (chỉ giữ trong bộ nhớ khi hộp thoại mở), `strip` cắt dải theo vị trí dọc 0–100.
  */
-export async function loadHeaderImage(file, { headerHeightPx = 78, viewportWidthPx = 1366 } = {}) {
-  if (!file || !/^image\/(?:png|jpe?g|webp|gif|bmp)$/i.test(file.type || "")) throw new Error("Tệp không phải hình ảnh (PNG, JPG, WEBP, GIF, BMP).");
-  if (file.size > 25 * 1024 * 1024) throw new Error("Hình ảnh quá lớn (tối đa 25 MB).");
+export async function loadHeaderImage(file, { headerHeightPx = 78, viewportWidthPx = 1366, messages = {} } = {}) {
+  if (!file || !/^image\/(?:png|jpe?g|webp|gif|bmp)$/i.test(file.type || "")) throw new Error(messages.invalidType || "Tệp không phải hình ảnh (PNG, JPG, WEBP, GIF, BMP).");
+  if (file.size > 25 * 1024 * 1024) throw new Error(messages.inputTooLarge || "Hình ảnh quá lớn (tối đa 25 MB).");
   const url = URL.createObjectURL(file);
   try {
     const image = await new Promise((resolve, reject) => {
       const element = new Image();
       element.onload = () => resolve(element);
-      element.onerror = () => reject(new Error("Không đọc được hình ảnh này."));
+      element.onerror = () => reject(new Error(messages.readError || "Không đọc được hình ảnh này."));
       element.src = url;
     });
     const maxWidth = 1920;
@@ -182,6 +184,7 @@ export async function loadHeaderImage(file, { headerHeightPx = 78, viewportWidth
       else context.drawImage(source, 0, 0, width, height, 0, 0, width, stripHeight); // ảnh dẹt hơn dải: kéo giãn
       let dataUrl = canvas.toDataURL("image/jpeg", 0.82);
       if (dataUrl.length > MAX_IMAGE_CHARS) dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+      if (dataUrl.length > MAX_IMAGE_CHARS) throw new Error(messages.outputTooLarge || "Ảnh sau khi tối ưu vẫn quá lớn để lưu (giới hạn 800.000 ký tự). Hãy chọn ảnh nhỏ hơn.");
       // Độ sáng trung bình của dải để chọn màu chữ
       const probe = document.createElement("canvas");
       probe.width = 24; probe.height = 4;

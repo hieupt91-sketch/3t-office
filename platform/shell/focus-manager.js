@@ -395,6 +395,7 @@ export function installGlobalFocusGuard() {
     const isDialogNode = (n) => n && n.nodeType === 1 && (
       n.matches?.(DIALOG_SELECTORS) || n.querySelector?.(DIALOG_SELECTORS)
     );
+    let focusReturnSelector = null;
 
     const observer = new MutationObserver((mutations) => {
       let dialogChanged = false;
@@ -413,6 +414,8 @@ export function installGlobalFocusGuard() {
           if (dialogChanged) break;
           for (const node of m.removedNodes) {
             if (isDialogNode(node)) {
+              const focusReturn = node.matches?.("[data-focus-return]") ? node : node.querySelector?.("[data-focus-return]");
+              if (focusReturn) focusReturnSelector = focusReturn.getAttribute("data-focus-return") || null;
               dialogChanged = true;
               break;
             }
@@ -428,6 +431,14 @@ export function installGlobalFocusGuard() {
       if (dialogChanged) {
         setTimeout(() => {
           if (!hasOpenDialog()) {
+            if (focusReturnSelector) {
+              const target = document.querySelector(focusReturnSelector);
+              focusReturnSelector = null;
+              if (target) {
+                target.focus();
+                return;
+              }
+            }
             const invoker = getDialogKeyboardRibbonInvoker();
             if (invoker) {
               invoker.focus();

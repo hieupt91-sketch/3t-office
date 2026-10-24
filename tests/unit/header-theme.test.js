@@ -3,8 +3,9 @@
  */
 import {
   normalizeHeaderTheme, relativeLuminance, readableForeground, contrastRatio, computeHeaderStyle,
-  HeaderThemeManager, HEADER_PRESET_COLORS, HEADER_THEME_STORAGE_KEY
+  HeaderThemeManager, HEADER_PRESET_COLORS, HEADER_THEME_STORAGE_KEY, MAX_IMAGE_CHARS
 } from "../../platform/theme/header-theme.js";
+import { ThemeManager } from "../../platform/theme/theme-manager.js";
 
 export async function runHeaderThemeTests() {
   const results = [];
@@ -20,16 +21,46 @@ export async function runHeaderThemeTests() {
     assert(normalizeHeaderTheme({ mode: "image" }).mode === "default", "chế độ ảnh thiếu ảnh -> mặc định");
     assert(normalizeHeaderTheme({ mode: "image", image: "javascript:alert(1)" }).image === "", "chỉ nhận data:image base64");
     assert(normalizeHeaderTheme({ mode: "image", image: PNG }).mode === "image", "ảnh hợp lệ được giữ");
+    assert(normalizeHeaderTheme({ mode: "image", image: PNG + "x".repeat(MAX_IMAGE_CHARS) }).image === "", "ảnh vượt giới hạn lưu không được chấp nhận");
     assert(normalizeHeaderTheme({ dim: 5 }).dim === 0.7, "độ phủ giới hạn 0,7");
     assert(normalizeHeaderTheme({ position: -3 }).position === 0, "vị trí giới hạn 0..100");
   });
 
   await test("Mọi màu gợi ý cho chữ tương phản >= 4,5:1", () => {
+    assert(HEADER_PRESET_COLORS.length === 12, "cần 12 màu gợi ý");
     for (const preset of HEADER_PRESET_COLORS) {
       const luminance = relativeLuminance(preset.value);
       const foreground = readableForeground(luminance);
       const ratio = contrastRatio(foreground === "#ffffff" ? 1 : 0, luminance);
       assert(ratio >= 4.5, `${preset.label} (${preset.value}) tương phản ${ratio.toFixed(2)}`);
+    }
+  });
+
+  await test("ThemeManager: chế độ theo hệ thống theo dõi thay đổi và lưu lựa chọn", () => {
+    const store = new Map();
+    const oldStorage = globalThis.localStorage;
+    const oldDocument = globalThis.document;
+    const oldWindow = globalThis.window;
+    const attrs = {}; const styles = {}; const listeners = [];
+    let matches = false;
+    globalThis.localStorage = { getItem: (key) => store.get(key) || null, setItem: (key, value) => store.set(key, String(value)) };
+    globalThis.document = { documentElement: { setAttribute: (key, value) => { attrs[key] = value; }, removeAttribute: (key) => { delete attrs[key]; }, style: { setProperty: (key, value) => { styles[key] = value; }, removeProperty: (key) => { delete styles[key]; } } } };
+    globalThis.window = { matchMedia: () => ({ get matches() { return matches; }, addEventListener: (_type, listener) => listeners.push(listener) }) };
+    try {
+      const manager = new ThemeManager();
+      manager.init();
+      manager.setTheme("system");
+      assert(manager.getThemePreference() === "system" && store.get("vno-theme") === "system", "lưu lựa chọn theo hệ thống");
+      assert(attrs["data-theme"] === "light", "theo sáng khi hệ thống sáng");
+      matches = true;
+      listeners[0]({ matches });
+      assert(attrs["data-theme"] === "dark" && manager.getTheme() === "dark", "theo tối khi hệ thống đổi");
+      assert(store.get("vno-theme") === "system", "không ghi đè lựa chọn theo hệ thống");
+      const result = manager.setAccentColor("#ffffff");
+      assert(result.foreground === "#000000" && contrastRatio(0, relativeLuminance(result.color)) >= 4.5, "màu nhấn tự chọn chữ đạt AA");
+      assert(styles["--vno-accent"] === "#ffffff" && styles["--vno-accent-fg"] === "#000000", "đặt design tokens màu nhấn");
+    } finally {
+      globalThis.localStorage = oldStorage; globalThis.document = oldDocument; globalThis.window = oldWindow;
     }
   });
 

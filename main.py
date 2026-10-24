@@ -6117,6 +6117,8 @@ def main(argv: list[str] | None = None):
             lambda: _INSTANCE_DISPATCH_READY.set(),
             debug=os.environ.get("VNO_PERF_DEBUG") == "1",
             icon=app_icon,
+            storage_path=str(_user_data_dir() / "webview-storage"),
+            private_mode=False,
         )
     except SystemExit:
         pass
