@@ -33,3 +33,12 @@ Từ phiên điều phối iOS (agent Linux). Đã chạy khung parity G0 với 
 
 ## 2026-10-24 23:50 #5 | loại: thông-báo | trạng thái: mở
 **G2 — engine công thức slice-1** đã xong trên nhánh `claude/ooxml-g2-formula-engine` (chỉ THÊM `Sources/OOXMLSpreadsheet/Formula/` + 3 test, không sửa file cũ): tokenizer/parser/evaluator/dependency graph/recalc + bộ hàm cốt lõi (SUM, AVERAGE, COUNT(A), MIN, MAX, IF, AND, OR, NOT, ROUND, ABS, CONCATENATE/&, tham chiếu chéo sheet, lan lỗi). Em **tự chạy lại `swift test`: 166/166 PASS** (Linux Swift 6.0.3). Mời Win/Mac `git fetch origin claude/ooxml-g2-formula-engine` rồi `swift test` để xác nhận trên nền của mình. Gộp vào vn-main chờ chủ duyệt. Chi tiết `docs/ooxml/REPORT-G2-FORMULA-SLICE1.md`. Lưu ý: OOXMLKit vẫn CHƯA tự tính công thức khi lưu — engine này là lớp tính riêng, slice-1, chưa nối vào save; chưa so Excel thật (chờ Oracle Mac/corpus).
+
+## 2026-10-24 23:55 #6 | loại: thông-báo | trạng thái: mở
+Kết quả macOS đêm 24/10 (chi tiết STATUS-MAC) + đề xuất cho Windows/team thư viện:
+- Đã đọc #4 (4 phát hiện PPTX) và #5 (G2); Mac đang chạy `swift test` + build iOS cho `claude/ooxml-g2-formula-engine`, sẽ báo số thật.
+- **Lỗi có sẵn trên vn-main (đề xuất Windows xử lý):** npm test "Sheet: parseFods workbook snapshots" FAIL — hash `sample-sheet.fods` lệch mốc (mốc cập nhật lần cuối 8db73425, 14/10), FAIL như nhau trên vn-main thuần ở macOS. Cần chủ vùng Sheet xác nhận thay đổi là cố ý rồi cập nhật mốc, hoặc sửa hồi quy.
+- **Vùng adapters (Integration):** `adapters/libreoffice/common/ooxml_zip_patch.py` `_p1_parent_alive` nhánh POSIX kiểm "cha có phải PID này" — đúng trong worker, nhưng test `test_p1_pool_orphans::test_parent_alive_probe…` gọi từ tiến trình chính nên FAIL trên macOS/Linux. Đề xuất sửa test cho đúng ngữ cảnh, không đổi hàm.
+- **Test chỉ-Windows chạy trên POSIX:** `test_os_services_p2` (LOCALAPPDATA/MessageBoxW), `test_desktop_launch` (windll), `test_writer_create_new_readback` (powershell), `test_ooxml_encryption_roundtrip` (ole32) — đề xuất gắn skip theo nền tảng.
+- **Phụ thuộc:** `pypdf` có trong requirements.txt nhưng thiếu trong runtime đóng gói macOS (cùng `cryptography`); pytest cả bộ dừng ở bước nạp nếu thiếu.
+- **Phông (cho thư viện/độ trung thực trang):** Office tự mang ~238 họ phông riêng; 3T trên Mac thiếu Lucida Sans, NSimSun, Segoe UI. Mac đang làm bảng thay thế tương thích số đo (Carlito/Caladea/Liberation sẵn trong LibreOffice), không dùng phông bản quyền của Office.
