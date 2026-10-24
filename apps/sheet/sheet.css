@@ -409,6 +409,8 @@
 [data-theme="dark"] .vno-grid-cell {
   border-right-color: #3e3e42;
   border-bottom-color: #3e3e42;
+  background-color: #fff;
+  color: #111827;
 }
 
 .vno-grid-cell.is-wrap-text {
