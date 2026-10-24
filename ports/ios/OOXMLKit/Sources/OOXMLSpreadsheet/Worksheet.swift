@@ -51,6 +51,44 @@ public enum SheetState: String, Sendable {
     case veryHidden
 }
 
+/// Quy tắc định dạng có điều kiện dạng OOXML. `formula` không bao gồm thẻ XML.
+public struct CFRule: Equatable, Sendable {
+    public let type: String
+    public let `operator`: String?
+    public let formula: [String]
+    public let priority: Int
+    public let differentialStyleID: Int?
+    public let stopIfTrue: Bool
+
+    public init(type: String, operator: String? = nil, formula: [String], priority: Int,
+                differentialStyleID: Int? = nil, stopIfTrue: Bool = false) {
+        self.type = type
+        self.operator = `operator`
+        self.formula = formula
+        self.priority = priority
+        self.differentialStyleID = differentialStyleID
+        self.stopIfTrue = stopIfTrue
+    }
+}
+
+/// Quy tắc nhập liệu theo chuẩn SpreadsheetML.
+public struct DataValidationRule: Equatable, Sendable {
+    public let type: String
+    public let formula1: String?
+    public let formula2: String?
+    public let `operator`: String?
+    public let allowBlank: Bool
+
+    public init(type: String, formula1: String? = nil, formula2: String? = nil,
+                operator: String? = nil, allowBlank: Bool = false) {
+        self.type = type
+        self.formula1 = formula1
+        self.formula2 = formula2
+        self.operator = `operator`
+        self.allowBlank = allowBlank
+    }
+}
+
 public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
     case notASpreadsheet
     case sheetNotFound(String)
@@ -280,6 +318,72 @@ public final class Worksheet {
     public func removeAutoFilter() throws {
         guard let filter = document.root.firstChild(NS.s, "autoFilter") else { return }
         filter.removeFromParent()
+        workbook.package.markModified(part)
+    }
+
+    /// Thêm một quy tắc định dạng có điều kiện cho vùng ô.
+    /// Công thức được ghi trực tiếp vào `<formula>`; định dạng khác của sheet được giữ nguyên.
+    public func addConditionalFormatting(range: CellRange, rule: CFRule) throws {
+        let types: Set<String> = ["cellIs", "expression", "colorScale", "dataBar", "iconSet", "containsText",
+                                  "notContainsText", "beginsWith", "endsWith", "containsBlanks", "notContainsBlanks",
+                                  "containsErrors", "notContainsErrors", "timePeriod", "aboveAverage", "duplicateValues",
+                                  "uniqueValues", "top10"]
+        let operators: Set<String> = ["between", "notBetween", "equal", "notEqual", "greaterThan", "lessThan",
+                                      "greaterThanOrEqual", "lessThanOrEqual"]
+        guard types.contains(rule.type), rule.priority > 0,
+              rule.differentialStyleID.map({ $0 >= 0 }) ?? true,
+              rule.operator.map({ operators.contains($0) }) ?? true,
+              (!(["cellIs", "expression"].contains(rule.type)) || !rule.formula.isEmpty) else {
+            throw SpreadsheetError.invalidSetting("quy tắc định dạng có điều kiện không hợp lệ")
+        }
+        let formatting = XElement(name: q("conditionalFormatting"), attributes: [XAttribute(name: "sqref", value: range.description)])
+        var attributes = [XAttribute(name: "type", value: rule.type), XAttribute(name: "priority", value: String(rule.priority))]
+        if let op = rule.operator { attributes.append(XAttribute(name: "operator", value: op)) }
+        if let style = rule.differentialStyleID { attributes.append(XAttribute(name: "dxfId", value: String(style))) }
+        if rule.stopIfTrue { attributes.append(XAttribute(name: "stopIfTrue", value: "1")) }
+        let ruleElement = XElement(name: q("cfRule"), attributes: attributes)
+        for formula in rule.formula { ruleElement.append(XElement(name: q("formula"), children: [.text(formula)])) }
+        formatting.append(ruleElement)
+        document.root.insertChild(formatting, schemaOrder: Worksheet.worksheetOrder)
+        workbook.package.markModified(part)
+    }
+
+    /// Xóa các quy tắc định dạng cho vùng đã chọn; truyền `nil` để xóa toàn bộ.
+    public func clearConditionalFormatting(range: CellRange? = nil) throws {
+        guard document.root.firstChild(NS.s, "conditionalFormatting") != nil else { return }
+        let matches = document.root.children(NS.s, "conditionalFormatting").filter { element in
+            guard let range else { return true }
+            return element.attribute("sqref")?.split(whereSeparator: { $0.isWhitespace }).contains { String($0) == range.description } == true
+        }
+        guard !matches.isEmpty else { return }
+        for element in matches { element.removeFromParent() }
+        workbook.package.markModified(part)
+    }
+
+    /// Thêm một quy tắc kiểm tra dữ liệu cho vùng ô.
+    public func addDataValidation(range: CellRange, validation: DataValidationRule) throws {
+        let types: Set<String> = ["none", "whole", "decimal", "list", "date", "time", "textLength", "custom"]
+        let operators: Set<String> = ["between", "notBetween", "equal", "notEqual", "greaterThan", "lessThan",
+                                      "greaterThanOrEqual", "lessThanOrEqual"]
+        guard types.contains(validation.type), validation.operator.map({ operators.contains($0) }) ?? true,
+              validation.type != "list" || validation.formula1 != nil,
+              validation.operator == nil || (validation.formula1 != nil && validation.formula2 != nil) else {
+            throw SpreadsheetError.invalidSetting("quy tắc kiểm tra dữ liệu không hợp lệ")
+        }
+        let validations = document.root.firstChild(NS.s, "dataValidations") ?? {
+            let element = XElement(name: q("dataValidations"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        var attributes = [XAttribute(name: "type", value: validation.type),
+                          XAttribute(name: "sqref", value: range.description)]
+        if validation.allowBlank { attributes.append(XAttribute(name: "allowBlank", value: "1")) }
+        if let op = validation.operator { attributes.append(XAttribute(name: "operator", value: op)) }
+        let item = XElement(name: q("dataValidation"), attributes: attributes)
+        if let formula = validation.formula1 { item.append(XElement(name: q("formula1"), children: [.text(formula)])) }
+        if let formula = validation.formula2 { item.append(XElement(name: q("formula2"), children: [.text(formula)])) }
+        validations.append(item)
+        validations.setAttribute("count", String(validations.children(NS.s, "dataValidation").count))
         workbook.package.markModified(part)
     }
 
