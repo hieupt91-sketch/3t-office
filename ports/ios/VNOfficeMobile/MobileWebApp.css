@@ -7,6 +7,7 @@ body { -webkit-text-size-adjust: 100%; }
 .vno-topbar > *, .vno-topbar-left > *, .vno-topbar-center > *, .vno-topbar-right > * { flex-shrink: 0 !important; }
 .vno-ribbon-tabs { overflow-x: auto !important; overflow-y: hidden !important; white-space: nowrap; -webkit-overflow-scrolling: touch; }
 .vno-ribbon-tab, .vno-ribbon-tab-file, .vno-ribbon-content > *, .vno-ribbon-group { flex-shrink: 0 !important; }
+.vno-app-switcher-btn, .vno-switcher-item, .vno-quick-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .vno-ribbon button, .vno-ribbon [role="button"], button { min-height: 40px; }
 .vno-ribbon .vno-ribbon-group { min-width: max-content; }
 .vno-writer-body, .vno-grid-table, .vno-slide-canvas { touch-action: manipulation; }
@@ -18,6 +19,9 @@ body { -webkit-text-size-adjust: 100%; }
   .vno-topbar-left, .vno-topbar-right { flex: 0 0 auto; gap: 4px !important; }
   .vno-topbar-center { display: none !important; }
   .vno-app-switcher-btn { min-height: 40px; padding: 4px 8px !important; }
+  .vno-app-switcher-btn { min-width: 92px; }
+  #vno-switcher-menu { position: fixed !important; top: 56px !important; left: 6px !important; width: min(280px, calc(100vw - 12px)) !important; max-height: calc(100vh - 70px); overflow-y: auto; }
+  #vno-switcher-menu .vno-switcher-item { min-height: 44px; padding: 10px 14px !important; }
   .vno-quick-tools { padding-left: 3px; }
   .vno-quick-btn, .vno-lang-switch-btn, .vno-theme-toggle-btn { width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 4px !important; justify-content: center; }
   .vno-theme-toggle-btn span, .vno-lang-switch-btn span, .vno-ai-trigger-btn span { display: none !important; }
