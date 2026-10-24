@@ -1,0 +1,5 @@
+.build/
+.swiftpm/
+/Package.resolved
+# Root .gitignore bỏ qua *.zip; fixture ZIP của thư viện phải được commit.
+!*.zip
