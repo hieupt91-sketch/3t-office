@@ -1242,10 +1242,10 @@ FILES CHANGED: Shared shell/theme/ui-kit, i18n VI/EN, Help, main.py (webview sto
 COMMITS: d4eefdf5 (implementation); 94747af9 (documentation/evidence).
 COMMANDS RUN: git merge main; CDP trước/sau; npm test; node tests/run-tests.js; i18n parity; 3 checklist generators; verify_checklist_evidence; focused pytest; py_compile main.py; git diff --check.
 BUILD RESULT: NOT RUN — không đổi build system.
-TEST RESULTS: CDP sau sửa PASS 72/72; trước sửa FAIL 0/6 do chưa có nút. Bộ test in kết quả 3795/3795 PASS, 0 FAIL; tuy vậy npm test và node tests/run-tests.js đều trả exit code 1 (FAIL ở mức tiến trình, không khớp dòng tổng kết; cần điều tra runner). i18n PASS VI=3200/EN=3200, missing=0; checklist PASS 3 tệp, 0 dòng bị hạ (279/217/269 mục); pytest PASS 43, 1098 deselected; py_compile PASS; git diff --check PASS.
-KNOWN FAILURES: Exit code 1 của npm/Node dù runner in 3795/3795 PASS và 0 FAIL. Trước sửa, suite có một lỗi Help↔ribbon do nhóm Writer đổi tên; sau đồng bộ Help, suite in 0 FAIL. Slides có thanh cuộn ngang sẵn có ở màn 1024×600.
+TEST RESULTS: CDP sau sửa PASS 72/72; trước sửa FAIL 0/6 do chưa có nút. Bộ test PASS 3795/3795, 0 FAIL; xác nhận mã tiến trình con qua Python: node tests/run-tests.js exit=0 và npm.cmd test exit=0. i18n PASS VI=3200/EN=3200, missing=0; checklist PASS 3 tệp, 0 dòng bị hạ (279/217/269 mục); pytest PASS 43, 1098 deselected; py_compile PASS; git diff --check PASS. PowerShell exec wrapper đã báo exit 1 sai trong các lượt trước.
+KNOWN FAILURES: Trước sửa, suite có một lỗi Help↔ribbon do nhóm Writer đổi tên; sau đồng bộ Help, suite in 0 FAIL. Slides có thanh cuộn ngang sẵn có ở màn 1024×600.
 RISKS: Ảnh nền được xử lý và lưu cục bộ; không gửi nội dung ra ngoài. Không sửa LibreOffice Core hoặc thêm dependency.
-DEPENDENCIES/BLOCKERS: Không thêm dependency. Cần tìm nguyên nhân exit code 1 của test runner trước khi coi gate npm xanh.
+DEPENDENCIES/BLOCKERS: Không thêm dependency.
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Writer, Sheet, Slides ở sáng/tối tại 1366×768 và 1024×600 (ảnh sau trong docs/assets/q54-theme; ảnh nền trước lấy từ q54-theme cho sáng và q36-ui/ribbon-before cho tối). Đã xem từng màn theme panel ở cả hai kích thước, mẫu ảnh/màu tùy ý, cùng luồng Tệp > Tùy chọn. Panel nằm trong cửa sổ, chữ/nút rõ; không thấy chồng lấn/cắt. Slides có thanh cuộn ngang ở 1024×600.
-NEXT ACTION: Điều tra exit code của test runner; xem ảnh tại docs/assets/q54-theme và chi tiết tính năng trong docs/HANDOFF-DARK-MODE-THEME.md.
+NEXT ACTION: Q54 complete; xem ảnh tại docs/assets/q54-theme và chi tiết tính năng trong docs/HANDOFF-DARK-MODE-THEME.md.
