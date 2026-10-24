@@ -6032,9 +6032,9 @@ def _apply_refreshed_pivot_locations_from_fods(
                 tag = definition.group(0)
                 tag = re.sub(r"\s+vno:filters\s*=\s*(['\"])[^'\"]*\1", "", tag, flags=re.IGNORECASE)
                 if not re.search(r"\sxmlns:vno\s*=", tag, re.IGNORECASE):
-                    tag = tag[:-1] + f' xmlns:vno="{SHEET_VNO_NS}">'
+                    tag = _insert_xml_tag_attribute(tag, f'xmlns:vno="{SHEET_VNO_NS}"')
                 escaped = _escape_xml(filter_json)
-                tag = tag[:-1] + f' vno:filters="{escaped}">'
+                tag = _insert_xml_tag_attribute(tag, f'vno:filters="{escaped}"')
                 updated = updated[:definition.start()] + tag + updated[definition.end():]
         if updated != current:
             replacements[entry] = updated
@@ -6069,7 +6069,7 @@ def overlay_pivot_filter_metadata_to_fods(xlsx_bytes: bytes, fods_xml: str | Non
         if not filters:
             return tag
         tag = re.sub(r"\s+vno:filters\s*=\s*(['\"])[^'\"]*\1", "", tag, flags=re.IGNORECASE)
-        return tag[:-1] + f' vno:filters="{_escape_xml(filters)}">'
+        return _insert_xml_tag_attribute(tag, f'vno:filters="{_escape_xml(filters)}"')
     xml = re.sub(r"<table:data-pilot-table\b[^>]*>", add_filters, xml, flags=re.IGNORECASE)
     if not _declares_vno_namespace(xml):
         root = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
@@ -15594,6 +15594,15 @@ def _put_back_table_bodies(skeleton_xml: str, bodies: list[str]) -> str:
     if index != len(bodies):
         raise ValueError("table count changed while overlaying the sheet head")
     return result
+
+
+def _insert_xml_tag_attribute(tag: str, attribute: str) -> str:
+    """Insert an attribute before a tag's closing delimiter, preserving `/>`."""
+    if tag.endswith("/>"):
+        return tag[:-2] + f" {attribute}/>"
+    if tag.endswith(">"):
+        return tag[:-1] + f" {attribute}>"
+    return tag
 
 
 def _xml_attrs(raw: str) -> dict[str, str]:
