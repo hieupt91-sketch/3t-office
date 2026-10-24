@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-from .base import OSServices, ServiceResult
+from .base import DocumentFontSources, FontSubstitution, OSServices, ServiceResult
 from .portable import APP_DATA_DIR_NAME, VALID_APP_KINDS, PortableLauncher
 
 # A startup error box must not keep a helper process alive forever if nobody is at the screen.
@@ -96,5 +96,68 @@ class MacLauncher(PortableLauncher):
         return ServiceResult.ok()
 
 
+# MAC-9 — fonts for layout in the document engine.
+# The engine runs headless on macOS and, unless told otherwise, sees only the fonts bundled with it: no Arial,
+# Lucida Grande or any font the user installed with Font Book, and a missing font fell back to a serif face.
+# These are the macOS folders it may read at runtime (in place, never copied or bundled). Fonts inside other
+# applications' bundles are never listed: their licence covers only those applications.
+SYSTEM_FONT_DIR = Path("/System/Library/Fonts")
+# Top-level system fonts worth reading. The rest of that folder (emoji, Asian UI faces, braille, the system
+# Symbol font that would replace the engine's bullet-symbol mapping) doubles the engine start time (~0.7 s per
+# conversion, measured) and is not used by office documents. Supplemental holds Arial, Times New Roman,
+# Courier New, Georgia, Tahoma, Verdana, Trebuchet MS, Songti...
+_SYSTEM_FONT_FILES = (
+    "LucidaGrande.ttc", "HelveticaNeue.ttc", "Helvetica.ttc", "Times.ttc", "Courier.ttc", "Menlo.ttc",
+    "Geneva.ttf", "Monaco.ttf", "Avenir.ttc", "Avenir Next.ttc", "Optima.ttc", "Palatino.ttc",
+    "STHeiti Light.ttc", "STHeiti Medium.ttc",
+)
+
+_SANS_LOOKALIKE = ("Helvetica Neue", "Arial", "Liberation Sans")  # Vietnamese complete in all three
+# Heiti SC first: complete Vietnamese and closer line height than Songti SC (a SimSun-bodied test page ran
+# 4 pages with Heiti SC, 5 with Songti SC); Songti SC stays as the Song-style fallback.
+_SONG_CJK = ("Heiti SC", "Songti SC", "STSong")
+
+# Font a document asks for -> substitutes tried in order when it is not installed. Carlito, Caladea and
+# Liberation ship with the document engine (metric-compatible, open licences); the others are macOS fonts.
+MAC_FONT_SUBSTITUTIONS = (
+    FontSubstitution("Calibri", ("Carlito",), metric_compatible=True),
+    FontSubstitution("Cambria", ("Caladea",), metric_compatible=True),
+    FontSubstitution("Arial", ("Liberation Sans",), metric_compatible=True),
+    FontSubstitution("Times New Roman", ("Liberation Serif",), metric_compatible=True),
+    FontSubstitution("Courier New", ("Liberation Mono",), metric_compatible=True),
+    FontSubstitution("Calibri Light", ("Carlito",)),
+    FontSubstitution("Segoe UI", _SANS_LOOKALIKE),
+    FontSubstitution("Aptos", _SANS_LOOKALIKE),
+    FontSubstitution("Aptos Display", _SANS_LOOKALIKE),
+    FontSubstitution("Lucida Sans", ("Lucida Grande",)),
+    FontSubstitution("Lucida Sans Unicode", ("Lucida Grande",)),
+    FontSubstitution("Consolas", ("Liberation Mono", "Menlo")),
+    FontSubstitution("NSimSun", _SONG_CJK),
+    FontSubstitution("SimSun", _SONG_CJK),
+    FontSubstitution("SimHei", ("Heiti SC",)),
+    FontSubstitution("Microsoft YaHei", ("Heiti SC",)),
+)
+
+
+class MacDocumentFonts:
+    def __init__(self, home: Path | None = None):
+        self._home = Path(home) if home is not None else Path.home()
+
+    def substitutions(self) -> tuple[FontSubstitution, ...]:
+        return MAC_FONT_SUBSTITUTIONS
+
+    def sources(self) -> DocumentFontSources:
+        system = str(SYSTEM_FONT_DIR)
+        accept = (f"{system}/Supplemental", f"{system}/Supplemental/*",
+                  *(f"{system}/{name}" for name in _SYSTEM_FONT_FILES))
+        return DocumentFontSources(
+            # Font Book installs for one user into ~/Library/Fonts and for all users into /Library/Fonts.
+            directories=(SYSTEM_FONT_DIR, Path("/Library/Fonts"), self._home / "Library" / "Fonts"),
+            accept_globs=accept,
+            # The glob also matches sub-folders, which is why Supplemental itself is accepted above.
+            reject_globs=(f"{system}/*",),
+        )
+
+
 def build_services() -> OSServices:
-    return OSServices(data_dirs=MacDataDirs(), launcher=MacLauncher())
+    return OSServices(data_dirs=MacDataDirs(), launcher=MacLauncher(), document_fonts=MacDocumentFonts())
