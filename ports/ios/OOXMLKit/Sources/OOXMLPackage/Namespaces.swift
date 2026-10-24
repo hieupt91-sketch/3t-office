@@ -110,6 +110,7 @@ public enum ContentType {
     // PresentationML
     public static let slide = "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"
     public static let notesSlide = "application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"
+    public static let notesMaster = "application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml"
     // DrawingML
     public static let chart = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml"
 

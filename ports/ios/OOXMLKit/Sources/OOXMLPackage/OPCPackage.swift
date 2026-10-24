@@ -32,6 +32,7 @@ public final class OPCPackage {
     private var relsCache: [PartName: Relationships] = [:]
     private var pendingData: [PartName: Data] = [:]
     private var removed: Set<PartName> = []
+    private var sourceValidationIssues: Set<String> = []
     public var compression: ZipCompression = .deflate
 
     public convenience init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
@@ -51,6 +52,7 @@ public final class OPCPackage {
         } catch {
             throw PackageError.invalidPart(.contentTypes, "\(error)")
         }
+        sourceValidationIssues = Set(PackageValidator.validate(self))
     }
 
     /// Gói rỗng (để tạo tài liệu mới).
@@ -339,7 +341,7 @@ public final class OPCPackage {
     public func save(to url: URL, verify: Bool = true) throws {
         let data = try save()
         if verify {
-            let issues = PackageValidator.validate(data)
+            let issues = PackageValidator.validate(data).filter { !sourceValidationIssues.contains($0) }
             guard issues.isEmpty else { throw PackageError.validationFailed(issues) }
         }
         try data.write(to: url, options: .atomic)

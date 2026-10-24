@@ -79,11 +79,14 @@ public final class Slide {
         guard let np = notesPart else { return nil }
         let doc = try package.xml(np)
         guard let tree = doc.root.firstChild(NS.p, "cSld")?.firstChild(NS.p, "spTree") else { return nil }
+        var textShape: XElement?
         for sp in tree.children(NS.p, "sp") {
             let ph = sp.firstChild(NS.p, "nvSpPr")?.firstChild(NS.p, "nvPr")?.firstChild(NS.p, "ph")
-            if ph?.attribute("type") == "body", let tx = sp.firstChild(NS.p, "txBody") { return (np, tx) }
+            guard let tx = sp.firstChild(NS.p, "txBody") else { continue }
+            if ph?.attribute("type") == "body" { return (np, tx) }
+            if textShape == nil { textShape = tx }
         }
-        return nil
+        return textShape.map { (np, $0) }
     }
 
     /// Ghi chú của người trình bày (nil nếu slide chưa có ghi chú).
@@ -99,8 +102,11 @@ public final class Slide {
             package.markModified(n.part)
             return
         }
-        guard let master = try package.relatedPart(from: presentation.mainPart, .notesMaster), package.hasPart(master) else {
-            throw PresentationError.noNotesMaster
+        let master: PartName
+        if let existing = try package.relatedPart(from: presentation.mainPart, .notesMaster), package.hasPart(existing) {
+            master = existing
+        } else {
+            master = try createNotesMaster()
         }
         let np = package.uniquePartName(prefix: "/ppt/notesSlides/notesSlide", ext: "xml")
         let doc = try XDocument(string: """
@@ -115,6 +121,44 @@ public final class Slide {
         if let n = try notesShape() {
             DrawingText.setParagraphs(n.txBody, text.components(separatedBy: "\n"))
         }
+    }
+
+    private func createNotesMaster() throws -> PartName {
+        var theme: PartName?
+        for slide in presentation.slides {
+            guard let layout = slide.layoutPart,
+                  let slideMaster = try package.relatedPart(from: layout, .slideMaster),
+                  let candidate = try package.relatedPart(from: slideMaster, .theme),
+                  package.hasPart(candidate) else { continue }
+            theme = candidate
+            break
+        }
+        guard let theme else { throw PresentationError.noNotesMaster }
+
+        let master = package.uniquePartName(prefix: "/ppt/notesMasters/notesMaster", ext: "xml")
+        let document = try XDocument(string: """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <p:notesMaster xmlns:a="\(NS.a.primaryURI)" xmlns:r="\(NS.r.primaryURI)" xmlns:p="\(NS.p.primaryURI)"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:notesStyle/></p:notesMaster>
+        """)
+        package.setXML(document, for: master, contentType: ContentType.notesMaster)
+        try package.relationships(of: master).add(.theme, to: theme)
+
+        let relationshipID = try package.relationships(of: presentation.mainPart).add(.notesMaster, to: master)
+        let root = presentation.document.root
+        let list: XElement = root.firstChild(NS.p, "notesMasterIdLst") ?? {
+            let name = root.qualifiedName("notesMasterIdLst", in: NS.p).name
+            let element = XElement(name: name)
+            root.insertChild(element, schemaOrder: ["sldMasterIdLst", "notesMasterIdLst", "handoutMasterIdLst", "sldIdLst", "sldSz", "notesSz"])
+            return element
+        }()
+        let itemName = list.qualifiedName("notesMasterId", in: NS.p).name
+        let relationshipName = list.qualifiedName("id", in: NS.r).name
+        list.append(XElement(name: itemName, attributes: [
+            XAttribute(name: "id", value: "2147483648"),
+            XAttribute(name: relationshipName, value: relationshipID),
+        ]))
+        package.markModified(presentation.mainPart)
+        return master
     }
 }
 

@@ -145,6 +145,26 @@ final class OPCPackageTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), Data("gốc".utf8), "tệp đích giữ nguyên khi kiểm tra thất bại")
     }
 
+    func testSaveAllowsSourceIssuesButRejectsNewValidationIssues() throws {
+        let original = try Fixtures.data("real/sample-slides-smartart.pptx")
+        let sourceIssues = knownSourceIssues["real/sample-slides-smartart.pptx"]!
+        let pkg = try OPCPackage(data: original)
+        XCTAssertEqual(PackageValidator.validate(pkg), sourceIssues)
+
+        let dir = try Fixtures.scratchDirectory("opc-source-issue-save")
+        let url = dir.appendingPathComponent("preserved.pptx")
+        try pkg.save(to: url)
+        let saved = try Data(contentsOf: url)
+        XCTAssertEqual(PackageValidator.validate(saved), sourceIssues, "lỗi nguồn giữ nguyên sau khi lưu")
+        try RoundTrip.assertNoOpSaveIsLossless(original, saved: saved, name: "source-issue-noop.pptx")
+
+        let main = try pkg.mainDocumentPart()
+        try pkg.relationships(of: main).add(.slideLayout, to: PartName("/ppt/slideLayouts/newly-broken.xml"))
+        try Data("đích gốc".utf8).write(to: url)
+        XCTAssertThrowsError(try pkg.save(to: url))
+        XCTAssertEqual(try Data(contentsOf: url), Data("đích gốc".utf8), "lỗi mới vẫn chặn ghi và giữ nguyên tệp đích")
+    }
+
     func testNotAnOOXMLPackage() throws {
         XCTAssertThrowsError(try OPCPackage(data: try Fixtures.data("zip/basic-deflate.zip").prefix(0))) { _ in }
         let a = try Fixtures.data("zip/unicode-names.zip")

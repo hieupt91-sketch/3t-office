@@ -2079,6 +2079,10 @@ def _apply_native_export_postprocess(
                         raise DocumentEngineError(
                             f"KhÃ´ng thá»ƒ táº¡o watermark DOCX native: {exc}"
                         ) from exc
+            if original_docx:
+                patched = patcher.postprocess_writer_consecutive_page_breaks(
+                    patched, source_docx=original_docx,
+                )
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)

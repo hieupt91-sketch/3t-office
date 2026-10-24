@@ -193,6 +193,16 @@ final class OOXMLBridgeTests: XCTestCase {
         XCTAssertEqual(try call("slide.read", ["handle": h2, "index": 1])["notes"] as? String, "Ghi chú cuối")
     }
 
+    func testSetNotesReadsBackInTheSameSession() throws {
+        let h = try openFixture("real/slides-saved-roundtrip.pptx")
+        try call("slide.setNotes", ["handle": h, "index": 0, "text": "Ghi chú đọc lại cùng phiên"])
+        XCTAssertEqual(try call("slide.read", ["handle": h, "index": 0])["notes"] as? String, "Ghi chú đọc lại cùng phiên")
+        let exported = try call("exportBytes", ["handle": h])["base64"] as! String
+        let reopened = try call("open", ["base64": exported])
+        XCTAssertEqual(try call("slide.read", ["handle": reopened["handle"] as! String, "index": 0])["notes"] as? String,
+                       "Ghi chú đọc lại cùng phiên")
+    }
+
     // MARK: Lỗi
 
     func testErrorsAreStructured() throws {
