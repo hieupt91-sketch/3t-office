@@ -220,3 +220,22 @@ Môi trường: Mac Apple Silicon, macOS 15.8.1, Xcode 26.3, Swift 6.2.4.
 Ghi chú về môi trường: lần gọi `swift test` đầu dùng Swift thuộc Command Line Tools và dừng ở `no such module XCTest`; sau khi chọn toolchain Swift trong Xcode đầy đủ, các lượt test debug/release đều PASS. Không sửa mã nguồn hay test trong đợt xác nhận này.
 
 Phần còn cần người có thiết bị: chạy scheme trên iPhone/iPad thật, đo mở/lưu và đỉnh bộ nhớ; kiểm tệp Word/Excel/PowerPoint có nguồn Microsoft Office thật (nội dung giả) để có thêm đầu vào chuẩn ngoài fixtures tổng hợp/LibreOffice.
+
+### 8.12 Handoff cho cập nhật thư viện — các điểm đã xác nhận tốt (24/10/2026)
+
+Các điểm team có thể giữ làm tiêu chí hồi quy cho bản cập nhật tiếp theo:
+
+- **Offline rõ ràng:** OOXMLKit là Swift thuần, chỉ Foundation; không gọi mạng, Python, Node, LibreOffice hoặc dịch vụ ngoài trong luồng đọc/sửa/lưu.
+- **Nền tảng:** package khai báo iOS 15+, iPadOS 15+ (theo target iOS) và macOS 12+. Build release trên Mac đã PASS.
+- **ZIP/XML an toàn:** 78/78 artifact qua kiểm tra ZIP, CRC và XML; cơ chế lưu có bước mở lại/validate trước khi thay tệp đích.
+- **Round-trip không làm mất phần chưa sửa:** các phần OOXML không sửa được giữ byte nén; ảnh, biểu đồ và part phụ thuộc được giữ trong các ca đã kiểm.
+- **Word/Excel/PowerPoint:** 111/111 test trên macOS, iPhone Simulator và iPad Simulator; các mẫu DOCX/XLSX/PPTX đã mở bằng Microsoft Word/Excel/PowerPoint trên Mac không hiện repair.
+- **Góc khuất Excel:** hai fixture có `<family val="34"/>` bị openpyxl 3.1.5 từ chối, nhưng Excel thật mở được; không dùng lỗi validator này làm lý do sửa dữ liệu nguồn.
+- **Bridge:** giao thức `OOXMLBridge` đã có test 7/7 cho mở, đọc, sửa, xuất/lưu và mở lại ở cả DOCX/XLSX/PPTX.
+
+Việc nên đưa vào kế hoạch cập nhật thư viện:
+
+1. Thêm fixture nội dung giả do Word/Excel/PowerPoint thật tạo, tuyệt đối không commit tài liệu nghiệp vụ.
+2. Chạy bộ round-trip trên iPhone/iPad thật và đo tệp khoảng 1 MB/10 MB trước khi tối ưu bộ nhớ.
+3. Dựng app host iOS/iPadOS để kiểm UI, document picker, security-scoped bookmark và lưu offline; package hiện chưa phải app TestFlight.
+4. Giữ `openpyxl` ở vai trò kiểm chéo phụ; oracle chính cho các style OOXML lạ là validator ZIP/XML và mở lại bằng Office thật.

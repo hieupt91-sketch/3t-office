@@ -59,3 +59,9 @@ scripts/run-tests.sh
 ## 6. Lưu ý
 - Thư viện là **Swift thuần, chỉ Foundation**, chạy **offline**; không cần mạng, LibreOffice hay Python để build/test (Python chỉ để kiểm chéo tùy chọn).
 - Nếu `swift test` chậm ở phần ZIP/Deflate khi chạy **debug**, dùng bản **release** (nhanh hơn nhiều) — đã ghi trong `AGENTS.md`.
+
+## 7. Handoff cho team cập nhật thư viện
+
+Đã xác nhận các điểm tốt cần giữ làm hồi quy: package Swift thuần/Foundation chạy offline; target iOS 15+/iPadOS 15+ và macOS 12+; 111/111 test trên macOS, iPhone Simulator và iPad Simulator; 78/78 artifact qua ZIP/CRC/XML; DOCX/XLSX/PPTX mẫu mở bằng Word/Excel/PowerPoint trên Mac không hiện repair; `OOXMLBridge` có 7/7 test giao thức. Hai lỗi openpyxl với fixture `family=34` là giới hạn validator phụ, không phải kết luận file hỏng.
+
+Việc cập nhật tiếp theo: thêm fixture nội dung giả do Office thật tạo, chạy round-trip và đo bộ nhớ trên iPhone/iPad thật, rồi tích hợp package vào một app host để kiểm UI/document picker trước khi phát hành TestFlight. Không coi package hiện tại là một ứng dụng TestFlight độc lập.
