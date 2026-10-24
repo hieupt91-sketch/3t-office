@@ -1,0 +1,16 @@
+# VN Office macOS bundled Python runtime: exact, hash-locked third-party packages.
+# Source of truth for ranges: ../../requirements.txt (cryptography>=44.0.0,<51.0.0; pypdf>=6.21,<7).
+# Used by scripts/install-runtime-python-deps.sh (release Runtime and Xcode Debug overlay)
+# with: pip download|install --require-hashes --only-binary=:all: -r <this file>.
+# Wheels: CPython 3.12, macOS arm64 + x86_64. Hashes verified against PyPI JSON on 2026-10-25.
+# cryptography stays at 44.0.2: the pilot Python/OpenSSL ABI rejects the 50.0.2 macOS wheel.
+cryptography==44.0.2 \
+    --hash=sha256:8e0ddd63e6bf1161800592c71ac794d3fb8001f2caebe0966e77c5234fa9efc3 \
+    --hash=sha256:efcfe97d1b3c79e486554efddeb8f6f53a4cdd4cf6086642784fa31fc384e1d7
+cffi==2.1.1 \
+    --hash=sha256:f81b3b8f3d4e343550fa4baa0e479bba9f2d29ce9c2e9b51d1ce1718d7442fcf \
+    --hash=sha256:c8c69575568085ba0b1b10c0249d779a214aea6f6522e949a0fc9fb0fcb449d0
+pycparser==3.12 \
+    --hash=sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e
+pypdf==6.21.2 \
+    --hash=sha256:1d44d1a3a200f25062adff0085b02040e4646431ac2ccac22e42679e91466084

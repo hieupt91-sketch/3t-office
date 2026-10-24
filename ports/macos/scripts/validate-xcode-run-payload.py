@@ -62,10 +62,9 @@ def validate(product_root: Path, product_name: str, architecture: str) -> list[s
     marker = product_root / "RuntimeOverlay/runtime-arch.txt"
     if not marker.is_file() or marker.read_text(encoding="utf-8").strip() != architecture:
         errors.append(f"RuntimeOverlay/runtime-arch.txt phải xác nhận {architecture}")
-    if not (overlay / "cryptography/__init__.py").is_file():
-        errors.append(f"Overlay thiếu cryptography package: {overlay}")
-    if not (overlay / "cffi/__init__.py").is_file():
-        errors.append(f"Overlay thiếu cffi package: {overlay}")
+    for package in ("cryptography", "cffi", "pypdf"):
+        if not (overlay / package / "__init__.py").is_file():
+            errors.append(f"Overlay thiếu {package} package: {overlay}")
     return errors
 
 
