@@ -21005,18 +21005,44 @@ def _writer_add_br_page_run(para_xml: str) -> str:
     return para_xml
 
 
-def _writer_collapse_consecutive_page_breaks(xml: str) -> str:
+def _writer_collapse_consecutive_page_breaks(xml: str, source_xml: str | None = None) -> str:
     """R13d: empty br-carrier + next paragraph's W22d pageBreakBefore would paginate twice.
 
     Keep the empty w:br type=page (original Word form) and drop the extra pageBreakBefore.
+    When the order is reversed, only drop the earlier pageBreakBefore if matching
+    source paragraphs prove it was introduced during conversion; intentional
+    consecutive breaks in the source remain untouched.
     """
     ranges = _writer_body_paragraph_ranges(xml)
     if len(ranges) < 2:
         return xml
+    source_ranges = _writer_body_paragraph_ranges(source_xml or "")
+    source_matches = len(source_ranges) == len(ranges)
     replacements: list[tuple[int, int, str]] = []
     for index in range(1, len(ranges)):
         prev = xml[ranges[index - 1][0]:ranges[index - 1][1]]
         curr = xml[ranges[index][0]:ranges[index][1]]
+        if (
+            source_matches
+            and not _paragraph_plain_text(prev).strip()
+            and re.search(r"<w:pageBreakBefore\b", prev, re.IGNORECASE)
+            and re.search(r"<w:br\b[^>]*\bw:type=[\"']page[\"']", curr, re.IGNORECASE)
+        ):
+            source_prev = source_xml[source_ranges[index - 1][0]:source_ranges[index - 1][1]]
+            source_curr = source_xml[source_ranges[index][0]:source_ranges[index][1]]
+            same_flow = (
+                _paragraph_plain_text(source_prev) == _paragraph_plain_text(prev)
+                and _paragraph_plain_text(source_curr) == _paragraph_plain_text(curr)
+            )
+            if (
+                same_flow
+                and not re.search(r"<w:pageBreakBefore\b", source_prev, re.IGNORECASE)
+                and re.search(r"<w:br\b[^>]*\bw:type=[\"']page[\"']", source_curr, re.IGNORECASE)
+            ):
+                new_prev = _remove_page_break_before_from_paragraph(prev)
+                if new_prev != prev:
+                    replacements.append((ranges[index - 1][0], ranges[index - 1][1], new_prev))
+                continue
         if _paragraph_plain_text(prev).strip():
             continue
         if not _writer_has_page_break(prev):
@@ -21030,6 +21056,24 @@ def _writer_collapse_consecutive_page_breaks(xml: str) -> str:
     for start, end, new_xml in sorted(replacements, key=lambda item: item[0], reverse=True):
         result = result[:start] + new_xml + result[end:]
     return result
+
+
+def postprocess_writer_consecutive_page_breaks(
+    docx_bytes: bytes, *, source_docx: bytes | None = None,
+) -> bytes:
+    """Final source-aware cleanup after all Writer DOCX postprocessors run."""
+    if not docx_bytes or not source_docx:
+        return docx_bytes
+    converted_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    source_bytes = read_zip_entry(source_docx, "word/document.xml")
+    if not converted_bytes or not source_bytes:
+        return docx_bytes
+    converted_xml = converted_bytes.decode("utf-8", errors="replace")
+    source_xml = source_bytes.decode("utf-8", errors="replace")
+    cleaned_xml = _writer_collapse_consecutive_page_breaks(converted_xml, source_xml)
+    if cleaned_xml == converted_xml:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": cleaned_xml.encode("utf-8")})
 
 
 def _insert_empty_paragraph_with_page_break_before_table(table_xml: str, table_start: int, table_end: int, xml: str) -> str:
@@ -23112,7 +23156,6 @@ def postprocess_writer_docx(
     new_xml = _writer_patch_edited_paragraphs(new_xml, original_xml)
     new_xml = _restore_untouched_writer_equations(new_xml, original_xml)
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
-    new_xml = _writer_collapse_consecutive_page_breaks(new_xml)
     new_xml = _writer_unique_docpr_ids(new_xml)
 
     replacements: dict[str, bytes] = {}
@@ -23139,6 +23182,9 @@ def postprocess_writer_docx(
     )
     if source_html and ("data-vno-outline" in source_html or "<h" in source_html.lower() or "data-vno-collapsed" in source_html):
         new_xml = _writer_restore_created_paragraph_css(new_xml, source_html)
+    # CSS restoration can reintroduce pageBreakBefore on an empty paragraph
+    # immediately before a source manual break, so collapse only after that pass.
+    new_xml = _writer_collapse_consecutive_page_breaks(new_xml, original_xml)
     if new_xml != converted_xml:
         replacements["word/document.xml"] = new_xml.encode("utf-8")
 
