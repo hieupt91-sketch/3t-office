@@ -275,6 +275,52 @@ public final class Worksheet {
         } ?? []
     }
 
+    /// Đặt hoặc thay liên kết ngoài hay liên kết tới vị trí trong workbook cho một ô.
+    public func setHyperlink(at a1: String, target: String, location: String? = nil, isExternal: Bool = true) throws {
+        let reference = try parse(a1)
+        guard !target.isEmpty else { throw SpreadsheetError.invalidSetting("đích liên kết không được để trống") }
+        let links = document.root.firstChild(NS.s, "hyperlinks") ?? {
+            let element = XElement(name: q("hyperlinks"))
+            document.root.insertChild(element, schemaOrder: Worksheet.worksheetOrder)
+            return element
+        }()
+        let old = links.children(NS.s, "hyperlink").first { $0.attribute("ref") == reference.a1 }
+        let oldID = old?.attribute("id", in: NS.r)
+        old?.removeFromParent()
+        let element = XElement(name: q("hyperlink"), attributes: [XAttribute(name: "ref", value: reference.a1)])
+        if isExternal {
+            let rels = try workbook.package.relationships(of: part)
+            let rid = rels.addExternal(.hyperlink, target: target)
+            element.setAttribute("r:id", rid)
+        } else {
+            element.setAttribute("location", location ?? target)
+        }
+        if let location, isExternal { element.setAttribute("location", location) }
+        links.append(element)
+        if let oldID, !links.children(NS.s, "hyperlink").contains(where: { $0.attribute("id", in: NS.r) == oldID }) {
+            let rels = try workbook.package.relationships(of: part)
+            rels.remove(id: oldID)
+        }
+        workbook.package.markModified(part)
+    }
+
+    /// Xóa siêu liên kết của ô và quan hệ ngoài tương ứng nếu quan hệ đó không còn được dùng.
+    public func removeHyperlink(at a1: String) throws {
+        let reference = try parse(a1)
+        guard let links = document.root.firstChild(NS.s, "hyperlinks"),
+              let element = links.children(NS.s, "hyperlink").first(where: { $0.attribute("ref") == reference.a1 }) else { return }
+        let rid = element.attribute("id", in: NS.r)
+        element.removeFromParent()
+        if links.children(NS.s, "hyperlink").isEmpty { links.removeFromParent() }
+        if let rid {
+            let rels = try workbook.package.relationships(of: part)
+            if !(document.root.firstChild(NS.s, "hyperlinks")?.children(NS.s, "hyperlink").contains { $0.attribute("id", in: NS.r) == rid } ?? false) {
+                rels.remove(id: rid)
+            }
+        }
+        workbook.package.markModified(part)
+    }
+
     public func columnWidth(_ column: Int) -> Double? {
         for col in document.root.firstChild(NS.s, "cols")?.children(NS.s, "col") ?? [] {
             if let a = Int(col.attribute("min") ?? ""), let b = Int(col.attribute("max") ?? ""), (a...b).contains(column) {

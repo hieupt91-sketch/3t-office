@@ -31,6 +31,29 @@ final class P1WorksheetFeatureTests: XCTestCase {
         )
     }
 
+    func testHyperlinkAndScalarConcatRewrite() throws {
+        let original = try Fixtures.data("xlsx/rich-excel.xlsx")
+        let workbook = try Workbook(data: original)
+        let sheet = try workbook.worksheet(named: "Dữ liệu")
+        try sheet.setHyperlink(at: "B2", target: "https://example.test/a?x=1&y=2")
+        try sheet.setHyperlink(at: "C2", target: "'Tổng hợp'!A1", isExternal: false)
+
+        let saved = try workbook.save()
+        let reopened = try Workbook(data: saved)
+        let links = try reopened.worksheet(named: "Dữ liệu").hyperlinks
+        XCTAssertTrue(links.contains { $0.cell == "B2" && $0.target.contains("example.test/a?x=1&y=2") })
+        XCTAssertTrue(links.contains { $0.cell == "C2" && $0.target == "'Tổng hợp'!A1" })
+        XCTAssertEqual(FormulaRewriter.rewriteScalarConcat("CONCAT(A1, \"x,y\", UPPER(B1))"), "(A1)&(\"x,y\")&(UPPER(B1))")
+        XCTAssertEqual(FormulaRewriter.rewriteScalarConcat("MYCONCAT(A1,B1)"), "MYCONCAT(A1,B1)")
+        try RoundTrip.verify(
+            original: original,
+            saved: saved,
+            allowedChanges: ["xl/worksheets/sheet1.xml", "xl/worksheets/_rels/sheet1.xml.rels"],
+            requireChanged: ["xl/worksheets/sheet1.xml", "xl/worksheets/_rels/sheet1.xml.rels"],
+            name: "xlsx-p1-hyperlinks.xlsx"
+        )
+    }
+
     func testConditionalFormattingAndValidationRoundTrip() throws {
         let original = try Fixtures.data("xlsx/rich-excel.xlsx")
         let workbook = try Workbook(data: original)
