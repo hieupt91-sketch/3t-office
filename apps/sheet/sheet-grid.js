@@ -10,6 +10,7 @@ import { advancedFilterRows } from "./advanced-filter.js";
 import { expandStructuredReferences, hasStructuredReference, renameTableInStructuredReferences, renameColumnInStructuredReferences } from "./structured-references.js";
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
+import { bindNumericDialogValidation } from "../../platform/ui-kit/numeric-dialog-validation.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 import {
@@ -2155,7 +2156,13 @@ export class SheetGridController {
       message: t("sheetDialogs.rowHeightMessage", "Chiều cao hàng (pixel):"),
       defaultValue: String(current),
       confirmText: t("sheetDialogs.apply", "Áp dụng"),
-      cancelText: t("sheetDialogs.cancel", "Hủy")
+      cancelText: t("sheetDialogs.cancel", "Hủy"),
+      numericValidation: {
+        min: MIN_ROW_HEIGHT_PX,
+        max: MAX_ROW_HEIGHT_PX,
+        integer: true,
+        message: () => t("sheetDialogs.invalidRowColSize", "Vui lòng nhập một số hợp lệ trong khoảng cho phép.")
+      }
     });
     if (value == null) return false;
     const parsed = Number(String(value).trim().replace(",", "."));
@@ -21657,8 +21664,8 @@ export class SheetGridController {
         </optgroup>
         <optgroup label="${t("sheetDialogs.cfAdvanced")}"><option value="formula">${t("sheetDialogs.formulaRule")}</option></optgroup>
       </select></label>
-      <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="text" value="0"></label>
-      <label id="vno-cf-value2-row">${t("sheetDialogs.maximum")}<input id="vno-cf-value2" type="number" value="100"></label>
+      <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="number" min="-1000000000" max="1000000000" required value="0"></label>
+      <label id="vno-cf-value2-row">${t("sheetDialogs.maximum")}<input id="vno-cf-value2" type="number" min="-1000000000" max="1000000000" required value="100"></label>
       <label id="vno-cf-text-row">${t("sheetDialogs.textValue")}<input id="vno-cf-text" type="text"></label>
       <label id="vno-cf-date-row">${t("sheetDialogs.datePeriod")}<select id="vno-cf-date"><option value="yesterday">${t("sheetDialogs.yesterday")}</option><option value="today">${t("sheetDialogs.today")}</option><option value="tomorrow">${t("sheetDialogs.tomorrow")}</option><option value="last7Days">${t("sheetDialogs.last7Days")}</option><option value="lastWeek">${t("sheetDialogs.lastWeek")}</option><option value="thisWeek">${t("sheetDialogs.thisWeek")}</option><option value="nextWeek">${t("sheetDialogs.nextWeek")}</option><option value="lastMonth">${t("sheetDialogs.lastMonth")}</option><option value="thisMonth">${t("sheetDialogs.thisMonth")}</option><option value="nextMonth">${t("sheetDialogs.nextMonth")}</option></select></label>
       <label id="vno-cf-rank-row"><span id="vno-cf-rank-label">${t("sheetDialogs.rankCount")}</span><input id="vno-cf-rank" type="number" min="1" max="1000" step="1" required value="10"></label>
@@ -21673,6 +21680,19 @@ export class SheetGridController {
     overlay.querySelector(".vno-rule-cancel").textContent = t("sheetDialogs.close");
     let editingId = null;
     const type = overlay.querySelector("#vno-cf-type");
+    const cfValue = overlay.querySelector("#vno-cf-value");
+    const cfValue2 = overlay.querySelector("#vno-cf-value2");
+    const validateNumericValues = bindNumericDialogValidation({
+      inputs: [cfValue, cfValue2],
+      button: overlay.querySelector(".vno-rule-apply"),
+      error: overlay.querySelector(".vno-rule-error"),
+      min: -1000000000,
+      max: 1000000000,
+      message: () => t("sheetDialogs.invalidNumber", "Vui lòng nhập một giá trị số hợp lệ."),
+      isActive: input => input === cfValue
+        ? ["greaterThan", "lessThan", "between", "equal"].includes(type.value)
+        : type.value === "between"
+    });
     const ruleLabel = rule => {
       const labels = {
         greaterThan: "greaterThan", lessThan: "lessThan", between: "between", equal: "equalTo", blank: "blankCell",
@@ -21707,8 +21727,11 @@ export class SheetGridController {
     };
     const updateFields = () => {
       const current = type.value;
-      overlay.querySelector("#vno-cf-value-row").hidden = !["greaterThan", "lessThan", "between", "equal"].includes(current);
+      const numericRule = ["greaterThan", "lessThan", "between", "equal"].includes(current);
+      overlay.querySelector("#vno-cf-value-row").hidden = !numericRule;
       overlay.querySelector("#vno-cf-value2-row").hidden = current !== "between";
+      cfValue.required = numericRule;
+      cfValue2.required = current === "between";
       overlay.querySelector("#vno-cf-text-row").hidden = current !== "textContains";
       overlay.querySelector("#vno-cf-date-row").hidden = current !== "dateOccurs";
       const rankTypes = ["top", "bottom", "topPercent", "bottomPercent"];
@@ -21732,8 +21755,8 @@ export class SheetGridController {
       overlay.querySelector("#vno-cf-formula").value = "=";
       overlay.querySelector("#vno-cf-rank").value = "10";
       overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.cfAddRule");
-      overlay.querySelector(".vno-rule-error").textContent = "";
       updateFields();
+      validateNumericValues();
     };
     const editRule = rule => {
       if (!rule) return;
@@ -21752,11 +21775,15 @@ export class SheetGridController {
       overlay.querySelector("#vno-cf-reverse").checked = !!rule.reverse;
       overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.cfSaveRule");
       updateFields();
+      validateNumericValues();
       type.focus();
     };
     overlay.querySelector("#vno-cf-new").addEventListener("click", resetEditor);
-    type.addEventListener("change", updateFields);
+    type.addEventListener("change", () => { updateFields(); validateNumericValues(); });
+    cfValue.addEventListener("input", validateNumericValues);
+    cfValue2.addEventListener("input", validateNumericValues);
     overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      if (!validateNumericValues()) return;
       const range = this._parseRange(overlay.querySelector("#vno-cf-range").value);
       const config = {
         type: type.value,

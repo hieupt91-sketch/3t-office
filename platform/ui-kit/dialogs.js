@@ -6,6 +6,7 @@
 
 import { ICONS } from "./icons.js";
 import { t } from "../i18n/i18n.js";
+import { bindNumericDialogValidation } from "./numeric-dialog-validation.js";
 import { captureEditorFocus, restoreEditorFocus, isEditorElement } from "../shell/focus-manager.js";
 
 let dialogIdCounter = 0;
@@ -331,7 +332,8 @@ export function showPromptDialog({
   defaultValue = "",
   placeholder = "",
   confirmText = "Đồng ý",
-  cancelText = "Hủy bỏ"
+  cancelText = "Hủy bỏ",
+  numericValidation = null
 }) {
   return new Promise((resolve) => {
     if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body) {
@@ -386,8 +388,21 @@ export function showPromptDialog({
     const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
     const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
     const errorBox = overlay.querySelector(".vno-dialog-error");
+    const validateNumeric = numericValidation ? bindNumericDialogValidation({
+      inputs: input,
+      button: okBtn,
+      error: errorBox,
+      min: numericValidation.min,
+      max: numericValidation.max,
+      integer: numericValidation.integer,
+      message: numericValidation.message
+    }) : null;
 
     const commit = () => {
+      if (validateNumeric && !validateNumeric()) {
+        input.focus();
+        return;
+      }
       if (!String(input.value || "").trim()) {
         errorBox.textContent = t("common.promptRequired", "Vui lòng nhập nội dung trước khi tiếp tục.");
         input.setAttribute("aria-invalid", "true");
@@ -400,7 +415,7 @@ export function showPromptDialog({
     okBtn.addEventListener("click", commit);
     cancelBtn.addEventListener("click", () => finish(null));
     closeBtn.addEventListener("click", () => finish(null));
-    input.addEventListener("input", () => {
+    if (!validateNumeric) input.addEventListener("input", () => {
       errorBox.textContent = "";
       input.removeAttribute("aria-invalid");
     });
