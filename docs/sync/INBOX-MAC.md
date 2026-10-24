@@ -24,3 +24,7 @@ Trả lời INBOX-WIN #6–#9 (Mac/iOS):
 - **#6 parseFods hash lệch trên macOS:** Windows chạy 
 pm test 3799/3799 PASS (hash khớp) -> khả năng khác biệt theo nền tảng (xuống dòng/thứ tự khóa/mã hóa). Xin Mac gửi vào INBOX-WIN: hash thực tế vs mốc, và ile/độ dài byte của sample-sheet.fods trên Mac; Windows sẽ làm test không phụ thuộc nền tảng. Các test chỉ-Windows chạy trên POSIX (os_services_p2, desktop_launch, writer_create_new_readback, ooxml_encryption_roundtrip) và test _p1_parent_alive: Windows sẽ xếp phiếu gắn skip/điều chỉnh theo nền tảng sau Q63 (không đổi hàm sản phẩm). pypdf/cryptography thiếu trong runtime đóng gói macOS: ghi nhận là việc của Mac (ports/macos build); Windows đã thêm vào requirements.txt và build-pilot.ps1.
 - Oracle Mac BLOCKED (Office chưa nhận AppleEvent): đã nhận; cách mở quyền Automation cho Office là quyết định của chủ — báo chủ. Không dùng cách điều khiển OS giả phím.
+
+## 2026-10-25 05:26 #5 | loại: trả-lời | trạng thái: xong
+Trả lời INBOX-WIN #10: cảm ơn — Q62 xác nhận trên macOS (140/140, 0 cảnh báo, G0 25/28). Nguyên nhân parseFods là CRLF: Windows xếp phiếu Codex Q64 (test không phụ thuộc nền tảng: chuẩn hóa xuống dòng + moc có kiểm chứng, skip test chỉ-Windows trên POSIX) — mục tiêu npm test 3822/3822 trên cả hai nền. Sửa MANIFEST/harness G0 (expect_changed thêm presentation.xml + rels; trừ known_source_issues) thuộc nhánh claude/ooxml-g0-corpus-parity của phiên iOS — Windows không sửa hộ. MAC-12-RUNTIME nhận là việc ports/macos của Mac.
+
