@@ -347,7 +347,9 @@ public final class Worksheet {
         if isExternal {
             let rels = try workbook.package.relationships(of: part)
             let rid = rels.addExternal(.hyperlink, target: target)
-            element.setAttribute("r:id", rid)
+            let (relationshipID, needsNamespace) = document.root.qualifiedName("id", in: NS.r)
+            if needsNamespace { document.root.setAttribute("xmlns:r", NS.r.primaryURI) }
+            element.setAttribute(relationshipID, rid)
         } else {
             element.setAttribute("location", location ?? target)
         }
@@ -432,6 +434,9 @@ public final class Worksheet {
               !view.children(NS.s, "pane").isEmpty else { return }
         for element in view.children(NS.s, "pane") { element.removeFromParent() }
         for element in view.children(NS.s, "selection") { element.removeFromParent() }
+        let selection = XElement(name: view.qualifiedName("selection", in: NS.s).name,
+                                 attributes: [XAttribute(name: "activeCell", value: "A1"), XAttribute(name: "sqref", value: "A1")])
+        view.insertChild(selection, schemaOrder: ["pane", "selection", "pivotSelection"])
         workbook.package.markModified(part)
     }
 
@@ -587,7 +592,13 @@ public final class Worksheet {
             return element.attribute("sqref")?.split(whereSeparator: { $0.isWhitespace }).contains { String($0) == range.description } == true
         }
         guard !matches.isEmpty else { return }
-        for element in matches { element.removeFromParent() }
+        for element in matches {
+            guard let range else { element.removeFromParent(); continue }
+            let remaining = (element.attribute("sqref") ?? "").split(whereSeparator: { $0.isWhitespace })
+                .map(String.init).filter { $0 != range.description }
+            if remaining.isEmpty { element.removeFromParent() }
+            else { element.setAttribute("sqref", remaining.joined(separator: " ")) }
+        }
         workbook.package.markModified(part)
     }
 
@@ -620,14 +631,14 @@ public final class Worksheet {
 
     private static func legacyPasswordHash(_ password: String) -> String {
         var hash: UInt16 = 0
-        for byte in password.utf16 {
+        for byte in password.utf16.reversed() {
             let rotate = (hash & 0x4000) != 0
             hash = (hash << 1) & 0x7fff
             if rotate { hash |= 1 }
             hash ^= byte
         }
         hash = ((hash & 0x4000) != 0 ? ((hash << 1) & 0x7fff) | 1 : (hash << 1) & 0x7fff)
-        hash ^= UInt16(password.utf16.count)
+        hash ^= UInt16(truncatingIfNeeded: password.utf16.count)
         hash ^= 0xCE4B
         return String(format: "%04X", hash)
     }
@@ -639,7 +650,8 @@ public final class Worksheet {
                                       "greaterThanOrEqual", "lessThanOrEqual"]
         guard types.contains(validation.type), validation.operator.map({ operators.contains($0) }) ?? true,
               validation.type != "list" || validation.formula1 != nil,
-              validation.operator == nil || (validation.formula1 != nil && validation.formula2 != nil) else {
+              validation.operator == nil || (validation.formula1 != nil &&
+                  ((validation.operator == "between" || validation.operator == "notBetween") ? validation.formula2 != nil : validation.formula2 == nil)) else {
             throw SpreadsheetError.invalidSetting("quy tắc kiểm tra dữ liệu không hợp lệ")
         }
         let validations = document.root.firstChild(NS.s, "dataValidations") ?? {
@@ -683,7 +695,7 @@ public final class Worksheet {
             }()
             tabColor.setAttribute("rgb", argb)
         }
-        if properties.elements.isEmpty { properties.removeFromParent() }
+        if properties.elements.isEmpty && properties.attributes.isEmpty { properties.removeFromParent() }
         workbook.package.markModified(part)
     }
 
@@ -1052,7 +1064,7 @@ public final class Worksheet {
             workbook.invalidateCalcChain()
         }
         if let f = cellElements[ref]?.firstChild(NS.s, "f"), f.attribute("t") == "shared",
-           f.attribute("ref") != nil, let si = f.attribute("si") {
+           let si = f.attribute("si") {
             expandSharedFormula(si)
         }
     }
