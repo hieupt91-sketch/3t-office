@@ -556,7 +556,7 @@ public final class OOXMLBridge {
                 try worksheet.clear(existing.reference.a1)
             }
         }
-        for (index, operation) in structuralOps.enumerated() {
+        for operation in structuralOps {
             let name = operation["op"] as! String
             let operationArgs = operation["args"] as! [String: Any]
             let worksheet = try workbook.worksheet(named: operationArgs["sheet"] as! String)
