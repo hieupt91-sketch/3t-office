@@ -1206,3 +1206,25 @@ DEPENDENCIES/BLOCKERS: Không thêm dependency. Chưa có bằng chứng để c
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Writer `.doc` legacy06 và Sheet `.xls` legacy06 ở sáng/tối (4 ảnh); 20 ảnh Sheet `.xls` sau khi chờ thanh cảnh báo render ở 1366x768. Thanh cảnh báo và nút Lưu thành nằm trọn, chữ/nút đọc được ở theme sáng; nội dung lưới có chỗ bị cắt và legacy08 có `#NAME?`. Theme tối làm một số chữ tài liệu legacy tương phản kém.
 NEXT ACTION: Tiếp tục điều tra riêng độ trung thực `.doc` và nguyên nhân công thức `.xls`; xem chi tiết Q52 tại `E:\VNOffice-briefs\logs\Q52-work`.
+
+
+## Q53 — Handoff điều tra 24/10/2026
+
+TASK: Q53 — điều tra sâu 9 tệp `.doc` lỗi nội dung/hình/font/lề/số trang sau khi mở.
+AGENT/ROLE: Codex / Windows desktop CDP.
+BRANCH: codex/queue-19-10.
+WORKTREE: E:\VNOffice-codex-queue.
+OBJECTIVE: Đối chiếu Word COM nguồn, chuyển đổi LibreOffice DOCX/FODT và các đường mở A/B/C của app; định vị bước làm thay đổi dữ liệu và ghi nhận UI.
+FINDINGS: Word COM ReadOnly đọc nguồn 9/9, không treo. LibreOffice tạo DOCX/FODT 18/18. A/C khớp nhau về kết quả app; app nhiều hơn Word một trang ở 4/9. Lỗi chữ “Đ ộc lập”, tên công ty ngắt sau “C”, “T el” đã có trong HTML thô LibreOffice DOCX/FODT→HTML trước `_normalizeImportedHtml`; DOCX XML giữ chữ liền. DOCX/FODT→HTML không cho fallback an toàn (FODT còn giảm một ảnh legacy20). Lề legacy10/15 đổi từ 7.10/9.05 sang 20.65/13.55 pt khi LibreOffice chuyển đổi. Không tìm thấy sửa mã an toàn; không sửa mã.
+IMPLEMENTATION SUMMARY: Chỉ thêm báo cáo điều tra; không thêm importer/fallback và không thay đổi nội dung mẫu.
+FILES CHANGED: `docs/LEGACY-DOC-DEEPDIVE-24-10.md`; phần handoff Q53 trong `09-templates/AGENT-HANDOFF.md`.
+COMMITS: Ghi trong `E:\VNOffice-briefs\logs\Q53.DONE`.
+COMMANDS RUN: `git merge main`; Word COM ReadOnly 9 nguồn; LibreOffice DOCX/FODT 18 đầu ra; CDP A/C chụp và xem 18 ảnh; batch XLSX 27; batch DOCX nhỏ 8; CDP `.xls` 20; `npm test`; i18n parity; checklist evidence; `python -m pytest tests -q`.
+BUILD RESULT: NOT RUN — không đổi mã/build.
+TEST RESULTS: PASS — Node 3793/3793; pytest 1140 passed, 1 skipped; i18n VI=3174/EN=3174, missing=0; checklist evidence 3 checklist, lowered=0; DOCX nhỏ 8/8; `.xls` CDP 20/20. XLSX 27/27 lưu, diff=0 và lint sạch; overall BLOCKED do Excel COM bị chặn theo quy tắc.
+KNOWN FAILURES: App pagination lệch 4/9 (06,13,14,20); lỗi chữ ở 06/13/20; lề đổi ở 10/15. Đường B `.fodt` trực tiếp bị chặn ở nhận dạng loại tệp. Excel COM BLOCKED; batch XLSX không có oracle Excel.
+RISKS: Chưa tách riêng đầu ra HTML/chuẩn hóa khỏi layout app cho chênh lệch trang. Chưa chứng minh fallback thay thế tốt hơn trên toàn bộ corpus.
+DEPENDENCIES/BLOCKERS: Không thêm dependency. Follow-up nên dùng fixture tổng hợp, feature flag/fallback và đối chiếu cả 20 DOC, 8 DOCX, 27 XLSX, 20 XLS.
+CORE PATCH ID (if any): None.
+GIAO DIEN ĐÃ XEM: 18 ảnh Writer A/C ở 1366x768 và 20 ảnh Sheet `.xls` ở 1366x768; toàn bộ ảnh được xem qua contact sheet. Ribbon/cảnh báo/nút lưu không bị che hoặc tràn. Ghi nhận nội dung sai/ngắt ở legacy06/13/20, đầu trang/logo sát chữ ở 14, lưới bị cắt theo cột/viewport và `#NAME?` ở legacy08; xem chi tiết trong báo cáo Q53.
+NEXT ACTION: Báo cáo chi tiết `docs/LEGACY-DOC-DEEPDIVE-24-10.md`; chờ phiếu follow-up nếu cần thử importer/fallback có kiểm chứng.
