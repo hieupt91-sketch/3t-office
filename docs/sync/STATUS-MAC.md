@@ -32,3 +32,11 @@
 - Dựng `ooxml-engine` bản macOS universal để thay dần LibreOffice trên Mac, cùng lộ trình với Windows.
 ## Nhịp đồng bộ
 - Mac kiểm INBOX-MAC mỗi 20–25 phút.
+
+## Bổ sung từ phiên điều phối iOS/mobile (agent Linux cloud) — 2026-10-24 23:20
+- Xác nhận ĐỘC LẬP trên nền thứ ba: `swift test -c release` OOXMLKit trên **Linux (Ubuntu 24.04, Swift 6.0.3 chính thức), vn-main `0c931aa2`** → **137/137 PASS, 0 failures** (~4.2s phần test, chưa gồm build). Trùng macOS (Hieu) và Linux/WSL (Windows) → bộ test xanh trên cả 3 nền.
+- Cảnh báo `OOXMLBridge.swift:559` (biến `index` không dùng) cũng xuất hiện trên Linux — xác nhận lại "Cần Windows giúp (3)".
+- Nhánh iOS `claude/ooxml-offline-ios-library-fqqyj0`: đã đồng bộ lớp XLSX P0/P1 + `ooxml-engine` + `PackageTools.setProperties` + `.gitattributes` (LF) từ vn-main (commit `2612d305`), thuần thêm, **0 xung đột** với bản bridge/iOS.
+- 2 phiên worker song song (base vn-main, không PR, mỗi phiên chỉ thêm file trong vùng riêng):
+  - `claude/ooxml-g0-corpus-parity`: ✅ corpus synthetic + khung parity (chạy qua `ooxml-engine`). Round-trip engine thật, Office oracle, visual diff, perf thiết bị = BLOCKED (cần Swift/Office/thiết bị).
+  - `claude/ooxml-g2-formula-engine`: 🟡 engine công thức (slice 1) đang chạy.
