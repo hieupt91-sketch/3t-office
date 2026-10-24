@@ -5,6 +5,8 @@ body { -webkit-text-size-adjust: 100%; }
 .vno-workspace, .vno-editor-container { min-width: 0 !important; min-height: 0 !important; }
 .vno-ribbon { flex: 0 0 auto; overflow: hidden !important; }
 .vno-topbar > *, .vno-topbar-left > *, .vno-topbar-center > *, .vno-topbar-right > * { flex-shrink: 0 !important; }
+.vno-topbar { position: relative !important; z-index: 120 !important; pointer-events: auto !important; }
+.vno-topbar button, .vno-topbar [role="button"] { pointer-events: auto !important; }
 .vno-ribbon-tabs { overflow-x: auto !important; overflow-y: hidden !important; white-space: nowrap; -webkit-overflow-scrolling: touch; }
 .vno-ribbon-tab, .vno-ribbon-tab-file, .vno-ribbon-content > *, .vno-ribbon-group { flex-shrink: 0 !important; }
 .vno-app-switcher-btn, .vno-switcher-item, .vno-quick-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }

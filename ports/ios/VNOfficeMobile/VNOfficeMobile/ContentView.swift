@@ -17,6 +17,9 @@ struct MobileOfficeWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let controller = WKUserContentController()
         let diagnostics = """
+        window.vnoMobileFiles = Object.freeze({
+          request: (payload) => window.webkit.messageHandlers.mobileFiles.postMessage(payload)
+        });
         window.addEventListener('error', function(e) {
           document.documentElement.dataset.vnoError = String(e.message || e.error || 'unknown');
         });
