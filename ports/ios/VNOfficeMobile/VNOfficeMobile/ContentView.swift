@@ -76,7 +76,22 @@ struct MobileOfficeWebView: UIViewRepresentable {
                       save: (base64, filename) => window.vnoMobileFiles.request({ op: 'save', base64, filename })
                     }),
                     ooxml: Object.freeze({
-                      call: (payload) => callNative('ooxml', payload)
+                      call: (payload) => callNative('ooxml', payload),
+                      open: (base64) => callNative('ooxml', { op: 'open', base64 }),
+                      exportBytes: (handle) => callNative('ooxml', { op: 'exportBytes', handle })
+                    }),
+                    document: Object.freeze({
+                      open: async () => {
+                        const picked = await window.vnoMobileFiles.request({ op: 'open' });
+                        if (!picked?.ok || !picked.base64) return picked;
+                        const parsed = await callNative('ooxml', { op: 'open', base64: picked.base64 });
+                        return { ...picked, document: parsed };
+                      },
+                      save: async (handle, filename) => {
+                        const exported = await callNative('ooxml', { op: 'exportBytes', handle });
+                        if (!exported?.base64) return { ok: false, error: 'OOXMLKit không xuất được bytes' };
+                        return window.vnoMobileFiles.request({ op: 'save', base64: exported.base64, filename });
+                      }
                     })
                   });
                 })();
