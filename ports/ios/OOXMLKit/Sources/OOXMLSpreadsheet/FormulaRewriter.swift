@@ -4,6 +4,106 @@ import Foundation
 /// dịch tham chiếu tương đối (mở rộng công thức chia sẻ) và đổi tên sheet trong tham chiếu.
 /// Bỏ qua chuỗi "…", tên hàm, tham chiếu có cấu trúc […] và liên kết sổ ngoài [n].
 public enum FormulaRewriter {
+    /// Rewrites scalar `CONCAT(a,b,...)` calls as ` (a)&(b)&... ` without touching strings or names.
+    /// Range arguments are left intact because joining arrays requires Excel's array semantics.
+    public static func rewriteScalarConcat(_ formula: String) -> String {
+        let chars = Array(formula)
+        var output = ""
+        var index = 0
+        while index < chars.count {
+            if chars[index] == "\"" {
+                let end = stringEnd(in: chars, from: index)
+                output += String(chars[index..<end])
+                index = end
+                continue
+            }
+            if isIdentifierStart(chars[index]) {
+                var end = index + 1
+                while end < chars.count && isIdentifierPart(chars[end]) { end += 1 }
+                let identifier = String(chars[index..<end])
+                var open = end
+                while open < chars.count && chars[open].isWhitespace { open += 1 }
+                if identifier.caseInsensitiveCompare("CONCAT") == .orderedSame,
+                   open < chars.count, chars[open] == "(",
+                   let close = matchingParen(in: chars, open: open) {
+                    let body = Array(chars[(open + 1)..<close])
+                    let arguments = splitArguments(body)
+                    if arguments.count >= 2 && !arguments.contains(where: containsRangeOperator) {
+                        output += arguments.map { "(\(rewriteScalarConcat($0.trimmingCharacters(in: .whitespacesAndNewlines))))" }.joined(separator: "&")
+                        index = close + 1
+                        continue
+                    }
+                }
+                output += String(chars[index..<end])
+                index = end
+                continue
+            }
+            output.append(chars[index])
+            index += 1
+        }
+        return output
+    }
+
+    private static func isIdentifierStart(_ c: Character) -> Bool { c.isASCII && (c.isLetter || c == "_") }
+    private static func isIdentifierPart(_ c: Character) -> Bool { c.isASCII && (c.isLetter || c.isNumber || c == "_") }
+
+    private static func stringEnd(in chars: [Character], from start: Int) -> Int {
+        var i = start + 1
+        while i < chars.count {
+            if chars[i] == "\"" {
+                if i + 1 < chars.count && chars[i + 1] == "\"" { i += 2; continue }
+                return i + 1
+            }
+            i += 1
+        }
+        return chars.count
+    }
+
+    private static func matchingParen(in chars: [Character], open: Int) -> Int? {
+        var depth = 0
+        var i = open
+        while i < chars.count {
+            if chars[i] == "\"" { i = stringEnd(in: chars, from: i); continue }
+            if chars[i] == "(" { depth += 1 }
+            if chars[i] == ")" {
+                depth -= 1
+                if depth == 0 { return i }
+            }
+            i += 1
+        }
+        return nil
+    }
+
+    private static func splitArguments(_ chars: [Character]) -> [String] {
+        var parts: [String] = []
+        var start = 0
+        var depth = 0
+        var i = 0
+        while i < chars.count {
+            if chars[i] == "\"" { i = stringEnd(in: chars, from: i); continue }
+            if chars[i] == "(" { depth += 1 }
+            else if chars[i] == ")" { depth -= 1 }
+            else if chars[i] == "," && depth == 0 {
+                parts.append(String(chars[start..<i]))
+                start = i + 1
+            }
+            i += 1
+        }
+        parts.append(String(chars[start..<chars.count]))
+        return parts
+    }
+
+    private static func containsRangeOperator(_ argument: String) -> Bool {
+        let chars = Array(argument)
+        var i = 0
+        while i < chars.count {
+            if chars[i] == "\"" { i = stringEnd(in: chars, from: i); continue }
+            if chars[i] == ":" { return true }
+            i += 1
+        }
+        return false
+    }
+
     /// Dịch mọi tham chiếu tương đối đi (rows, columns). Tham chiếu ra ngoài lưới thành #REF!.
     public static func shift(_ formula: String, rows: Int, columns: Int) -> String {
         if rows == 0 && columns == 0 { return formula }

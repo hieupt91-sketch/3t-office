@@ -14,6 +14,7 @@ let package = Package(
         .library(name: "OOXMLWord", targets: ["OOXMLWord"]),
         .library(name: "OOXMLPresentation", targets: ["OOXMLPresentation"]),
         .library(name: "OOXMLBridge", targets: ["OOXMLBridge"]),
+        .executable(name: "ooxml-engine", targets: ["ooxml-engine"]),
     ],
     targets: [
         .target(name: "OOXMLZip"),
@@ -24,6 +25,7 @@ let package = Package(
         .target(name: "OOXMLKit", dependencies: ["OOXMLZip", "OOXMLPackage", "OOXMLSpreadsheet", "OOXMLWord", "OOXMLPresentation"]),
         // Cầu nối (Phase 7): nhận lệnh JSON từ WebView → gọi OOXMLKit → trả JSON. Thuần logic, test được không cần UI.
         .target(name: "OOXMLBridge", dependencies: ["OOXMLKit"]),
+        .executableTarget(name: "ooxml-engine", dependencies: ["OOXMLBridge"]),
 
         .target(
             name: "OOXMLTestSupport",

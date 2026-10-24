@@ -34,7 +34,7 @@ final class OfflineGuaranteeTests: XCTestCase {
     func testOnlyFoundationAndInternalModulesAreImported() throws {
         // OOXMLKit = module gom nội bộ; WebKit chỉ ở cầu nối WebView (framework Apple, trong tiến trình, không mạng).
         let allowed: Set<String> = ["Foundation", "OOXMLZip", "OOXMLPackage", "OOXMLSpreadsheet", "OOXMLWord",
-                                    "OOXMLPresentation", "OOXMLKit", "WebKit"]
+                                    "OOXMLPresentation", "OOXMLKit", "OOXMLBridge", "WebKit"]
         for f in try sourceFiles() {
             let text = try String(contentsOf: f, encoding: .utf8)
             for line in text.split(separator: "\n") {
