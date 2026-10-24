@@ -49,6 +49,17 @@ def _ps_start_time(pid: int) -> str | None:
     return parse_ps_start_time(output) if output is not None else None
 
 
+def parse_ps_is_zombie(output: str) -> bool:
+    """`ps -o stat= -p PID` prints the state letters, e.g. 'S', 'R+', 'Z'. 'Z' first means the process has exited and
+    only its exit status is left for the parent to collect (a zombie): it is not running any more."""
+    return str(output or "").strip().upper().startswith("Z")
+
+
+def _ps_is_zombie(pid: int) -> bool:
+    output = _run_ps("-o", "stat=", "-p", str(int(pid)))
+    return parse_ps_is_zombie(output) if output is not None else False
+
+
 def _ps_parent_table() -> dict[int, int]:
     output = _run_ps("-axo", "pid=,ppid=")
     return parse_ps_parent_table(output) if output is not None else {}
@@ -91,11 +102,17 @@ def process_identity(pid: int) -> str | None:
             value = stat_path.read_text(encoding="ascii")
             # comm is parenthesized and can itself contain spaces or parentheses.
             fields = value[value.rfind(")") + 2:].split()
+            if fields and fields[0] == "Z":  # field 3: state. A zombie has exited; only its exit status remains.
+                return None
             return fields[19] if len(fields) > 19 else None  # field 22: starttime
         if not Path("/proc").is_dir():
             # macOS has no /proc: the process start time from `ps` is the creation token, so PID reuse is still detected.
             start = _ps_start_time(int(pid))
             if start is not None:
+                # `ps` still prints a start time for a zombie (exited, not yet collected by its parent, e.g. a child
+                # just stopped with SIGTERM); counting it as alive made cleanup keep the record (FIX-MAC-1 C-3).
+                if _ps_is_zombie(int(pid)):
+                    return None
                 return start
         os.kill(int(pid), 0)
         return "alive"

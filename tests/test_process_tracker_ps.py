@@ -59,6 +59,51 @@ class PsParsingTests(unittest.TestCase):
             self.assertIsNone(tracker._run_ps("-axo", "pid=,ppid="))
 
 
+class ZombieTests(unittest.TestCase):
+    """FIX-MAC-1 C-3: a SIGTERM'd child stays a zombie until its parent waits; `ps -o lstart=` still prints for it."""
+
+    def test_stat_parsing(self):
+        self.assertTrue(tracker.parse_ps_is_zombie("Z\n"))
+        self.assertTrue(tracker.parse_ps_is_zombie("  Z+ "))
+        self.assertFalse(tracker.parse_ps_is_zombie("S"))
+        self.assertFalse(tracker.parse_ps_is_zombie("R+"))
+        self.assertFalse(tracker.parse_ps_is_zombie(""))
+
+    def test_ps_identity_treats_a_zombie_as_gone_and_a_live_process_as_its_start_time(self):
+        outputs = {("-o", "lstart=", "-p", "77"): "Sat Oct 24 23:32:21 2026\n"}
+        with mock.patch.object(tracker.Path, "is_file", return_value=False), \
+                mock.patch.object(tracker.Path, "is_dir", return_value=False):
+            outputs[("-o", "stat=", "-p", "77")] = "Z\n"
+            with mock.patch.object(tracker, "_run_ps", side_effect=lambda *a: outputs.get(a)):
+                self.assertIsNone(tracker.process_identity(77))
+            outputs[("-o", "stat=", "-p", "77")] = "S\n"
+            with mock.patch.object(tracker, "_run_ps", side_effect=lambda *a: outputs.get(a)):
+                self.assertEqual(tracker.process_identity(77), "Sat Oct 24 23:32:21 2026")
+
+    @unittest.skipIf(os.name == "nt", "POSIX zombie semantics")
+    def test_real_terminated_child_is_not_alive_before_it_is_reaped(self):
+        import signal
+        import subprocess
+        import time
+
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+        try:
+            self.assertIsNotNone(tracker.process_identity(child.pid))
+            os.kill(child.pid, signal.SIGTERM)
+            deadline = time.monotonic() + 5
+            identity = "unset"
+            while time.monotonic() < deadline:
+                identity = tracker.process_identity(child.pid)  # child not waited for yet -> zombie
+                if identity is None:
+                    break
+                time.sleep(0.05)
+            self.assertIsNone(identity)
+        finally:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=5)
+
+
 class UnchangedBehaviourTests(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "Windows kernel32 path")
     def test_windows_identity_and_tree_do_not_use_ps(self):
