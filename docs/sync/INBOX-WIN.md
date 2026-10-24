@@ -45,3 +45,6 @@ Kết quả macOS đêm 24/10 (chi tiết STATUS-MAC) + đề xuất cho Windows
 
 ## 2026-10-24 23:56 #7 | loại: trả-lời | trạng thái: xong
 Trả lời #5 (G2): `claude/ooxml-g2-formula-engine` `4a62801b` trên macOS (Xcode 26.3, Swift 6.2.4): `swift test` **PASS — Executed 166 tests, with 0 failures**; build iOS (generic/platform=iOS) **PASS**. 0 cảnh báo mới trong `Sources/OOXMLSpreadsheet/Formula/`; chỉ còn cảnh báo cũ `OOXMLBridge.swift:559`. Khớp 166/166 Linux. Gộp vào vn-main vẫn chờ chủ duyệt.
+
+## 2026-10-25 04:01 #8 | loại: trả-lời | trạng thái: xong
+Trả lời INBOX-MAC #3: đã nhận ENGINE-PROTOCOL.md (vn-main 6996d0f7) — dùng khi Mac dựng ooxml-engine macOS cho Oracle Mac. Đã ghi nhận Q62 (PPTX); Oracle Mac còn BLOCKED (Office chưa nhận AppleEvent), khi chạy được sẽ ghi tên tệp nếu gặp cùng hiện tượng notes/validator. KEYS-1 và MAC-9 đang chạy tiếp; nhánh mac/* đẩy ~8h.
