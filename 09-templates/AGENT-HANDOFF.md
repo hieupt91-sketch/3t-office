@@ -1416,3 +1416,24 @@ DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Không áp dụng — chỉ thư viện Swift/bridge, không mở app.
 NEXT ACTION: Review commit riêng W4B; sau commit ghi `E:\VNOffice-briefs\logs\W4B.DONE`.
+
+## CODEX W5A — 24/10/2026
+
+TASK: Python JSON Lines client cho `ooxml-engine` và tích hợp shadow mode mặc định tắt.
+AGENT/ROLE: Codex / OOXML adapter.
+BRANCH: codex/ooxml-w3a.
+WORKTREE: E:\VNOffice-codex-ooxmlw3a. `git merge main` → Already up to date.
+OBJECTIVE: Cung cấp client tiến trình engine dùng chung, và log đối chiếu shadow cục bộ mà không thay đổi tệp lưu chính.
+FINDINGS: Engine Swift hỗ trợ `open`, `sheet.read`, `xlsx.save`, `docx.save`, `pptx.save`. Luồng Python hiện dựng HTML/FODS/FODP để LibreOffice lưu và không truyền journal delta; không thể dựng delta chính xác từ payload hiện tại.
+IMPLEMENTATION SUMMARY: Thêm `platform/ooxml/engine_client.py` với khám phá executable, OOXML_SWIFT_RUNTIME, timeout, tự khởi động lại ở request sau khi process chết, API open/read/save và phân loại unsupported. Shadow gọi tại luồng Save in-place/Save As chỉ khi `VNO_OOXML_ENGINE=shadow`; do chưa có delta, ghi `delta_unavailable` và không chạy engine. Khi có delta, helper hỗ trợ chạy ra ZIP tạm riêng và log part XML đã đổi sau chuẩn hóa whitespace định dạng. Lỗi shadow không ảnh hưởng luồng LibreOffice.
+FILES CHANGED: `platform/ooxml/engine_client.py`; `main.py`; `tests/test_ooxml_engine_client.py`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; `python -m pytest tests/test_ooxml_engine_client.py -q`; `python -m pytest tests -q -k "ooxml_engine or save_in_place or sheet_save"`; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m py_compile platform/ooxml/engine_client.py tests/test_ooxml_engine_client.py main.py`; Windows engine smoke tests with the configured release executable/runtime.
+BUILD RESULT: NOT RUN — no application/package build requested; Python syntax compilation is run separately.
+TEST RESULTS: Fake stdio + helper tests: 5 passed. Related pytest gate: 26 passed, 2 skipped, 1132 deselected. Node suite: 3796/3796 PASS. i18n: missingVI=0, missingEN=0. Checklist: lowered=0. Python syntax compilation PASS.
+PRE-CHANGE TEST: FAIL — the new XML comparison fixture initially treated formatting-only whitespace as a changed part; after normalization, focused test PASS.
+KNOWN FAILURES: Real Windows engine smoke tests FAIL at process startup with exit code 3221225781 (0xC0000135) and no JSON response, even with OOXML_SWIFT_RUNTIME set. Excel COM was not run (blocked by instruction).
+RISKS: Current app save payload has no delta, so shadow records a local skip and does not yet compare engine output. VNO_OOXML_ENGINE unset remains on the existing LibreOffice path.
+DEPENDENCIES/BLOCKERS: Real engine smoke requires resolving the missing runtime DLL/load failure in the provided release executable.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — backend client/luồng lưu; không mở app/CDP.
+NEXT ACTION: Review and commit this W5A change; after commit write `E:\VNOffice-briefs\logs\W5A.DONE`.

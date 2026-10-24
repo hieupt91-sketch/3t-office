@@ -211,6 +211,7 @@ _PRINT_PIPELINE_PATH = Path(__file__).resolve().parent / "platform" / "print" / 
 _PRINT_PIPELINE_MODULE = None
 _OFFICE_COM_PATH = Path(__file__).resolve().parent / "platform" / "print" / "office_com.py"
 _OFFICE_COM_MODULE = None
+_OOXML_ENGINE_CLIENT_PATH = Path(__file__).resolve().parent / "platform" / "ooxml" / "engine_client.py"
 _LAZY_LOCAL_MODULE_LOCK = threading.Lock()
 
 
@@ -231,6 +232,25 @@ def _load_local_module(module_name: str, module_path: Path):
             sys.modules.pop(module_name, None)
             raise
         return module
+
+
+def _run_ooxml_shadow(kind: str, source_path: str | None, reference_path: str) -> None:
+    """Run opt-in, local-only engine comparison when the save route has a delta."""
+    if os.environ.get("VNO_OOXML_ENGINE") != "shadow":
+        return
+    try:
+        module = _load_local_module("vno_ooxml_engine_client", _OOXML_ENGINE_CLIENT_PATH)
+        module.shadow_save(
+            kind=kind,
+            source_path=source_path,
+            delta=None,
+            reference_path=reference_path,
+        )
+    except Exception as exc:
+        # Shadow mode must never change the active LibreOffice save result.
+        logging.getLogger("vnoffice.ooxml_engine").info(
+            "event=shadow_engine_error kind=%s error=%s", kind, type(exc).__name__
+        )
 
 
 class _LazyLocalModuleProxy:
@@ -5474,6 +5494,8 @@ class VnOfficeApi:
                 if self._document_password and target_format not in {"docx", "xlsx", "pptx"}:
                     raise DocumentEngineError("Hãy xóa mật khẩu trước khi lưu sang định dạng không hỗ trợ mã hóa.")
                 out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
+                if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
+                    _run_ooxml_shadow(target_format, source_path, out_path)
                 stage_started = time.perf_counter()
                 _atomic_replace_file(out_path, target_path)
                 if audit_timings is not None:
@@ -5580,6 +5602,8 @@ class VnOfficeApi:
                     if self._document_password and target_format not in {"docx", "xlsx", "pptx"}:
                         raise DocumentEngineError("Hãy xóa mật khẩu trước khi lưu sang định dạng không hỗ trợ mã hóa.")
                     out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
+                    if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
+                        _run_ooxml_shadow(target_format, source_path, out_path)
                 _atomic_replace_file(out_path, dest_path)
                 _verify_saved_file(dest_path)
         except DocumentEngineError as exc:
