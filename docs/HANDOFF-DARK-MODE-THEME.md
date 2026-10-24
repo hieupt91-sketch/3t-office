@@ -204,3 +204,13 @@ Tất cả ảnh chụp kiểm chứng trực quan được lưu trữ tại `do
 3. **Phạm vi nhánh và Worktree**:
    - Toàn bộ công việc thực hiện cách ly tại worktree `E:\VNOffice-agy-dark-mode` trên nhánh `feature/dark-mode-theme`.
    - KHÔNG merge vào nhánh `main`.
+
+---
+
+## 7. Q54 — Lối vào tùy biến giao diện (24/10/2026)
+
+- Nút biểu tượng bảng màu trên thanh tiêu đề mở bảng tùy biến chung; `Tệp > Tùy chọn` dùng lại đúng bảng đó. Người dùng có thể chọn Sáng, Tối hoặc Theo hệ thống, một trong 12 màu gợi ý hoặc màu bất kỳ, ảnh nền cục bộ, vị trí cắt, độ phủ tối và màu nhấn.
+- Bảng xem trước ngay khi chỉnh sửa. Áp dụng lưu thiết lập trên máy; Hủy/Esc khôi phục giá trị đã lưu; Đặt lại mặc định trả về màu nền và màu nhấn ban đầu. Kho WebView được đặt dưới thư mục dữ liệu người dùng để thiết lập localStorage còn sau khi đóng và mở ứng dụng.
+- Chữ trên màu thanh tiêu đề và màu nhấn tự chọn đen/trắng theo độ tương phản WCAG AA; 12 màu gợi ý và 1.000 màu ngẫu nhiên đều được kiểm ở unit test. Dữ liệu ảnh sau tối ưu bị từ chối với thông báo rõ nếu vượt 800.000 ký tự.
+- Tab Writer `Thiết kế > Giao diện tài liệu` được phân biệt trong tooltip và Help với `Giao diện ứng dụng`; thay đổi ở ribbon tiếp tục chỉ áp dụng nội dung tài liệu.
+- CDP: `tests/live/cdp/q54-theme-customization.desktop.mjs`; ảnh Q54: `docs/assets/q54-theme/`. Handoff/chi tiết kết quả Q54 ở mục cuối file `09-templates/AGENT-HANDOFF.md` và `E:\VNOffice-briefs\logs\Q54.DONE`.

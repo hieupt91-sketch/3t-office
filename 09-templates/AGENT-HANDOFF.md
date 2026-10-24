@@ -1228,3 +1228,24 @@ DEPENDENCIES/BLOCKERS: Không thêm dependency. Follow-up nên dùng fixture t�
 CORE PATCH ID (if any): None.
 GIAO DIEN ĐÃ XEM: 18 ảnh Writer A/C ở 1366x768 và 20 ảnh Sheet `.xls` ở 1366x768; toàn bộ ảnh được xem qua contact sheet. Ribbon/cảnh báo/nút lưu không bị che hoặc tràn. Ghi nhận nội dung sai/ngắt ở legacy06/13/20, đầu trang/logo sát chữ ở 14, lưới bị cắt theo cột/viewport và `#NAME?` ở legacy08; xem chi tiết trong báo cáo Q53.
 NEXT ACTION: Báo cáo chi tiết `docs/LEGACY-DOC-DEEPDIVE-24-10.md`; chờ phiếu follow-up nếu cần thử importer/fallback có kiểm chứng.
+
+## Q54 — Tùy biến giao diện ứng dụng
+
+TASK: Q54 — Thêm lối vào tùy biến theme dùng chung trên thanh tiêu đề cho Writer, Sheet, Slides.
+AGENT/ROLE: Codex / Windows desktop CDP.
+BRANCH: codex/queue-19-10.
+WORKTREE: E:\VNOffice-codex-queue.
+OBJECTIVE: Cho phép đổi chế độ sáng/tối/theo hệ thống, màu/ảnh thanh tiêu đề, màu nhấn; xem trước, áp dụng, hủy, đặt lại và lưu cục bộ; phân biệt giao diện ứng dụng với giao diện tài liệu.
+FINDINGS: Tùy biến thanh tiêu đề trước đây chỉ truy cập qua Tệp > Tùy chọn; không có nút vào rõ ràng. Bài Help chủ đề tài liệu Writer còn chỉ nhóm ribbon cũ sau khi nhóm đổi tên.
+IMPLEMENTATION SUMMARY: Thêm nút biểu tượng bảng màu cạnh nút sáng/tối, dùng lại hộp Tùy chọn chung; hỗ trợ chế độ Theo hệ thống, 12 màu có sẵn, màu tùy ý, ảnh cục bộ có giới hạn kích thước, độ mờ/vị trí, màu nhấn và tương phản AA. Cấu hình theme lưu cục bộ, tồn tại sau khi khởi động lại. Help tiếng Việt/i18n VI/EN cập nhật; nhóm Writer đổi tên Giao diện tài liệu và Help đồng bộ vị trí.
+FILES CHANGED: Shared shell/theme/ui-kit, i18n VI/EN, Help, main.py (webview storage bền vững), test đơn vị/CDP; ảnh bằng chứng docs/assets/q54-theme; docs/HANDOFF-DARK-MODE-THEME.md và checklist được sinh lại.
+COMMITS: d4eefdf5 (implementation); documentation/evidence commit ghi sau mục này.
+COMMANDS RUN: git merge main; CDP trước/sau; npm test; node tests/run-tests.js; i18n parity; 3 checklist generators; verify_checklist_evidence; focused pytest; py_compile main.py; git diff --check.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: CDP sau sửa PASS 72/72; trước sửa FAIL 0/6 do chưa có nút. Bộ test in kết quả 3795/3795 PASS, 0 FAIL; tuy vậy npm test và node tests/run-tests.js đều trả exit code 1 (FAIL ở mức tiến trình, không khớp dòng tổng kết; cần điều tra runner). i18n PASS VI=3200/EN=3200, missing=0; checklist PASS 3 tệp, 0 dòng bị hạ (279/217/269 mục); pytest PASS 43, 1098 deselected; py_compile PASS; git diff --check PASS.
+KNOWN FAILURES: Exit code 1 của npm/Node dù runner in 3795/3795 PASS và 0 FAIL. Trước sửa, suite có một lỗi Help↔ribbon do nhóm Writer đổi tên; sau đồng bộ Help, suite in 0 FAIL. Slides có thanh cuộn ngang sẵn có ở màn 1024×600.
+RISKS: Ảnh nền được xử lý và lưu cục bộ; không gửi nội dung ra ngoài. Không sửa LibreOffice Core hoặc thêm dependency.
+DEPENDENCIES/BLOCKERS: Không thêm dependency. Cần tìm nguyên nhân exit code 1 của test runner trước khi coi gate npm xanh.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Writer, Sheet, Slides ở sáng/tối tại 1366×768 và 1024×600 (ảnh sau trong docs/assets/q54-theme; ảnh nền trước lấy từ q54-theme cho sáng và q36-ui/ribbon-before cho tối). Đã xem từng màn theme panel ở cả hai kích thước, mẫu ảnh/màu tùy ý, cùng luồng Tệp > Tùy chọn. Panel nằm trong cửa sổ, chữ/nút rõ; không thấy chồng lấn/cắt. Slides có thanh cuộn ngang ở 1024×600.
+NEXT ACTION: Điều tra exit code của test runner; xem ảnh tại docs/assets/q54-theme và chi tiết tính năng trong docs/HANDOFF-DARK-MODE-THEME.md.
