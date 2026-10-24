@@ -57,7 +57,28 @@ struct MobileOfficeWebView: UIViewRepresentable {
                     link.id = 'vno-mobile-css'; link.rel = 'stylesheet'; link.href = 'MobileWebApp.css';
                     document.head.appendChild(link);
                   }
-                  window.vnoMobileRuntime = { offline: true, engine: 'OOXMLKit' };
+                  const callNative = (name, payload) => new Promise((resolve, reject) => {
+                    const handler = window.webkit?.messageHandlers?.[name];
+                    if (!handler) return reject(new Error('Native bridge chưa sẵn sàng: ' + name));
+                    const request = handler.postMessage(payload);
+                    if (request && typeof request.then === 'function') {
+                      request.then((value) => {
+                        if (value && value.error) reject(new Error(value.error));
+                        else resolve(value);
+                      }).catch(reject);
+                    } else resolve(undefined);
+                  });
+                  window.vnoMobileRuntime = Object.freeze({
+                    offline: true,
+                    engine: 'OOXMLKit',
+                    files: Object.freeze({
+                      open: () => window.vnoMobileFiles.request({ op: 'open' }),
+                      save: (base64, filename) => window.vnoMobileFiles.request({ op: 'save', base64, filename })
+                    }),
+                    ooxml: Object.freeze({
+                      call: (payload) => callNative('ooxml', payload)
+                    })
+                  });
                 })();
                 """)
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
