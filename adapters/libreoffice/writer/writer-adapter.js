@@ -20249,7 +20249,12 @@ export class WriterAdapter {
         this.bodyDom.style.marginBottom = footerExtraPx > 0 ? `${footerExtraPx}px` : "0";
       }
 
-      const children = Array.from(this.bodyDom.children);
+      // The automatic hyphenation marker is intentionally display:none and has no
+      // layout box. Its DOM rect can sit before the visible body origin, so it must
+      // not establish the live page origin (the marker remains in the document for
+      // hyphenation serialization and round trips).
+      const children = Array.from(this.bodyDom.children)
+        .filter((el) => !el.classList?.contains("vno-hyphenation-marker"));
       let pageCount = 1;
       const gapBeforeEls = [];
       // Đo bằng vị trí thật của khối (offsetTop) nên khoảng cách giữa hai đoạn đã là
