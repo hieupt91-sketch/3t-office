@@ -229,7 +229,19 @@ final class LocalWebSchemeHandler: NSObject, WKURLSchemeHandler {
         case "woff", "woff2": mime = "font/woff2"
         default: mime = "application/octet-stream"
         }
-        urlSchemeTask.didReceive(URLResponse(url: url, mimeType: mime, expectedContentLength: data.count, textEncodingName: "utf-8"))
+        // Trả response đầy đủ như một tài nguyên HTTP 200 để WebKit xử lý
+        // module ES và stylesheet nhất quán trên iPhone/iPad. URL scheme vẫn
+        // là vno:// nên dữ liệu không đi qua mạng.
+        let response = HTTPURLResponse(
+            url: url,
+            statusCode: 200,
+            httpVersion: "HTTP/1.1",
+            headerFields: [
+                "Content-Type": mime + (mime.hasPrefix("text/") ? "; charset=utf-8" : ""),
+                "Cache-Control": "no-store"
+            ]
+        ) ?? URLResponse(url: url, mimeType: mime, expectedContentLength: data.count, textEncodingName: "utf-8")
+        urlSchemeTask.didReceive(response)
         urlSchemeTask.didReceive(data)
         urlSchemeTask.didFinish()
     }
