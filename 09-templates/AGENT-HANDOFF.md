@@ -55,3 +55,23 @@ RISKS: Numeric-to-text matching is limited to text-formatted zero-padded identif
 DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Commit this E0 fix for independent review and merge following review.
+
+---
+
+# Agent Handoff
+TASK: OOXMLKIT-MAC-DEVICE-OFFICE-VERIFY-20261024
+AGENT/ROLE: Codex / Mac native and Office interoperability verification
+BRANCH: claude/ooxml-offline-ios-library-fqqyj0
+WORKTREE: /tmp/3t-office-ooxmlkit-qa
+OBJECTIVE: Xcode test OOXMLKit on Mac and iPhone/iPad simulators, check device availability, generate OOXML output artifacts, and open samples in Microsoft Office for repair dialogs.
+FINDINGS: Xcode 26.3 toolchain Swift 6.2.4 on macOS 15.8.1; Mac Apple Silicon. No physical iPhone/iPad was visible to `xcrun devicectl`. Word, Excel, and PowerPoint are installed. Office opened `docx-edit.docx`, `real-edit-sample-sheet-charts.xlsx`, `pptx-edit.pptx`, `office-quirks-noop.xlsx`, and `office-quirks-edited.xlsx`; no repair dialogs appeared. The OOXML artifacts are repo-generated fixtures; `office-quirks.xlsx` is synthetic and simulates a font-family value outside openpyxl's validator limit.
+IMPLEMENTATION SUMMARY: No source or test changes. Recorded test and native Office results in `docs/ios/CHECK-TEAM-MAC-OOXMLKit.md` and `docs/ios/BAO-CAO-OOXMLKIT-2310.md`.
+FILES CHANGED: docs/ios/CHECK-TEAM-MAC-OOXMLKit.md; docs/ios/BAO-CAO-OOXMLKIT-2310.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `swift test` with Xcode toolchain; `swift test -c release -Xswiftc -enable-testing` through `scripts/run-tests.sh`; `xcodebuild -scheme OOXMLKit-Package ... test` for iPhone 17 and iPad (A16); `xcrun devicectl list devices`; `scripts/verify_artifacts.py` with zlib/CRC/expat and a temporary Python venv containing openpyxl 3.1.5, python-docx, python-pptx; Office open via native UI.
+BUILD RESULT: PASS — Xcode package tests built and ran on iOS simulators; 111/111 on both destinations.
+TEST RESULTS: PASS — macOS debug 111/111, release 111/111, iPhone simulator 111/111, iPad simulator 111/111. PASS — 78/78 artifacts ZIP CRC + XML parse. Independent Python verifier: 76/78 PASS; two `office-quirks-*` fail only in openpyxl with `ValueError: Max value is 14` on `<family val="34"/>`; actual Excel opened both without repair. Office UI checks passed for DOCX/XLSX/PPTX samples with no repair dialog.
+KNOWN FAILURES: The optional openpyxl cross-check is FAIL for `office-quirks-noop.xlsx` and `office-quirks-edited.xlsx`; source fixture deliberately includes `family val="34"` to exercise the unsupported style edge. The package's ZIP CRC and XML checks pass, and Excel opens the files. The first debug test invocation using Command Line Tools failed to import XCTest; rerunning with Xcode's toolchain passed.
+RISKS: Office smoke test used repository fixtures and did not verify documents originating from Microsoft Office. No physical-device timing or memory data was collected.
+DEPENDENCIES/BLOCKERS: Physical iPhone/iPad needed for device tests and Instruments measurements. A sanitized Microsoft Office-origin fixture set is still needed for broader compatibility evidence.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Run the same Xcode scheme on a connected iPhone and iPad and record open/save/peak-memory metrics; repeat Office open checks with content-safe files authored by Microsoft Word, Excel, and PowerPoint.

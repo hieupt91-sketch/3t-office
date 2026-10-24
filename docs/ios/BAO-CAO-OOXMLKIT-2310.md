@@ -201,3 +201,22 @@ Còn lại (cần thiết bị/Xcode, treo chờ): nhúng WebView thật, docume
 | `ios` → simulator iPhone / iPad | **PASS / PASS** | 111 test mỗi nền |
 
 → Lõi cầu nối Phase 7 xanh trên **Linux + macOS + iPhone(sim) + iPad(sim)**; phần WebKit biên dịch sạch. Còn lại (nhúng WebView/UI/document picker thật) cần Xcode + thiết bị.
+
+### 8.11 Kiểm xác nhận trên Mac của team — 24/10/2026
+
+Môi trường: Mac Apple Silicon, macOS 15.8.1, Xcode 26.3, Swift 6.2.4.
+
+| Hạng mục | Kết quả |
+|---|---|
+| `swift test` debug | **PASS 111/111** |
+| `swift test -c release -Xswiftc -enable-testing` | **PASS 111/111** |
+| Xcode `OOXMLKit-Package` — iPhone 17 simulator, iOS 26.3.1 | **PASS 111/111** |
+| Xcode `OOXMLKit-Package` — iPad (A16) simulator, iOS 26.3.1 | **PASS 111/111** |
+| iPhone/iPad thật và đo Instruments | **BLOCKED** — `xcrun devicectl list devices` trả “No devices found”; không có số đo thời gian/bộ nhớ thiết bị thật |
+| Tệp DOCX/XLSX/PPTX mở trong Word/Excel/PowerPoint trên Mac | **PASS, không thấy hộp thoại repair** — `docx-edit.docx`, `real-edit-sample-sheet-charts.xlsx`, `pptx-edit.pptx`; Excel cũng mở `office-quirks-noop.xlsx` và `office-quirks-edited.xlsx` |
+| Cấu trúc OOXML độc lập | **PASS 78/78** với zipfile/zlib+CRC và expat |
+| Bộ đọc Python độc lập | **PASS 76/78; FAIL 2** — openpyxl 3.1.5 từ chối hai file `office-quirks-*` vì fixture có `<family val="34"/>` lớn hơn giới hạn validator 14 của openpyxl. Excel thật mở cả hai file không repair. Fixture được sinh tổng hợp để mô phỏng giá trị style lạ; chưa xác nhận một workbook nguồn do Microsoft Office tạo. |
+
+Ghi chú về môi trường: lần gọi `swift test` đầu dùng Swift thuộc Command Line Tools và dừng ở `no such module XCTest`; sau khi chọn toolchain Swift trong Xcode đầy đủ, các lượt test debug/release đều PASS. Không sửa mã nguồn hay test trong đợt xác nhận này.
+
+Phần còn cần người có thiết bị: chạy scheme trên iPhone/iPad thật, đo mở/lưu và đỉnh bộ nhớ; kiểm tệp Word/Excel/PowerPoint có nguồn Microsoft Office thật (nội dung giả) để có thêm đầu vào chuẩn ngoài fixtures tổng hợp/LibreOffice.
