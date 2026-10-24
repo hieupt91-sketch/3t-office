@@ -8,6 +8,16 @@ Xây một lõi tài liệu của VN Office dùng chung cho Writer, Sheet và Sl
 
 OOXMLKit là nền tảng ban đầu cho lớp đọc/sửa/ghi DOCX, XLSX và PPTX. Việc gỡ LibreOffice phải diễn ra theo parity gate, không gỡ ngay sau khi package build được.
 
+## 1.1 Chiến lược song song
+
+Trong giai đoạn chuyển tiếp, VN Office được phép dùng LibreOffice làm nền tham khảo, bộ xử lý đối chiếu và fallback cho phần chưa hoàn thiện. LibreOffice không phải sản phẩm đích và không được trở thành ràng buộc kiến trúc của UI hoặc document service.
+
+- **LibreOffice:** baseline mở để đọc mã, hiểu hành vi, tạo dữ liệu đối chiếu và phát hiện khác biệt.
+- **Microsoft Office:** oracle tương thích cuối cùng cho DOCX/XLSX/PPTX, công thức, bố cục và cảnh báo Repair.
+- **VN Office/OOXMLKit:** implementation độc lập, có command model, test, renderer và hành vi riêng; không copy UI, tài sản hoặc mã độc quyền.
+
+Mỗi tính năng mới phải chạy theo chuỗi: `VN implementation → test với LibreOffice → test với Microsoft Office → visual/structural diff → ghi parity report`. Khi VN implementation đạt gate, tính năng được chuyển khỏi fallback LibreOffice. Không coi kết quả giống LibreOffice là đủ nếu khác Microsoft Office ở phần người dùng nhìn thấy hoặc dữ liệu lưu ra.
+
 ## 2. Phân ranh giới
 
 ### Có thể tái sử dụng theo tiêu chuẩn/API
