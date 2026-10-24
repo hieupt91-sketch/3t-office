@@ -4,6 +4,9 @@ body { -webkit-text-size-adjust: 100%; }
 .vno-shell { width: 100vw !important; max-width: 100vw !important; min-width: 0 !important; }
 .vno-workspace, .vno-editor-container { min-width: 0 !important; min-height: 0 !important; }
 .vno-ribbon { flex: 0 0 auto; overflow: hidden !important; }
+.vno-topbar > *, .vno-topbar-left > *, .vno-topbar-center > *, .vno-topbar-right > * { flex-shrink: 0 !important; }
+.vno-ribbon-tabs { overflow-x: auto !important; overflow-y: hidden !important; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+.vno-ribbon-tab, .vno-ribbon-tab-file, .vno-ribbon-content > *, .vno-ribbon-group { flex-shrink: 0 !important; }
 .vno-ribbon button, .vno-ribbon [role="button"], button { min-height: 40px; }
 .vno-ribbon .vno-ribbon-group { min-width: max-content; }
 .vno-writer-body, .vno-grid-table, .vno-slide-canvas { touch-action: manipulation; }
