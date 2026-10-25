@@ -136,8 +136,10 @@ class MacTableTests(unittest.TestCase):
         expected_first = {
             "Calibri": ("Carlito", True), "Cambria": ("Caladea", True), "Arial": ("Liberation Sans", True),
             "Times New Roman": ("Liberation Serif", True), "Courier New": ("Liberation Mono", True),
-            "Segoe UI": ("Helvetica Neue", False), "Lucida Sans": ("Lucida Grande", False),
-            "NSimSun": ("Heiti SC", False), "SimSun": ("Heiti SC", False),
+            # VN-FONTS-1: 3T Office's own bundled substitutes come first, the MAC-9 macOS fonts stay behind them.
+            "Segoe UI": ("VN Sans UI", False), "Lucida Sans": ("Lucida Grande", False),
+            "Aptos": ("VN Sans", False), "Consolas": ("VN Mono", False),
+            "NSimSun": ("VN Song", False), "SimSun": ("VN Song", False),
         }
         for font, (substitute, metric) in expected_first.items():
             with self.subTest(font=font):
@@ -145,12 +147,20 @@ class MacTableTests(unittest.TestCase):
                 self.assertEqual(self.table[font].metric_compatible, metric)
                 self.assertNotIn(font, self.table[font].substitutes)
         self.assertIn("Songti SC", self.table["SimSun"].substitutes)
+        for font, fallback in {"Segoe UI": "Helvetica Neue", "Aptos": "Helvetica Neue", "Consolas": "Liberation Mono",
+                               "SimSun": "Heiti SC", "NSimSun": "Heiti SC"}.items():
+            with self.subTest(fallback=font):
+                self.assertIn(fallback, self.table[font].substitutes[1:])
 
     def test_sources_are_os_font_folders_only_never_other_application_bundles(self):
         sources = self.fonts.sources()
-        self.assertEqual(sources.directories, (Path("/System/Library/Fonts"), Path("/Library/Fonts"),
-                                               Path("/Users/someone/Library/Fonts")))
-        for value in [*map(str, sources.directories), *sources.accept_globs, *sources.reject_globs]:
+        os_dirs, bundled = sources.directories[:3], sources.directories[3:]
+        self.assertEqual(os_dirs, (Path("/System/Library/Fonts"), Path("/Library/Fonts"),
+                                   Path("/Users/someone/Library/Fonts")))
+        # VN-FONTS-1: plus 3T Office's own substitute fonts, read in place from this app's payload.
+        self.assertEqual(bundled, (self.macos.BUNDLED_FONT_DIR,))
+        self.assertEqual(self.macos.BUNDLED_FONT_DIR, ROOT / "platform" / "fonts" / "document")
+        for value in [*map(str, os_dirs), *sources.accept_globs, *sources.reject_globs]:
             self.assertNotIn("/Applications", value)
             self.assertNotIn(".app/", value)
             self.assertNotIn("Microsoft", value)
