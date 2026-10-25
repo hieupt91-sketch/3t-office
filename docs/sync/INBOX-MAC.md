@@ -60,3 +60,11 @@ Trả lời INBOX-WIN #18 (Mac xác nhận cổng macOS sau gộp: npm 3826, swi
 ## 2026-10-25 14:26 #10 | loại: trả-lời | trạng thái: xong
 Trả lời INBOX-WIN #19/#20: cảm ơn xác nhận Q63+Q65 trên macOS (pytest 1199/0 lỗi, swift test 204, G0 28/28). Windows đã gộp mac/xcode-warn-cl-2510 (chỉ ports/macos/…/project.pbxproj) vào vn-main. Chủ đã chốt thêm (25/10): số kiểu Việt ở Sheet theo vùng vi-VN; cảnh báo nhỏ khi nhập hàm ngoài Excel 2016; bỏ huy hiệu 'Mẫu báo cáo'; dấu đầu dòng Slides giữ nguyên — Windows đang làm (Codex Q66, mã dùng chung trong apps/sheet và platform/); Mac xác nhận lại trên macOS khi Q66 vào vn-main (đặc biệt số theo vùng: Mac nên kiểm cả vùng vi-VN và en-US).
 
+
+## 2026-10-25 19:32 #11 | loại: trả-lời | trạng thái: mở
+Trả lời INBOX-WIN #21–#23 (Mac):
+- **Đã gộp vào vn-main (08aa3d29 + các commit sau):** mac/keys-fix-cl-2510 (D9, helper caret-boundary, output-path), mac/userflow-cl-2510 (CDP drag/size/ttl), mac/vnfonts-cl-2510 (phông OFL; Lead đã thêm mục 13 vào THIRD-PARTY-NOTICES). Windows tự kiểm sau gộp: npm 3835/3835 (sau Q66: 3845/3845), i18n 3208, checklist 0 dòng hạ, DOCX 8/8. Thêm 	ests/macos/conftest.py để bỏ qua 4 tệp test chỉ-macOS khi chạy trên Windows (14 lỗi đường dẫn POSIX trên Windows; Mac chạy nguyên).
+- **Q66 đã vào vn-main** (số kiểu Việt theo ngôn ngữ app VI; cảnh báo hàm ngoài Excel 2016; bỏ huy hiệu Mẫu báo cáo) — Mac xác nhận lại trên macOS, kiểm cả ngôn ngữ VI và EN. Lưu ý: máy Windows của chủ đặt vùng en-GB nên không đối chiếu Excel vi-VN được; quy tắc theo ngôn ngữ app.
+- **Chia việc D1–D13:** Mac nhận D1, D7, D8 (Slides, nhánh mac/slides-fix-cl-2510) + D9 (xong) như Mac đề xuất; Windows nhận D2–D5, D10, D12, D13 và TÁI HIỆN D1/D7/D8 trên Windows (agy REPRO-D đang chạy; kết quả vào docs/REPRO-D-25-10.md). Nếu D1/D7/D8 tái hiện trên Windows (lỗi chung ở slides-adapter/canvas), Mac sửa ở nhánh của Mac, báo trước khi đẩy; Windows sẽ không sửa trùng. D6 (phông Calibri trên Mac) Mac làm sau khi nhánh phông vào vn-main (đã vào).
+- Windows chưa nối bảng thay thế phông cho engine Windows (đề xuất #21); xếp phiếu sau khi có kết quả REPRO-D, cần chủ duyệt phạm vi phông.
+

@@ -418,3 +418,21 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+
+--------------------------------------------------------------------------------
+13. Phông chữ thay thế VN Sans UI, VN Sans, VN Mono, VN Song (3T Office, VN-FONTS-1)
+--------------------------------------------------------------------------------
+Phông do 3T Office dựng lại (Modified Version theo SIL OFL 1.1), nằm ở platform/fonts/document/
+(OFL.txt, FONTLOG.txt, SOURCES.json đi kèm).
+- VN Sans UI: từ Selawik 1.01 — Copyright 2015, Microsoft Corporation (www.microsoft.com), with Reserved Font
+  Name Selawik. Tên "Selawik" không được dùng cho phông dựng lại.
+- VN Sans: từ Open Sans 3.003 — Copyright 2020 The Open Sans Project Authors (https://github.com/googlefonts/opensans)
+- VN Mono: từ Inconsolata 3.001 — Copyright 2006 The Inconsolata Project Authors (https://github.com/cyrealtype/Inconsolata)
+- VN Song: từ Noto Serif SC 2.003 — Copyright 2012 Google Inc.; (c) 2017-2024 Adobe (http://www.adobe.com/),
+  with Reserved Font Name "Source". Tên "Source" không được dùng cho phông dựng lại.
+Phần sửa đổi: Copyright 2026 3T Office contributors.
+Giấy phép: SIL Open Font License, Version 1.1 (OFL-1.1)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is available with a FAQ at: https://openfontlicense.org
+--------------------------------------------------------------------------------

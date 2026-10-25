@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 2026-10-25 15:28, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-25 19:32, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -50,3 +50,6 @@
 
 ## 2026-10-25 15:28
 - Gộp vn-main: hook scripts/layout-audit/_batch_pptx.py (agy; pytest 7/7; Windows tự chạy lại sample-3.pptx: PowerPoint=10 saved=10 PASS, không còn PowerPoint treo). Hạn chế đã đóng: bộ kiểm PPTX hàng loạt. Mac có thể dùng hook này với Office for Mac sau khi cấp Automation (chưa).
+
+## 2026-10-25 19:32
+- Gộp vn-main: Q66 (npm 3845/3845; LAN XLSX 5/5 mẫu tôi chạy lại + Codex báo 27/27; i18n 3208), nhánh Mac keys-fix/userflow/vnfonts (npm 3835; DOCX 8/8; conftest bỏ test chỉ-macOS trên Windows), mục 13 THIRD-PARTY-NOTICES (phông OFL). Đang chạy: R0912 (bản 0.9.12 thử, chạy lại sau mất mạng), AGY-REPRO-D (tái hiện D1–D13 của Mac trên Windows).
