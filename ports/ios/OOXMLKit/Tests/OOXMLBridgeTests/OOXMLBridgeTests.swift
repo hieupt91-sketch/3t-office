@@ -214,6 +214,38 @@ final class OOXMLBridgeTests: XCTestCase {
         XCTAssertEqual(try callExpectingError("sheet.read", ["handle": h])["code"] as? String, "kind", "docx không phải bảng tính")
     }
 
+    func testMalformedJSONUsesRequestErrorCode() throws {
+        let response = try JSONSerialization.jsonObject(with: bridge.handle(Data("{\"id\":1,".utf8))) as! [String: Any]
+        let error = try XCTUnwrap(response["error"] as? [String: Any])
+        XCTAssertEqual(response["ok"] as? Bool, false)
+        XCTAssertEqual(error["code"] as? String, "request")
+        XCTAssertEqual(error["message"] as? String, "JSON không hợp lệ")
+    }
+
+    func testNotesMasterCreationFailureUsesUnsupportedCode() throws {
+        let package = try OPCPackage(data: Fixtures.data("pptx/rich-deck.pptx"))
+        let presentation = try Presentation(package: package)
+        let presentationRelationships = try package.relationships(of: presentation.mainPart)
+        for relationship in presentationRelationships.filter(.notesMaster) {
+            if let part = presentationRelationships.targetPart(relationship) { package.removePart(part) }
+            presentationRelationships.remove(id: relationship.id)
+        }
+        try package.xml(presentation.mainPart).root.firstChild(NS.p, "notesMasterIdLst")?.removeFromParent()
+
+        for slide in presentation.slides {
+            guard let layout = slide.layoutPart,
+                  let master = try package.relatedPart(from: layout, .slideMaster) else { continue }
+            let masterRelationships = try package.relationships(of: master)
+            for relationship in masterRelationships.filter(.theme) {
+                masterRelationships.remove(id: relationship.id)
+            }
+        }
+
+        let handle = try call("open", ["base64": try package.save().base64EncodedString()])["handle"] as! String
+        let error = try callExpectingError("slide.setNotes", ["handle": handle, "index": 2, "text": "Ghi chú"])
+        XCTAssertEqual(error["code"] as? String, "unsupported")
+    }
+
     func testSaveToFileRoundTrip() throws {
         let h = try openFixture("xlsx/rich-excel.xlsx")
         let dir = try Fixtures.scratchDirectory("bridge-save")
