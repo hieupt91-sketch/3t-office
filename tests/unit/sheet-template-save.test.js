@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { OFFICE_TEMPLATES } from "../../platform/templates/template-registry.js";
 
 const PY = String.raw`
 import sys, os, tempfile, zipfile, json
@@ -35,6 +36,11 @@ export async function runSheetTemplateSaveTests() {
   const eq = (actual, expected, label = "") => {
     if (actual !== expected) throw new Error(`${label} mong đợi ${JSON.stringify(expected)}, nhận ${JSON.stringify(actual)}`);
   };
+  test("Thẻ Đề cương thuyết trình không hiện huy hiệu Mẫu báo cáo", () => {
+    const template = OFFICE_TEMPLATES.find(item => item.id === "presentation_outline");
+    eq(template?.badge ?? null, null, "huy hiệu thẻ mẫu");
+    eq(template?.desc, "Trang chiếu ngang 16:9", "mô tả tiếng Việt của thẻ");
+  });
   test("Lưu .xltx: gói có loại nội dung mẫu, không còn loại sổ thường; .xltx nhận diện được ở hộp thoại Lưu/Mở", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vno-xltx-"));
     try {

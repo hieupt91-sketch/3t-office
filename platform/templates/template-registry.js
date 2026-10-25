@@ -35,9 +35,9 @@ export const OFFICE_TEMPLATES = [
   {
     id: "presentation_outline",
     title: "Đề cương thuyết trình",
-    desc: "Slide 16:9 widescreen",
+    desc: "Trang chiếu ngang 16:9",
     app: "slides",
-    badge: "Mẫu báo cáo",
+    badge: null,
     icon: "📽️",
     borderColor: "var(--vno-slides-primary)"
   }
