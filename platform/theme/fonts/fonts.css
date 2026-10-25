@@ -1,5 +1,9 @@
 /* Be Vietnam Pro (SIL Open Font License 1.1, see OFL.txt) bundled locally so the UI font
    is the same with no network — the desktop app runs offline first. */
+/* VN-FONTS-1: substitute document fonts (VN Sans UI, VN Sans, VN Mono, VN Song + aliases keyed by the font
+   name a document asks for). Loaded through this existing bundled-font stylesheet so index.html stays untouched;
+   each file downloads only when text actually uses it. */
+@import url("../../fonts/document/document-fonts.css");
 @font-face { font-family: "Be Vietnam Pro"; font-style: normal; font-weight: 400; font-display: swap; src: url("BeVietnamPro-Regular.ttf") format("truetype"); }
 @font-face { font-family: "Be Vietnam Pro"; font-style: normal; font-weight: 500; font-display: swap; src: url("BeVietnamPro-Medium.ttf") format("truetype"); }
 @font-face { font-family: "Be Vietnam Pro"; font-style: normal; font-weight: 600; font-display: swap; src: url("BeVietnamPro-SemiBold.ttf") format("truetype"); }

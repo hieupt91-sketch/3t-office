@@ -1,0 +1,24 @@
+/* VN-FONTS-1 — 3T Office substitute document fonts (SIL OFL 1.1, see OFL.txt / FONTLOG.txt), bundled so that
+   documents render on screen with the same substitutes the document engine uses for print/PDF, offline.
+   1) The VN families by their own names.
+   2) Aliases keyed by the font name a document asks for: local() keeps an installed real font first; only when
+      it is missing does the bundled VN substitute load. The keys are mapping keys only — no other product's
+      font file is shipped or referenced. Same table as platform/os_services/<os>.py (engine side). */
+@font-face { font-family: "VN Sans UI"; font-weight: 400; font-style: normal; font-display: swap; src: url("VNSansUI-Regular.ttf") format("truetype"); }
+@font-face { font-family: "VN Sans UI"; font-weight: 700; font-style: normal; font-display: swap; src: url("VNSansUI-Bold.ttf") format("truetype"); }
+@font-face { font-family: "VN Sans"; font-weight: 400; font-style: normal; font-display: swap; src: url("VNSans-Regular.ttf") format("truetype"); }
+@font-face { font-family: "VN Sans"; font-weight: 700; font-style: normal; font-display: swap; src: url("VNSans-Bold.ttf") format("truetype"); }
+@font-face { font-family: "VN Mono"; font-weight: 400; font-style: normal; font-display: swap; src: url("VNMono-Regular.ttf") format("truetype"); }
+@font-face { font-family: "VN Mono"; font-weight: 700; font-style: normal; font-display: swap; src: url("VNMono-Bold.ttf") format("truetype"); }
+@font-face { font-family: "VN Song"; font-weight: 400; font-style: normal; font-display: swap; src: url("VNSong-Regular.ttf") format("truetype"); }
+
+@font-face { font-family: "Segoe UI"; font-weight: 400; font-style: normal; font-display: swap; src: local("Segoe UI"), local("SegoeUI"), url("VNSansUI-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Segoe UI"; font-weight: 700; font-style: normal; font-display: swap; src: local("Segoe UI Bold"), local("SegoeUI-Bold"), url("VNSansUI-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Aptos"; font-weight: 400; font-style: normal; font-display: swap; src: local("Aptos"), url("VNSans-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Aptos"; font-weight: 700; font-style: normal; font-display: swap; src: local("Aptos Bold"), local("Aptos-Bold"), url("VNSans-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Aptos Display"; font-weight: 400; font-style: normal; font-display: swap; src: local("Aptos Display"), local("Aptos-Display"), url("VNSans-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Aptos Display"; font-weight: 700; font-style: normal; font-display: swap; src: local("Aptos Display Bold"), local("Aptos-Display-Bold"), url("VNSans-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Consolas"; font-weight: 400; font-style: normal; font-display: swap; src: local("Consolas"), url("VNMono-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Consolas"; font-weight: 700; font-style: normal; font-display: swap; src: local("Consolas Bold"), local("Consolas-Bold"), url("VNMono-Bold.ttf") format("truetype"); }
+@font-face { font-family: "SimSun"; font-weight: 400; font-style: normal; font-display: swap; src: local("SimSun"), url("VNSong-Regular.ttf") format("truetype"); }
+@font-face { font-family: "NSimSun"; font-weight: 400; font-style: normal; font-display: swap; src: local("NSimSun"), url("VNSong-Regular.ttf") format("truetype"); }
