@@ -5095,6 +5095,11 @@ ${pristineXlsxMarker}${docPropsMarker}
           workbook.sheets[0]
         );
         if (values) ranges.push(values);
+        const label = this._parseOdfTargetRange(
+          attrs.match(/chart:label-cell-address=["']([^"']+)["']/i)?.[1] || "",
+          workbook.sheets[0]
+        );
+        if (label) ranges.push(label);
       }
       const categories = this._parseOdfTargetRange(
         categoryAttrs.match(/table:cell-range-address=["']([^"']+)["']/i)?.[1] || "",

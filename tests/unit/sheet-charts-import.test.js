@@ -113,11 +113,13 @@ function assertSourceCells(workbook, context) {
 function assertImportedBarChart(chart, context) {
   assert(chart, `${context}: thiếu chart`);
   assert(chart.type === "bar", `${context}: type=${chart.type}`);
-  assert(chart.range?.start?.c === "A" && chart.range?.start?.r === 2, `${context}: start=${JSON.stringify(chart.range?.start)}`);
+  assert(chart.range?.start?.c === "A" && chart.range?.start?.r === 1, `${context}: start=${JSON.stringify(chart.range?.start)}`);
   assert(chart.range?.end?.c === "B" && chart.range?.end?.r === 5, `${context}: end=${JSON.stringify(chart.range?.end)}`);
   assert(chart.title === "Doanh thu theo tháng", `${context}: title=${chart.title}`);
   assert(JSON.stringify(chart.labels) === JSON.stringify(["T1", "T2", "T3", "T4"]), `${context}: labels=${JSON.stringify(chart.labels)}`);
   assert(JSON.stringify(chart.data) === JSON.stringify([120, 150, 180, 200]), `${context}: data=${JSON.stringify(chart.data)}`);
+  assert(chart.series?.[0]?.name === "Doanh thu", `${context}: series=${JSON.stringify(chart.series)}`);
+  assert(chart.series?.[0]?.labelCell?.c === "B" && chart.series?.[0]?.labelCell?.r === 1, `${context}: labelCell=${JSON.stringify(chart.series?.[0]?.labelCell)}`);
 }
 
 export async function runSheetChartsImportTests() {

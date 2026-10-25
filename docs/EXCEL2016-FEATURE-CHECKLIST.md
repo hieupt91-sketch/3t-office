@@ -103,7 +103,7 @@ Tổng: 1 mục ưu tiên 1.
 | Căn chỉnh | Hướng chữ (xoay) | ✅ | - | Xoay 90° đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:72; tests/unit/sheet-cell-orientation.test.js:1-25; sheet.format.alignmentDialog) |
 | Căn chỉnh | Ngắt dòng tự động (Wrap Text) | ✅ | - | Ngắt dòng tự động Wrap Text đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:32; tests/unit/sheet-style-export-wrap-border-align.test.js:1-25; sheet.cell.wrapText) |
 | Căn chỉnh | Giảm/Tăng thụt lề | 🟢 | - | Giảm và tăng thụt lề ô (docs/SHEET-BUTTON-MATRIX-1011.md:36-37; sheet.cell.indentDecrease, sheet.cell.indentIncrease) |
-| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:896, apps/sheet/sheet-grid.js:15804 |
+| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:896, apps/sheet/sheet-grid.js:15806 |
 | Căn chỉnh | Căn đều, Distributed, Fill, Center across selection, Shrink to fit | ✅ | - | 16/10 (AGY-JUSTIFY): Center Across Selection và Shrink to Fit lưu/mở lại đúng, đối chiếu Excel 2016 (cases-7; tests/functions/structural-cases-7.json:1-15; tests/unit/sheet-cell-text-fit.test.js:1-25) |
 | Số | Danh sách định dạng số (Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, %, Khoa học, Văn bản) | ✅ | - | Số/ngày/giờ/% đã đối chiếu (E3; docs/SHEET-BUTTON-MATRIX-1011.md:42; tests/unit/sheet-format-cells.test.js:1-30; sheet.format.quickCategory) |
 | Số | Định dạng số dạng Phân số (Fraction) và Đặc biệt (Special) | ✅ | - | 17/10 (AGY-NOTES): Phân số 9 mẫu và Đặc biệt 4 mẫu đối chiếu Excel 2016 COM 13/13 mẫu (cases-18; tests/functions/structural-cases-18.json:1-30; tests/unit/sheet-format-cells.test.js:1-40; sheet.format.quickCategory, sheet.format.cellsDialog) |
@@ -129,7 +129,7 @@ Tổng: 1 mục ưu tiên 1.
 | Chỉnh sửa | Tổng tự động (Sum, Average, Count, Max, Min) và Thêm hàm | 🟢 | - | sheet.formula.sum + dropdown |
 | Chỉnh sửa | Điền: xuống / sang phải / Flash Fill | ✅ | - | 17/10 (AGY-DATATOOLS): Flash Fill và Điền đối chiếu Excel 2016 (cases-17 6/6 kịch bản; tests/functions/structural-cases-17.json:1-30; apps/sheet/data-tools.js:339-370; sheet.data.flashFill) |
 | Chỉnh sửa | Điền: lên / sang trái / Chuỗi (Series) / Căn đều / Trên các trang | ✅ | - | 16/10: Căn đều (sheet.edit.fillJustify, cases-7 47/47 ô, tests/functions/structural-cases-7.json:1-20) và Chuỗi Series (tests/unit/sheet-series.test.js:1-25) |
-| Chỉnh sửa | Xóa: tất cả / định dạng / nội dung | ✅ | - | 17/10 (AGY-DATATOOLS): Clear all, formats, contents đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.edit.clearAll; apps/sheet/sheet-grid.js:15137 |
+| Chỉnh sửa | Xóa: tất cả / định dạng / nội dung | ✅ | - | 17/10 (AGY-DATATOOLS): Clear all, formats, contents đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.edit.clearAll; apps/sheet/sheet-grid.js:15139 |
 | Chỉnh sửa | Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa) | ✅ | - | 17/10 (AGY-NOTES): Xóa ghi chú và siêu liên kết đối chiếu Excel 2016 (docs/excel-oracle-1710.json:2-31; tests/unit/sheet-clear-notes-links.test.js:1-55; tests/live/cdp/sheet-clear-notes-links.desktop.mjs:1-85; sheet.edit.clearComments, sheet.edit.clearHyperlinks) |
 | Chỉnh sửa | Sắp xếp A-Z / Z-A / Tùy chỉnh nhiều cấp | ✅ | - | Sắp xếp hai cấp đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:57-58; tests/unit/sheet-data-tools.test.js:1-30; sheet.data.sortAsc, sheet.data.sortDesc) |
 | Chỉnh sửa | Sắp xếp theo màu ô/màu chữ/biểu tượng | 🟢 | - | sheet.data.filter: nút ở tiêu đề cột; sắp theo màu ô/màu chữ (G2) và theo biểu tượng của bộ biểu tượng (đèn giao thông, mũi tên…), đưa nhóm chọn lên đầu, hoàn tác (tests/live/cdp/sheet-sort-by-icon.desktop.mjs 6/6); chưa có lựa chọn Xuống cuối / lọc theo biểu tượng; chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
@@ -225,10 +225,10 @@ Tổng: 1 mục ưu tiên 1.
 | Công cụ dữ liệu | Hợp nhất dữ liệu (Consolidate) | ✅ | - | 17/10 (AGY-DATATOOLS): Consolidate hợp nhất dữ liệu đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-consolidate.test.js:1-30; apps/sheet/consolidate.js:1-30; sheet.data.consolidate) |
 | Công cụ dữ liệu | Quan hệ giữa bảng / Mô hình dữ liệu (Power Pivot) | 🔴 | 3 |  |
 | Dự báo | Phân tích What-If: Trình quản lý kịch bản | ✅ | - | 17/10 (AGY-DATATOOLS): Trình quản lý kịch bản Scenario Manager đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-what-if-analysis.test.js:1-35; apps/sheet/sheet-grid.js:20784-20800; sheet.data.scenarioManager) |
-| Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:21310; sheet.data.goalSeek) |
+| Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:21312; sheet.data.goalSeek) |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
 | Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
-| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (apps/sheet/sheet-grid.js:20415; apps/sheet/sheet-grid.js:20358; sheet.data.group) |
+| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (apps/sheet/sheet-grid.js:20417; apps/sheet/sheet-grid.js:20360; sheet.data.group) |
 | Phân tích | Solver | 🔴 | 3 | Bổ sung của Excel |
 
 ### Xem xét

@@ -9798,6 +9798,8 @@ export class SheetGridController {
       id: `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       type,
       range: normalizedRange,
+      x: Math.max(0, this.cols.indexOf(normalizedRange.end.c) + 1) * 100 + 46,
+      y: Math.max(0, normalizedRange.start.r - 1) * this.rowHeight + 28,
       title: `Biểu đồ ${this._rangeLabel(normalizedRange)}`,
       labels: [],
       data: []
