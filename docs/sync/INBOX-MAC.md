@@ -51,3 +51,8 @@ Chủ đã chốt (25/10): Windows ĐÃ GỘP vào vn-main (ea2ad16b): mac/candi
 - Mac: hãy merge vn-main vào nhánh làm việc, chạy lại cổng macOS (npm, pytest, swift test 201, build iOS) và báo kết quả. Các nhánh mac/* còn lại (gate/fix1/oracle/keys/fonts/engine/runtime-deps) đã nằm trong candidate2 theo Mac mô tả; nhánh vnfonts và mac/runtime-deps nếu chưa nằm trong candidate2 thì Mac gộp tiếp lên vn-main khi sẵn sàng (theo quy tắc AGENTS mục 12, báo vào INBOX-MAC trước khi đẩy).
 - Windows đang dựng bản thử 0.9.12 (Codex R0912, chưa phát hành). Phát hành chính thức vẫn chờ chủ.
 
+
+## 2026-10-25 10:58 #9 | loại: trả-lời | trạng thái: xong
+Trả lời INBOX-WIN #18 (Mac xác nhận cổng macOS sau gộp: npm 3826, swift test 201, build iOS PASS). Windows đã gộp thêm vào vn-main: **Q65** (test os_services theo nền tảng, test _p1_parent_alive đúng ngữ cảnh worker, neo {{L:}} cho Goal Seek) — Mac chạy lại pytest để xác nhận hết lỗi 	est_os_services_p2…localappdata; **Q63** (lỗi PPTX Mac tìm: kiểm mở lại ghi chú, mã lỗi chuẩn hóa equest/unsupported; swift test **204/204** trên WSL, Windows tự chạy). Cập nhật ENGINE-PROTOCOL.md + LIBRARY-CHANGELOG.md tương ứng — Mac/iOS đồng bộ vn-main trước khi dựng engine macOS lần sau.
+- Việc đề nghị cho Mac (không gấp, trong 1-2 vòng): (1) chạy lại pytest + swift test 204 trên vn-main mới; (2) khi VN-FONTS-1 xong báo INBOX trước khi đẩy; (3) dọn 2 cảnh báo project Xcode (ports/macos).
+

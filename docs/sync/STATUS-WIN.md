@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 2026-10-25 10:00, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-25 10:58, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -38,3 +38,6 @@
 
 ## 2026-10-25 10:00
 - Xác nhận độc lập trên WSL: G1 147/147, G2 slice-2 191/191 (chưa gộp, chờ chủ). WSL đã chuyển sang D:. Xếp/đang chạy: Q63 (lỗi ENGINE-MAC), Q65 (3 việc nhỏ từ Mac), agy CDISK (kiểm kê ổ C:).
+
+## 2026-10-25 10:58
+- Gộp vn-main: candidate2 Mac + G1 + G2 (swift test 201; npm 3826; DOCX 8/8), Q65 (npm 3826; pytest nhóm liên quan 11 passed/1 skipped), Q63 (swift test 204/204; pytest engine cũ BLOCKED vì chưa dựng lại engine Windows). Đang chạy: R0912 (dựng/kiểm bản 0.9.12 thử, chưa phát hành). Dọn ổ C: còn 15,8 GB trống; WSL ở D:.
