@@ -1,6 +1,7 @@
+// Phím tắt gửi theo nền tảng (Ctrl trên Windows, Cmd trên macOS) qua pressShortcut + bảng phím dùng chung.
 // Writer: chân trang có số trang tổng (NUMPAGES) phải theo số trang thật, không luôn ghi "Trang 1 / 1".
 import { launchApp } from "./session.mjs";
-import { sleep, click, typeText, press } from "./actions.mjs";
+import { sleep, click, typeText, press, pressShortcut } from "./actions.mjs";
 const checks = [];
 const check = (name, pass, detail = "") => { checks.push(Boolean(pass)); console.log(`${pass ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`); };
 const session = await launchApp("writer", {});
@@ -13,13 +14,13 @@ try {
   check("Tài liệu 1 trang: chân trang Trang 1 / 1", /Trang 1 \/ 1/.test(await footer()), await footer());
   await click(cdp, ".vno-writer-body");
   await typeText(cdp, "Trang một", 5);
-  await press(cdp, "Enter", { ctrl: true }); await typeText(cdp, "Trang hai", 5);
-  await press(cdp, "Enter", { ctrl: true }); await typeText(cdp, "Trang ba", 5);
+  await pressShortcut(cdp, "Ctrl+Enter", { commandId: "writer.page.break" }); await typeText(cdp, "Trang hai", 5);
+  await pressShortcut(cdp, "Ctrl+Enter", { commandId: "writer.page.break" }); await typeText(cdp, "Trang ba", 5);
   await sleep(2000);
   check("Tài liệu 3 trang: chân trang Trang 1 / 3", /Trang 1 \/ 3/.test(await footer()), await footer());
   // Xóa hết nội dung thân bài: tổng trang trở về 1
   await click(cdp, ".vno-writer-body");
-  await press(cdp, "a", { ctrl: true }); await press(cdp, "Delete"); await sleep(2500);
+  await pressShortcut(cdp, "Ctrl+A", { commandId: "common.edit.selectAll" }); await press(cdp, "Delete"); await sleep(2500);
   const after = await footer();
   check("Xóa hết nội dung: tổng trang giảm về 1", /Trang 1 \/ 1/.test(after), after);
 } catch (error) {
