@@ -4,6 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { documentFontStack } from "../../../platform/fonts/font-stack.js";
 import { showAlertDialog, showPromptDialog, showFindReplaceDialog, showHyperlinkDialog, showSymbolPicker } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
@@ -1631,10 +1632,12 @@ export class SheetAdapter {
         width = Number(colWidths.get(col)) || defaultColWidth;
       }
       const style = item.style || {};
+      // FIX-D6-2510: đo bằng cùng chuỗi phông ô lưới vẽ (tên gốc + phông cùng kích thước + họ chung).
+      const family = documentFontStack(style.fontFamily) || "Calibri, Carlito, Arial, sans-serif";
       const cellFont = {
-        css: `${style.fontStyle || "normal"} ${style.fontWeight || "normal"} ${style.fontSize || "14.67px"} ${style.fontFamily || "Calibri, Carlito, Arial, sans-serif"}`,
+        css: `${style.fontStyle || "normal"} ${style.fontWeight || "normal"} ${style.fontSize || "14.67px"} ${family}`,
         px: parseFloat(style.fontSize) || 14.67,
-        family: style.fontFamily || "Calibri, Carlito, Arial, sans-serif",
+        family,
         heights: heights.map(Number)
       };
       const runs = richRuns

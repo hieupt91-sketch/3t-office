@@ -4,6 +4,8 @@
    name a document asks for). Loaded through this existing bundled-font stylesheet so index.html stays untouched;
    each file downloads only when text actually uses it. */
 @import url("../../fonts/document/document-fonts.css");
+/* FIX-D6-2510: Carlito (unmodified, OFL) + aliases for Calibri / Calibri Light when the real font is missing. */
+@import url("../../fonts/substitutes/substitute-fonts.css");
 @font-face { font-family: "Be Vietnam Pro"; font-style: normal; font-weight: 400; font-display: swap; src: url("BeVietnamPro-Regular.ttf") format("truetype"); }
 @font-face { font-family: "Be Vietnam Pro"; font-style: normal; font-weight: 500; font-display: swap; src: url("BeVietnamPro-Medium.ttf") format("truetype"); }
 @font-face { font-family: "Be Vietnam Pro"; font-style: normal; font-weight: 600; font-display: swap; src: url("BeVietnamPro-SemiBold.ttf") format("truetype"); }

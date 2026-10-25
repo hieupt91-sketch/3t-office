@@ -1,0 +1,47 @@
+{
+  "ticket": "FIX-D6-2510",
+  "purpose": "Unmodified metric-compatible substitute so documents asking for Calibri / Calibri Light render on screen with the same widths when the real font is not installed (macOS). Same substitute the document engine uses (platform/os_services/macos.py).",
+  "modified": false,
+  "fonts": {
+    "carlito": {
+      "name": "Carlito",
+      "version": "1.104",
+      "license": "OFL-1.1",
+      "reserved_font_names": [
+        "Carlito"
+      ],
+      "copyright": "Copyright 2013 The Carlito Project Authors (https://github.com/googlefonts/carlito), with Reserved Font Name \"Carlito\"",
+      "upstream": "https://github.com/googlefonts/carlito (commit 3a810cab78ebd6e2e4eed42af9e8453c4f9b850a, per google/fonts upstream_info.md)",
+      "pinned_repository": "google/fonts@8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5 ofl/carlito",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/carlito/OFL.txt",
+      "license_sha256": "58402f82a7c332a700294988fe7554fbb0a63a8d27ccc1ee3bbc640311990a00",
+      "files": {
+        "Carlito-Regular.ttf": {
+          "url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/carlito/Carlito-Regular.ttf",
+          "sha256": "f6418f708baede9789daef5d458c0f53d2a888af9820e8062934e504fedc6595",
+          "bytes": 628032
+        },
+        "Carlito-Bold.ttf": {
+          "url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/carlito/Carlito-Bold.ttf",
+          "sha256": "bb5d20f79b82599ec72983597437373a80f2d2085fa91fc144fd74e876a594db",
+          "bytes": 682468
+        },
+        "Carlito-Italic.ttf": {
+          "url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/carlito/Carlito-Italic.ttf",
+          "sha256": "0b019225e58d702bfedcbd35c21696769f8ee115cb6343f84c2f240312450d1c",
+          "bytes": 615236
+        },
+        "Carlito-BoldItalic.ttf": {
+          "url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/carlito/Carlito-BoldItalic.ttf",
+          "sha256": "b32928186c119599e03ca6a1ffc680fdcb7fac95772f4b95d989cf6cd3861517",
+          "bytes": 808508
+        }
+      },
+      "vietnamese": "all precomposed Vietnamese letters; no combining tone marks (decomposed text falls back per character)"
+    }
+  },
+  "not_bundled": {
+    "Caladea (Cambria)": "Caladea 1.x lacks 48 Vietnamese letters (horn vowels, hook above, dot below), so a Vietnamese run would mix two typefaces; Cambria falls back to the platform serif instead.",
+    "Liberation Sans/Serif/Mono (Arial, Times New Roman, Courier New)": "Windows and macOS ship these three fonts; the web stacks name the Liberation/Arimo/Tinos/Cousine families as local fallbacks only."
+  }
+}

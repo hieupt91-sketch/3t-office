@@ -6,6 +6,8 @@
  * workbook model. The normal FODS/payload route remains the sole editable model.
  */
 
+import { documentFontStack } from "../../platform/fonts/font-stack.js";
+
 const DEFAULT_ROW_HEIGHT = 26;
 const DEFAULT_COL_WIDTH = 100;
 const WINDOW_ROWS = 40;
@@ -48,6 +50,11 @@ export function viewFormatToStyle(format = {}) {
     textDecoration: decorations.join(" ")
   };
   return Object.fromEntries(Object.entries(style).filter(([, value]) => value !== ""));
+}
+
+// FIX-D6-2510: phông tài liệu ("Calibri") vẽ kèm phông cùng kích thước + họ chung, như lưới chính.
+function cellCss(style) {
+  return style?.fontFamily ? { ...style, fontFamily: documentFontStack(style.fontFamily) } : style;
 }
 
 export function mapFormatBlocks(blocks, rowCount, colCount) {
@@ -415,9 +422,9 @@ export class SheetQuickView {
         const valueOverride = this.valueOverrides.get(overrideKey);
         td.textContent = valueOverride !== undefined ? valueOverride : (display == null ? "" : String(display));
         const style = styles[r]?.[c];
-        if (style) Object.assign(td.style, style);
+        if (style) Object.assign(td.style, cellCss(style));
         const styleOverride = this.styleOverrides.get(overrideKey);
-        if (styleOverride) Object.assign(td.style, styleOverride);
+        if (styleOverride) Object.assign(td.style, cellCss(styleOverride));
         if (this.selected.row === r0 + r + 1 && this.selected.col === c0 + c) td.classList.add("is-selected");
         tr.appendChild(td);
       }
@@ -631,7 +638,7 @@ export class SheetQuickView {
           cell.textContent = String(value ?? "");
           cell.dataset.value = String(value ?? "");
         }
-        if (style) Object.assign(cell.style, style);
+        if (style) Object.assign(cell.style, cellCss(style));
         else if (edit.hasStyle) cell.style.fontWeight = "";
       }
     }

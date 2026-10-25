@@ -42,6 +42,7 @@ import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 import { isSpellcheckEnabled, setSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
 import { PageSetupDialog } from "./page-setup-dialog.js";
+import { documentFontStack } from "../../platform/fonts/font-stack.js";
 import { TableSlicerController, normalizeTableSlicer } from "./table-slicer.js";
 import {
   cellColor,
@@ -22543,6 +22544,9 @@ export class SheetGridController {
       // S29a: Excel giữ khoảng trắng liên tiếp trong ô; model ghi "nowrap"/"normal" (ý nghĩa: có bọc chữ hay không)
       // → DOM dùng pre / pre-wrap để không gộp dấu cách (lan02 A17 "Phí chuyển tiền:" + 15 dấu cách + "□ Người…").
       if (k === "whiteSpace") { dom.style.whiteSpace = v === "normal" ? "pre-wrap" : (v === "nowrap" ? "pre" : v); continue; }
+      // FIX-D6-2510: tên phông từ tệp ("Calibri") + phông thay thế cùng kích thước + họ chung, để máy thiếu phông
+      // không rơi về phông có chân mặc định. Model/tệp lưu vẫn giữ nguyên tên phông gốc.
+      if (k === "fontFamily") { dom.style.fontFamily = documentFontStack(v); continue; }
       dom.style[k] = v;
     }
     this._applyTextRotationToDom(dom, styles.textRotation);
@@ -22663,7 +22667,7 @@ export class SheetGridController {
         if (run.style?.fontWeight) styles.push(`font-weight:${run.style.fontWeight}`);
         if (run.style?.fontStyle) styles.push(`font-style:${run.style.fontStyle}`);
         if (run.style?.textDecoration) styles.push(`text-decoration:${run.style.textDecoration}`);
-        if (run.style?.fontFamily) styles.push(`font-family:${run.style.fontFamily}`);
+        if (run.style?.fontFamily) styles.push(`font-family:${documentFontStack(run.style.fontFamily)}`);
         if (run.style?.fontSize) styles.push(`font-size:${run.style.fontSize}`);
         const styleAttr = styles.length ? ` style="${escapeHtml(styles.join(";")).replace(/"/g, "&quot;")}"` : "";
         return `<span${styleAttr}>${escapeHtml(run.text)}</span>`;
