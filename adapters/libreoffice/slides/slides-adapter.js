@@ -2147,7 +2147,14 @@ export class SlidesAdapter {
     const pad = this._padKey(shape);
     const columns = Math.max(1, Math.min(8, Math.trunc(Number(shape.textColumns)) || 1));
     const columnKey = columns > 1 ? `_c${columns}_${String(Number.isFinite(Number(shape.columnSpacing)) ? Number(shape.columnSpacing) : 18).replace(/\./g, "_")}` : "";
-    if (!vAlign && !dir && !pad && !columnKey) return "";
+    if (!vAlign && !dir && !pad && !columnKey) {
+      // FIX-SLIDES-2510 D8: hình ghi ra draw:custom-shape (hình dựng sẵn, mũi tên, lật) có chữ cần style riêng mang
+      // draw:auto-grow-height="false" + căn giữa (_textStyleGraphicAttrs); với style tô màu chung gr<màu>,
+      // LibreOffice co custom-shape theo chiều cao chữ khi lưu PPTX (spAutoFit — mũi tên 200×120 còn 200×27).
+      // draw:rect / draw:ellipse không bị co (đo soffice 25-10) nên giữ tên style cũ.
+      const isCustomShapeExport = shape?.type === "arrow" || Boolean(shape?.geomType || shape?.flipH || shape?.flipV);
+      return isCustomShapeExport && String(shape?.text ?? "").trim() ? "_fixed" : "";
+    }
     return `_${vAlign || "m"}${dir ? `_${dir}` : ""}${pad}${columnKey}`;
   }
 
@@ -2163,6 +2170,10 @@ export class SlidesAdapter {
     let attrs = "";
     if (shape.textVAlign) {
       attrs += ` draw:textarea-vertical-align="${this._escapeXml(shape.textVAlign)}"`;
+    } else if (shape.type !== "textbox" && shape.type !== "text") {
+      // FIX-SLIDES-2510 D8: canvas căn chữ của hình vào GIỮA (flex center); không ghi rõ thì LibreOffice dùng
+      // mặc định «trên» (PPTX anchor="t") → mở lại chữ nằm sát mép trên, ra ngoài thân mũi tên và mất hút.
+      attrs += ` draw:textarea-vertical-align="middle"`;
     }
     if (shape.textDirection && shape.textDirection !== "horizontal") {
       const writingMode = shape.textDirection === "stacked" ? "tb-lr" : "tb-rl";
@@ -4472,7 +4483,19 @@ export class SlidesAdapter {
     return next;
   }
 
-  _extractShapeFrames(pageContent, shapes, graphicStyles, idMap, sourceXml = pageContent) {
+  /**
+   * FIX-SLIDES-2510 D1: số khung chỗ giữ mà bố cục VN có tên (master-page VNOTitleContent/VNOTitleOnly/
+   * VNOTwoContent) tự vẽ từ slide.title/body/body2. Tệp PPTX do Slide lưu khi soffice mở lại giữ tên bố cục
+   * nhưng đổi tên khung thành «PlaceHolder N» + user-transformed → không được giữ lại thành hộp chữ nữa.
+   */
+  _layoutPlaceholderQuota(pageLayout) {
+    if (pageLayout === "title-content") return { title: 1, outline: 1, extraBlocks: [] };
+    if (pageLayout === "two-content") return { title: 1, outline: 2, extraBlocks: [] };
+    if (pageLayout === "title-only") return { title: 1, outline: 0, extraBlocks: [] };
+    return null;
+  }
+
+  _extractShapeFrames(pageContent, shapes, graphicStyles, idMap, sourceXml = pageContent, layoutQuota = null) {
     const regex = /<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi;
     const blocks = [];
     let match;
@@ -4484,9 +4507,17 @@ export class SlidesAdapter {
       const isPlaceholder = /^(title|subtitle|outline)$/i.test(cls)
         && (!name || /^(title|body|body2|subtitle|outline)$/i.test(name))
         && !userTransformed;
+      // Trên trang bố cục VN: khung title đầu tiên và 1–2 khung outline/subtitle đầu tiên là chỗ giữ của bố cục
+      // (canvas vẽ từ slide.title/body) — không thêm bản sao thành hộp chữ.
+      const role = /^title$/i.test(cls || "") ? "title" : (/^(subtitle|outline)$/i.test(cls || "") ? "outline" : "");
+      if (role && layoutQuota && layoutQuota[role] > 0) {
+        layoutQuota[role] -= 1;
+        continue;
+      }
       if (isPlaceholder) continue;
       const shape = this._parseFrameShape(match[1], match[2], graphicStyles);
       if (!shape) continue;
+      if (role && layoutQuota) layoutQuota.extraBlocks.push(match[0]);
       const sourceOrder = sourceXml.indexOf(match[0]);
       if (sourceOrder >= 0) shape._importOrder = sourceOrder;
       // Khung tiêu đề / phụ đề / nội dung của tệp PowerPoint mở vào thành hộp chữ tự do trên
@@ -5227,7 +5258,11 @@ export class SlidesAdapter {
         this._recordShapeId(attrs, shape, idMap);
         shapes.push(shape);
       });
-      pageContent = this._extractShapeFrames(pageContent, shapes, graphicStyles, idMap, originalPageXml);
+      const layoutQuota = layoutNames[masterPageName] ? this._layoutPlaceholderQuota(pageLayout) : null;
+      pageContent = this._extractShapeFrames(pageContent, shapes, graphicStyles, idMap, originalPageXml, layoutQuota);
+      // Khung lớp title/outline THỪA (đã thành hộp chữ) không được đọc thêm vào slide.title/body.
+      let placeholderXml = originalPageXml;
+      for (const block of layoutQuota?.extraBlocks || []) placeholderXml = placeholderXml.replace(block, "");
       const orderedShapes = shapes.map((shape, index) => ({ shape, index }));
       orderedShapes.sort((a, b) => {
         const aOrder = Number.isFinite(a.shape._importOrder) ? a.shape._importOrder : Number.MAX_SAFE_INTEGER;
@@ -5245,10 +5280,10 @@ export class SlidesAdapter {
       this._applyParsedMedia(shapes, idMap, originalPageXml);
       this._currentUsedIds = null;
 
-      const titleParas = this._frameParagraphsByClass(originalPageXml, "title");
-      const subtitleParas = this._frameParagraphsByClass(originalPageXml, "subtitle");
-      const outlineParas = this._frameParagraphsByClass(originalPageXml, "outline");
-      const outlineBlocks = this._frameBlocksByClass(originalPageXml, "outline");
+      const titleParas = this._frameParagraphsByClass(placeholderXml, "title");
+      const subtitleParas = this._frameParagraphsByClass(placeholderXml, "subtitle");
+      const outlineParas = this._frameParagraphsByClass(placeholderXml, "outline");
+      const outlineBlocks = this._frameBlocksByClass(placeholderXml, "outline");
       const hasPlaceholderClasses = titleParas.length > 0 || subtitleParas.length > 0 || outlineParas.length > 0;
 
       const hasTextBoxShapes = shapes.some(s => s.type === "textbox");
@@ -5329,9 +5364,9 @@ export class SlidesAdapter {
         body = pageLayout === "title-only" ? "" : (paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "");
       }
 
-      const titleHtmls = this._frameHtmlByClass(originalPageXml, "title", this._richMaps);
-      const outlineHtmls = this._frameHtmlByClass(originalPageXml, "outline", this._richMaps);
-      const subtitleHtmls = this._frameHtmlByClass(originalPageXml, "subtitle", this._richMaps);
+      const titleHtmls = this._frameHtmlByClass(placeholderXml, "title", this._richMaps);
+      const outlineHtmls = this._frameHtmlByClass(placeholderXml, "outline", this._richMaps);
+      const subtitleHtmls = this._frameHtmlByClass(placeholderXml, "subtitle", this._richMaps);
       const titleHtml = titleHtmls.find((item) => this._htmlHasFormat(item));
       const bodyHtml = (subtitleHtmls.find((item) => this._htmlHasFormat(item))
         || (pageLayout === "two-content" ? outlineHtmls[0] : outlineHtmls.find((item) => this._htmlHasFormat(item))));

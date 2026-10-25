@@ -5763,7 +5763,7 @@ const startEditing = (initialText) => {
         });
         el.appendChild(textEl);
       } else {
-        const preset = shape.type === "rect" ? presetOf(shape.geomType) : null;
+        const preset = this._presetForShape(shape);
         if (preset?.path) {
           // Hình dựng sẵn: vẽ bằng SVG, phần tử không có nền/viền CSS (tránh khung chữ nhật bao quanh).
           el.style.backgroundColor = "transparent";
@@ -7027,6 +7027,17 @@ const startEditing = (initialText) => {
   }
 
   /** Trả về CSS writing-mode cho các tùy chọn Hướng văn bản (GAP-SLIDES-06), khớp 4 lựa chọn thật của PowerPoint. */
+  /**
+   * Hình dựng sẵn dùng để vẽ SVG cho một hình. FIX-SLIDES-2510 D8: hình mũi tên mở từ PPTX được nhập là
+   * `type:"arrow"` (geomType `ooxml-rightArrow`…) — trước chỉ tra preset cho `rect` nên vẽ thành chữ nhật.
+   * `arrow` cũ không có geomType được lưu là right-arrow nên vẽ bằng preset Mũi tên phải.
+   */
+  _presetForShape(shape) {
+    if (shape?.type === "rect") return presetOf(shape.geomType);
+    if (shape?.type === "arrow") return presetOf(shape.geomType) || (!shape.geomType || /right-?arrow$/i.test(shape.geomType) ? presetOf("rightArrow") : null);
+    return null;
+  }
+
   _textDirectionCss(direction) {
     if (direction === "vertical") return "writing-mode:vertical-rl;text-orientation:mixed;";
     if (direction === "vertical270") return "writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);";
