@@ -1,7 +1,9 @@
 import { findLegacyUnsupportedFunctions } from "../../apps/sheet/legacy-formula-warning.js";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { SheetApp } from "../../apps/sheet/sheet-app.js";
 import { viStrings } from "../../platform/i18n/strings-vi.js";
 import { enStrings } from "../../platform/i18n/strings-en.js";
+import { setLocale } from "../../platform/i18n/i18n.js";
 
 export async function runSheetLegacyFunctionWarningTests() {
   const results = [];
@@ -42,12 +44,40 @@ export async function runSheetLegacyFunctionWarningTests() {
     eq(grid._legacyFunctionWarningsDisabled, true, "trạng thái tắt");
     eq(notifications.length, 2, "không báo sau khi tắt");
     eq(clears, 1, "đóng thanh cảnh báo");
-    for (const catalog of [viStrings, enStrings]) {
+    for (const [locale, catalog, singlePrefix, pluralPrefix] of [
+      ["vi", viStrings, "Hàm {function}", "Các hàm {functions}"],
+      ["en", enStrings, "Function {function}", "Functions {functions}"]
+    ]) {
       if (!catalog.sheetFormulaEntry.legacyFunctionWarning.includes("{functions}")
+        || !catalog.sheetFormulaEntry.legacyFunctionWarningOne.includes("{function}")
+        || !catalog.sheetFormulaEntry.formulaBarPlaceholder
+        || !catalog.sheetFormulaEntry.statusReady
+        || !catalog.sheetFormulaEntry.statusCell.includes("{coord}")
         || !catalog.sheetFormulaEntry.disableLegacyFunctionWarning) {
         throw new Error("Thiếu chuỗi cảnh báo hoặc nút tắt ở một ngôn ngữ.");
       }
+      setLocale(locale);
+      const statusShorts = Object.fromEntries(SheetApp.STATUS_STAT_ITEMS.map(item => [item.key, item.short]));
+      const expectedStatusShorts = locale === "en"
+        ? { count: "COUNT", counta: "COUNTA", min: "MIN", max: "MAX", avg: "AVERAGE", sum: "SUM" }
+        : { count: "ĐẾM", counta: "ĐẾM Ô", min: "NHỎ NHẤT", max: "LỚN NHẤT", avg: "TRUNG BÌNH", sum: "TỔNG CỘNG" };
+      eq(statusShorts, expectedStatusShorts, `${locale} nhãn thống kê thanh trạng thái`);
+      const oneGrid = Object.create(SheetGridController.prototype);
+      const oneMessages = [];
+      oneGrid.adapter = { shell: { showNotification: item => oneMessages.push(item) } };
+      oneGrid._warnForLegacyFormula("=XLOOKUP(A1;B:B;C:C)");
+      if (!oneMessages[0]?.message.startsWith(singlePrefix.replace("{function}", "XLOOKUP"))) {
+        throw new Error(`${locale} cảnh báo một hàm phải dùng số ít: ${oneMessages[0]?.message}`);
+      }
+      const manyGrid = Object.create(SheetGridController.prototype);
+      const manyMessages = [];
+      manyGrid.adapter = { shell: { showNotification: item => manyMessages.push(item) } };
+      manyGrid._warnForLegacyFormula("=XLOOKUP(A1;B:B;C:C)+FILTER(C:C;C:C>0)");
+      if (!manyMessages[0]?.message.startsWith(pluralPrefix.replace("{functions}", "XLOOKUP, FILTER"))) {
+        throw new Error(`${locale} cảnh báo nhiều hàm phải dùng số nhiều: ${manyMessages[0]?.message}`);
+      }
     }
+    setLocale("vi");
   });
   return results;
 }

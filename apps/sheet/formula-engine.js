@@ -298,17 +298,16 @@ export class FormulaEngine {
     };
     const str = String(raw).trim();
     if (!str) return cacheResult(null);
-    if (!/^\s*[-+]?[\d.,\s]+\s*(?:₫|đ|vnd|vnđ)?\s*$/i.test(str) || !/\d/.test(str)) {
-      return cacheResult(null);
+    if (!this.numberLocale) {
+      if (!/^[-+]?\s*[\d.,\s]+\s*(?:₫|đ|vnd|vnđ)?\s*$/i.test(str) || !/\d/.test(str)) return cacheResult(null);
+      if (!isNaN(Number(str))) return cacheResult(Number(str));
+      const cleaned = str.replace(/\./g, "").replace(/[^\d-]/g, "");
+      return cacheResult(cleaned && !isNaN(Number(cleaned)) ? Number(cleaned) : null);
     }
-    if (!isNaN(Number(str))) {
-      return cacheResult(Number(str));
-    }
-    const cleaned = str.replace(/\./g, "").replace(/[^\d-]/g, "");
-    if (cleaned && !isNaN(Number(cleaned))) {
-      return cacheResult(Number(cleaned));
-    }
-    return cacheResult(null);
+    const inferred = NumberFormatter.inferUserInput(str, null, this.numberLocale || {
+      locale: "vi-VN", decimalSeparator: ",", thousandsSeparator: "."
+    });
+    return cacheResult(typeof inferred?.value === "number" && Number.isFinite(inferred.value) ? inferred.value : null);
   }
 
   /**
@@ -2746,7 +2745,15 @@ export class FormulaEngine {
         const values = this.collectValues(args.slice(2));
         if (values.some(value => this._isError(value))) return values.find(value => this._isError(value));
         const selected = ignoreEmpty ? values.filter(value => value !== "" && value !== null && value !== undefined) : values;
-        const result = selected.join(delimiter);
+        const result = selected.map(value => {
+          if (typeof value === "number") return NumberFormatter.formatGeneralNumber(value, this.numberLocale);
+          if (value instanceof String && value.isTextCell) return String(value);
+          const text = String(value ?? "");
+          if (/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(text) && Number.isFinite(Number(text))) {
+            return NumberFormatter.formatGeneralNumber(Number(text), this.numberLocale);
+          }
+          return text;
+        }).join(delimiter);
         return result.length > 32767 ? "#VALUE!" : result;
       }
 
