@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
 import os
 import subprocess
 import sys
 import time
 import unittest
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,7 +49,25 @@ def _pid_alive(pid: int) -> bool:
         return False
 
 
+def _worker_reports_parent_alive(parent_pid: int) -> tuple[int, int, bool]:
+    import adapters.libreoffice.common.ooxml_zip_patch as patch
+
+    return os.getpid(), os.getppid(), patch._p1_parent_alive(parent_pid)
+
+
 class PoolOrphanTests(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "POSIX parent probe must run in a spawned worker on POSIX")
+    def test_parent_alive_probe_from_spawned_worker(self):
+        parent_pid = os.getpid()
+        context = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=1, mp_context=context) as pool:
+            worker_pid, worker_parent_pid, parent_alive = pool.submit(
+                _worker_reports_parent_alive, parent_pid
+            ).result(timeout=15)
+        self.assertNotEqual(worker_pid, parent_pid, "probe must run in a child worker")
+        self.assertEqual(worker_parent_pid, parent_pid, "spawned worker must inspect its actual parent")
+        self.assertTrue(parent_alive, "worker must report its live parent as alive")
+
     def test_workers_exit_after_their_parent_is_killed(self):
         child = subprocess.Popen(
             [sys.executable, "-s", "-c", CHILD.format(root=str(ROOT))],
