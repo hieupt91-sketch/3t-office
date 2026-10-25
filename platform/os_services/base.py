@@ -106,6 +106,32 @@ class OfficeExportRequest:
     timeout_seconds: int = 60
 
 
+@dataclass(frozen=True)
+class FontSubstitution:
+    """A font a document may ask for, and what the document engine uses when it is not installed.
+
+    substitutes are tried in order; the first one installed wins. The requested font itself always stays first,
+    so a user who installs the real font gets it. metric_compatible=True means same advance widths and line
+    height (same line and page breaks); False is a best-effort look-alike.
+    """
+
+    font: str
+    substitutes: tuple[str, ...]
+    metric_compatible: bool = False
+
+
+@dataclass(frozen=True)
+class DocumentFontSources:
+    """Font folders of the OS that the document engine may read at runtime (fonts are used in place, never copied).
+
+    accept_globs / reject_globs narrow what is read inside those folders (accept wins over reject).
+    """
+
+    directories: tuple[Path, ...]
+    accept_globs: tuple[str, ...] = ()
+    reject_globs: tuple[str, ...] = ()
+
+
 # Closed set of purposes for start_child(): the backend alone decides OS flags (window, priority, session).
 CHILD_PURPOSES = frozenset({"uno-worker", "document-engine", "print", "update-helper", "open-path"})
 
@@ -209,6 +235,13 @@ class DeviceId(Protocol):
     def device_name(self) -> str: ...
 
 
+class DocumentFonts(Protocol):
+    """Fonts for layout/pagination in the document engine (MAC-9). Optional: only OSes that need it provide it."""
+
+    def substitutions(self) -> tuple[FontSubstitution, ...]: ...
+    def sources(self) -> DocumentFontSources: ...
+
+
 class OfficeAutomation(Protocol):
     def availability(self, app_kind: str) -> ServiceResult[OfficeEngineInfo]: ...
     def export_pdf(self, request: OfficeExportRequest) -> ServiceResult[Path]: ...
@@ -230,6 +263,9 @@ class OSServices:
     clipboard_extras: ClipboardExtras | None = None
     device_id: DeviceId | None = None
     office_automation: OfficeAutomation | None = None
+    # Optional extra, not part of SERVICE_FIELDS: an OS whose document engine already sees every installed font
+    # with suitable substitutes (Windows) leaves it None and nothing changes there.
+    document_fonts: DocumentFonts | None = None
 
 
 SERVICE_FIELDS = (

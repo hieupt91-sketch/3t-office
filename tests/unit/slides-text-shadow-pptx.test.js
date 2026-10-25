@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 export async function runSlidesTextShadowPptxTests() {
-  const run = spawnSync("python", ["-m", "unittest", "tests.test_slides_text_shadow_pptx", "-v"], {
+  const run = spawnSync(process.env.PYTHON || (process.platform === "win32" ? "python" : "python3"), ["-m", "unittest", "tests.test_slides_text_shadow_pptx", "-v"], {
     cwd: path.resolve("."), encoding: "utf8", timeout: 120000,
   });
   const output = `${run.stdout || ""}${run.stderr || ""}`;

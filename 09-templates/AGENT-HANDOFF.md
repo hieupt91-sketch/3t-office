@@ -1,4 +1,44 @@
 # Agent Handoff
+TASK: MAC-3 — bộ lọc mẫu bảng tính và UTI macOS
+AGENT/ROLE: Codex / macOS file registration
+BRANCH: mac/filetypes-1910
+WORKTREE: /Users/hieupc/.codex/worktrees/mac-filetypes-1910/3t-office
+OBJECTIVE: Đăng ký .xltx/.xlt cho Sheet trên macOS và kiểm đường lưu/mở lại mẫu mà không đổi semantics.
+FINDINGS: vn-main đã có toàn bộ hằng và đường lưu XLTX dùng chung; thiếu Info.plist macOS. Runtime thiếu pywebview/cryptography nên mở lại trong app bị BLOCKED, nhưng LibreOffice macOS mở lại tệp app vừa lưu thành công.
+IMPLEMENTATION SUMMARY: Thêm Sheet-Info.plist với imported UTI, Editor/Alternate, cùng test plist/hợp đồng/content type; không sửa mã dùng chung hay thêm dependency.
+FILES CHANGED: ports/macos/Sheet-Info.plist; tests/macos/test_sheet_file_types.py; docs/macos/PLAN-MAC-3-FILE-TYPES-2010.md; docs/macos/HANDOFF-MAC-3-FILE-TYPES-2010.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: Python 3.12 unittest; plutil; API save XLTX; LibreOffice reopen; i18n parity; npm test; git diff --check.
+BUILD RESULT: NOT RUN — chưa có pipeline bundle macOS trên vn-main.
+TEST RESULTS: PASS focused Python 3/3, plist, native save + LibreOffice reopen, i18n 3091/3091; full Node FAIL 3729/3749 (20 baseline failures).
+KNOWN FAILURES: App-native reopen BLOCKED do thiếu cryptography; pywebview parser BLOCKED do thiếu pywebview; Node focused wrapper phụ thuộc lệnh python/webview.
+RISKS: Pipeline MAC-11 phải thực sự nhúng plist; overlay Sheet hiện chỉ nhận hậu tố .xlsx nên cần phiếu shared trên vn-main nếu muốn parity metadata hoàn toàn khi nhập .xltx.
+DEPENDENCIES/BLOCKERS: MAC-11, MAC-12 và shared-owner.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review rồi merge; chạy lại hộp thoại native trên bundle đầy đủ dependency.
+
+---
+
+# Agent Handoff
+TASK: MAC-14 — Ánh xạ phím tắt Cmd trên macOS (kèm audit MAC-4)
+AGENT/ROLE: Codex / Shared Platform macOS
+BRANCH: mac/keymap-1910
+WORKTREE: /Users/hieupc/.codex/worktrees/mac-keymap-1910/3t-office
+OBJECTIVE: Chuẩn hóa bảng phím macOS cho các phím mới, giữ nguyên Windows, thêm Help VI và kiểm chứng mapping/scope.
+FINDINGS: ShortcutManager đã coi metaKey như Ctrl nên capability chạy cơ bản đã tồn tại; thiếu bảng keymap, Help macOS và test theo scope. MAC-4 cũng dùng cùng cơ chế primary modifier; phần kéo-thả Option/Ctrl nằm ngoài scope và không sửa.
+IMPLEMENTATION SUMMARY: Thêm `keymap-macos.js` làm bảng dùng chung và helper primary modifier/hiển thị; ShortcutManager tái dùng helper; thêm chủ đề Help VI cho Doc/Sheet/Slide; thêm unit 5 ca và kịch bản desktop CDP 7 tổ hợp gửi Meta/Option qua `Input.dispatchKeyEvent`.
+FILES CHANGED: docs/PLAN-MAC-14-KEYMAP-1910.md; platform/commands/keymap-macos.js; platform/commands/shortcut-manager.js; platform/help/entries-macos-shortcuts.js; platform/help/help-catalog.js; tests/unit/macos-keymap.test.js; tests/live/cdp/macos-shortcuts.desktop.mjs; tests/run-tests.js; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: focused MAC-14 runner; node scripts/audit-0610/i18n_parity.mjs; npm test (hai lượt, lượt hai lọc tên lỗi); node --check CDP script; git diff --check.
+BUILD RESULT: NOT RUN — không đổi build system; nhánh vn-main hiện không có `ports/macos/`/runtime Qt để build app Mac.
+TEST RESULTS: PASS — focused 5/5; i18n VI=EN=3091, missing 0; syntax CDP script; diff check. Full Node FAIL — lượt 1: 3739/3758, 19 FAIL; lượt 2: 3738/3758, 20 FAIL (Track Changes headless dao động). Các lỗi gồm probe Python thiếu môi trường, soffice conversion, snapshot FODS và startup/performance probes; không có lỗi MAC-14.
+KNOWN FAILURES: Desktop CDP MAC-14 BLOCKED vì Python hiện tại thiếu module `webview` và checkout vn-main không có `ports/macos/`; test CDP đã được viết nhưng chưa claim PASS. Full Node không đạt mốc 3765/3765 và tổng số test hiện là 3758 trước task / 3763 sau 5 test MAC-14.
+RISKS: Runtime tiếp tục chấp nhận cả Ctrl lẫn Cmd như trước để tương thích; bảng chính thức chỉ công bố Cmd trên Mac. Việc đổi Ctrl+kéo thành Option+kéo của MAC-4 chưa triển khai trong task này.
+DEPENDENCIES/BLOCKERS: Cần MAC-6/runtime Chromium macOS có CDP và pywebview/Qt đã được phê duyệt/cài để chạy desktop CDP. Không có dependency mới.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review commit MAC-14; khi MAC-6 sẵn sàng chạy `node --experimental-websocket tests/live/cdp/macos-shortcuts.desktop.mjs`, sau đó xử lý MAC-4 Option+kéo ở task riêng.
+
+---
+
+# Agent Handoff
 TASK: CODEX-SLICER — Slicer cho Bảng giai đoạn 1
 AGENT/ROLE: Codex / VN Sheet
 BRANCH: feat/sheet-slicer-codex
@@ -1459,6 +1499,30 @@ CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: 18 ảnh 1366×768: d20 sáng/tối; d01,d02,d03,d06,d07,d13,d24 sáng; d03 chụp lại sau 10 giây; legacy06,legacy13,legacy14,legacy20 sáng/tối. DOCX: `E:\VNOffice-profiles\q58-docx-ui\` và d20/legacy: `E:\VNOffice-profiles\ui-shots\live-writer\`, `E:\VNOffice-profiles\q58-legacy-docs\q57-screenshots\`. Ribbon/status không bị che; ghi nhận d03 đầu trang chồng chữ và số trang app 3 so với Word 1, d24 bìa chồng hình/chữ, d20 dòng hướng dẫn sít. Chế độ tối: chữ đen/xanh đậm khó đọc; logo legacy13 và ô bảng legacy14 còn nền trắng. Đã mở và xem tất cả ảnh.
 NEXT ACTION: Review commit Q58; sau commit tạo `E:\VNOffice-briefs\logs\Q58.DONE`.
 
+---
+
+# Agent Handoff
+TASK: MAC-12-RUNTIME — runtime Python macOS phải có `cryptography` + `pypdf` (đã khai trong requirements.txt)
+AGENT/ROLE: Claude / macOS packaging
+BRANCH: mac/runtime-deps-cl-2510 (từ mac/candidate-cl-2510 `382065e3`)
+WORKTREE: /Volumes/Data/Worktrees/mac-runtime-deps-cl-2510
+OBJECTIVE: Đóng gói macOS cài và kiểm `cryptography` (mã hóa OOXML) và `pypdf` (in bản phát tay Slides) theo phiên bản khóa, tái lập ngoại tuyến; validator FAIL rõ ràng khi bundle thiếu.
+FINDINGS: (1) Repo không có script dựng runtime phát hành macOS — pilot `macos-offline-pilot-theme-20261022-v4` được ghép tay; nơi duy nhất cài gói Python là overlay Debug của `prepare-xcode-run-payload.sh` (pip mạng, chỉ ghim cryptography, chỉ cài khi overlay chưa có → overlay cũ không bao giờ nhận pypdf). (2) Pilot `Runtime/lib/python3.12/site-packages` thiếu cả cryptography, cffi, pypdf. (3) cffi 2.1.1 không có wheel x86_64 tag 10_13, có tag `macosx_10_15_x86_64`; cryptography 44.0.2 dùng wheel universal2. (4) venv-dev của lead dựng từ chính interpreter pilot (`--system-site-packages`), nên mọi lần chạy pytest/pip qua venv-dev ghi `__pycache__/*.pyc` vào pilot; lần chạy của tôi để lại ~13 tệp .pyc (packaging/, encodings/cp1252, pip download) trước khi bật `PYTHONDONTWRITEBYTECODE=1`; ~175 tệp .pyc của pip lúc 04:32 có trước phiên này. Không tệp nội dung nào của pilot bị đổi, không gói nào được cài vào pilot.
+IMPLEMENTATION SUMMARY: Lock file có hash `ports/macos/requirements-runtime-macos.lock` (cryptography 44.0.2, cffi 2.1.1, pycparser 3.12, pypdf 6.21.2; sha256 arm64 + x86_64, đối chiếu PyPI JSON). Script mới `install-runtime-python-deps.sh` cài chỉ từ wheelhouse cục bộ (`--no-index --require-hashes --only-binary=:all:`; `--download` nạp wheelhouse một lần), vào site-packages của runtime hoặc `--target` overlay, rồi chạy validator trong cùng interpreter (`-s`). `prepare-xcode-run-payload.sh` dùng script này, dựng lại overlay khi stamp `lock.sha256` khác lock. `validate-encryption-runtime.py` FAIL khi thiếu một/hai mô-đun (liệt kê cả hai), sai version so với lock, thiếu dist-info, hoặc nạp từ user site; smoke AES-256-GCM + OOXML Agile encrypt/decrypt + pypdf ghi/đọc PDF 4 trang + `build_slides_handout_pdf` (3/tờ → 2 tờ). `validate-xcode-run-payload.py` đòi thêm `pypdf/`. Constraints Xcode thêm `pypdf==6.21.2`.
+FILES CHANGED: ports/macos/requirements-runtime-macos.lock (mới); ports/macos/scripts/install-runtime-python-deps.sh (mới); ports/macos/scripts/validate-encryption-runtime.py; ports/macos/scripts/validate-xcode-run-payload.py; ports/macos/scripts/prepare-xcode-run-payload.sh; ports/macos/requirements-xcode-run-constraints.txt; tests/macos/test_runtime_python_deps.py (mới, 5 test); tests/macos/test_xcode_run_payload.py (fixture overlay thêm `pypdf/` vì yêu cầu mới; +1 test từ chối overlay thiếu pypdf); docs/macos/PLAN-XCODE-RUN-DEV-2010.md (mục cập nhật MAC-12-RUNTIME); docs/macos/HANDOFF-MAC-12-RUNTIME-2510.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: pilot `Runtime/bin/python3 -s validate-encryption-runtime.py` (mới và bản cũ 382065e3); `python3 -m venv --system-site-packages <scratch>/rtvenv` từ interpreter pilot + `install-runtime-python-deps.sh --runtime rtvenv --wheelhouse <scratch> --download`; cài overlay ngoại tuyến bằng interpreter pilot (`--target`, không `--download`); wheelhouse bị sửa 1 byte; wheelhouse rỗng; `prepare-xcode-run-payload.sh` với biến Xcode giả (CONFIGURATION=Debug, TARGET_BUILD_DIR scratch, VNO_XCODE_PILOT_ROOT=pilot v4) 3 lượt (mới / dùng lại / overlay cũ thiếu pypdf); pytest có mục tiêu; pytest đầy đủ qua heavy-lock; `git diff --check`.
+BUILD RESULT: Runtime phát hành đầy đủ: NOT RUN (không có script dựng runtime trong repo và không được sửa/chép pilot 1.3 GB; đĩa còn ~5.9 GB). Xcode xcodebuild: NOT RUN (chỉ chạy script pha Debug với biến môi trường giả lập; Swift không đổi).
+TEST RESULTS: Validator trên pilot nguyên trạng: FAIL đúng (exit 1) "runtime Python thiếu mô-đun bắt buộc: cryptography (...); pypdf (...)" — bản cũ chỉ báo cryptography. rtvenv: PASS (exit 0; cryptography 44.0.2, pypdf 6.21.2, OpenSSL 3.4.1, AES-GCM, OOXML, PDF, handout). Overlay ngoại tuyến: PASS. Wheelhouse bị sửa: FAIL đúng (hash mismatch). Wheelhouse rỗng: FAIL đúng kèm hướng dẫn `--download`. prepare-xcode-run-payload.sh: PASS 3/3 lượt (lượt 2 không cài lại; lượt 3 tự cài lại). pytest `tests/macos + test_ooxml_encryption{,_main} + test_print_pipeline + test_packaging_imports`: PASS 76 passed, 1 skipped, 23 subtests. pytest đầy đủ: FAIL 1194 passed / 8 failed / 18 skipped / 0 error, 206 subtests (116 s) — ứng viên 1186/8/18/1; +6 test mới, +2 của `test_slides_handout_print.py` (hết lỗi thu thập sau khi cài pypdf vào venv-dev); cùng 8 FAIL Windows-only/C-6 như CANDIDATE-2510.
+KNOWN FAILURES: 8 FAIL có sẵn (test_desktop_launch no_port, 3× ooxml_encryption_roundtrip, 2× os_services_p2, p1_pool_orphans, writer_create_new_readback cần powershell).
+RISKS: THIRD-PARTY-NOTICES (dùng chung, gốc repo) ghi cryptography 50.0.2 / pypdf 6.21.1 / pycparser 3.0 theo Windows; macOS ship 44.0.2 / 6.21.2 / 3.12 (cùng giấy phép Apache-2.0/BSD-3, BSD-3, BSD-3) — cần chủ legal cập nhật danh sách theo nền tảng khi làm notice từ artifact cuối. x86_64 (Rosetta/Intel) chưa thử thực tế; hash x86_64 có trong lock. Thay đổi môi trường dùng chung: đã `pip install pypdf==6.21.2` (từ wheelhouse đã kiểm hash) vào /Volumes/Data/Worktrees/_lead/venv-dev.
+DEPENDENCIES/BLOCKERS: Chủ runtime/phát hành chạy bước cài lên runtime thật (lệnh dưới) rồi dựng lại pilot; legal cho notice.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Chủ runtime chạy trên bản sao pilot/runtime phát hành (không phải bản tham chiếu chỉ-đọc):
+  `ports/macos/scripts/install-runtime-python-deps.sh --runtime <pilot-mới>/Runtime --arch arm64 --download`
+  (lần dựng sau ngoại tuyến: bỏ `--download`, giữ `ports/macos/build/wheelhouse`), kiểm lại bằng
+  `<pilot-mới>/Runtime/bin/python3 -s ports/macos/scripts/validate-encryption-runtime.py --app-root <checkout>`; rồi Xcode Debug build với VNO_XCODE_PILOT_ROOT và mở Slides → In bản phát tay + Tệp → Thông tin → Mã hóa bằng mật khẩu trong app đóng gói.
+
+---
 
 ## CODEX Q59 — 25/10/2026
 

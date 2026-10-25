@@ -47,8 +47,17 @@ public final class Workbook {
         try self.init(package: OPCPackage(contentsOf: url))
     }
 
+    /// Mở LƯỜI: bỏ kiểm tra toàn gói lúc mở (chỉ parse phần được truy cập). Kết quả giống `init(contentsOf:)`.
+    public convenience init(contentsOf url: URL, deferValidation: Bool) throws {
+        try self.init(package: OPCPackage(contentsOf: url, deferValidation: deferValidation))
+    }
+
     public convenience init(data: Data) throws {
         try self.init(package: OPCPackage(data: data))
+    }
+
+    public convenience init(data: Data, deferValidation: Bool) throws {
+        try self.init(package: OPCPackage(data: data, deferValidation: deferValidation))
     }
 
     public init(package: OPCPackage) throws {

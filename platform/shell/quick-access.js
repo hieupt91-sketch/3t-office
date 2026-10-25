@@ -12,6 +12,7 @@ import { resolveIcon } from "../ui-kit/components.js";
 import { ContextMenu } from "../ui-kit/context-menu.js";
 import { globalCommandBus } from "../commands/command-bus.js";
 import { t } from "../i18n/i18n.js";
+import { displayShortcut } from "../commands/keymap-macos.js";
 
 export const QUICK_ACCESS_DEFAULTS = Object.freeze([
   "common.file.save", "common.edit.undo", "common.edit.redo", "common.file.print"
@@ -89,7 +90,14 @@ function labelOf(bus, commandId) {
 function shortcutOf(bus, commandId) {
   const state = bus?.getState?.(commandId);
   const def = definitionOf(bus, commandId);
-  return state?.shortcut || def?.shortcut || "";
+  // Nhãn theo nền tảng: Windows giữ nguyên, macOS hiện ký hiệu ⌘/⌥/⇧/⌃ (keymap-macos.js).
+  return displayShortcut(state?.shortcut || def?.shortcut || "", commandId);
+}
+
+/** Shift+F10 hoặc phím Menu: mở menu ngữ cảnh bằng bàn phím (macOS không tự sinh `contextmenu`). */
+export function isKeyboardContextMenuEvent(event) {
+  return Boolean(event && (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey))
+    && !event.ctrlKey && !event.altKey && !event.metaKey);
 }
 
 /**
@@ -129,13 +137,20 @@ export function installQuickAccess({ appName, host, rootEl, bus = globalCommandB
       btn.title = name;
       btn.innerHTML = resolveIcon(commandId, def.icon || "");
       btn.addEventListener("click", () => bus.execute(commandId));
+      const openButtonMenu = event => openMenu(event, [
+        { label: t("quickAccess.removeFrom"), action: () => save(removeQuickAccess(ids, commandId)) },
+        { sep: true },
+        { label: t("quickAccess.reset"), action: () => save([...QUICK_ACCESS_DEFAULTS]) }
+      ], btn);
       btn.addEventListener("contextmenu", event => {
         event.preventDefault();
-        openMenu(event, [
-          { label: t("quickAccess.removeFrom"), action: () => save(removeQuickAccess(ids, commandId)) },
-          { sep: true },
-          { label: t("quickAccess.reset"), action: () => save([...QUICK_ACCESS_DEFAULTS]) }
-        ], btn);
+        openButtonMenu(event);
+      });
+      btn.addEventListener("keydown", event => {
+        if (!isKeyboardContextMenuEvent(event)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        openButtonMenu(null);
       });
       host.appendChild(btn);
     }

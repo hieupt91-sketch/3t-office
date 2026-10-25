@@ -4,6 +4,7 @@
 //   click {selector|x,y}, dblclick {x,y}, move {x,y}, size {width,height}, wait {ms}, close {}.
 import http from "node:http";
 import { mkdirSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { launchApp } from "../../tests/live/cdp/session.mjs";
 import { press, typeText, mouseClick, mouseDoubleClick, mouseMove } from "../../tests/live/cdp/actions.mjs";
@@ -12,9 +13,18 @@ const args = process.argv.slice(2);
 const app = args.find((a) => !a.startsWith("--")) || "writer";
 const filePath = args.filter((a) => !a.startsWith("--"))[1] || undefined;
 const port = Number((args.find((a) => a.startsWith("--port=")) || "--port=47001").slice(7));
-const shotDir = `E:\\VNOffice-profiles\\ui-shots\\live-${app}`; mkdirSync(shotDir, { recursive: true });
+const sessionRoot = process.env.VNO_LIVE_SESSION_ROOT
+  || (process.platform === "win32" ? "E:\\VNOffice-profiles" : path.join(os.tmpdir(), "vno-live-sessions"));
+const shotDir = path.join(sessionRoot, "ui-shots", `live-${app}`);
+const localAppData = path.join(sessionRoot, `live-${app}`);
+mkdirSync(shotDir, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const session = await launchApp(app, { filePath, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000, localAppData: process.env.VNO_CDP_LOCALAPPDATA || `E:\\VNOffice-profiles\\live-${app}-${Date.now()}` });
+const session = await launchApp(app, {
+  filePath,
+  startTimeoutMilliseconds: 180000,
+  readyTimeoutMilliseconds: 180000,
+  localAppData: process.env.VNO_CDP_LOCALAPPDATA || `${localAppData}-${Date.now()}`,
+});
 console.log("APP MO, cong dieu khien", port);
 
 async function handle(cmd, body) {

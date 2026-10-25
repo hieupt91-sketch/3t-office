@@ -10,6 +10,7 @@ import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { isCopyDrag } from "../../platform/commands/keymap-macos.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { WriterViewController } from "./writer-view-controller.js";
 import { WriterRulerController } from "./writer-ruler-controller.js";
@@ -677,7 +678,7 @@ export class WriterApp {
         dragPending = {
           startX: e.clientX,
           startY: e.clientY,
-          isCtrl: e.ctrlKey,
+          isCtrl: isCopyDrag(e),
           range: range.cloneRange(),
           started: false
         };
@@ -689,7 +690,7 @@ export class WriterApp {
       if (!dragPending.started) {
         if (Math.hypot(e.clientX - dragPending.startX, e.clientY - dragPending.startY) > 4) {
           dragPending.started = true;
-          document.body.style.cursor = (e.ctrlKey || dragPending.isCtrl) ? "copy" : "move";
+          document.body.style.cursor = (isCopyDrag(e) || dragPending.isCtrl) ? "copy" : "move";
         }
       }
       if (dragPending.started) {
@@ -700,7 +701,8 @@ export class WriterApp {
     const onDocMouseUp = (e) => {
       if (!dragPending) return;
       if (dragPending.started) {
-        const isCopy = e.ctrlKey || dragPending.isCtrl;
+        // Kéo-thả chữ: Ctrl (Windows) / Option (macOS) để sao chép — theo bảng phím nền tảng.
+        const isCopy = isCopyDrag(e) || dragPending.isCtrl;
         let dropRange = null;
 
         if (document.caretRangeFromPoint) {

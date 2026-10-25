@@ -45,7 +45,7 @@ public enum PackageValidator {
     public static func validate(_ data: Data) -> [String] {
         let pkg: OPCPackage
         do {
-            pkg = try OPCPackage(data: data)
+            pkg = try OPCPackage(data: data, deferValidation: true) // không cần baseline ở đây
         } catch {
             return ["Không mở được gói: \(error)"]
         }

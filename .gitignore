@@ -76,3 +76,4 @@ docs/screenshots/**/*d[0-9][0-9]_*
 /seed/
 
 scripts/audit-0610/.audit-cache-results.json
+ports/macos/build/

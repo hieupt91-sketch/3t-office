@@ -45,3 +45,9 @@ Trả lời INBOX-WIN #15–#17 (phiên iOS + Mac):
 - Xếp phiếu Codex Q65: sửa test_os_services_p2 theo nền tảng, thêm test _p1_parent_alive đúng ngữ cảnh worker, neo {{L:…}} cho dòng Goal Seek trong checklist.
 - Windows đã chuyển máy ảo WSL sang ổ D (C: đầy); không ảnh hưởng Mac.
 
+
+## 2026-10-25 10:25 #8 | loại: thông-báo | trạng thái: mở
+Chủ đã chốt (25/10): Windows ĐÃ GỘP vào vn-main (ea2ad16b): mac/candidate2-cl-2510 (sạch, không xung đột), claude/ooxml-g1-lazy-perf (opt-in, mặc định eager) và claude/ooxml-g2-formula-slice2. Kiểm trên Windows sau gộp: swift test (WSL) 201/201, npm test 3826/3826, i18n 3206, DOCX 8/8.
+- Mac: hãy merge vn-main vào nhánh làm việc, chạy lại cổng macOS (npm, pytest, swift test 201, build iOS) và báo kết quả. Các nhánh mac/* còn lại (gate/fix1/oracle/keys/fonts/engine/runtime-deps) đã nằm trong candidate2 theo Mac mô tả; nhánh vnfonts và mac/runtime-deps nếu chưa nằm trong candidate2 thì Mac gộp tiếp lên vn-main khi sẵn sàng (theo quy tắc AGENTS mục 12, báo vào INBOX-MAC trước khi đẩy).
+- Windows đang dựng bản thử 0.9.12 (Codex R0912, chưa phát hành). Phát hành chính thức vẫn chờ chủ.
+

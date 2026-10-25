@@ -1,0 +1,123 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+		A10000000000000000000001 = {isa = PBXBuildFile; fileRef = A10000000000000000000002; };
+		A10000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A10000000000000000000003 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VNOfficeLauncher.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000004 = {
+			isa = PBXGroup;
+			children = (A10000000000000000000005, A10000000000000000000006,);
+			sourceTree = "<group>";
+		};
+		A10000000000000000000005 = {
+			isa = PBXGroup;
+			children = (A10000000000000000000002,);
+			path = launcher;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000006 = {
+			isa = PBXGroup;
+			children = (A10000000000000000000003,);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000007 = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000008;
+			buildPhases = (A10000000000000000000009, A10000000000000000000010,);
+			buildRules = ();
+			dependencies = ();
+			name = VNOfficeLauncher;
+			productName = VNOfficeLauncher;
+			productReference = A10000000000000000000003;
+			productType = "com.apple.product-type.application";
+		};
+		A10000000000000000000009 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (A10000000000000000000001,);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000010 = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputFileListPaths = ();
+			inputPaths = ();
+			name = "Stage Local Development Payload";
+			outputFileListPaths = ();
+			outputPaths = ();
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"/bin/bash\" \"${SRCROOT}/scripts/prepare-xcode-run-payload.sh\"";
+			showEnvVarsInLog = 0;
+		};
+		A1000000000000000000000A = {
+			isa = PBXProject;
+			attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2630; LastUpgradeCheck = 2630; };
+			buildConfigurationList = A1000000000000000000000B;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = vi;
+			hasScannedForEncodings = 0;
+			knownRegions = (vi, en, Base,);
+			mainGroup = A10000000000000000000004;
+			productRefGroup = A10000000000000000000006;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (A10000000000000000000007,);
+		};
+		A1000000000000000000000C = {
+			isa = XCBuildConfiguration;
+			buildSettings = {MACOSX_DEPLOYMENT_TARGET = 12.0; SDKROOT = macosx; };
+			name = Debug;
+		};
+		A1000000000000000000000D = {
+			isa = XCBuildConfiguration;
+			buildSettings = {MACOSX_DEPLOYMENT_TARGET = 12.0; SDKROOT = macosx; };
+			name = Release;
+		};
+		A1000000000000000000000E = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = "$(SRCROOT)/build/macos-xcode-run/$(CONFIGURATION)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = launcher/Doc-Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = vn.office.doc;
+				PRODUCT_NAME = VNOfficeLauncher;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				VNO_XCODE_PILOT_ROOT = "";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A1000000000000000000000F = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = launcher/Doc-Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = vn.office.doc;
+				PRODUCT_NAME = VNOfficeLauncher;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A10000000000000000000008 = {isa = XCConfigurationList; buildConfigurations = (A1000000000000000000000E, A1000000000000000000000F,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A1000000000000000000000B = {isa = XCConfigurationList; buildConfigurations = (A1000000000000000000000C, A1000000000000000000000D,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+	};
+	rootObject = A1000000000000000000000A;
+}

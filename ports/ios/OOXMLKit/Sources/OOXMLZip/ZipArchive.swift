@@ -133,6 +133,9 @@ public final class ZipArchive {
 
     public var entryNames: [String] { entries.map(\.name) }
 
+    /// Byte gói nguồn như lúc mở (không đổi dù đã sửa mục). Rỗng với gói tạo mới. Không sao chép (Data là COW/mapped).
+    public var sourceData: Data { source }
+
     public func entry(_ name: String) -> ZipEntry? {
         index[name].map { entries[$0] }
     }

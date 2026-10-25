@@ -52,7 +52,9 @@ export async function runHelpCoverageTests() {
     // NAV1 adds writer.view.navigationPane with its own complete Help entry.
     // Includes the Styles Pane and Create Style commands added with WRITER-STYLES.
     // Q52 adds help detail to the existing common.file.open command; ribbon command counts stay 230/216.
-    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 230) {
+    // FIX-MAC-1 C-2: View > Appearance (common.view.toggleTheme, added to all three ribbons in 57226af4) now has a
+    // handler the audit sees, so it counts as live and covered (Help *.view.toggleTheme): 231/217/194.
+    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 231) {
       throw new Error(`Số lượng lệnh Writer không khớp: covered=${writer.coveredCount}, live=${writer.liveCount}`);
     }
   });
@@ -66,7 +68,7 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Sheet chưa có bài Help: ${details}`);
     }
-    if (sheet.coveredCount !== sheet.liveCount || sheet.liveCount !== 216) {
+    if (sheet.coveredCount !== sheet.liveCount || sheet.liveCount !== 217) {
       throw new Error(`Số lượng lệnh Sheet không khớp: covered=${sheet.coveredCount}, live=${sheet.liveCount}`);
     }
   });
@@ -80,7 +82,7 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Slides chưa có bài Help: ${details}`);
     }
-    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 193) {
+    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 194) {
       throw new Error(`Số lượng lệnh Slides không khớp: covered=${slides.coveredCount}, live=${slides.liveCount}`);
     }
     const transitionHelp = SLIDES_HELP_ENTRIES.find((entry) => entry.commandIds?.includes("slides.transition.apply"));

@@ -1,0 +1,8 @@
+# The bundled pilot's Python/OpenSSL ABI rejects 50.0.2's macOS wheel.
+# cryptography is already required by ../../requirements.txt; 44.0.2 was
+# verified with this pilot interpreter and the OOXML Agile AES-256 validator.
+# pypdf (slides handout printing) is also required by ../../requirements.txt.
+# The installed set is hash-locked in requirements-runtime-macos.lock; keep the
+# pins below identical to it (tests/macos/test_runtime_python_deps.py checks).
+cryptography==44.0.2
+pypdf==6.21.2
