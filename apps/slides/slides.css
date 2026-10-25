@@ -934,6 +934,25 @@
   overflow: visible;
 }
 
+/* FIX-SLIDES-2510 D7: reset `* { padding: 0 }` của shell.css xóa thụt lề mặc định của danh sách, nên dấu
+   đầu dòng / số thứ tự (list-style outside) nằm ngoài khung và bị overflow của khung nội dung cắt mất.
+   Trả lại thụt lề treo như PowerPoint để dấu hiện ngay bên trái mỗi dòng khi soạn, trình chiếu và mở lại. */
+.vno-slide-title :is(ul, ol),
+.vno-slide-body :is(ul, ol),
+.vno-shape-text :is(ul, ol),
+.vno-shape-textbox-text :is(ul, ol),
+.vno-slideshow-content :is(ul, ol) {
+  padding-left: 1.4em;
+  margin: 0;
+}
+
+/* FIX-SLIDES-2510 D8: lớp SVG của hình dựng sẵn (position:absolute) vẽ đè lên khối chữ không định vị.
+   Định vị khối chữ (không đặt z-index để không vượt lên trên các hình khác) để chữ nằm trên hình. */
+.vno-shape-geometry ~ .vno-shape-text,
+.vno-shape-geometry ~ .vno-diagram-node-text {
+  position: relative;
+}
+
 [data-theme="dark"] .vno-shape-text.is-textbox-text {
   color: var(--vno-text-primary, #f1f5f9);
 }
