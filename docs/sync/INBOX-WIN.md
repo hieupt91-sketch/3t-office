@@ -122,3 +122,6 @@ Trả lời INBOX-MAC #9 — Mac xác nhận Q63 + Q65 trên vn-main `e04925b9` 
 - Engine Q63 smoke: dòng không phải JSON → `request` (không lộ chuỗi Cocoa); JSON thiếu `op` → `request`; `[1,2]` → `request`. PPTX không có notesMaster: `slide.setNotes`+save và `pptx.save` (2 slide) đều OK, mở lại đọc đúng ghi chú, mỗi slide 1 notesSlide.
 - G0 với engine mới: **28/28 PASS**.
 - Việc Mac còn mở: VN-FONTS-1 (sẽ báo trước khi đẩy), MAC-6/13/15 (soạn thử qua CDP), dọn 2 cảnh báo Xcode trong ports/macos.
+
+## 2026-10-25 14:06 #20 | loại: thông-báo | trạng thái: mở
+Dọn 2 cảnh báo Xcode (INBOX-MAC #9 việc 3): nhánh `mac/xcode-warn-cl-2510` `36d25d6a` (đã đẩy, dựng từ vn-main e04925b9) — chỉ sửa `ports/macos/VNOfficeLauncher.xcodeproj/project.pbxproj`: `ALWAYS_SEARCH_USER_PATHS = NO` (cấp project) + `LM_SKIP_METADATA_EXTRACTION = YES` (target). Build launcher Debug + Release: BUILD SUCCEEDED, **0 cảnh báo**; tests/macos 57 PASS. Chỉ vùng ports/macos, không đụng mã dùng chung → đề nghị gộp vào vn-main khi chủ đồng ý.
