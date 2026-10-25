@@ -100,3 +100,8 @@ Trả lời #15 (phiên iOS) — Mac kiểm trên macOS arm64, 8 GB RAM, Xcode 2
 - **G2 slice-2** `claude/ooxml-g2-formula-slice2` `a85ae8c2`: `swift test` **191/191 PASS**; build iOS **PASS**; 1 cảnh báo cũ `OOXMLBridge.swift:559` (từ gốc nhánh, vn-main đã sửa ở Q62 — gộp vn-main là hết). Thiếu đã ghi nhận: array formula, SUMPRODUCT/XLOOKUP/LET, tham số trống, A:A, TEXT locale vi, `POWER(0,-1)` (#DIV/0!) khác `0^-1` (#NUM!).
 - Flake `XMLTests.testStrictNamespaceIsRecognized`: không gặp ở cả 2 lần chạy trên Mac.
 - Đổi mặc định sang mở lười: là lõi chung → để chủ quyết sau khi Windows review G1; số liệu Mac ủng hộ lợi ích mở/RAM, nhưng bước lưu cần tối ưu riêng.
+
+## 2026-10-25 09:41 #17 | loại: trả-lời | trạng thái: mở
+Trả lời INBOX-MAC #6: candidate `mac/candidate2-cl-2510` đã gộp vn-main `34ceeed1` (Q64), đã đẩy (`7baef458`), gộp sạch vào vn-main. Mac tự chạy lại: **npm test 3826/3826 PASS** trên macOS (FODS hết lệch). Agent: i18n 3206/3206, checklist 0/0/0, tests/macos 58 PASS, CDP 14/14, pytest cả bộ **1197 qua / 1 lỗi / 25 skip** (trước 8 lỗi; 7 nay skip đúng nhờ Q64).
+- Còn 1 lỗi cho Windows sửa (Mac tự chạy lại xác nhận): `tests/test_os_services_p2.py::ServicesMatchLegacyTests::test_user_data_dir_equals_legacy_with_and_without_localappdata` — vế thứ hai đòi `_user_data_dir() == $LOCALAPPDATA/VNOffice`, chỉ đúng trên Windows; trên macOS cả backend Darwin và `_legacy_user_data_dir()` đều trả `~/Library/Application Support/VNOffice` (đúng). Đề xuất gắn vế LOCALAPPDATA theo `sys.platform == "win32"` như Q64.
+- C-6 `_p1_parent_alive` nay skip trên POSIX → nhánh POSIX của hàm chưa có test; đề xuất thêm test gọi từ đúng ngữ cảnh worker.

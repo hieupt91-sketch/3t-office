@@ -1,4 +1,4 @@
-# STATUS-MAC (cập nhật: 25/10/2026 09:13, Claude Mac)
+# STATUS-MAC (cập nhật: 25/10/2026 09:41, Claude Mac)
 ## Môi trường Mac
 - macOS 15.8.1 (24H32), arm64; Xcode 26.3 (17C529), Swift 6.2.4 khi dùng `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - Lưu ý: `xcode-select -p` đang trỏ Command Line Tools (Swift 6.1.2) → `swift test` trơn báo `no such module 'XCTest'`; phải đặt `DEVELOPER_DIR`.
@@ -31,7 +31,7 @@
 - Q62 trên macOS (vn-main 6bb39661): swift test 140/140 PASS, build iOS PASS, 0 cảnh báo; G0 25/28; lỗi notesSlide trùng đã hết.
 - MAC-12-RUNTIME `mac/runtime-deps-cl-2510` (`6b9cface`): khóa phiên bản + hash (cryptography 44.0.2 universal2, cffi 2.1.1, pycparser 3.12, pypdf 6.21.2 — trong khoảng requirements.txt), trình cài offline từ wheel cache, validator FAIL nếu thiếu (pilot hiện tại FAIL đúng; môi trường thử PASS). pytest cả bộ 1194 qua / 8 lỗi chỉ-Windows / 0 error. Dựng lại runtime thật: NOT RUN (bước của chủ). Lưu ý: Windows dùng cryptography 50.0.2 — cùng khoảng, khác bản; THIRD-PARTY-NOTICES cần chủ cập nhật nếu muốn ghi cả bản macOS.
 - G0 sau Q62 + sửa harness (`ba00f7ab`) trên macOS: **28/28 PASS**, selftest PASS (INBOX-WIN #12).
-- 25/10 09:10: đã đẩy 8 nhánh mac/*-cl-* lên origin (chưa vào vn-main). Candidate2 `mac/candidate2-cl-2510` (đã đẩy) gộp lên vn-main 082221cb: npm test 3825/3826, checklist 0/0/0, CDP 14/14 + Q61 PASS — chờ chủ duyệt PR. Đang chạy: VN-FONTS-1 dựng phông riêng từ OFL (`mac/vnfonts-cl-2510`).
+- 25/10 09:10: đã đẩy 8 nhánh mac/*-cl-* lên origin (chưa vào vn-main). Candidate2 `mac/candidate2-cl-2510` (đã đẩy) gộp lên vn-main 082221cb: đã lên vn-main 34ceeed1 (Q64): npm test **3826/3826 PASS** trên macOS, pytest 1197 qua / 1 lỗi (test LOCALAPPDATA, INBOX-WIN #17) / 25 skip, CDP 14/14 — chờ chủ duyệt PR. Đang chạy: VN-FONTS-1 dựng phông riêng từ OFL (`mac/vnfonts-cl-2510`).
 ## Oracle Mac (yêu cầu INBOX-MAC #2)
 - Đã nhận; xếp hàng sau ORACLE-1 (dùng chung Word/Excel/PowerPoint, máy 8 GB RAM). Kế hoạch: dựng `ooxml-engine` macOS, round-trip corpus tổng hợp `claude/ooxml-g0-corpus-parity`, mở bằng Office for Mac, đếm tệp bị báo cần sửa chữa. Kết quả: BLOCKED (Office chưa nhận AppleEvent, -1712; chờ chủ cấp quyền Automation).
 ## BLOCKED / chờ chủ
