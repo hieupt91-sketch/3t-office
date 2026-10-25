@@ -1,0 +1,38 @@
+FONTLOG — 3T Office substitute document fonts (VN-FONTS-1)
+=========================================================
+
+These fonts are Modified Versions (SIL OFL 1.1, section 1) made so that office documents written with fonts
+that 3T Office may not ship keep a similar look and, where a lawful metric source exists, the same line breaks.
+They are rebuilt byte-for-byte by scripts/fonts/build_vn_fonts.py from the pinned sources in SOURCES.json.
+No proprietary font file was opened, read or measured to make them.
+
+VN Sans UI (Regular, Bold)
+  Source: Selawik 1.01 by Microsoft (SIL OFL 1.1, Reserved Font Name "Selawik" -> renamed), published as an
+  open-source replacement for a common user-interface font.
+  Changes: renamed; every original glyph, advance width and vertical metric kept unchanged; 96 precomposed
+  Vietnamese characters added as composites of Selawik's own letters and marks placed with Selawik's mark anchors;
+  new combining marks: hook above (U+0309) and horn (U+031B) cut from Open Sans 3.003 (OFL) and scaled to
+  Selawik's mark size, dot below (U+0323) made from Selawik's period. New marks appended to the mark-to-base positioning. Metric note: same advances as Selawik
+  for all original characters; Vietnamese letters take their base letter's width (horn letters widened by the
+  Open Sans horn widening, scaled).
+
+VN Sans (Regular, Bold)
+  Source: Open Sans 3.003 (SIL OFL 1.1). Changes: static instances (wght 400/700, wdth 100), renamed.
+  Metric note: a look-alike sans with full Vietnamese; NOT metric-compatible with any other font.
+
+VN Mono (Regular, Bold)
+  Source: Inconsolata 3.001 (SIL OFL 1.1). Changes: static instances at the designed width axis value 112.5
+  (advance 550/1000, no artificial stretching) and wght 400/700, units per em scaled to 2048, every character
+  advance set to 1126 units (publicly stated cell width, see SOURCES.json / build script). Optional ligatures
+  (dlig) keep 2-3 cells. Vertical metrics are Inconsolata's (scaled).
+
+VN Song (Regular)
+  Source: Noto Serif SC 2.003 (SIL OFL 1.1; Source Han Serif lineage, Reserved Font Name "Source" -> not used).
+  Changes: static instance wght 400; subset to GB2312 (7445 characters) + Latin, Latin-1, Latin Extended,
+  Vietnamese, general punctuation, CJK symbols and full-width forms; Latin letters, digits and Vietnamese set to
+  half width (0.5 em, using the font's own half-width alternates where present, otherwise condensed and centred);
+  Han characters and GB2312 symbols full width (1 em); combining tone marks cut from the font's own precomposed
+  Vietnamese letters; kerning and proportional alternates removed (DBCS text is not kerned). Only one weight:
+  the bold of the substituted face is synthesised by the layout engine. Vertical metrics are the source's.
+
+2026-10-25  1.000  First release (VN-FONTS-1).
