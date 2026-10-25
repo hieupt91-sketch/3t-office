@@ -225,7 +225,7 @@ Tổng: 1 mục ưu tiên 1.
 | Công cụ dữ liệu | Hợp nhất dữ liệu (Consolidate) | ✅ | - | 17/10 (AGY-DATATOOLS): Consolidate hợp nhất dữ liệu đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-consolidate.test.js:1-30; apps/sheet/consolidate.js:1-30; sheet.data.consolidate) |
 | Công cụ dữ liệu | Quan hệ giữa bảng / Mô hình dữ liệu (Power Pivot) | 🔴 | 3 |  |
 | Dự báo | Phân tích What-If: Trình quản lý kịch bản | ✅ | - | 17/10 (AGY-DATATOOLS): Trình quản lý kịch bản Scenario Manager đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-what-if-analysis.test.js:1-35; apps/sheet/sheet-grid.js:20784-20800; sheet.data.scenarioManager) |
-| Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:20373-20390; sheet.data.goalSeek) |
+| Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:21276; sheet.data.goalSeek) |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
 | Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
 | Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (apps/sheet/sheet-grid.js:20385; apps/sheet/sheet-grid.js:20328; sheet.data.group) |

@@ -34,7 +34,13 @@ public final class OOXMLBridge {
     public func handle(_ requestData: Data) -> Data {
         var id: Any = NSNull()
         do {
-            guard let req = try JSONSerialization.jsonObject(with: requestData) as? [String: Any] else {
+            let payload: Any
+            do {
+                payload = try JSONSerialization.jsonObject(with: requestData)
+            } catch {
+                throw BridgeError("request", "JSON không hợp lệ")
+            }
+            guard let req = payload as? [String: Any] else {
                 throw BridgeError("request", "yêu cầu không phải JSON object")
             }
             id = req["id"] ?? NSNull()
@@ -43,6 +49,8 @@ public final class OOXMLBridge {
             return encode(["id": id, "ok": true, "result": result])
         } catch let e as BridgeError {
             return encode(["id": id, "ok": false, "error": ["code": e.code, "message": e.message]])
+        } catch PresentationError.noNotesMaster {
+            return encode(["id": id, "ok": false, "error": ["code": "unsupported", "message": "không thể tạo notes master cho ghi chú"]])
         } catch {
             return encode(["id": id, "ok": false, "error": ["code": "internal", "message": "\(error)"]])
         }
@@ -54,6 +62,8 @@ public final class OOXMLBridge {
             return ["ok": true, "result": try perform(op: op, args: Args(raw))]
         } catch let e as BridgeError {
             return ["ok": false, "error": ["code": e.code, "message": e.message]]
+        } catch PresentationError.noNotesMaster {
+            return ["ok": false, "error": ["code": "unsupported", "message": "không thể tạo notes master cho ghi chú"]]
         } catch {
             return ["ok": false, "error": ["code": "internal", "message": "\(error)"]]
         }
@@ -413,6 +423,10 @@ public final class OOXMLBridge {
                 guard actual.title == expected.0, actual.notesText == expected.1,
                       actual.allShapes.map(\.name) == expected.2, actual.text == expected.3 else {
                     throw BridgeError("reopen", "nội dung slide \(index + 1) sau khi mở lại không khớp")
+                }
+                let notesRelationshipCount = try reopened.package.relationships(of: actual.part).filter(.notesSlide).count
+                guard notesRelationshipCount <= 1 else {
+                    throw BridgeError("reopen", "slide \(index + 1) có nhiều hơn một quan hệ notesSlide sau khi mở lại")
                 }
             }
             return ["ok": true, "changedParts": try Self.changedZipParts(before: sourceData, after: savedData), "unsupported": [String]()]

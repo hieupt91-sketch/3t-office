@@ -56,6 +56,66 @@ async function editWriterThroughKeyboard(cdp) {
   return { pass: Boolean(verified), detail: "Bold shortcut and ZZ inserted via CDP." };
 }
 
+async function editSlidesThroughCdp(session) {
+  const cdp = session.cdp;
+  const result = await cdp.evaluate(`(() => {
+    const cc = window.__vnoAppInstance?.canvasController;
+    if (!cc || !cc.slides?.length) return { pass: false, detail: "No canvas controller or slides available." };
+    const slide = cc.slides[0];
+    const prevTitle = String(slide.title || "");
+    const newTitle = (prevTitle ? prevTitle + " ZZ" : "Slide 1 ZZ").normalize("NFC");
+
+    // 1. Update slide model
+    slide.title = newTitle;
+    delete slide.titleHtml;
+
+    // 2. If titleEl is present in DOM, update it
+    const titleEl = cc.titleEl || document.querySelector('.vno-slide-title');
+    if (titleEl) {
+      titleEl.innerText = newTitle;
+      titleEl.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    // 3. If shapes contain title shape or shapes with prevTitle, update text and remove stale textHtml
+    if (slide.shapes?.length) {
+      slide.shapes.forEach(s => {
+        const isMatch = s.placeholder === "title"
+          || (s.name && /tiêu đề|title/i.test(s.name))
+          || s.text === prevTitle
+          || (s.text && prevTitle && s.text.includes(prevTitle));
+        if (isMatch) {
+          s.text = s.text === prevTitle ? newTitle : s.text.replace(prevTitle, newTitle);
+          delete s.textHtml;
+          delete s.formattedText;
+          if (typeof cc.updateShapeText === "function") {
+            try { cc.updateShapeText(s.id, s.text); } catch (_) {}
+            delete s.textHtml;
+          }
+        }
+      });
+    }
+
+    if (typeof cc.options?.onDocumentChange === "function") {
+      cc.options.onDocumentChange();
+    }
+    if (typeof cc._renderThumbnails === "function") {
+      cc._renderThumbnails();
+    }
+    if (window.__vnoAppInstance?.adapter) {
+      window.__vnoAppInstance.adapter.isDirty = true;
+    }
+
+    return {
+      pass: true,
+      detail: "Slide 1 title updated to: " + newTitle,
+      prevTitle,
+      newTitle
+    };
+  })()`);
+
+  return result;
+}
+
 async function serialize(session, largeFile = false) {
   const expression = session.app === "writer"
     ? "window.__vnoAppInstance.adapter._contentForExport()"
@@ -114,8 +174,8 @@ export async function roundtripFile({ app, input, output, edit = false, largeFil
     // An untouched XLSX is saved by restoring the source package (by design), which makes a no-edit
     // round trip an identity copy. VNO_AUDIT_MARK_DIRTY=1 forces the real conversion path every user
     // edit takes, so fidelity audits measure what a saved edit really does.
-    if (process.env.VNO_AUDIT_MARK_DIRTY === "1" && app === "sheet") {
-      await session.cdp.evaluate("(() => { window.__vnoAppInstance.adapter.isDirty = true; return true; })()");
+    if (process.env.VNO_AUDIT_MARK_DIRTY === "1" && (app === "sheet" || app === "slides")) {
+      await session.cdp.evaluate("(() => { if (window.__vnoAppInstance?.adapter) window.__vnoAppInstance.adapter.isDirty = true; return true; })()");
     }
     phase = "serialize";
     phaseStarted = performance.now();
@@ -130,7 +190,9 @@ export async function roundtripFile({ app, input, output, edit = false, largeFil
     const beforeBytes = edit ? await writeSentContent(session, sentPath, before, largeFile) : null;
     const editResult = app === "writer" && edit
       ? await editWriterThroughKeyboard(session.cdp)
-      : { pass: true, detail: "No edit requested." };
+      : app === "slides" && edit
+        ? await editSlidesThroughCdp(session)
+        : { pass: true, detail: "No edit requested." };
     const length = edit ? await serialize(session, largeFile) : before;
     const contentBytes = await writeSentContent(session, sentPath, length, largeFile);
     timings.sentContentWriteMs = Math.round(performance.now() - phaseStarted);

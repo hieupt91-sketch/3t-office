@@ -1,4 +1,4 @@
-# STATUS-MAC (cập nhật: 25/10/2026 09:41, Claude Mac)
+# STATUS-MAC (cập nhật: 25/10/2026 14:04, Claude Mac)
 ## Môi trường Mac
 - macOS 15.8.1 (24H32), arm64; Xcode 26.3 (17C529), Swift 6.2.4 khi dùng `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - Lưu ý: `xcode-select -p` đang trỏ Command Line Tools (Swift 6.1.2) → `swift test` trơn báo `no such module 'XCTest'`; phải đặt `DEVELOPER_DIR`.
@@ -55,3 +55,8 @@
 - 2 phiên worker song song (base vn-main, không PR, mỗi phiên chỉ thêm file trong vùng riêng):
   - `claude/ooxml-g0-corpus-parity`: ✅ corpus synthetic + khung parity (chạy qua `ooxml-engine`). Round-trip engine thật, Office oracle, visual diff, perf thiết bị = BLOCKED (cần Swift/Office/thiết bị).
   - `claude/ooxml-g2-formula-engine`: 🟡 engine công thức (slice 1) đang chạy.
+
+## 25/10 — đã vào vn-main
+- Chủ chốt, Windows gộp `mac/candidate2-cl-2510` + G1 + G2 vào vn-main (`ea2ad16b`). Cổng macOS trên vn-main `75f271ed`: npm 3826/3826, swift test 201/201, build iOS PASS, CDP 14/14, Xcode PASS, pytest 1197/1 lỗi đã biết (Q65).
+- vn-main e04925b9 (Q63+Q65) trên macOS: pytest 1199/0 lỗi, npm 3826/3826, swift test 204/204, iOS PASS, G0 28/28.
+- Đang làm: VN-FONTS-1 (`mac/vnfonts-cl-2510`), MAC-6/13/15 (`mac/userflow-cl-2510`). Gián đoạn do giới hạn phiên 07–09h và 12–14h.
