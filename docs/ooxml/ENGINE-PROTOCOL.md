@@ -712,6 +712,7 @@ Mọi lệnh `xlsx.save`, `docx.save`, `pptx.save` đều nhận các tham số 
   - `pptxSaveDelta`: [OOXMLBridge.swift:405-417](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L405-L417). Mở lại bằng `Presentation(data: savedData)`. Kiểm tra:
     - Tổng số slide ([OOXMLBridge.swift:408](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L408)).
     - Từng slide: Tiêu đề `title`, ghi chú `notesText`, danh sách tên các shape `allShapes.map(\.name)`, và toàn bộ nội dung chữ `text` ([OOXMLBridge.swift:413-415](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L413-L415)).
+    - Số quan hệ notesSlide của mỗi slide không vượt quá một; vi phạm trả `reopen` và xóa tệp staging.
 - **Cơ chế Rollback:** Nếu bất kỳ kiểm tra nào thất bại hoặc quá trình giải nén ném ngoại lệ:
   - Khối `catch` được kích hoạt ngay: `try? FileManager.default.removeItem(at: targetURL)` ([OOXMLBridge.swift:281, 420, 607](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L607)).
   - Tệp tạm bị xóa bỏ hoàn toàn khỏi đĩa.
@@ -725,7 +726,7 @@ Mọi lỗi trả về qua kênh giao thức đều tuân thủ `BridgeError` ([
 
 | Mã lỗi (`code`) | Vị trí phát sinh trong mã nguồn | Ý nghĩa & Tình huống kích hoạt | Thông báo tiếng Việt mẫu (`message`) |
 |---|---|---|---|
-| `request` | [OOXMLBridge.swift:38, 41](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L38) | Dòng gửi vào không phải JSON object hoặc thiếu thuộc tính `op`. | `"yêu cầu không phải JSON object"`, `"thiếu 'op'"` |
+| `request` | [OOXMLBridge.swift:38, 41](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L38) | Dữ liệu gửi vào không phải JSON hợp lệ/object hoặc thiếu thuộc tính `op`. | `"JSON không hợp lệ"`, `"yêu cầu không phải JSON object"`, `"thiếu 'op'"` |
 | `op` | [OOXMLBridge.swift:107](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L107) | Tên thao tác trong `op` không tồn tại trong hệ thống. | `"thao tác '...' không hỗ trợ"` |
 | `args` | [BridgeJSON.swift:20, 28](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/BridgeJSON.swift#L20), [OOXMLBridge.swift:160, 290, 429](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L429) | Thiếu hoặc sai kiểu dữ liệu của tham số bắt buộc. | `"thiếu/sai tham số chuỗi '...'"`, `"cần source_document_path và target_path"` |
 | `open` | [OOXMLBridge.swift:116, 121, 133](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L116) | Lỗi giải mã base64, thiếu path/base64, hoặc tệp không phải định dạng OOXML hợp lệ. | `"cần 'base64' hoặc 'path'"`, `"không nhận diện được tệp (không phải DOCX/XLSX/PPTX hợp lệ)"` |
@@ -736,6 +737,7 @@ Mọi lỗi trả về qua kênh giao thức đều tuân thủ `BridgeError` ([
 | `path` | [OOXMLBridge.swift:164, 294, 434](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L434) | Đường dẫn tệp đích staging trùng với đường dẫn tệp nguồn. | `"đường dẫn staging phải khác đường dẫn nguồn"` |
 | `delta` | [OOXMLBridge.swift:166, 224, 296, 354, 370, 437, 536, 618](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L437) | Cấu trúc delta sai, chỉ số trong delta ngoài phạm vi, hoặc xóa hết slide. | `"delta phải là JSON object"`, `"paragraphs[i].index ngoài phạm vi"`, `"bản trình chiếu phải còn ít nhất một slide"` |
 | `reopen` | [OOXMLBridge.swift:273, 277, 409, 415, 583, 590, 595, 600](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L583) | Tệp sau khi lưu mở lại không khớp với dữ liệu kỳ vọng (tự động xóa tệp). | `"danh sách sheet sau khi mở lại không khớp"`, `"công thức ... không khớp sau khi mở lại"`, `"nội dung DOCX sau khi mở lại không khớp"` |
+| `unsupported` | `OOXMLBridge.handle` / `OOXMLBridge.perform` | Không thể tạo notes master cần thiết để ghi ghi chú trình chiếu; ứng dụng desktop có thể chuyển thao tác sang LibreOffice. | `"không thể tạo notes master cho ghi chú"` |
 | `value` | [BridgeJSON.swift:49, 57, 62](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/BridgeJSON.swift#L49) | Giá trị ô hoặc kiểu giá trị trong `sheet.setValue` không hợp lệ. | `"giá trị ô không hợp lệ"`, `"kiểu giá trị '...' không hỗ trợ"` |
 | `internal` | [OOXMLBridge.swift:47](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L47) | Lỗi hệ thống, ngoại lệ Cocoa hoặc lỗi logic thư viện cấp thấp. | Thông báo chi tiết từ ngoại lệ nội bộ của hệ thống. |
 
