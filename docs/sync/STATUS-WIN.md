@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 2026-10-25 14:54, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-25 15:28, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -47,3 +47,6 @@
 
 ## 2026-10-25 14:54
 - Phân bổ vòng 14:53: Mac không có yêu cầu mới (chặn: quyền Automation cho Office, chứng chỉ Developer ID — chờ chủ). Windows giao agy viết hook _batch_pptx.py (kiểm mở-sửa-lưu PPTX bằng PowerPoint COM). Đang chạy: Q66, R0912, AGY-PPTX.
+
+## 2026-10-25 15:28
+- Gộp vn-main: hook scripts/layout-audit/_batch_pptx.py (agy; pytest 7/7; Windows tự chạy lại sample-3.pptx: PowerPoint=10 saved=10 PASS, không còn PowerPoint treo). Hạn chế đã đóng: bộ kiểm PPTX hàng loạt. Mac có thể dùng hook này với Office for Mac sau khi cấp Automation (chưa).
