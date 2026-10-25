@@ -16,7 +16,7 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "trang chiếu trống", "cửa sổ riêng", "mở nhiều cửa sổ", "Explorer"],
     steps: [
       "Tạo bản mới: nhấn Ctrl+N hoặc mở Tệp > Mới. Slide mở cửa sổ riêng tên Bản trình bày 2, Bản trình bày 3… với một trang chiếu trống. Chữ gợi ý xám trong khung tiêu đề và khung văn bản chỉ là hướng dẫn trên màn hình, không phải nội dung được lưu. Trong Desktop, khi Slide đang mở, nhấp đúp thêm tệp PPTX/PPT/ODP trong Explorer hoặc bấm lại shortcut Slide ở Start sẽ mở thêm cửa sổ trong cùng tiến trình. Mỗi cửa sổ có bản trình chiếu, trạng thái sửa, lệnh Lưu và lời nhắc Đóng riêng; cửa sổ cuối cùng mới kết thúc ứng dụng.",
-      "Mở bản trình chiếu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn PPTX, PPT hoặc ODP. Nếu bản đang mở có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục.",
+      "Mở bản trình chiếu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn PPTX, PPT hoặc ODP. Nếu bản đang mở có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục. Tệp PPTX đã lưu bằng Slide khi mở lại có tiêu đề và nội dung nằm đúng khung Tiêu đề/Nội dung của bố cục (mỗi chữ chỉ hiện một lần), sửa tiếp như lúc soạn.",
       "Lưu: Ctrl+S mở hộp thoại Lưu thành cho bản mới; với tệp đã mở/lưu, lệnh này giữ nguyên định dạng. Nhấn F12 (hoặc Ctrl+Shift+S), nhập tên trong hộp thoại Lưu bản sao rồi chọn PPTX, PPT, ODP hoặc PDF ở danh sách Loại tệp. Cũng có thể chọn Tệp > Lưu bản sao. Khi lưu sang PPTX/PPT/ODP, tên tab và tiêu đề cửa sổ chuyển theo tệp mới; chọn PDF chỉ xuất bản sao và giữ nguyên bản trình chiếu đang mở. Khi ghi đè tệp đã có, xác nhận trong hộp thoại của Windows.",
       "In: nhấn Ctrl+P để mở hộp thoại In và chờ ảnh xem trước xuất hiện. Trong Bố trí trang chiếu, chọn Trang chiếu để in mỗi trang trên một tờ; chọn Bản phát tay để chọn 3, 6 hoặc 9 trang chiếu trên mỗi tờ; hoặc chọn Trang ghi chú để in một trang cho mỗi trang chiếu, gồm tiêu đề và nội dung ghi chú người thuyết trình. Xem số trang và nội dung trong khung bên phải, chọn máy in, số bản và phạm vi trang rồi nhấn In."
     ]
@@ -114,7 +114,7 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Nhấp vào tiêu đề, nội dung slide hoặc hộp văn bản, rồi bôi chữ cần đổi (hoặc đặt con trỏ trong đoạn).",
       "Nhóm Phông chữ: chọn Calibri / Arial / Times New Roman / Be Vietnam Pro / Roboto; chọn cỡ (10–48); nút Tăng/Giảm cỡ chữ; Đậm (Ctrl+B), Nghiêng (Ctrl+I), Gạch chân (Ctrl+U), Gạch ngang; Đổ bóng chữ (bật/tắt: bôi chữ rồi bấm nút, bấm lại để bỏ bóng; nút sáng khi con trỏ nằm trong chữ đang có bóng); Xóa định dạng; Màu chữ (đỏ RGB 255 mặc định) và Màu nền chữ.",
-      "Nhóm Đoạn văn (ngay bên phải): Dấu đầu dòng, Đánh số, Giảm/Tăng thụt lề, hộp Giãn dòng 1.0 / 1.5 / 2.0; hàng dưới là Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), Căn đều (Ctrl+J). Trong khung nội dung slide, có thể dùng phím Tab để tăng thụt lề và nhấn giữ Shift cùng Tab để giảm thụt lề.",
+      "Nhóm Đoạn văn (ngay bên phải): Dấu đầu dòng, Đánh số, Giảm/Tăng thụt lề, hộp Giãn dòng 1.0 / 1.5 / 2.0; hàng dưới là Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), Căn đều (Ctrl+J). Trong khung nội dung slide, có thể dùng phím Tab để tăng thụt lề và nhấn giữ Shift cùng Tab để giảm thụt lề. Khi bấm Dấu đầu dòng (hoặc Đánh số), mỗi dòng lùi vào một đoạn và dấu chấm tròn (hoặc số thứ tự) hiện ngay bên trái dòng trong lúc soạn, khi trình chiếu và khi mở lại tệp PPTX.",
       "Định dạng áp dụng cho vùng chữ đang chọn trên slide, không phải cho cả bài trừ khi bôi hết. Thay đổi nội dung tiêu đề và văn bản tự động ghi nhận vào lịch sử Hoàn tác (Ctrl+Z) và Làm lại (Ctrl+Y)."
     ]
   },
@@ -528,7 +528,8 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["hình", "shapes", "tam giác", "hình thoi", "ngôi sao", "mũi tên", "trái tim", "chèn hình", "hình dựng sẵn"],
     steps: [
       "Tab Trang đầu > nhóm Đối tượng vẽ > nút Hình (hoặc tab Chèn > Minh họa > Hình), rồi chọn một hình trong danh sách.",
-      "Hình hiện giữa trang chiếu với màu xanh mặc định; kéo để di chuyển, kéo tay cầm để đổi kích thước, nhấp đúp hoặc gõ phím để nhập chữ vào hình.",
+      "Hình hiện giữa trang chiếu với màu xanh mặc định; kéo để di chuyển, kéo tay cầm để đổi kích thước, nhấp đúp hoặc gõ phím để nhập chữ vào hình. Chữ hiện màu trắng ở giữa hình, nằm trên màu tô; nhấn Esc hoặc bấm ra ngoài để kết thúc sửa chữ.",
+      "Lưu PPTX: hình giữ nguyên kích thước đã kéo (không bị co theo chiều cao chữ) và chữ được căn giữa; mở lại tệp, hình vẫn đúng dạng (ví dụ Mũi tên phải vẫn là mũi tên, không thành hình chữ nhật).",
       "Tô màu, viền, đổ bóng, xoay, lật ở tab Định dạng hình (hiện khi chọn hình). Ctrl+Z hoàn tác việc chèn."
     ]
   },
