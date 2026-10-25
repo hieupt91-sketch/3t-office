@@ -31,6 +31,7 @@ function readSource(relPath) {
 
 const sources = {
   appShell: readSource("platform/shell/app-shell.js"),
+  bootstrap: readSource("platform/bootstrap.js"),
   writerAdapter: readSource("adapters/libreoffice/writer/writer-adapter.js"),
   writerApp: readSource("apps/writer/writer-app.js"),
   writerVC: readSource("apps/writer/writer-view-controller.js"),
@@ -54,6 +55,7 @@ function checkHandlerExists(commandId, appKey) {
   const casePattern = new RegExp(`case\\s+["']${escaped}["']`);
 
   if (bindPattern.test(sources.appShell)) return { hasHandler: true, location: "appShell" };
+  if (bindPattern.test(sources.bootstrap)) return { hasHandler: true, location: "bootstrap" };
 
   if (appKey === "writer") {
     if (bindPattern.test(sources.writerApp)) return { hasHandler: true, location: "writerApp" };
@@ -108,23 +110,29 @@ export function extractAllControls(appKey, tabs) {
           parent: null
         });
         if (item.items && Array.isArray(item.items)) {
-          for (const sub of item.items) {
-            const subCmd = sub.commandId;
-            const subLabel = sub.label || viStrings.commands?.[subCmd]?.label || cmdDefs.get(subCmd)?.label || subCmd;
-            controls.push({
-              app: appKey,
-              tabId: tab.id,
-              tabLabel: tab.label,
-              groupId: group.id,
-              groupLabel: group.label,
-              type: "menuItem",
-              commandId: subCmd,
-              args: sub.args,
-              label: subLabel,
-              isSubItem: true,
-              parent: ddCommandId
-            });
-          }
+          const walkMenuItems = (menuItems, parent) => {
+            for (const sub of menuItems) {
+              if (sub.commandId) {
+                const subCmd = sub.commandId;
+                const subLabel = sub.label || viStrings.commands?.[subCmd]?.label || cmdDefs.get(subCmd)?.label || subCmd;
+                controls.push({
+                  app: appKey,
+                  tabId: tab.id,
+                  tabLabel: tab.label,
+                  groupId: group.id,
+                  groupLabel: group.label,
+                  type: "menuItem",
+                  commandId: subCmd,
+                  args: sub.args,
+                  label: subLabel,
+                  isSubItem: true,
+                  parent
+                });
+              }
+              if (Array.isArray(sub.items)) walkMenuItems(sub.items, sub.commandId || sub.id || parent);
+            }
+          };
+          walkMenuItems(item.items, ddCommandId);
         }
       } else if (item.commandId) {
         const def = cmdDefs.get(item.commandId);

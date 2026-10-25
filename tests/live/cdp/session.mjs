@@ -14,22 +14,56 @@ function readySelector(app) {
   throw new Error("Unknown app kind: " + app);
 }
 
+export function defaultPythonCommand(platform = process.platform) {
+  return platform === "win32" ? "python" : "python3";
+}
+
+export function isForeignWindowsPath(value, platform = process.platform) {
+  return platform !== "win32" && /^[A-Za-z]:[\\/]/.test(String(value || ""));
+}
+
+export function buildCdpEnvironment({
+  platform = process.platform,
+  debugPort,
+  localAppData,
+  isolatedHome = "",
+  baseEnvironment = process.env,
+} = {}) {
+  if (!Number.isInteger(debugPort) || debugPort <= 0) throw new Error("A positive CDP debug port is required.");
+  const existingChromiumFlags = String(baseEnvironment.QTWEBENGINE_CHROMIUM_FLAGS || "").trim();
+  return {
+    ...baseEnvironment,
+    LOCALAPPDATA: localAppData,
+    ...(platform === "darwin" && isolatedHome ? { HOME: isolatedHome } : {}),
+    ...(platform !== "win32" ? { XDG_DATA_HOME: localAppData } : {}),
+    ...(platform === "win32" ? { WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=" + debugPort } : {}),
+    ...(platform === "darwin" ? {
+      QTWEBENGINE_REMOTE_DEBUGGING: String(debugPort),
+      QTWEBENGINE_CHROMIUM_FLAGS: existingChromiumFlags,
+      VNO_CDP_WEBVIEW_GUI: "qt",
+    } : {}),
+    VNO_CDP_DEBUG_PORT: String(debugPort),
+    VNO_CDP_PLATFORM: platform,
+  };
+}
+
 export async function launchApp(app, options = {}) {
   const root = options.root || process.env.VNO_APP_ROOT || repoRoot;
   const debugPort = await findFreePort();
   const requestedLocalAppData = options.localAppData || process.env.VNO_CDP_LOCALAPPDATA || "";
-  const profileRoot = options.profileRoot || (!requestedLocalAppData ? await mkdtemp(path.join(os.tmpdir(), "vno-cdp-" + app + "-")) : null);
-  const localAppData = requestedLocalAppData || path.join(profileRoot, "localappdata");
+  const compatibleLocalAppData = isForeignWindowsPath(requestedLocalAppData) ? "" : requestedLocalAppData;
+  const needsIsolatedHome = process.platform === "darwin";
+  const createProfileRoot = !options.profileRoot && (!compatibleLocalAppData || needsIsolatedHome);
+  const profileRoot = options.profileRoot
+    || (createProfileRoot ? await mkdtemp(path.join(os.tmpdir(), "vno-cdp-" + app + "-")) : null);
+  const localAppData = compatibleLocalAppData || path.join(profileRoot, "localappdata");
   await mkdir(localAppData, { recursive: true });
-  const python = options.python || process.env.VNO_PYTHON || "python";
+  const isolatedHome = profileRoot ? path.join(profileRoot, "home") : "";
+  if (isolatedHome) await mkdir(isolatedHome, { recursive: true });
+  const python = options.python || process.env.VNO_PYTHON || defaultPythonCommand();
   const args = ["-s", path.join(root, "main.py"), "--app=" + app];
   if (options.filePath) args.push(path.resolve(options.filePath));
-  const env = {
-    ...process.env,
-    LOCALAPPDATA: localAppData,
-    WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=" + debugPort,
-    VNO_CDP_DEBUG_PORT: String(debugPort),
-  };
+  const env = buildCdpEnvironment({ debugPort, localAppData, isolatedHome });
   const child = spawn(python, args, { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] });
   let spawnError = null;
   child.once("error", error => { spawnError = error; });
@@ -41,7 +75,7 @@ export async function launchApp(app, options = {}) {
   child.stderr.on("data", append);
   const exited = new Promise(resolve => child.once("exit", (code, signal) => resolve({ code, signal })));
   const session = {
-    app, root, debugPort, profileRoot, localAppData, child, exited,
+    app, root, debugPort, profileRoot, cleanupProfileRoot: createProfileRoot, localAppData, child, exited,
     get output() { return output; },
     get spawnError() { return spawnError; },
     cdp: null,
@@ -64,7 +98,7 @@ export async function launchApp(app, options = {}) {
       } catch {}
       await sleep(250);
     }
-    if (!endpointReady) throw new Error("WebView2 remote debugging endpoint did not start.\n" + output);
+    if (!endpointReady) throw new Error("Chromium remote debugging endpoint did not start.\n" + output);
     session.cdp = await connectToPort(debugPort, { timeoutMilliseconds: 30000 });
     await session.cdp.waitFor("!!document.querySelector(" + JSON.stringify(readySelector(app)) + ")", {
       timeoutMilliseconds: options.readyTimeoutMilliseconds || 45000,
@@ -87,7 +121,7 @@ export async function launchApp(app, options = {}) {
 
 async function closeApp(session) {
   if (!session) return;
-  const { child, debugPort, cdp, profileRoot } = session;
+  const { child, debugPort, cdp, profileRoot, cleanupProfileRoot } = session;
   try {
     const targets = (await readTargets(debugPort).catch(() => [])).filter(target => target.type === "page");
     for (const target of targets) {
@@ -121,7 +155,7 @@ async function closeApp(session) {
     }
   }
   const stopped = !child || child.pid == null || child.exitCode !== null || child.signalCode !== null;
-  if (profileRoot && stopped) {
+  if (cleanupProfileRoot && profileRoot && stopped) {
     await rm(profileRoot, { recursive: true, force: true }).catch(() => {});
   }
 }

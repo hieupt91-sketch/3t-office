@@ -115,7 +115,7 @@ export async function runSheetImportAuditTests() {
   await test("Python overlay giữ kích thước XLSX chính xác cho cả parser regex", () => {
     const f = fixture(); const overlaid = path.join(f.dir, "overlaid.fods");
     try {
-      const run = spawnSync("python", ["adapters/libreoffice/common/ooxml_zip_patch.py", "--xlsx", f.xlsx, "--overlay-fods", f.fods, "--out", overlaid], { cwd: path.resolve("."), encoding: "utf8" });
+      const run = spawnSync(process.env.PYTHON || (process.platform === "win32" ? "python" : "python3"), ["adapters/libreoffice/common/ooxml_zip_patch.py", "--xlsx", f.xlsx, "--overlay-fods", f.fods, "--out", overlaid], { cwd: path.resolve("."), encoding: "utf8" });
       assert.equal(run.status, 0, run.stderr);
       const parsed = new SheetAdapter(null).parseFods(fs.readFileSync(overlaid, "utf8"));
       assert.equal(parsed.colWidthsBySheet.Data.get("A"), 94.9999999998);

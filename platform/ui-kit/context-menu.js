@@ -9,6 +9,7 @@
  */
 
 import { globalCommandBus } from "../commands/command-bus.js";
+import { displayShortcut, getKeyboardCapabilities } from "../commands/keymap-macos.js";
 
 let activeContextMenuInstance = null;
 
@@ -134,7 +135,8 @@ export class ContextMenu {
       if (item.shortcut) {
         const shortcutSpan = document.createElement("span");
         shortcutSpan.className = "vno-context-menu-shortcut";
-        shortcutSpan.textContent = item.shortcut;
+        // Nhãn phím theo nền tảng (Mac: ký hiệu ⌘⌥⇧⌃ theo bảng keymap-macos.js).
+        shortcutSpan.textContent = displayShortcut(item.shortcut, item.commandId || item.command || null) || item.shortcut;
         btn.appendChild(shortcutSpan);
       }
 
@@ -487,4 +489,70 @@ export function closeActiveContextMenu() {
   if (activeContextMenuInstance) {
     activeContextMenuInstance.closeAll();
   }
+}
+
+// ---------------------------------------------------------------------------
+// MAC-5: Control+nhấp = nhấp phụ trên macOS
+// ---------------------------------------------------------------------------
+const SECONDARY_CLICK_FLAG = "__vnoSecondaryFromControlClick";
+const POINTER_PRESS_TYPES = ["pointerdown", "mousedown", "pointerup", "mouseup"];
+const POINTER_SUPPRESS_TYPES = ["click", "dblclick", "auxclick"];
+const normalizedWindows = new WeakSet();
+
+function isControlPrimaryClick(event) {
+  return event && event.button === 0 && event.ctrlKey && !event.metaKey && !event[SECONDARY_CLICK_FLAG];
+}
+
+/**
+ * Trên macOS, Control+nhấp trái là nhấp phụ (mở menu ngữ cảnh) theo quy ước Apple.
+ * Bộ chuẩn hóa chặn sự kiện nhấp TRÁI của Control+nhấp ở pha capture (để ô/hàng/tab/hình
+ * không bị chọn bổ sung hay nhóm nhầm) và phát lại bản sao là nhấp PHẢI (button 2, không
+ * Control) tới đúng phần tử, nên các handler chuột phải hiện có chạy y như chuột phải thật.
+ * Sự kiện `contextmenu` gốc của trình duyệt vẫn đi tiếp để mở menu. Chạm hai ngón trên bàn
+ * di chuột vốn đã là nhấp phải nên không cần xử lý. Không làm gì trên Windows/Linux.
+ *
+ * @param {Window} windowObj
+ * @param {{ capabilities?: object }} [options] cho test: ép bộ cờ capability
+ * @returns {() => void} hàm gỡ
+ */
+export function installSecondaryClickNormalizer(windowObj = globalThis.window, options = {}) {
+  if (!windowObj?.addEventListener || normalizedWindows.has(windowObj)) return () => {};
+  const capabilities = options.capabilities || null;
+  const enabled = () => Boolean((capabilities || getKeyboardCapabilities()).controlClickIsSecondary);
+
+  const redispatchAsSecondary = (event) => {
+    const Ctor = (event.type.startsWith("pointer") ? windowObj.PointerEvent : null) || windowObj.MouseEvent || event.constructor;
+    const init = {
+      bubbles: true, cancelable: true, composed: true, view: windowObj,
+      clientX: event.clientX, clientY: event.clientY, screenX: event.screenX, screenY: event.screenY,
+      ctrlKey: false, shiftKey: event.shiftKey, altKey: event.altKey, metaKey: false,
+      button: 2, buttons: event.type.endsWith("down") ? 2 : 0, detail: event.detail,
+      pointerId: event.pointerId, pointerType: event.pointerType || "mouse", isPrimary: event.isPrimary
+    };
+    let clone;
+    try { clone = new Ctor(event.type, init); } catch { return; }
+    try { Object.defineProperty(clone, SECONDARY_CLICK_FLAG, { value: true }); } catch { clone[SECONDARY_CLICK_FLAG] = true; }
+    event.target?.dispatchEvent?.(clone);
+  };
+
+  const onPress = (event) => {
+    if (!enabled() || !isControlPrimaryClick(event)) return;
+    event.stopImmediatePropagation();
+    redispatchAsSecondary(event);
+  };
+  const onSuppress = (event) => {
+    if (!enabled() || !isControlPrimaryClick(event)) return;
+    // Nhấp phải không sinh `click`; chặn để Control+nhấp không kích hoạt nút/ô như nhấp thường.
+    event.stopImmediatePropagation();
+    event.preventDefault();
+  };
+
+  for (const type of POINTER_PRESS_TYPES) windowObj.addEventListener(type, onPress, true);
+  for (const type of POINTER_SUPPRESS_TYPES) windowObj.addEventListener(type, onSuppress, true);
+  normalizedWindows.add(windowObj);
+  return () => {
+    for (const type of POINTER_PRESS_TYPES) windowObj.removeEventListener(type, onPress, true);
+    for (const type of POINTER_SUPPRESS_TYPES) windowObj.removeEventListener(type, onSuppress, true);
+    normalizedWindows.delete(windowObj);
+  };
 }

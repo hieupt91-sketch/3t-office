@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleDevelopmentRegion</key><string>vi</string>
+  <key>CFBundleDisplayName</key><string>VN Sheet</string>
+  <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>0.9.11</string>
+  <key>CFBundleVersion</key><string>911</string>
+  <key>LSMinimumSystemVersion</key><string>12.0</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>VNOfficeAppKind</key><string>sheet</string>
+  <key>CFBundleDocumentTypes</key><array><dict>
+    <key>CFBundleTypeName</key><string>VN Office spreadsheets</string>
+    <key>CFBundleTypeRole</key><string>Editor</string>
+    <key>LSHandlerRank</key><string>Alternate</string>
+    <key>CFBundleTypeExtensions</key><array><string>xlsx</string><string>xls</string><string>ods</string><string>csv</string><string>xltx</string><string>xlt</string></array>
+    <key>LSItemContentTypes</key><array>
+      <string>org.openxmlformats.spreadsheetml.sheet</string>
+      <string>com.microsoft.excel.xls</string>
+      <string>org.oasis-open.opendocument.spreadsheet</string>
+      <string>public.comma-separated-values-text</string>
+      <string>org.openxmlformats.spreadsheetml.template</string>
+      <string>com.microsoft.excel.xlt</string>
+    </array>
+  </dict></array>
+  <key>UTImportedTypeDeclarations</key><array>
+    <dict>
+      <key>UTTypeIdentifier</key><string>org.openxmlformats.spreadsheetml.sheet</string>
+      <key>UTTypeDescription</key><string>Bảng tính Open XML</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string><string>public.archive</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>xlsx</string></array>
+        <key>public.mime-type</key><string>application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key><string>com.microsoft.excel.xls</string>
+      <key>UTTypeDescription</key><string>Bảng tính nhị phân</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>xls</string></array>
+        <key>public.mime-type</key><string>application/vnd.ms-excel</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key><string>org.oasis-open.opendocument.spreadsheet</string>
+      <key>UTTypeDescription</key><string>Bảng tính ODF</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string><string>public.archive</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>ods</string></array>
+        <key>public.mime-type</key><string>application/vnd.oasis.opendocument.spreadsheet</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key><string>org.openxmlformats.spreadsheetml.template</string>
+      <key>UTTypeDescription</key><string>Mẫu bảng tính Open XML</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string><string>public.archive</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>xltx</string></array>
+        <key>public.mime-type</key><string>application/vnd.openxmlformats-officedocument.spreadsheetml.template</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key><string>com.microsoft.excel.xlt</string>
+      <key>UTTypeDescription</key><string>Mẫu bảng tính nhị phân</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>xlt</string></array>
+        <key>public.mime-type</key><string>application/vnd.ms-excel</string>
+      </dict>
+    </dict>
+  </array>
+</dict></plist>

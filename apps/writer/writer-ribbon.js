@@ -1092,6 +1092,12 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "common.macro.manager", isLarge: true }
         ]
       }
+      ,{
+        id: "appearance",
+        label: "Giao diện",
+        labelKey: "writerRibbon.group.appearance",
+        items: [{ type: "button", commandId: "common.view.toggleTheme", isLarge: true }]
+      }
     ]
   },
   {

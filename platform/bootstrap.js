@@ -50,7 +50,6 @@ export async function bootstrapPlatform() {
 
   _bootstrapPromise = (async () => {
     registerAllStandardCommands(globalCommandBus);
-    globalCommandBus.bindHandler("common.view.toggleTheme", () => themeManager.toggleTheme());
     themeManager.init();
     installGlobalFocusGuard();
     _isBootstrapped = true;
