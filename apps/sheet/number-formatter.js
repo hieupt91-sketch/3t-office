@@ -14,12 +14,14 @@ export class NumberFormatter {
    * @param {any} rawVal
    * @returns {string}
    */
-  static formatGeneralNumber(rawVal) {
+  static formatGeneralNumber(rawVal, locale = {}) {
     if (typeof rawVal !== "number" || !Number.isFinite(rawVal)) {
       return String(rawVal ?? "");
     }
     if (Number.isInteger(rawVal)) return String(rawVal);
-    return String(parseFloat(rawVal.toPrecision(12)));
+    const text = String(parseFloat(rawVal.toPrecision(12)));
+    const decimalSeparator = String(locale.decimalSeparator ?? ".");
+    return decimalSeparator === "." ? text : text.replace(/\.(?=\d)/, decimalSeparator);
   }
 
   /**
@@ -28,19 +30,24 @@ export class NumberFormatter {
    * @param {Object} [formatConfig] Cấu hình định dạng ô
    * @returns {{ text: string, isNegative?: boolean, isRed?: boolean, isAccounting?: boolean, align?: string, symbol?: string, numberText?: string }}
    */
-  static formatValue(rawVal, formatConfig) {
+  static formatValue(rawVal, formatConfig, locale = {}) {
     if (rawVal === undefined || rawVal === null || rawVal === "") {
       return { text: "" };
     }
 
     if (!formatConfig || !formatConfig.category || formatConfig.category === "general") {
       return {
-        text: this.formatGeneralNumber(rawVal),
+        text: this.formatGeneralNumber(rawVal, locale),
         align: typeof rawVal === "number" ? "right" : undefined
       };
     }
 
     const { category } = formatConfig;
+    const localizedConfig = {
+      ...formatConfig,
+      decimalSeparator: locale.decimalSeparator ?? formatConfig.decimalSeparator,
+      thousandsSeparator: locale.thousandsSeparator ?? formatConfig.thousandsSeparator
+    };
 
     switch (category) {
       case "text":
@@ -51,34 +58,34 @@ export class NumberFormatter {
         };
 
       case "percentage":
-        return this.formatPercentage(rawVal, formatConfig);
+        return this.formatPercentage(rawVal, localizedConfig);
 
       case "date":
-        return this.formatDate(rawVal, formatConfig);
+        return this.formatDate(rawVal, localizedConfig);
 
       case "time":
-        return this.formatTime(rawVal, formatConfig);
+        return this.formatTime(rawVal, localizedConfig);
 
       case "currency":
-        return this.formatCurrency(rawVal, formatConfig);
+        return this.formatCurrency(rawVal, localizedConfig);
 
       case "accounting":
-        return this.formatAccounting(rawVal, formatConfig);
+        return this.formatAccounting(rawVal, localizedConfig);
 
       case "number":
-        return this.formatNumber(rawVal, formatConfig);
+        return this.formatNumber(rawVal, localizedConfig);
 
       case "custom":
-        return this.formatCustom(rawVal, formatConfig);
+        return this.formatCustom(rawVal, localizedConfig);
 
       case "scientific":
-        return this.formatScientific(rawVal, formatConfig);
+        return this.formatScientific(rawVal, localizedConfig);
 
       case "fraction":
-        return this.formatFraction(rawVal, formatConfig);
+        return this.formatFraction(rawVal, localizedConfig);
 
       case "special":
-        return this.formatSpecial(rawVal, formatConfig);
+        return this.formatSpecial(rawVal, localizedConfig);
 
       default:
         return { text: String(rawVal) };
@@ -141,7 +148,7 @@ export class NumberFormatter {
       return { text: "-", isNegative: false, isRed: false, align: "right" };
     }
 
-    let formattedNumber = this._formatDecimalAndThousands(absVal, decimals, useThousands);
+    let formattedNumber = this._formatDecimalAndThousands(absVal, decimals, useThousands, config);
 
     let text = "";
     let isRed = false;
@@ -186,7 +193,7 @@ export class NumberFormatter {
 
     const isNegative = num < 0;
     const absVal = Math.abs(num);
-    const formattedNumber = this._formatDecimalAndThousands(absVal, decimals, useThousands);
+    const formattedNumber = this._formatDecimalAndThousands(absVal, decimals, useThousands, config);
 
     const isSymbolAfter = symbol === "₫" || config.symbolPosition === "after";
 
@@ -246,7 +253,7 @@ export class NumberFormatter {
       numberText = "-";
     } else {
       const absVal = Math.abs(num);
-      const formatted = this._formatDecimalAndThousands(absVal, decimals, true);
+      const formatted = this._formatDecimalAndThousands(absVal, decimals, true, config);
       numberText = isNegative ? `(${formatted})` : `${formatted} `;
     }
 
@@ -272,10 +279,7 @@ export class NumberFormatter {
 
     const decimals = config.decimals !== undefined ? Math.max(0, Math.min(30, Number(config.decimals))) : 2;
     const percentVal = num * 100;
-    const formatted = percentVal.toLocaleString("en-US", {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
-    });
+    const formatted = `${percentVal < 0 ? "-" : ""}${this._formatDecimalAndThousands(Math.abs(percentVal), decimals, true, config)}`;
 
     return {
       text: `${formatted}%`,
@@ -496,7 +500,7 @@ export class NumberFormatter {
     }
 
     const useThousands = cleanPattern.includes(",");
-    let formattedNum = this._formatDecimalAndThousands(workingNum, decimals, useThousands);
+    let formattedNum = this._formatDecimalAndThousands(workingNum, decimals, useThousands, config);
 
     let output = cleanPattern;
     const numPlaceholderMatch = output.match(/[#0,.]+/);
@@ -514,16 +518,16 @@ export class NumberFormatter {
     return { text: output, isRed, align: "right" };
   }
 
-  static _formatDecimalAndThousands(absVal, decimals, useThousands) {
+  static _formatDecimalAndThousands(absVal, decimals, useThousands, locale = {}) {
     const fixedStr = absVal.toFixed(decimals);
     const [intPart, decPart] = fixedStr.split(".");
 
     let formattedInt = intPart;
     if (useThousands) {
-      formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, String(locale.thousandsSeparator ?? ","));
     }
 
-    return decimals > 0 && decPart ? `${formattedInt}.${decPart}` : formattedInt;
+    return decimals > 0 && decPart ? `${formattedInt}${locale.decimalSeparator ?? "."}${decPart}` : formattedInt;
   }
 
   /**

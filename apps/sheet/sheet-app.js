@@ -7,7 +7,7 @@ import { SHEET_RIBBON_TABS } from "./sheet-ribbon.js";
 import { SheetGridController } from "./sheet-grid.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
-import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
+import { applyLocaleToTabs, getLocale } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
@@ -41,10 +41,13 @@ export class SheetApp {
     const templateId = options.templateId || "blank";
     const isBlank = templateId !== "budget_estimate";
     const launchParams = new URLSearchParams(globalThis.location?.search || "");
-    const browserNumberParts = new Intl.NumberFormat().formatToParts(1234.5);
+    const numberFormatter = new Intl.NumberFormat(getLocale() === "en" ? "en-US" : "vi-VN");
+    const browserNumberParts = numberFormatter.formatToParts(1234.5);
+    const isVietnameseNumberLocale = getLocale() === "vi";
     const numberLocale = {
-      decimalSeparator: launchParams.has("numberDecimal") ? launchParams.get("numberDecimal") : browserNumberParts.find(part => part.type === "decimal")?.value || ".",
-      thousandsSeparator: launchParams.has("numberThousands") ? launchParams.get("numberThousands") : browserNumberParts.find(part => part.type === "group")?.value || ","
+      locale: numberFormatter.resolvedOptions().locale,
+      decimalSeparator: isVietnameseNumberLocale ? "," : (launchParams.has("numberDecimal") ? launchParams.get("numberDecimal") : browserNumberParts.find(part => part.type === "decimal")?.value || "."),
+      thousandsSeparator: isVietnameseNumberLocale ? "." : (launchParams.has("numberThousands") ? launchParams.get("numberThousands") : browserNumberParts.find(part => part.type === "group")?.value || ",")
     };
     this.shell = new AppShell({
       appName: "sheet",
