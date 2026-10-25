@@ -156,6 +156,7 @@ export async function runSheetChartsImportTests() {
     assertSourceCells(workbook, "FODS soffice");
     assert(workbook.sheets.length === 1 && workbook.sheets[0] === "DoanhThu", `sheets=${workbook.sheets.join("|")}`);
     assertImportedBarChart(workbook.chartsBySheet.DoanhThu?.[0], "FODS soffice");
+    assert(workbook.imagesBySheet?.DoanhThu?.length === 0, `chart preview must not import as a broken image: ${JSON.stringify(workbook.imagesBySheet?.DoanhThu)}`);
   });
 
   test("parseFods giữ vị trí neo chart svg:x/y để lần lưu không dồn chart về mặc định", () => {

@@ -1452,6 +1452,10 @@ export class SheetAdapter {
     while ((frameMatch = frameRegex.exec(shapesXml)) !== null) {
       const frameAttrs = frameMatch[1];
       const frameBody = frameMatch[2];
+      // LibreOffice writes an image preview beside the live chart object in the same frame.
+      // The Sheet chart renderer replaces that preview; importing it as a regular image leaves
+      // a broken-image outline over the chart when the preview payload is not browser-decodable.
+      if (/<chart:chart\b/i.test(frameBody)) continue;
       const imageMatch = frameBody.match(/<draw:image\b([^>]*)>([\s\S]*?)<\/draw:image>/i);
       if (!imageMatch) continue;
       const binaryMatch = imageMatch[2].match(/<office:binary-data\b[^>]*>([\s\S]*?)<\/office:binary-data>/i);
@@ -5004,7 +5008,12 @@ ${pristineXlsxMarker}${docPropsMarker}
    * leaks a fake worksheet. Strip embedded objects before cell parsing.
    */
   _xmlWithoutEmbeddedObjects(xmlText) {
-    return String(xmlText || "").replace(/<draw:object\b([^>]*)>([\s\S]*?)<\/draw:object>/gi, "<draw:object$1/>");
+    const withoutChartPreviews = String(xmlText || "").replace(/<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi, (frame, attrs, body) => {
+      if (!/<chart:chart\b/i.test(body) || !/<draw:image\b/i.test(body)) return frame;
+      const cleanBody = body.replace(/<draw:image\b[^>]*\/\s*>|<draw:image\b[^>]*>[\s\S]*?<\/draw:image>/gi, "");
+      return `<draw:frame${attrs}>${cleanBody}</draw:frame>`;
+    });
+    return withoutChartPreviews.replace(/<draw:object\b([^>]*)>([\s\S]*?)<\/draw:object>/gi, "<draw:object$1/>");
   }
 
   _mapOdfChartClass(value) {
