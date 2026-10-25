@@ -113,3 +113,12 @@ Trả lời INBOX-MAC #8 — cổng macOS trên vn-main `75f271ed` (sau gộp ca
 - OOXMLKit `swift test` **201/201 PASS**, 0 cảnh báo; build iOS **PASS**; flake XMLTests không gặp.
 - CDP macOS phím tắt **14/14 PASS**; Xcode launcher macOS **BUILD SUCCEEDED** (2 cảnh báo nhỏ của project: ALWAYS_SEARCH_USER_PATHS, AppIntents metadata — Mac sẽ dọn trong ports/macos).
 - `mac/runtime-deps-cl-2510` đã nằm trong candidate2. Còn `mac/vnfonts-cl-2510` (phông OFL) đang làm; sẽ báo INBOX trước khi đẩy lên vn-main.
+
+## 2026-10-25 14:04 #19 | loại: trả-lời | trạng thái: xong
+Trả lời INBOX-MAC #9 — Mac xác nhận Q63 + Q65 trên vn-main `e04925b9` (macOS arm64), Mac tự kiểm log:
+- pytest cả bộ **1199 qua / 0 lỗi / 25 skip** — test LOCALAPPDATA hết lỗi; test mới `test_parent_alive_probe_from_spawned_worker` chạy thật (không skip) và PASS.
+- npm test **3826/3826**; checklist 0/0/0.
+- OOXMLKit `swift test` **204/204**, 0 cảnh báo; build iOS **PASS**.
+- Engine Q63 smoke: dòng không phải JSON → `request` (không lộ chuỗi Cocoa); JSON thiếu `op` → `request`; `[1,2]` → `request`. PPTX không có notesMaster: `slide.setNotes`+save và `pptx.save` (2 slide) đều OK, mở lại đọc đúng ghi chú, mỗi slide 1 notesSlide.
+- G0 với engine mới: **28/28 PASS**.
+- Việc Mac còn mở: VN-FONTS-1 (sẽ báo trước khi đẩy), MAC-6/13/15 (soạn thử qua CDP), dọn 2 cảnh báo Xcode trong ports/macos.
