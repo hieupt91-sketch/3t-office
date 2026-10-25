@@ -1617,3 +1617,54 @@ DEPENDENCIES/BLOCKERS: Cần Mac xác nhận lại trên nhánh sau đồng bộ
 CORE PATCH ID (if any): None.
 NEXT ACTION: Chuyển commit nhóm test cho người phụ trách review/merge; Mac xác nhận suite trên LF.
 GIAO DIỆN ĐÃ XEM: Không áp dụng — phiếu chỉ thay đổi test/config, không mở app hay UI.
+
+
+## CODEX Q63 — 25/10/2026 (BLOCKED, chưa nghiệm thu)
+
+TASK: Xác minh các mục OOXMLKit trong INBOX-WIN #9.
+AGENT/ROLE: Codex / OOXMLKit Windows handoff.
+BRANCH: codex/ooxml-w3a.
+WORKTREE: E:\VNOffice-codex-ooxmlw3a. `git merge --autostash main` fast-forward tới c1c45846; khôi phục thay đổi cục bộ, ghép hai phần changelog. Đã đọc #9 và ENGINE-MAC-2410.md từ origin/mac/engine-cl-2410.
+OBJECTIVE: Kiểm chứng mục 1–4, đánh giá mục 6 (tách WebView target) theo điều kiện không đổi API công khai.
+FINDINGS: Mục 1 đã được Q62 xử lý trong Slide.swift: hộp chữ hiện có được dùng dù không có placeholder body; test PresentationRoundTripTests bao phủ ghi/đọc lại và notes master. Mac xác nhận Q62 trong INBOX-WIN #10. Mục 6 chưa làm: tách file công khai khỏi target sẽ đổi nơi import/API của client. Mục 2–4 đã có implementation và test mới trong worktree, nhưng chưa thể chạy Swift để xác nhận.
+IMPLEMENTATION SUMMARY: pptx.save so nội dung notes từng slide sau reopen và chặn >1 notesSlide/slide; lỗi noNotesMaster ánh xạ unsupported; JSON cú pháp sai ánh xạ request với thông điệp ổn định. Cập nhật ENGINE-PROTOCOL và LIBRARY-CHANGELOG. Chưa commit vì không đạt gate Swift test đỏ/xanh.
+FILES CHANGED: ports/ios/OOXMLKit/Package.swift; ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift; ports/ios/OOXMLKit/Tests/OOXMLBridgeTests/OOXMLBridgeTests.swift; docs/ooxml/ENGINE-PROTOCOL.md; docs/sync/LIBRARY-CHANGELOG.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge --autostash main` (fast-forward c1c45846); `git fetch origin`; `wsl -d Ubuntu -- bash -c 'echo ok'` (PASS) và tìm Swift (không có); Swift 6.4.1 Windows `swift test --filter OOXMLBridgeTests` (BLOCKED: thiếu CLI linker `link`); `node tests/run-tests.js` (PASS 3802/3802); `node scripts/audit-0610/i18n_parity.mjs` (0 missing VI/EN); `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix` (0 dòng hạ); `python -m pytest tests -q -k ooxml` (FAIL 1, PASS 52, deselected 1110); `git diff --check` (PASS).
+BUILD RESULT: BLOCKED — Swift chưa build được: WSL không có Swift, Windows toolchain thiếu linker. Lần chạy Swift test dùng mã nguồn HEAD tạm để tạo baseline đã dừng trước compile vì thiếu linker; mã nguồn được khôi phục từ bản staged.
+TEST RESULTS: Node PASS 3802/3802; i18n 0 khóa thiếu (VI=3203, EN=3203); checklist 0 dòng hạ. Pytest FAIL `test_engine_xlsx_save_delta_reopens_and_rejects_unsupported`: khác thứ tự danh sách part ZIP và có `xl/sharedStrings.xml` khi dùng exe từ worktree w1b. Swift trước/sau BLOCKED, không có số bài test.
+KNOWN FAILURES: Chưa chứng minh mục 2–4 bằng Swift test; pytest có 1 FAIL; các mục chưa được commit riêng; không tạo Q63.DONE.
+RISKS: Cần môi trường có Swift và linker để chạy test đỏ trước/sau, `scripts/run-tests.sh` (debug/release, kiểm chéo) và build lại exe Windows trước pytest.
+DEPENDENCIES/BLOCKERS: Cài/cấp linker Windows hoặc Swift Linux trong WSL; build `ooxml-engine.exe` từ source hiện tại.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — không đổi giao diện ứng dụng.
+NEXT ACTION: Cấp môi trường Swift có linker; chạy test fail trước/pass sau cho các mục 2–4, kiểm đầy đủ OOXMLKit và pytest với engine build hiện tại; commit riêng từng mục rồi mới tạo Q63.DONE.
+
+
+### Q63 addendum — verification attempt (25/10/2026)
+
+- `git merge main`: Already up to date. `git fetch origin`: completed; reviewed `origin/mac/engine-cl-2410` ENGINE-MAC-2410.md and INBOX-WIN #9/#10. Q62 mục 1 already fixed in shared source and confirmed by Mac #10 (notes text survives reopen; one notesSlide relationship); existing PresentationRoundTrip tests are the coverage.
+- `wsl -d Ubuntu -- bash -lc 'cd /mnt/e/VNOffice-codex-ooxmlw3a/ports/ios/OOXMLKit && ./okit-test.sh'`: BLOCKED, script is absent. Swift Windows test after adding toolchain/runtime to PATH and aliasing lld-link as link: BLOCKED before manifest compile, `unable to load standard library for target x86_64-unknown-windows-msvc`. Cannot establish Swift red-before/green-after.
+- `node tests/run-tests.js`: PASS 3802/3802. `node scripts/audit-0610/i18n_parity.mjs`: 0 missing VI/EN keys (3203 each; 21 identical/empty candidates). `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS, 0 demoted rows.
+- `python -m pytest tests -q -k ooxml`: FAIL 1, PASS 52, deselected 1110, using the existing w1b engine executable (not rebuilt): `test_engine_xlsx_save_delta_reopens_and_rejects_unsupported` found ZIP member order/sharedStrings differences.
+- No source/document implementation changes were made during this verification attempt. Existing staged Q63 changes remain uncommitted pending a Swift-capable toolchain and rebuilt Windows engine; do not create Q63.DONE yet. No UI was opened, so UI screenshot review is not applicable.
+
+### Q63 addendum — post-merge gate results (25/10/2026)
+
+- `git merge --autostash main`: fast-forward tới `ea2ad16b`; Q63 patch được khôi phục nguyên vẹn. `git fetch origin`: hoàn tất. Đối chiếu lại INBOX-WIN #9/#10 và ENGINE-MAC-2410: mục 1 đã được Q62 xử lý, Mac xác nhận; mục 6 chưa tách vì sẽ đổi nơi import/package API công khai.
+- Rà implementation hiện có cho mục 2–4: save reopen so `notesText` từng slide và giới hạn ≤1 notesSlide, lỗi noNotesMaster ánh xạ `unsupported`, JSON parse lỗi ánh xạ `request`; test và protocol/changelog có thay đổi tương ứng. Chưa sửa source trong lần tiếp tục này.
+- `powershell -NoProfile -File E:\VNOffice-briefs\run-swift-wsl.ps1 E:\VNOffice-codex-ooxmlw3a`: BLOCKED trước compile; WSL báo `swift: command not found`, không có số bài test. Windows Swift toolchain đã được xác định nhưng test Windows đã bị ghi BLOCKED trước đó vì thiếu standard library; không lặp lại.
+- `node tests/run-tests.js`: PASS 3826/3826. `node scripts/audit-0610/i18n_parity.mjs`: PASS, 0 missing (VI=3206, EN=3206). `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS, 0 dòng hạ.
+- `python -m pytest tests -q -k ooxml` với engine exe cũ từ w1b: FAIL 1, PASS 52, deselected 1171; `test_engine_xlsx_save_delta_reopens_and_rejects_unsupported` khác ZIP part order và có `xl/sharedStrings.xml`. Đây là engine dựng cũ, chưa build được exe mới từ patch hiện tại.
+- Patch Q63 vẫn chưa commit và không tạo `Q63.DONE`: bắt buộc Swift đỏ/xanh còn BLOCKED, pytest có FAIL trên exe cũ. Không mở UI; giao diện không áp dụng.
+
+
+### Q63 addendum — completed implementation and verification (25/10/2026)
+
+- `git merge main`: fast-forward from `ea2ad16b` to `75f271ed` before implementation. Q62 notes behavior in `Slide.swift` remains present; INBOX-WIN #10 confirms it, and the round-trip tests cover the existing-notes path.
+- Q63 mục 2 committed as `ce63662c` (`fix(ooxml): validate PPTX notes after reopen`): verifies notes text per slide on reopen (existing check), rejects >1 notesSlide relationship as `reopen`, and removes staging output. Regression comparison against the pre-change bridge: OOXMLBridgeTests 18 run / 6 failures; current bridge: 18 run / 0 failures. Full Swift suite: 204 / 204 PASS.
+- Q63 mục 3–4 committed as `b59a9695` (`fix(ooxml): normalize bridge error codes`): residual `PresentationError.noNotesMaster` maps to `unsupported`; malformed JSON maps to stable `request` without Cocoa text.
+- Mục 6 (split OOXMLWebViewBridge into another target) not changed: the symbols are currently exported by OOXMLBridge; moving them would change the public import surface, contrary to the condition in #9.
+- `node tests/run-tests.js`: PASS 3826/3826. `node scripts/audit-0610/i18n_parity.mjs`: VI=3206, EN=3206, missing=0. `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: 0 demoted rows (279 Word, 217 Sheet, 269 Slides).
+- `python -m pytest tests -q -k ooxml_engine`: 6 PASS, 1 FAIL, 1217 deselected. The failing XLSX smoke test used the pre-existing `w1b` engine exe and found ZIP member order/sharedStrings differences. Rebuilding was BLOCKED: `D:\swift\Runtimes\6.4.1\usr\bin` contains runtime files but no `swift` command.
+- The prescribed `run-swift-wsl.ps1` wrapper first reported Package.swift missing. Archived source was inspected and Swift tests were run directly under WSL from the snapshot; `swift test --filter OOXMLBridgeTests` passed 18/18 and full `swift test` passed 204/204.
+- `git diff --check`: PASS. UI screenshots: not applicable; no UI changed or opened. Pytest on a rebuilt current Windows engine remains NOT RUN/BLOCKED, so the full cross-platform verification gate is not green.
