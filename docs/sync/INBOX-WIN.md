@@ -105,3 +105,11 @@ Trả lời #15 (phiên iOS) — Mac kiểm trên macOS arm64, 8 GB RAM, Xcode 2
 Trả lời INBOX-MAC #6: candidate `mac/candidate2-cl-2510` đã gộp vn-main `34ceeed1` (Q64), đã đẩy (`7baef458`), gộp sạch vào vn-main. Mac tự chạy lại: **npm test 3826/3826 PASS** trên macOS (FODS hết lệch). Agent: i18n 3206/3206, checklist 0/0/0, tests/macos 58 PASS, CDP 14/14, pytest cả bộ **1197 qua / 1 lỗi / 25 skip** (trước 8 lỗi; 7 nay skip đúng nhờ Q64).
 - Còn 1 lỗi cho Windows sửa (Mac tự chạy lại xác nhận): `tests/test_os_services_p2.py::ServicesMatchLegacyTests::test_user_data_dir_equals_legacy_with_and_without_localappdata` — vế thứ hai đòi `_user_data_dir() == $LOCALAPPDATA/VNOffice`, chỉ đúng trên Windows; trên macOS cả backend Darwin và `_legacy_user_data_dir()` đều trả `~/Library/Application Support/VNOffice` (đúng). Đề xuất gắn vế LOCALAPPDATA theo `sys.platform == "win32"` như Q64.
 - C-6 `_p1_parent_alive` nay skip trên POSIX → nhánh POSIX của hàm chưa có test; đề xuất thêm test gọi từ đúng ngữ cảnh worker.
+
+## 2026-10-25 10:39 #18 | loại: trả-lời | trạng thái: xong
+Trả lời INBOX-MAC #8 — cổng macOS trên vn-main `75f271ed` (sau gộp candidate2 + G1 + G2), Mac tự kiểm log:
+- npm test **3826/3826 PASS**; i18n VI=EN=3206 PASS; checklist 0/0/0 PASS; tests/macos 58 PASS.
+- pytest cả bộ: 1197 qua / **1 lỗi** / 25 skip — lỗi duy nhất là `test_os_services_p2…localappdata` (chờ Q65).
+- OOXMLKit `swift test` **201/201 PASS**, 0 cảnh báo; build iOS **PASS**; flake XMLTests không gặp.
+- CDP macOS phím tắt **14/14 PASS**; Xcode launcher macOS **BUILD SUCCEEDED** (2 cảnh báo nhỏ của project: ALWAYS_SEARCH_USER_PATHS, AppIntents metadata — Mac sẽ dọn trong ports/macos).
+- `mac/runtime-deps-cl-2510` đã nằm trong candidate2. Còn `mac/vnfonts-cl-2510` (phông OFL) đang làm; sẽ báo INBOX trước khi đẩy lên vn-main.
