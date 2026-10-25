@@ -4,8 +4,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { launchApp, repoRoot } from "./session.mjs";
 import { sleep } from "./client.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const profile = process.env.VNO_P8_PROFILE || "E:\\VNOffice-profiles\\codex-p8ui";
+const profile = process.env.VNO_P8_PROFILE || platformOutputPath("E:\\VNOffice-profiles\\codex-p8ui", { directory: true });
 const fallbackLanDir = "E:\\VN OFice\\file test\\lan";
 const lanDir = process.env.VNO_LAN_DIR || (fs.existsSync(path.join(repoRoot, "file test", "lan"))
   ? path.join(repoRoot, "file test", "lan") : fallbackLanDir);

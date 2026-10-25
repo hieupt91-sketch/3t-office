@@ -117,8 +117,15 @@ _SANS_LOOKALIKE = ("Helvetica Neue", "Arial", "Liberation Sans")  # Vietnamese c
 # 4 pages with Heiti SC, 5 with Songti SC); Songti SC stays as the Song-style fallback.
 _SONG_CJK = ("Heiti SC", "Songti SC", "STSong")
 
+# VN-FONTS-1 — 3T Office's own substitute fonts (SIL OFL 1.1, rebuilt by scripts/fonts/build_vn_fonts.py), shipped
+# with the app in a platform-neutral folder. They come first for the fonts they were built for; the MAC-9 macOS
+# fallbacks stay behind them. VN Sans UI keeps Selawik's published advances; VN Mono uses the publicly stated
+# cell width; VN Song uses the full-/half-width rule; VN Sans is a look-alike only (see the VN-FONTS-1 handoff).
+BUNDLED_FONT_DIR = Path(__file__).resolve().parents[1] / "fonts" / "document"
+
 # Font a document asks for -> substitutes tried in order when it is not installed. Carlito, Caladea and
-# Liberation ship with the document engine (metric-compatible, open licences); the others are macOS fonts.
+# Liberation ship with the document engine (metric-compatible, open licences); VN * ship with 3T Office; the
+# others are macOS fonts.
 MAC_FONT_SUBSTITUTIONS = (
     FontSubstitution("Calibri", ("Carlito",), metric_compatible=True),
     FontSubstitution("Cambria", ("Caladea",), metric_compatible=True),
@@ -126,22 +133,23 @@ MAC_FONT_SUBSTITUTIONS = (
     FontSubstitution("Times New Roman", ("Liberation Serif",), metric_compatible=True),
     FontSubstitution("Courier New", ("Liberation Mono",), metric_compatible=True),
     FontSubstitution("Calibri Light", ("Carlito",)),
-    FontSubstitution("Segoe UI", _SANS_LOOKALIKE),
-    FontSubstitution("Aptos", _SANS_LOOKALIKE),
-    FontSubstitution("Aptos Display", _SANS_LOOKALIKE),
+    FontSubstitution("Segoe UI", ("VN Sans UI", *_SANS_LOOKALIKE)),
+    FontSubstitution("Aptos", ("VN Sans", *_SANS_LOOKALIKE)),
+    FontSubstitution("Aptos Display", ("VN Sans", *_SANS_LOOKALIKE)),
     FontSubstitution("Lucida Sans", ("Lucida Grande",)),
     FontSubstitution("Lucida Sans Unicode", ("Lucida Grande",)),
-    FontSubstitution("Consolas", ("Liberation Mono", "Menlo")),
-    FontSubstitution("NSimSun", _SONG_CJK),
-    FontSubstitution("SimSun", _SONG_CJK),
+    FontSubstitution("Consolas", ("VN Mono", "Liberation Mono", "Menlo")),
+    FontSubstitution("NSimSun", ("VN Song", *_SONG_CJK)),
+    FontSubstitution("SimSun", ("VN Song", *_SONG_CJK)),
     FontSubstitution("SimHei", ("Heiti SC",)),
     FontSubstitution("Microsoft YaHei", ("Heiti SC",)),
 )
 
 
 class MacDocumentFonts:
-    def __init__(self, home: Path | None = None):
+    def __init__(self, home: Path | None = None, bundled: Path | None = None):
         self._home = Path(home) if home is not None else Path.home()
+        self._bundled = Path(bundled) if bundled is not None else BUNDLED_FONT_DIR
 
     def substitutions(self) -> tuple[FontSubstitution, ...]:
         return MAC_FONT_SUBSTITUTIONS
@@ -152,7 +160,9 @@ class MacDocumentFonts:
                   *(f"{system}/{name}" for name in _SYSTEM_FONT_FILES))
         return DocumentFontSources(
             # Font Book installs for one user into ~/Library/Fonts and for all users into /Library/Fonts.
-            directories=(SYSTEM_FONT_DIR, Path("/Library/Fonts"), self._home / "Library" / "Fonts"),
+            # The app's own substitute fonts (VN-FONTS-1) are read in place from the app payload.
+            directories=(SYSTEM_FONT_DIR, Path("/Library/Fonts"), self._home / "Library" / "Fonts",
+                         self._bundled),
             accept_globs=accept,
             # The glob also matches sub-folders, which is why Supplemental itself is accepted above.
             reject_globs=(f"{system}/*",),

@@ -9,9 +9,10 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { launchApp } from "./session.mjs";
 import { sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const localAppData = process.env.VNO_CDP_LOCALAPPDATA || "E:\\VNOffice-profiles\\word-w2";
-const tempDir = "E:\\VNOffice-temp\\word-w2";
+const localAppData = process.env.VNO_CDP_LOCALAPPDATA || platformOutputPath("E:\\VNOffice-profiles\\word-w2", { directory: true });
+const tempDir = platformOutputPath("E:\\VNOffice-temp\\word-w2", { directory: true });
 fs.mkdirSync(tempDir, { recursive: true });
 
 const collapsedDocx = path.join(tempDir, "word-w2-live-collapsed.docx");

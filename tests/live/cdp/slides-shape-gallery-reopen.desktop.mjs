@@ -2,8 +2,9 @@
 // Dùng: node --experimental-websocket slides-shape-gallery-reopen.desktop.mjs <tệp.pptx>
 import { launchApp } from "./session.mjs";
 import { sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const file = process.argv[2] || "E:\\VNOffice-profiles\\claude-slidetrans\\shape_gallery.pptx";
+const file = process.argv[2] || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\shape_gallery.pptx");
 const session = await launchApp("slides", { filePath: file, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
 const ev = (e) => session.cdp.evaluate(e, { awaitPromise: true, timeoutMilliseconds: 120000 });
 let failed = false;

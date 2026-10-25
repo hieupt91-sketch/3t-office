@@ -2,8 +2,9 @@
 // PowerPoint COM đọc căn lề ô bằng scripts/audit-0610/ppt_table_align_readback.ps1.
 import { launchApp } from "./session.mjs";
 import { click, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_TABLEALIGN_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\table_align.pptx";
+const OUT = process.env.VNO_TABLEALIGN_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\table_align.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push(Boolean(pass));

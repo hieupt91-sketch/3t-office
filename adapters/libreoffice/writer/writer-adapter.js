@@ -77,6 +77,7 @@ import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplici
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 import { showChangeCaseDialog } from "../../../apps/writer/change-case-dialog.js";
 import { applyChangeCaseToSelection } from "../../../platform/text/change-case.js";
+import { findDocumentBoundaryCaret } from "../../../platform/text/caret-boundary.js";
 import { showDocumentInspectorDialog, inspectDocument, removeDocumentCategory } from "../../../apps/writer/document-inspector-dialog.js";
 import {
   documentPropertiesMarker,
@@ -9646,8 +9647,11 @@ export class WriterAdapter {
     const selection = window.getSelection?.();
     const range = document.createRange?.();
     if (!selection || !range) return false;
-    range.selectNodeContents(this.bodyDom);
-    range.collapse(!toEnd);
+    // Đặt con trỏ vào điểm lá sửa được đầu/cuối (không phải biên (bodyDom, n)): khi khối cuối là
+    // khung chú thích `contenteditable="false"`, Chromium dời vị trí biên về ĐẦU tài liệu (D9).
+    const caret = findDocumentBoundaryCaret(this.bodyDom, toEnd);
+    range.setStart(caret.node, caret.offset);
+    range.collapse(true);
     selection.removeAllRanges();
     selection.addRange(range);
     this.bodyDom.focus?.({ preventScroll: true });

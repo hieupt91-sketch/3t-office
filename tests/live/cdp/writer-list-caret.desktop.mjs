@@ -1,7 +1,8 @@
+// Phím tắt gửi theo nền tảng (Ctrl trên Windows, Cmd trên macOS) qua pressShortcut + bảng phím dùng chung.
 // Writer: gõ danh sách bằng bàn phím thật — bật danh sách ở dòng trống / sau khi gõ chữ / giữa dòng, Ctrl+Shift+L, tắt rồi bật lại, hoàn tác.
 // Lỗi gốc (phát hiện khi soạn thử như người dùng): sau khi bật danh sách con trỏ nhảy về đầu dòng hoặc đoạn trước nên chữ gõ tiếp dính sai chỗ.
 import { launchApp } from "./session.mjs";
-import { sleep, click, typeText, press } from "./actions.mjs";
+import { sleep, click, typeText, press, pressShortcut } from "./actions.mjs";
 
 const checks = [];
 const check = (name, pass, detail = "") => { checks.push(Boolean(pass)); console.log(`${pass ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`); };
@@ -14,7 +15,7 @@ try {
   const reset = async () => {
     await ev(`document.querySelector('${body}').innerHTML = '<p>Mở đầu</p>'`);
     await click(cdp, `${body} p`);
-    await press(cdp, "End", { ctrl: true });
+    await pressShortcut(cdp, "Ctrl+End", { commandId: "writer.nav.docEnd" });
   };
   const bullet = () => click(cdp, '[data-command-id="writer.list.bullet"]');
   const numbered = () => click(cdp, '[data-command-id="writer.list.numbered"]');
@@ -30,7 +31,7 @@ try {
   h = await html();
   check("Gõ chữ trước rồi bấm nút → Enter → mục kế tiếp nằm SAU mục một", h === "<p>Mở đầu</p><ul><li>Mục một</li><li>Mục hai</li></ul>", h);
 
-  await reset(); await press(cdp, "Enter"); await press(cdp, "l", { ctrl: true, shift: true }); await sleep(300);
+  await reset(); await press(cdp, "Enter"); await pressShortcut(cdp, "Ctrl+Shift+L", { commandId: "writer.list.bullet" }); await sleep(300);
   await typeText(cdp, "Mục một", 5); await press(cdp, "Enter"); await typeText(cdp, "Mục hai", 5);
   h = await html();
   check("Ctrl+Shift+L trên dòng trống cho cùng kết quả", h === "<p>Mở đầu</p><ul><li>Mục một</li><li>Mục hai</li></ul>", h);
@@ -64,7 +65,7 @@ try {
 
   await reset(); await press(cdp, "Enter"); await bullet(); await sleep(300);
   await typeText(cdp, "Một", 5); await press(cdp, "Enter"); await typeText(cdp, "Hai", 5);
-  await press(cdp, "z", { ctrl: true }); await press(cdp, "z", { ctrl: true }); await sleep(300);
+  await pressShortcut(cdp, "Ctrl+Z", { commandId: "common.edit.undo" }); await pressShortcut(cdp, "Ctrl+Z", { commandId: "common.edit.undo" }); await sleep(300);
   h = await html();
   check("Ctrl+Z hai lần không làm hỏng cấu trúc (không còn mục danh sách chứa chữ cũ)", !/Hai<\/li><li>Hai/.test(h) && !h.includes("undefined"), h);
 } catch (error) {

@@ -1,8 +1,9 @@
 // Slides: Định dạng hình > Kích thước và vị trí… đặt rộng/cao/xoay chính xác -> lưu PPTX -> PowerPoint COM đọc lại (scripts/audit-0610/ppt_shape_size_readback.ps1).
 import { launchApp } from "./session.mjs";
 import { click, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_SHAPESIZE_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\shape_size.pptx";
+const OUT = process.env.VNO_SHAPESIZE_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\shape_size.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => { checks.push(Boolean(pass)); console.log(`${pass ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`); };
 const session = await launchApp("slides", {});

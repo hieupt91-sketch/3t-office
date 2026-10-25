@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 2026-10-25 10:58, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-25 15:28, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -41,3 +41,12 @@
 
 ## 2026-10-25 10:58
 - Gộp vn-main: candidate2 Mac + G1 + G2 (swift test 201; npm 3826; DOCX 8/8), Q65 (npm 3826; pytest nhóm liên quan 11 passed/1 skipped), Q63 (swift test 204/204; pytest engine cũ BLOCKED vì chưa dựng lại engine Windows). Đang chạy: R0912 (dựng/kiểm bản 0.9.12 thử, chưa phát hành). Dọn ổ C: còn 15,8 GB trống; WSL ở D:.
+
+## 2026-10-25 14:26
+- Gộp: mac/xcode-warn-cl-2510 (ports/macos). Mac xác nhận Q63+Q65 (pytest 1199/0, swift 204, G0 28/28). Đang chạy: Q66 (số kiểu Việt/cảnh báo hàm/huy hiệu; đã commit mục huy hiệu), R0912 (bản 0.9.12 thử). Mạng chập chờn lúc 14:17–14:25 làm Codex reconnect.
+
+## 2026-10-25 14:54
+- Phân bổ vòng 14:53: Mac không có yêu cầu mới (chặn: quyền Automation cho Office, chứng chỉ Developer ID — chờ chủ). Windows giao agy viết hook _batch_pptx.py (kiểm mở-sửa-lưu PPTX bằng PowerPoint COM). Đang chạy: Q66, R0912, AGY-PPTX.
+
+## 2026-10-25 15:28
+- Gộp vn-main: hook scripts/layout-audit/_batch_pptx.py (agy; pytest 7/7; Windows tự chạy lại sample-3.pptx: PowerPoint=10 saved=10 PASS, không còn PowerPoint treo). Hạn chế đã đóng: bộ kiểm PPTX hàng loạt. Mac có thể dùng hook này với Office for Mac sau khi cấp Automation (chưa).

@@ -1,0 +1,118 @@
+{
+  "ticket": "VN-FONTS-1",
+  "build_script": "scripts/fonts/build_vn_fonts.py",
+  "tools": {
+    "fontTools": "4.55.3",
+    "pathops": "0.8.0.post2"
+  },
+  "sources": {
+    "selawik": {
+      "name": "Selawik",
+      "version": "1.01",
+      "license": "OFL-1.1",
+      "reserved_font_names": [
+        "Selawik"
+      ],
+      "url": "https://github.com/microsoft/Selawik/releases/download/1.01/Selawik_Release.zip",
+      "sha256": "3f62c51e05e3b5a1e6241cf92a371f0be2ea1183aa87b30718bbd40832a8d423",
+      "license_url": "https://raw.githubusercontent.com/microsoft/Selawik/89362e84731d1f5777fa078fd4d5ebbd339e4378/LICENSE.txt",
+      "license_sha256": "77b7c2506d4efb22e09c8ccf10159f4956eab3ef7c007fef95de136bcf45300c",
+      "members": [
+        "selawk.ttf",
+        "selawkb.ttf"
+      ]
+    },
+    "opensans": {
+      "name": "Open Sans",
+      "version": "3.003",
+      "license": "OFL-1.1",
+      "reserved_font_names": [],
+      "url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/opensans/OpenSans%5Bwdth,wght%5D.ttf",
+      "sha256": "36643644f318a812aab2d2ed3bb98f8cf0872527f835fe9398d95fe6b9adb878",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/opensans/OFL.txt",
+      "license_sha256": "fbbbcfef55318de350562559b671360de6d597112ecc5c73881b05092db89602"
+    },
+    "inconsolata": {
+      "name": "Inconsolata",
+      "version": "3.001",
+      "license": "OFL-1.1",
+      "reserved_font_names": [],
+      "url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/inconsolata/Inconsolata%5Bwdth,wght%5D.ttf",
+      "sha256": "23ded25b447074d00659392bf9b1123d89df55cb07b0ad9bfef3366d199b5fcb",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/inconsolata/OFL.txt",
+      "license_sha256": "29bd0cfd0fb2a45f9b057c834a057724bae1f63b525a8ac83d3e7525706d9f80"
+    },
+    "notoserifsc": {
+      "name": "Noto Serif SC",
+      "version": "2.003",
+      "license": "OFL-1.1",
+      "reserved_font_names": [
+        "Source"
+      ],
+      "url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf",
+      "sha256": "050080d9255a86808f2945bffac582b31ef32bc36411ce29563b4961670c66f9",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/notoserifsc/OFL.txt",
+      "license_sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6"
+    }
+  },
+  "metric_sources": {
+    "VN Sans UI": "Selawik 1.01 advances and vertical metrics, unchanged (published open replacement)",
+    "VN Mono": "cell width 1126/2048 em, stated publicly by the Cascadia/Selawik designer: https://github.com/microsoft/cascadia-code/issues/41",
+    "VN Song": "generic DBCS rule: full width 1 em, half width 0.5 em",
+    "VN Sans": "none (look-alike only, not metric-compatible)"
+  },
+  "outputs": {
+    "VNSansUI-Regular.ttf": {
+      "family": "VN Sans UI",
+      "style": "Regular",
+      "sha256": "1325018a6a5d872c3ef9c6f415c3de839ea954c2c32478de7613e4df76ade409",
+      "bytes": 40992,
+      "copyright": "© 2015 Microsoft Corporation (www.microsoft.com), with Reserved Font Name Selawik. Modifications copyright 2026 3T Office contributors (VN-FONTS-1).",
+      "added_glyphs": 96
+    },
+    "VNSansUI-Bold.ttf": {
+      "family": "VN Sans UI",
+      "style": "Bold",
+      "sha256": "950fa32f11e7d501444c989a67d6de86e6dee86474464ae5da4c7d431e2a7442",
+      "bytes": 40860,
+      "copyright": "© 2015 Microsoft Corporation (www.microsoft.com), with Reserved Font Name Selawik. Modifications copyright 2026 3T Office contributors (VN-FONTS-1).",
+      "added_glyphs": 96
+    },
+    "VNSans-Regular.ttf": {
+      "family": "VN Sans",
+      "style": "Regular",
+      "sha256": "79acfbda872e8403a873522942db6a93f559d354d6c3a105fdc76a4dbe72f59a",
+      "bytes": 115240,
+      "copyright": "Copyright 2020 The Open Sans Project Authors (https://github.com/googlefonts/opensans). Modifications copyright 2026 3T Office contributors (VN-FONTS-1)."
+    },
+    "VNSans-Bold.ttf": {
+      "family": "VN Sans",
+      "style": "Bold",
+      "sha256": "7a6e4946c8eb7688ff54e33f90cc58702c3b5390b9bda4907cb8e141c27c66be",
+      "bytes": 115224,
+      "copyright": "Copyright 2020 The Open Sans Project Authors (https://github.com/googlefonts/opensans). Modifications copyright 2026 3T Office contributors (VN-FONTS-1)."
+    },
+    "VNMono-Regular.ttf": {
+      "family": "VN Mono",
+      "style": "Regular",
+      "sha256": "7deaef919c37f83f6e3747f230b8fb761c6b80c9929da97a29ab157de5a62c73",
+      "bytes": 88476,
+      "copyright": "Copyright 2006 The Inconsolata Project Authors (https://github.com/cyrealtype/Inconsolata). Modifications copyright 2026 3T Office contributors (VN-FONTS-1)."
+    },
+    "VNMono-Bold.ttf": {
+      "family": "VN Mono",
+      "style": "Bold",
+      "sha256": "4b37386497fd05f4850bff6195baa7142339b3fbc10407c22929f16b251f3b5a",
+      "bytes": 88936,
+      "copyright": "Copyright 2006 The Inconsolata Project Authors (https://github.com/cyrealtype/Inconsolata). Modifications copyright 2026 3T Office contributors (VN-FONTS-1)."
+    },
+    "VNSong-Regular.ttf": {
+      "family": "VN Song",
+      "style": "Regular",
+      "sha256": "d992447e4b7f4f81d6e1bab0dd711395e987d34213c51c2dc3d8b50edfc9b7fc",
+      "bytes": 3289996,
+      "copyright": "(c) 2017-2024 Adobe (http://www.adobe.com/). Modifications copyright 2026 3T Office contributors (VN-FONTS-1).",
+      "glyphs": 8053
+    }
+  }
+}

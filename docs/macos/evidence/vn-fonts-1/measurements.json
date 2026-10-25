@@ -1,0 +1,144 @@
+{
+ "ticket": "VN-FONTS-1",
+ "date": "2026-10-25",
+ "engine": "pilot macos-offline-pilot-theme-20261022-v4 soffice",
+ "corpus": "tests/macos/fonts/make_font_corpus.py (40 paragraphs, A4, 11 pt)",
+ "before": "MAC-9 table (origin/vn-main)",
+ "after": "VN-FONTS-1 table + bundled VN fonts",
+ "rows": [
+  {
+   "file": "font-aptos.docx",
+   "before_pages": 3,
+   "before_fonts": [
+    "HelveticaNeue"
+   ],
+   "after_pages": 4,
+   "after_fonts": [
+    "VNSans-Regular"
+   ]
+  },
+  {
+   "file": "font-arial.docx",
+   "before_pages": 3,
+   "before_fonts": [
+    "ArialMT"
+   ],
+   "after_pages": 3,
+   "after_fonts": [
+    "ArialMT"
+   ]
+  },
+  {
+   "file": "font-calibri-light.docx",
+   "before_pages": 4,
+   "before_fonts": [
+    "Carlito"
+   ],
+   "after_pages": 4,
+   "after_fonts": [
+    "Carlito"
+   ]
+  },
+  {
+   "file": "font-calibri.docx",
+   "before_pages": 4,
+   "before_fonts": [
+    "Carlito"
+   ],
+   "after_pages": 4,
+   "after_fonts": [
+    "Carlito"
+   ]
+  },
+  {
+   "file": "font-cambria.docx",
+   "before_pages": 3,
+   "before_fonts": [
+    "Caladea-Regular",
+    "LinuxLibertineG"
+   ],
+   "after_pages": 3,
+   "after_fonts": [
+    "Caladea-Regular",
+    "LinuxLibertineG"
+   ]
+  },
+  {
+   "file": "font-consolas.docx",
+   "before_pages": 4,
+   "before_fonts": [
+    "LiberationMono"
+   ],
+   "after_pages": 3,
+   "after_fonts": [
+    "VNMono-Regular"
+   ]
+  },
+  {
+   "file": "font-courier-new.docx",
+   "before_pages": 4,
+   "before_fonts": [
+    "CourierNewPSMT"
+   ],
+   "after_pages": 4,
+   "after_fonts": [
+    "CourierNewPSMT"
+   ]
+  },
+  {
+   "file": "font-lucida-sans.docx",
+   "before_pages": 3,
+   "before_fonts": [
+    "LucidaGrande"
+   ],
+   "after_pages": 3,
+   "after_fonts": [
+    "LucidaGrande"
+   ]
+  },
+  {
+   "file": "font-nsimsun.docx",
+   "before_pages": 4,
+   "before_fonts": [
+    "STHeitiSC-Light"
+   ],
+   "after_pages": 5,
+   "after_fonts": [
+    "VNSong-Regular"
+   ]
+  },
+  {
+   "file": "font-segoe-ui.docx",
+   "before_pages": 3,
+   "before_fonts": [
+    "HelveticaNeue"
+   ],
+   "after_pages": 4,
+   "after_fonts": [
+    "VNSansUI-Regular"
+   ]
+  },
+  {
+   "file": "font-simsun.docx",
+   "before_pages": 4,
+   "before_fonts": [
+    "STHeitiSC-Light"
+   ],
+   "after_pages": 5,
+   "after_fonts": [
+    "VNSong-Regular"
+   ]
+  },
+  {
+   "file": "font-times-new-roman.docx",
+   "before_pages": 3,
+   "before_fonts": [
+    "TimesNewRomanPSMT"
+   ],
+   "after_pages": 3,
+   "after_fonts": [
+    "TimesNewRomanPSMT"
+   ]
+  }
+ ]
+}

@@ -2,8 +2,9 @@
 // Đọc: scripts/audit-0610/ppt_chart_readback.ps1
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_CHARTDESIGN_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\chart_design.pptx";
+const OUT = process.env.VNO_CHARTDESIGN_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\chart_design.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push(Boolean(pass));

@@ -12,6 +12,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { launchApp, repoRoot } from "./session.mjs";
 import { sleep } from "./client.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const COMBINATIONS = [
   { width: 1280, height: 720, scale: 1.0, label: "1280x720-1.0" },
@@ -21,7 +22,7 @@ const COMBINATIONS = [
   { width: 1920, height: 1080, scale: 1.5, label: "1920x1080-1.5" },
 ];
 
-const LOCALAPPDATA = "E:\\VNOffice-profiles\\agy-overlap";
+const LOCALAPPDATA = platformOutputPath("E:\\VNOffice-profiles\\agy-overlap", { directory: true });
 const OUT_DIR = path.resolve(repoRoot, "docs/diag-overlap");
 
 const OVERLAP_DETECTOR = `(() => {

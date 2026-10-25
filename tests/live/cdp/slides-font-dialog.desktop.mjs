@@ -1,8 +1,9 @@
 // Slides: Ctrl+T mở hộp thoại Phông chữ, đặt phông/cỡ/đậm/màu/gạch chân đôi/chỉ số trên/giãn ký tự; nút Khoảng cách ký tự; lưu PPTX.
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, press, typeText, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_FONTDLG_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\font_dialog.pptx";
+const OUT = process.env.VNO_FONTDLG_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\font_dialog.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push({ name, pass: Boolean(pass) });

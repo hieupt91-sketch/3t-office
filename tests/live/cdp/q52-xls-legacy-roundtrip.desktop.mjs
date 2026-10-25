@@ -1,10 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { launchApp } from "./session.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const corpus = process.env.VNO_Q52_LEGACY_CORPUS || "E:\\VN OFice\\file test\\lan-legacy";
-const outputDir = process.env.VNO_Q52_XLS_OUT || "E:\\VNOffice-briefs\\logs\\Q52-work\\xls-libreoffice";
-const artifacts = process.env.VNO_Q52_ARTIFACTS || "E:\\VNOffice-briefs\\logs\\Q52-work\\ui-xls";
+const outputDir = process.env.VNO_Q52_XLS_OUT || platformOutputPath("E:\\VNOffice-briefs\\logs\\Q52-work\\xls-libreoffice", { directory: true });
+const artifacts = process.env.VNO_Q52_ARTIFACTS || platformOutputPath("E:\\VNOffice-briefs\\logs\\Q52-work\\ui-xls", { directory: true });
 const firstIndex = Number(process.env.VNO_Q52_FIRST_INDEX || 1);
 const lastIndex = Number(process.env.VNO_Q52_LAST_INDEX || 20);
 await fs.mkdir(outputDir, { recursive: true });

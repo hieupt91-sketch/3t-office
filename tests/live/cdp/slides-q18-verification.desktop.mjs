@@ -3,8 +3,9 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { launchApp } from "./session.mjs";
 import { click } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const outDir = process.env.VNO_Q18_OUT || "E:\\VNOffice-profiles\\q18-slides-20261020";
+const outDir = process.env.VNO_Q18_OUT || platformOutputPath("E:\\VNOffice-profiles\\q18-slides-20261020", { directory: true });
 const pptx = path.join(outDir, "q18-eight-slides.pptx");
 const screenshotsDir = process.env.VNO_Q56_UI_SHOTS || path.join(outDir, "screenshots");
 await fs.mkdir(screenshotsDir, { recursive: true });

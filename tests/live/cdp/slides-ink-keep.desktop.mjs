@@ -2,8 +2,9 @@
 // PowerPoint COM đọc hình bằng scripts/audit-0610/ppt_ink_readback.ps1.
 import { launchApp } from "./session.mjs";
 import { press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_INK_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\ink_keep.pptx";
+const OUT = process.env.VNO_INK_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\ink_keep.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => { checks.push(Boolean(pass)); console.log(`${pass ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`); };
 const session = await launchApp("slides", {});

@@ -1,6 +1,7 @@
 import { launchApp } from "./session.mjs";
 import { typeText } from "./actions.mjs";
 import { writeFileSync } from "node:fs";
+import { platformOutputPath } from "./output-path.mjs";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const session = await launchApp("writer", { startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
 try {
@@ -10,6 +11,6 @@ try {
   await typeText(session.cdp, "Van ban co tu sai chinh ta xyzabc va qwertyu o day", 8);
   await sleep(1500);
   const r = await session.cdp.send("Page.captureScreenshot", { format: "png", clip: { x: 280, y: 200, width: 820, height: 160, scale: 2 } });
-  writeFileSync("E:\\VNOffice-profiles\\ui-shots\\u1-wave.png", Buffer.from((r.result || r).data, "base64"));
+  writeFileSync(platformOutputPath("E:\\VNOffice-profiles\\ui-shots\\u1-wave.png"), Buffer.from((r.result || r).data, "base64"));
   console.log("ok");
 } finally { await session.close(); }

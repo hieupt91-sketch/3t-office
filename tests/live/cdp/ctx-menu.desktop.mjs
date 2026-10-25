@@ -12,8 +12,9 @@ import { launchApp } from "./session.mjs";
 import { sleep } from "./client.mjs";
 import path from "node:path";
 import fs from "node:fs/promises";
+import { platformOutputPath } from "./output-path.mjs";
 
-const LOCAL_PROFILES_DIR = "E:\\VNOffice-profiles\\agy-ctx";
+const LOCAL_PROFILES_DIR = platformOutputPath("E:\\VNOffice-profiles\\agy-ctx", { directory: true });
 
 async function run() {
   console.log("=== KIỂM TRA DESKTOP CDP: MENU CHUỘT PHẢI & SUBMENU (DOC & SHEET) ===");

@@ -20,6 +20,7 @@ import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import { connectToPort, sleep } from "./client.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const REPO_ROOT = path.resolve(".");
 
@@ -28,7 +29,7 @@ const APP_CONFIGS = {
     app: "writer",
     name: "Doc",
     port: 9321,
-    profileDir: "E:\\VNOffice-profiles\\agy-spell2-1",
+    profileDir: platformOutputPath("E:\\VNOffice-profiles\\agy-spell2-1", { directory: true }),
     readySelector: ".vno-writer-body",
     canvasSelector: ".vno-writer-page"
   },
@@ -36,7 +37,7 @@ const APP_CONFIGS = {
     app: "sheet",
     name: "Sheet",
     port: 9322,
-    profileDir: "E:\\VNOffice-profiles\\agy-spell2-2",
+    profileDir: platformOutputPath("E:\\VNOffice-profiles\\agy-spell2-2", { directory: true }),
     readySelector: ".vno-sheet-container",
     canvasSelector: ".vno-sheet-container"
   },
@@ -44,7 +45,7 @@ const APP_CONFIGS = {
     app: "slides",
     name: "Slide",
     port: 9323,
-    profileDir: "E:\\VNOffice-profiles\\agy-spell2-3",
+    profileDir: platformOutputPath("E:\\VNOffice-profiles\\agy-spell2-3", { directory: true }),
     readySelector: ".vno-slide-canvas",
     canvasSelector: ".vno-slide-canvas"
   }

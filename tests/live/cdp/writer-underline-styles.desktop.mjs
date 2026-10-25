@@ -2,8 +2,9 @@
 // Đọc lại bằng Word 2016 thật: scripts/audit-0610/word_underline_readback.ps1
 import { launchApp } from "./session.mjs";
 import { click, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_UL_OUT || "E:\\VNOffice-profiles\\claude-wordpar\\underline_styles.docx";
+const OUT = process.env.VNO_UL_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-wordpar\\underline_styles.docx");
 const TEMPLATE = process.env.VNO_FONTDLG_TEMPLATE || "E:\\VNOffice-profiles\\claude-wordpar\\template.docx";
 const WORDS = [["Aaa", "double"], ["Bbb", "thick"], ["Ccc", "dotted"], ["Ddd", "dash"], ["Eee", "wave"]];
 const results = [];

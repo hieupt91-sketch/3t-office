@@ -3,8 +3,9 @@
 import fs from "node:fs";
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, mouseDrag, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_CROPDRAG_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\crop_drag.pptx";
+const OUT = process.env.VNO_CROPDRAG_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\crop_drag.pptx");
 const PIC = "E:\\VNOffice-profiles\\claude-slidetrans\\pic.png";
 const checks = [];
 const check = (name, pass, detail = "") => {

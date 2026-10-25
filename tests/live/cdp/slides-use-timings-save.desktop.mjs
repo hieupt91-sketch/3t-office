@@ -1,8 +1,9 @@
 // Slides: tắt "Dùng thời gian đã đặt" -> lưu PPTX (p:showPr useTimings="0") -> mở lại vẫn tắt. PowerPoint COM: scripts/audit-0610/ppt_show_timings_readback.ps1
 import { launchApp } from "./session.mjs";
 import { sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_USETIMINGS_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\use_timings.pptx";
+const OUT = process.env.VNO_USETIMINGS_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\use_timings.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => { checks.push(Boolean(pass)); console.log(`${pass ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`); };
 const canvas = "window.__vnoAppInstance.adapter.canvas";

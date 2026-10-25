@@ -2,8 +2,9 @@
 import fs from "node:fs";
 import { launchApp } from "./session.mjs";
 import { click, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_BGFILL_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\bg_fill.pptx";
+const OUT = process.env.VNO_BGFILL_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\bg_fill.pptx");
 const PIC = "E:\\VNOffice-profiles\\claude-slidetrans\\pic.png";
 const checks = [];
 const check = (name, pass, detail = "") => {

@@ -113,3 +113,45 @@ Trả lời INBOX-MAC #8 — cổng macOS trên vn-main `75f271ed` (sau gộp ca
 - OOXMLKit `swift test` **201/201 PASS**, 0 cảnh báo; build iOS **PASS**; flake XMLTests không gặp.
 - CDP macOS phím tắt **14/14 PASS**; Xcode launcher macOS **BUILD SUCCEEDED** (2 cảnh báo nhỏ của project: ALWAYS_SEARCH_USER_PATHS, AppIntents metadata — Mac sẽ dọn trong ports/macos).
 - `mac/runtime-deps-cl-2510` đã nằm trong candidate2. Còn `mac/vnfonts-cl-2510` (phông OFL) đang làm; sẽ báo INBOX trước khi đẩy lên vn-main.
+
+## 2026-10-25 14:04 #19 | loại: trả-lời | trạng thái: xong
+Trả lời INBOX-MAC #9 — Mac xác nhận Q63 + Q65 trên vn-main `e04925b9` (macOS arm64), Mac tự kiểm log:
+- pytest cả bộ **1199 qua / 0 lỗi / 25 skip** — test LOCALAPPDATA hết lỗi; test mới `test_parent_alive_probe_from_spawned_worker` chạy thật (không skip) và PASS.
+- npm test **3826/3826**; checklist 0/0/0.
+- OOXMLKit `swift test` **204/204**, 0 cảnh báo; build iOS **PASS**.
+- Engine Q63 smoke: dòng không phải JSON → `request` (không lộ chuỗi Cocoa); JSON thiếu `op` → `request`; `[1,2]` → `request`. PPTX không có notesMaster: `slide.setNotes`+save và `pptx.save` (2 slide) đều OK, mở lại đọc đúng ghi chú, mỗi slide 1 notesSlide.
+- G0 với engine mới: **28/28 PASS**.
+- Việc Mac còn mở: VN-FONTS-1 (sẽ báo trước khi đẩy), MAC-6/13/15 (soạn thử qua CDP), dọn 2 cảnh báo Xcode trong ports/macos.
+
+## 2026-10-25 14:06 #20 | loại: thông-báo | trạng thái: mở
+Dọn 2 cảnh báo Xcode (INBOX-MAC #9 việc 3): nhánh `mac/xcode-warn-cl-2510` `36d25d6a` (đã đẩy, dựng từ vn-main e04925b9) — chỉ sửa `ports/macos/VNOfficeLauncher.xcodeproj/project.pbxproj`: `ALWAYS_SEARCH_USER_PATHS = NO` (cấp project) + `LM_SKIP_METADATA_EXTRACTION = YES` (target). Build launcher Debug + Release: BUILD SUCCEEDED, **0 cảnh báo**; tests/macos 57 PASS. Chỉ vùng ports/macos, không đụng mã dùng chung → đề nghị gộp vào vn-main khi chủ đồng ý.
+
+## 2026-10-25 15:56 #21 | loại: thông-báo | trạng thái: mở
+**VN-FONTS-1 xong** — bộ phông riêng từ nguồn OFL 1.1 (chủ quyết không mua bản quyền). Nhánh `mac/vnfonts-cl-2510` (đã đẩy, gộp sạch vào vn-main). Báo trước khi đẩy vn-main theo #8 — chờ chủ duyệt.
+| Phông | Thay cho | Nguồn | Khớp số đo |
+|---|---|---|---|
+| VN Sans UI (Reg/Bold) | Segoe UI | Selawik 1.01 (OFL, bản thay thế mở do Microsoft phát hành) + dấu VN | Giữ nguyên 305 độ rộng gốc của Selawik |
+| VN Mono (Reg/Bold) | Consolas | Inconsolata 3.001 | Ô ký tự 1126/2048 em (con số công khai) |
+| VN Song (Reg) | SimSun/NSimSun | Noto Serif SC 2.003 (cắt GB2312+Latin+VN) | Chữ Hán 1 em, Latin 0,5 em |
+| VN Sans (Reg/Bold) | Aptos | Open Sans 3.003 | KHÔNG khớp (không có nguồn hợp pháp) — chỉ gần giống |
+- 0 ký tự tiếng Việt thiếu (NFC + NFD) ở mọi phông; tên phông không chứa tên thương hiệu (Mac đã kiểm bảng name); không đọc tệp phông Microsoft. Script dựng tái lập byte (`scripts/fonts/`), kèm OFL.txt + FONTLOG + SOURCES.json (URL+sha256). Thêm ~3,6 MiB.
+- Nối dây: engine macOS qua fontconfig (`platform/os_services/macos.py`); giao diện web qua `platform/fonts/document/document-fonts.css` được `@import` từ `platform/theme/fonts/fonts.css` (không sửa index.html). **Windows:** `build-pilot.ps1` đã chép cả `platform/` nên phông đi kèm, nhưng bảng thay thế cho engine Windows CHƯA nối — đề xuất 1 phiếu Windows.
+- Test: npm 3827/3827; pytest tests/macos + test_vn_document_fonts 74 PASS (Mac tự chạy lại).
+- THIRD-PARTY-NOTICES: chỉ Lead Agent sửa tệp này — nội dung cần thêm ở mục 6 `docs/macos/HANDOFF-VN-FONTS-1-2510.md`.
+
+## 2026-10-25 16:00 #22 | loại: yêu-cầu | trạng thái: mở
+**MAC-6/13/15 xong** — soạn thử như người dùng thật qua CDP trên macOS. Nhánh `mac/userflow-cl-2510` (đã đẩy): máy chủ phiên CDP thêm `drag`, phím bổ trợ khi nhấp, `size` rơi về viewport trên Qt/macOS, `--ttl` tự đóng app (unit 8/8). Báo cáo lỗi đầy đủ + bước tái hiện: `docs/EXPLORE-MAC-2510.md`, ảnh: `docs/macos/evidence/explore-mac-2510/`.
+MAC-13 trên macOS: PASS 4/7 (footnote-track-save, slides-zoom-dialog, slides-shape-names, document-password). 3 FAIL do test: list-caret và footer-numpages gửi Ctrl thay vì Cmd (Cmd chạy đúng khi gửi tay); table-tab-rows cũ hơn bộ chọn kích thước bảng (56f07440) — FAIL mọi nền. 3 test mặc định ghi ra `E:\…` → trên Mac tạo tệp rác ở gốc repo.
+**Lỗi (D1–D5 có thể KHÔNG riêng Mac — đề nghị Windows tái hiện cùng luồng):**
+- **D1 nghiêm trọng (Slides):** mở lại .pptx do 3T lưu → tiêu đề + thân chữ vẽ HAI lần lệch nhau (Mac đã xem ảnh xác nhận). Tệp lưu đúng → lỗi ở khâu nhập (nghi `adapters/libreoffice/slides/slides-adapter.js` ~2921/4480 hoặc `slides-canvas.js`).
+- D2 (Writer): bảng mất viền + co nửa bề rộng khi lưu. D3: phông/cỡ/giãn dòng mặc định không ghi vào .docx (ra Liberation Serif 12pt, Asian "Songti SC"). D4: số trang ở chân trang thành chữ cố định sau mở lại. D5: ngắt trang tách 1 trang A4 thành 2 trang ngắn, chân trang/chú thích trang 1 vẽ ở trang 2.
+- D6 (riêng Mac): Calibri/Calibri Light hiện có chân sau mở lại (Sheet, Writer) — tên phông nhập không có fallback.
+- Vừa: D7 dấu đầu dòng Slides bị cắt khi sửa (padding trái 0); D8 chữ gõ vào hình mới không hiển thị; D9 Cmd+End ở Writer về đầu văn bản; D10 biểu đồ Sheet chồng lên dữ liệu khi mở lại.
+- Nhẹ: D11 Sheet số kiểu US trong UI tiếng Việt (trùng Q66); D12 số từ Writer 148→135 sau lưu; D13 "Ghi chú" vs "Nhận xét".
+**Đề xuất chia việc (tránh làm trùng):** Mac nhận ngay **D1, D7, D8** (Slides, nhánh `mac/slides-fix-cl-2510`) và **D9 + sửa 3 test MAC-13 + D14** (nhánh `mac/keys-fix-cl-2510`); D6 làm sau khi nhánh phông `mac/vnfonts-cl-2510` được gộp. **D2–D5, D10, D12, D13** đề nghị Windows nhận (Writer/Sheet export, chủ vùng Windows); D11 gộp vào Q66. Nếu Windows đã đang làm phần nào trong D1/D7/D8 thì báo INBOX-MAC, Mac dừng phần đó.
+
+## 2026-10-25 16:21 #23 | loại: thông-báo | trạng thái: mở
+FIX-KEYS xong — nhánh `mac/keys-fix-cl-2510` (đã đẩy, gộp sạch vào vn-main). Mac tự chạy lại: npm test **3834/3834**, checklist 0/0/0.
+- **D9 KHÔNG riêng Mac — đổi hành vi chung, Windows lưu ý:** Ctrl+End (Windows) / Cmd+End (Mac) đặt con trỏ ra mép ngoài thân văn bản; khi khối cuối không sửa được (vùng chú thích, cuối bảng) trình duyệt đẩy con trỏ về đầu văn bản. Sửa bằng helper chung `platform/text/caret-boundary.js` (tìm chỗ gõ được đầu/cuối, bỏ qua phần không sửa được), `writer-adapter.js` gọi 1 chỗ. Hệ quả trên Windows: cuối văn bản có bảng → con trỏ ở cuối ô cuối; Home về đầu chữ tiêu đề (không đứng trước nút thu gọn). Unit 6 ca (2/6 → 6/6), CDP mới `writer-doc-boundary.desktop.mjs` 2/5 → 5/5 trên macOS. Đề nghị Windows chạy lại CDP đó trên Windows.
+- MAC-13: `writer-list-caret` 9/9, `writer-footer-numpages` 3/3, `writer-table-tab-rows` 5/5 PASS trên macOS (helper mới `pressShortcut()` trong `tests/live/cdp/actions.mjs` gửi Cmd/Ctrl theo bảng keymap; bài bảng dùng bộ chọn kích thước — assertion không đổi).
+- D14: helper `tests/live/cdp/output-path.mjs` áp cho 65 test: trên macOS/Linux mặc định `os.tmpdir()/vno-cdp-output/…`; **trên Windows giữ nguyên `E:\…`** (biến môi trường vẫn ưu tiên). Nếu Windows muốn dùng thư mục tạm luôn thì đổi 1 dòng trong output-path.mjs.

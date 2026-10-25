@@ -19,9 +19,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { launchApp } from "./session.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const profile = process.env.VNO_CDP_LOCALAPPDATA || "E:\\VNOffice-profiles\\sinfo-cdp";
-const tempDir = "E:\\VNOffice-temp\\sinfo-audit";
+const profile = process.env.VNO_CDP_LOCALAPPDATA || platformOutputPath("E:\\VNOffice-profiles\\sinfo-cdp", { directory: true });
+const tempDir = platformOutputPath("E:\\VNOffice-temp\\sinfo-audit", { directory: true });
 fs.mkdirSync(profile, { recursive: true });
 fs.mkdirSync(tempDir, { recursive: true });
 
