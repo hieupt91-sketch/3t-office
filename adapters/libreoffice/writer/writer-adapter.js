@@ -9682,7 +9682,7 @@ export class WriterAdapter {
           : "Chưa chọn văn bản";
         const noSelMsg = (typeof t === "function" && t("writerDialogs.comments.noSelectionMsg") !== "writerDialogs.comments.noSelectionMsg")
           ? t("writerDialogs.comments.noSelectionMsg")
-          : "Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.";
+          : "Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm nhận xét.";
         await showAlertDialog({
           title: noSelTitle,
           message: noSelMsg,
@@ -9694,16 +9694,16 @@ export class WriterAdapter {
 
     const addTitle = (typeof t === "function" && t("writerDialogs.comments.addCommentTitle") !== "writerDialogs.comments.addCommentTitle")
       ? t("writerDialogs.comments.addCommentTitle")
-      : "Thêm ghi chú";
+      : "Thêm nhận xét";
     const addPlaceholder = (typeof t === "function" && t("writerDialogs.comments.addCommentPlaceholder") !== "writerDialogs.comments.addCommentPlaceholder")
       ? t("writerDialogs.comments.addCommentPlaceholder")
-      : "Nhập nội dung ghi chú...";
+      : "Nhập nội dung nhận xét...";
     const addConfirm = (typeof t === "function" && t("writerDialogs.comments.addCommentBtn") !== "writerDialogs.comments.addCommentBtn")
       ? t("writerDialogs.comments.addCommentBtn")
-      : "Thêm ghi chú";
+      : "Thêm nhận xét";
     const notePrefix = (typeof t === "function" && t("writerRibbon.group.comments") !== "writerRibbon.group.comments")
       ? t("writerRibbon.group.comments")
-      : "Ghi chú";
+      : "Nhận xét";
 
     const content = args && Object.prototype.hasOwnProperty.call(args, "content")
       ? args.content
@@ -9724,7 +9724,7 @@ export class WriterAdapter {
     mark.setAttribute("role", "button");
     const openCommentPattern = (typeof t === "function" && t("writerDialogs.comments.openCommentAria") !== "writerDialogs.comments.openCommentAria")
       ? t("writerDialogs.comments.openCommentAria")
-      : "Mở ghi chú cho: {text}";
+      : "Mở nhận xét cho: {text}";
     mark.setAttribute("aria-label", openCommentPattern.replace("{text}", anchorText.slice(0, 80)));
 
     try {
@@ -9852,12 +9852,13 @@ export class WriterAdapter {
       return;
     }
     this.commentsPanel.hidden = false;
+    this.commentsPanel.setAttribute?.("aria-label", t("writerDialogs.comments.panelLabel", "Nhận xét tài liệu"));
 
     const title = document.createElement("h2");
     title.className = "vno-comments-title";
     const titleParts = [];
-    if (hasComments) titleParts.push(`Ghi chú (${this.comments.length})`);
-    if (hasRevisions) titleParts.push(`Bản sửa (${trackChanges.length})`);
+    if (hasComments) titleParts.push(`${t("writerDialogs.comments.panelLabel", "Nhận xét tài liệu")} (${this.comments.length})`);
+    if (hasRevisions) titleParts.push(`${t("writerDialogs.comments.revisionsLabel", "Bản sửa")} (${trackChanges.length})`);
     title.textContent = titleParts.join(" • ") || "Đánh dấu";
     this.commentsPanel.appendChild(title);
 
@@ -9892,8 +9893,9 @@ export class WriterAdapter {
       remove.type = "button";
       remove.className = "vno-comment-delete";
       remove.dataset.commentDelete = comment.id;
-      remove.setAttribute("aria-label", `Xóa ghi chú cho ${comment.anchorText}`);
-      remove.textContent = "Xóa";
+      const deletePattern = t("writerDialogs.comments.deleteCommentAria", "Xóa nhận xét cho: {text}");
+      remove.setAttribute("aria-label", deletePattern.replace("{text}", comment.anchorText));
+      remove.textContent = t("writerDialogs.comments.deleteCommentButton", "Xóa");
       meta.append(info, remove);
       card.append(preview, content, meta);
       for (const reply of comment.replies || []) {

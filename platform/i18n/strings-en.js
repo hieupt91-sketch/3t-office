@@ -1920,6 +1920,9 @@ export const enStrings = {
       replyPlaceholder: "Type your reply...",
       replyBtn: "Send Reply",
       panelLabel: "Document Comments",
+      revisionsLabel: "Revisions",
+      deleteCommentAria: "Delete comment for: {text}",
+      deleteCommentButton: "Delete",
       openCommentAria: "Open comment for: {text}",
       placeholderHeader: "Click to enter header...",
       placeholderFooter: "Click to enter footer..."

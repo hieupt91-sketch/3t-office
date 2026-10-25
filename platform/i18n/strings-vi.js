@@ -1919,7 +1919,10 @@ export const viStrings = {
       replyPlaceholder: "Nhập nội dung trả lời...",
       replyBtn: "Gửi trả lời",
       panelLabel: "Nhận xét tài liệu",
-      openCommentAria: "Mở ghi chú cho: {text}",
+      revisionsLabel: "Bản sửa",
+      deleteCommentAria: "Xóa nhận xét cho: {text}",
+      deleteCommentButton: "Xóa",
+      openCommentAria: "Mở nhận xét cho: {text}",
       placeholderHeader: "Nhấp để nhập tiêu đề đầu trang...",
       placeholderFooter: "Nhấp để nhập tiêu đề chân trang..."
     },

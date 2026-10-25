@@ -588,8 +588,8 @@ export const WRITER_HELP_ENTRIES = [
     title: "Duyệt, trả lời và xử lý nhận xét",
     summary: "Duyệt nhận xét, trả lời trong cùng luồng, đánh dấu đã xử lý, mở lại hoặc xóa nhận xét. Câu trả lời được lưu trong DOCX dưới dạng reply thuộc nhận xét gốc.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
-    keywords: ["nhận xét", "ghi chú", "trả lời", "reply", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Đánh giá, nhóm Ghi chú. Nhấp vào thẻ nhận xét trong bảng bên cạnh trang hoặc dùng Nhận xét trước/Nhận xét sau để chọn nhận xét.", "Chọn nhận xét đang mở, nhấn Trả lời nhận xét, nhập nội dung rồi chọn Gửi trả lời. Reply xuất hiện lùi vào dưới nhận xét gốc.", "Nhấn Đã xử lý để đánh dấu hoàn tất; nhấn lại để mở lại. Trạng thái được lưu trong DOCX.", "Nhấn Xóa nhận xét để xóa nhận xét đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại thay đổi."]
+    keywords: ["nhận xét", "trả lời", "reply", "trước", "sau", "xử lý", "resolve", "xóa"],
+    steps: ["Mở tab Đánh giá, nhóm Nhận xét. Nhấp vào thẻ nhận xét trong bảng bên cạnh trang hoặc dùng Nhận xét trước/Nhận xét sau để chọn nhận xét.", "Chọn nhận xét đang mở, nhấn Trả lời nhận xét, nhập nội dung rồi chọn Gửi trả lời. Reply xuất hiện lùi vào dưới nhận xét gốc.", "Nhấn Đã xử lý để đánh dấu hoàn tất; nhấn lại để mở lại. Trạng thái được lưu trong DOCX.", "Nhấn Xóa nhận xét để xóa nhận xét đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại thay đổi."]
   },
   {
     id: "writer.text.basicFormat",
@@ -2056,21 +2056,21 @@ export const WRITER_HELP_ENTRIES = [
   "commandIds": [
     "writer.comment.insert"
   ],
-  "title": "Chèn ghi chú vào văn bản từ tab Chèn",
-  "summary": "Thêm ý kiến nhận xét hoặc ghi chú thảo luận tại vị trí con trỏ qua nhóm Ghi chú trên tab Chèn hoặc tab Đánh giá.",
+   "title": "Thêm nhận xét vào văn bản từ tab Chèn",
+   "summary": "Thêm nhận xét thảo luận tại vị trí con trỏ qua nhóm Nhận xét trên tab Chèn hoặc tab Đánh giá.",
   "ribbon": {
     "tab": "Chèn",
     "tabId": "insert",
     "group": "Nhận xét"
   },
   "keywords": [
-    "chèn ghi chú",
+     "thêm nhận xét",
     "insert comment",
-    "ghi chú văn bản",
+     "nhận xét văn bản",
     "thảo luận"
   ],
   "steps": [
-    "Đặt con trỏ hoặc bôi đen cụm từ cần ghi chú trong văn bản.",
+     "Đặt con trỏ hoặc bôi đen cụm từ cần nhận xét trong văn bản.",
     "Mở tab Chèn hoặc tab Đánh giá, tìm nhóm Nhận xét, rồi nhấp Thêm nhận xét. Bạn cũng có thể nhấn Ctrl+Alt+M.",
     "Khung Nhận xét tài liệu xuất hiện ở bên phải văn bản, kèm tên người dùng và thời gian.",
     "Nhập nội dung nhận xét rồi chọn Thêm nhận xét. Để gỡ bỏ, chọn nhận xét và dùng Xóa nhận xét trên tab Đánh giá."
