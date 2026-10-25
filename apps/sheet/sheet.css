@@ -409,6 +409,8 @@
 [data-theme="dark"] .vno-grid-cell {
   border-right-color: #3e3e42;
   border-bottom-color: #3e3e42;
+  background-color: #fff;
+  color: #111827;
 }
 
 .vno-grid-cell.is-wrap-text {
@@ -1291,6 +1293,7 @@ tr.is-filtered-out {
 
 .vno-sheet-tab-scroll {
   display: flex;
+  flex: 0 0 auto;
   gap: 2px;
 }
 .vno-sheet-scroll-btn {
@@ -1310,6 +1313,9 @@ tr.is-filtered-out {
 
 .vno-sheet-tab-item {
   display: flex;
+  min-width: 0;
+  max-width: 160px;
+  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
   padding: 4px 14px;
@@ -1322,6 +1328,24 @@ tr.is-filtered-out {
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.15s;
+}
+.vno-sheet-tab-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#vno-sheet-tabs-list {
+  min-width: 0;
+  flex: 1 1 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+#vno-sheet-tabs-list::-webkit-scrollbar {
+  display: none;
 }
 .vno-sheet-tab-item.is-protected::before {
   content: "";

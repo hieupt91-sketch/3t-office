@@ -268,6 +268,22 @@ export async function runWriterFloatingImageImportTests() {
     check(!adapter._isOpenedDocumentPristine(), "Ordinary text edit escaped whole-editor snapshot");
   });
 
+  test("Whole-editor snapshot ignores accessibility and review-display state", () => {
+    const editor = {
+      innerHTML: '<div class="vno-writer-header" data-track-display="all"><p>Header</p></div><div class="vno-writer-body"><p>Body</p></div>',
+      querySelector() { return null; },
+      querySelectorAll() { return []; }
+    };
+    const adapter = new WriterAdapter(editor);
+    adapter._openedEditorDomHash = adapter._editorDomFingerprint();
+    editor.innerHTML = editor.innerHTML
+      .replace(' data-track-display="all"', "")
+      .replace('<div class="vno-writer-body"', '<div class="vno-writer-body" aria-readonly="false"');
+    check(adapter._isOpenedDocumentPristine(), "UI-only attributes invalidated the opened-document snapshot");
+    editor.innerHTML = editor.innerHTML.replace("Body", "Edited body");
+    check(!adapter._isOpenedDocumentPristine(), "A text edit escaped the normalized editor snapshot");
+  });
+
   test("Dirty state overrides an unchanged whole-editor snapshot", () => {
     const editor = { innerHTML: "<p>Body</p>" };
     const adapter = new WriterAdapter(editor);

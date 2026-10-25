@@ -808,6 +808,8 @@ export function createDropdownButton({
         e.preventDefault();
         e.stopPropagation();
         closeMenu();
+        btn.focus({ preventScroll: true });
+        setKeyboardRibbonInvoker(btn);
         globalCommandBus.execute(childItem.commandId, childItem.args);
       });
       childEl.addEventListener("mouseenter", () => {
@@ -908,6 +910,8 @@ export function createDropdownButton({
           return;
         }
         closeMenu();
+        btn.focus({ preventScroll: true });
+        setKeyboardRibbonInvoker(btn);
         globalCommandBus.execute(subItem.commandId, subItem.args);
       });
 

@@ -5,6 +5,7 @@
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog, showHyperlinkDialog } from "../../../platform/ui-kit/dialogs.js";
+import { bindNumericDialogValidation } from "../../../platform/ui-kit/numeric-dialog-validation.js";
 import { createMatcher, nodeMatchesFormat } from "../../../platform/find/find-engine.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { getPendingTypingStyleCommands } from "../../../platform/text/spellcheck-dom-controller.js";
@@ -4642,6 +4643,7 @@ export class WriterAdapter {
   _editorDomFingerprint() {
     const normalized = this._stripAutoPageGaps(this.editorDom?.innerHTML || "")
       .replace(/\s+data-vno-(?:src-hash|src-props|untouched)=["'][^"']*["']/gi, "")
+      .replace(/\s+(?:aria-readonly|data-track-display)=["'][^"']*["']/gi, "")
       .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")
       .replace(/\r\n?/g, "\n")
       .trim();
@@ -8936,6 +8938,15 @@ export class WriterAdapter {
         invalid.focus();
         return false;
       };
+
+      bindNumericDialogValidation({
+        inputs: ["top", "bottom", "left", "right"].map(side => overlay.querySelector(`#vno-pagesetup-margin-${side}`)),
+        button: overlay.querySelector(".vno-dialog-ok-btn"),
+        error: overlay.querySelector("#vno-pagesetup-margin-error"),
+        min: 0,
+        max: 100,
+        message: () => t("writerDialogs.pageSetup.marginInvalid", { min: 0, max: 100 })
+      });
 
       overlay.querySelector(".vno-dialog-ok-btn").addEventListener("click", () => {
         if (validateMargins()) finish(readForm());
