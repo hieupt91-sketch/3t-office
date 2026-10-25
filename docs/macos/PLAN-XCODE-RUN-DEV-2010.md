@@ -94,3 +94,40 @@ notarization, or production install/update behavior changes.
 Revert the dedicated Xcode Run change. Generated output and crypto overlay stay
 under ignored build output and can be recreated; no source runtime or
 Application Support data is modified.
+
+## Update MAC-12-RUNTIME (2026-10-25): cryptography + pypdf, hash-locked
+
+The section "Dependencies and boundaries" above is superseded for the package
+set: the macOS runtime now ships **both** packages declared in the root
+`requirements.txt` — `cryptography` (OOXML password encryption) and `pypdf`
+(Slides handout printing, `platform/print/print_pipeline.py`).
+
+- Exact set: `ports/macos/requirements-runtime-macos.lock` — `cryptography==44.0.2`,
+  `cffi==2.1.1`, `pycparser==3.12`, `pypdf==6.21.2`, each with sha256 hashes for
+  CPython 3.12 arm64 + x86_64 wheels (verified against PyPI). The human-readable
+  pins in `requirements-xcode-run-constraints.txt` must match it (tested).
+- Installer (release Runtime and Debug overlay):
+  `ports/macos/scripts/install-runtime-python-deps.sh`. It installs only from a
+  local wheelhouse (`--no-index --require-hashes --only-binary=:all:`, default
+  `ports/macos/build/wheelhouse`, git-ignored); `--download` fills the wheelhouse
+  once on a networked build machine. It then runs the validator in the same
+  interpreter. No document content is involved.
+- Release runtime, owner step (per architecture):
+
+  ```bash
+  ports/macos/scripts/install-runtime-python-deps.sh \
+    --runtime <pilot>/Runtime --arch arm64 --download
+  # later rebuilds, offline:
+  ports/macos/scripts/install-runtime-python-deps.sh --runtime <pilot>/Runtime --arch arm64
+  ```
+
+- Debug Product → Run: `prepare-xcode-run-payload.sh` rebuilds the overlay when
+  it is missing or its `lock.sha256` stamp differs from the lock (so old
+  cryptography-only overlays are refreshed), then validates.
+- Validator `validate-encryption-runtime.py` FAILS (exit 1) when either module is
+  missing, has a version other than the lock, lacks `dist-info`, or is loaded
+  from user site-packages; otherwise it smoke-runs AES-256-GCM, OOXML Agile
+  encrypt/decrypt, pypdf write/read and `build_slides_handout_pdf`.
+  `validate-xcode-run-payload.py` also requires `pypdf/` in the overlay.
+- Run interpreters with `-s` (done by the scripts) so `~/Library/Python` cannot
+  mask a missing bundle module.

@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "OOXMLPresentation", targets: ["OOXMLPresentation"]),
         .library(name: "OOXMLBridge", targets: ["OOXMLBridge"]),
         .executable(name: "ooxml-engine", targets: ["ooxml-engine"]),
+        .executable(name: "ooxml-bench", targets: ["ooxml-bench"]),
     ],
     targets: [
         .target(name: "OOXMLZip"),
@@ -26,6 +27,8 @@ let package = Package(
         // Cầu nối (Phase 7): nhận lệnh JSON từ WebView → gọi OOXMLKit → trả JSON. Thuần logic, test được không cần UI.
         .target(name: "OOXMLBridge", dependencies: ["OOXMLKit"]),
         .executableTarget(name: "ooxml-engine", dependencies: ["OOXMLBridge"]),
+        // Benchmark mở/lưu (G1): sinh XLSX tổng hợp ~1MB/~10MB và đo thời gian + bộ nhớ đỉnh. Xem scripts/bench.sh.
+        .executableTarget(name: "ooxml-bench", dependencies: ["OOXMLZip", "OOXMLPackage", "OOXMLSpreadsheet"]),
 
         .target(
             name: "OOXMLTestSupport",
@@ -38,6 +41,6 @@ let package = Package(
         .testTarget(name: "OOXMLSpreadsheetTests", dependencies: ["OOXMLSpreadsheet", "OOXMLTestSupport"]),
         .testTarget(name: "OOXMLWordTests", dependencies: ["OOXMLWord", "OOXMLTestSupport"]),
         .testTarget(name: "OOXMLPresentationTests", dependencies: ["OOXMLPresentation", "OOXMLTestSupport"]),
-        .testTarget(name: "OOXMLBridgeTests", dependencies: ["OOXMLBridge", "OOXMLTestSupport"]),
+        .testTarget(name: "OOXMLBridgeTests", dependencies: ["OOXMLBridge", "OOXMLKit", "OOXMLTestSupport"]),
     ]
 )

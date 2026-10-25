@@ -31,7 +31,8 @@ class ServicesMatchLegacyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             with mock.patch.dict(os.environ, {"LOCALAPPDATA": temp_dir}):
                 self.assertEqual(vnmain._user_data_dir(), vnmain._legacy_user_data_dir())
-                self.assertEqual(vnmain._user_data_dir(), Path(temp_dir) / "VNOffice")
+                if sys.platform == "win32":
+                    self.assertEqual(vnmain._user_data_dir(), Path(temp_dir) / "VNOffice")
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("LOCALAPPDATA", None)
             self.assertEqual(vnmain._user_data_dir(), vnmain._legacy_user_data_dir())
@@ -85,6 +86,7 @@ class ServicesMatchLegacyTests(unittest.TestCase):
             self.assertEqual(portable.PortableDataDirs().user_data_dir(), Path("/x/y") / "VNOffice")
         self.assertIsNotNone(pkg)
 
+    @unittest.skipUnless(sys.platform == "win32", "MessageBoxW is a Windows API; portable behavior is covered separately")
     def test_show_error_never_raises_and_reports_through_a_result(self):
         portable_like = vnmain._os_services().launcher
         with mock.patch("ctypes.windll", create=True) as windll:

@@ -32,7 +32,13 @@ public final class OPCPackage {
     private var relsCache: [PartName: Relationships] = [:]
     private var pendingData: [PartName: Data] = [:]
     private var removed: Set<PartName> = []
+    private var sourceValidationIssues: Set<String>?
+    /// Gói mở bằng `deferValidation`: baseline kiểm tra tính khi cần (lúc `save(to:)`), không tốn lúc mở.
+    private var baselineDeferred = false
     public var compression: ZipCompression = .deflate
+
+    /// Số phần XML đã parse thành DOM (để kiểm chứng/benchmark tính lười).
+    public var loadedXMLPartCount: Int { xmlCache.count }
 
     public convenience init(contentsOf url: URL, limits: ZipLimits = ZipLimits()) throws {
         try self.init(archive: ZipArchive(contentsOf: url, limits: limits))
@@ -42,7 +48,23 @@ public final class OPCPackage {
         try self.init(archive: ZipArchive(data: data, limits: limits))
     }
 
-    public init(archive: ZipArchive) throws {
+    /// Mở LƯỜI: chỉ đọc central directory + `[Content_Types].xml`; không giải nén/parse phần nào khác
+    /// cho tới khi được truy cập. Kết quả đọc/lưu giống hệt `init(contentsOf:)`.
+    public convenience init(contentsOf url: URL, deferValidation: Bool, limits: ZipLimits = ZipLimits()) throws {
+        try self.init(archive: ZipArchive(contentsOf: url, limits: limits), deferValidation: deferValidation)
+    }
+
+    public convenience init(data: Data, deferValidation: Bool, limits: ZipLimits = ZipLimits()) throws {
+        try self.init(archive: ZipArchive(data: data, limits: limits), deferValidation: deferValidation)
+    }
+
+    public convenience init(archive: ZipArchive) throws {
+        try self.init(archive: archive, deferValidation: false)
+    }
+
+    /// `deferValidation: true` bỏ bước kiểm tra toàn gói lúc mở (vốn giải nén + parse MỌI phần).
+    /// Tập vấn đề sẵn có của nguồn (`knownSourceIssues`) được tính muộn từ byte nguồn khi `save(to:)` cần.
+    public init(archive: ZipArchive, deferValidation: Bool) throws {
         self.archive = archive
         for name in archive.entryNames { zipNameByKey[OPCPackage.key(PartName(zipName: name))] = name }
         guard let ctName = zipNameByKey[OPCPackage.key(.contentTypes)] else { throw PackageError.missingContentTypes }
@@ -51,12 +73,30 @@ public final class OPCPackage {
         } catch {
             throw PackageError.invalidPart(.contentTypes, "\(error)")
         }
+        if deferValidation {
+            baselineDeferred = true
+        } else {
+            sourceValidationIssues = Set(PackageValidator.validate(self))
+        }
     }
 
     /// Gói rỗng (để tạo tài liệu mới).
     public init() {
         archive = ZipArchive()
         contentTypes = ContentTypes()
+        sourceValidationIssues = []
+    }
+
+    /// Vấn đề cấu trúc đã có sẵn trong tệp nguồn (không tính là lỗi do lần lưu mới).
+    private func sourceIssues() -> Set<String> {
+        if let s = sourceValidationIssues { return s }
+        var result: Set<String> = []
+        if baselineDeferred, !archive.sourceData.isEmpty,
+           let src = try? OPCPackage(archive: ZipArchive(data: archive.sourceData, limits: archive.limits), deferValidation: true) {
+            result = Set(PackageValidator.validate(src))
+        }
+        sourceValidationIssues = result
+        return result
     }
 
     // MARK: Phần
@@ -337,9 +377,11 @@ public final class OPCPackage {
     /// Lưu an toàn: ghi tệp tạm, mở lại và kiểm tra hợp lệ, rồi mới thay tệp đích (nguyên tử).
     /// Nếu kiểm tra thất bại, tệp gốc không bị đụng tới.
     public func save(to url: URL, verify: Bool = true) throws {
+        // Baseline phải tính TRƯỚC save() (save() sửa archive); với gói mở lười nó tính từ byte nguồn.
+        let known = verify ? sourceIssues() : []
         let data = try save()
         if verify {
-            let issues = PackageValidator.validate(data)
+            let issues = PackageValidator.validate(data).filter { !known.contains($0) }
             guard issues.isEmpty else { throw PackageError.validationFailed(issues) }
         }
         try data.write(to: url, options: .atomic)

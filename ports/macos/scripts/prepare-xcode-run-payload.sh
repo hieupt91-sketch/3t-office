@@ -95,21 +95,26 @@ link_relative "$REPO_ROOT" "$TARGET_DIR/Versions/development/app"
 OVERLAY="$TARGET_DIR/RuntimeOverlay/$RUNTIME_ARCH/site-packages"
 VALIDATOR="$SCRIPT_DIR/validate-encryption-runtime.py"
 PAYLOAD_VALIDATOR="$SCRIPT_DIR/validate-xcode-run-payload.py"
-CRYPT_CONSTRAINTS="$MACOS_DIR/requirements-xcode-run-constraints.txt"
+INSTALLER="$SCRIPT_DIR/install-runtime-python-deps.sh"
+LOCK_FILE="$MACOS_DIR/requirements-runtime-macos.lock"
+LOCK_STAMP="$TARGET_DIR/RuntimeOverlay/$RUNTIME_ARCH/lock.sha256"
+LOCK_SHA="$(/usr/bin/shasum -a 256 "$LOCK_FILE" | /usr/bin/awk '{print $1}')"
 
 validate_crypto() {
   PYTHONPATH="$OVERLAY${PYTHONPATH:+:$PYTHONPATH}" \
-    /usr/bin/arch "-$RUNTIME_ARCH" "$RUNTIME_PYTHON" "$VALIDATOR" --app-root "$REPO_ROOT"
+    /usr/bin/arch "-$RUNTIME_ARCH" "$RUNTIME_PYTHON" -s "$VALIDATOR" --app-root "$REPO_ROOT"
 }
 
-if [[ ! -d "$OVERLAY" ]]; then
-  mkdir -p "$(dirname "$OVERLAY")"
-  echo "Cài cryptography đã khai báo vào Debug overlay cho $RUNTIME_ARCH..."
-  /usr/bin/arch "-$RUNTIME_ARCH" "$RUNTIME_PYTHON" -m pip install \
-    --disable-pip-version-check \
-    --target "$OVERLAY" \
-    --constraint "$CRYPT_CONSTRAINTS" \
-    -r "$REPO_ROOT/requirements.txt"
+# Rebuild the overlay when it is missing or was made from another lock
+# (e.g. an older overlay with cryptography only and no pypdf).
+if [[ ! -d "$OVERLAY" || ! -f "$LOCK_STAMP" || "$(cat "$LOCK_STAMP")" != "$LOCK_SHA" ]]; then
+  rm -rf "$OVERLAY"
+  mkdir -p "$OVERLAY"
+  echo "Cài cryptography + pypdf (khóa hash) vào Debug overlay cho $RUNTIME_ARCH..."
+  # Debug-only: may download missing wheels into the local wheelhouse (hash-checked).
+  "$INSTALLER" --python "$RUNTIME_PYTHON" --arch "$RUNTIME_ARCH" --target "$OVERLAY" \
+    --download --app-root "$REPO_ROOT" --no-validate
+  printf '%s\n' "$LOCK_SHA" > "$LOCK_STAMP"
 fi
 
 mkdir -p "$TARGET_DIR/RuntimeOverlay"

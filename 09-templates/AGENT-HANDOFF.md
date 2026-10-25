@@ -1498,3 +1498,194 @@ DEPENDENCIES/BLOCKERS: Không có.
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: 18 ảnh 1366×768: d20 sáng/tối; d01,d02,d03,d06,d07,d13,d24 sáng; d03 chụp lại sau 10 giây; legacy06,legacy13,legacy14,legacy20 sáng/tối. DOCX: `E:\VNOffice-profiles\q58-docx-ui\` và d20/legacy: `E:\VNOffice-profiles\ui-shots\live-writer\`, `E:\VNOffice-profiles\q58-legacy-docs\q57-screenshots\`. Ribbon/status không bị che; ghi nhận d03 đầu trang chồng chữ và số trang app 3 so với Word 1, d24 bìa chồng hình/chữ, d20 dòng hướng dẫn sít. Chế độ tối: chữ đen/xanh đậm khó đọc; logo legacy13 và ô bảng legacy14 còn nền trắng. Đã mở và xem tất cả ảnh.
 NEXT ACTION: Review commit Q58; sau commit tạo `E:\VNOffice-briefs\logs\Q58.DONE`.
+
+---
+
+# Agent Handoff
+TASK: MAC-12-RUNTIME — runtime Python macOS phải có `cryptography` + `pypdf` (đã khai trong requirements.txt)
+AGENT/ROLE: Claude / macOS packaging
+BRANCH: mac/runtime-deps-cl-2510 (từ mac/candidate-cl-2510 `382065e3`)
+WORKTREE: /Volumes/Data/Worktrees/mac-runtime-deps-cl-2510
+OBJECTIVE: Đóng gói macOS cài và kiểm `cryptography` (mã hóa OOXML) và `pypdf` (in bản phát tay Slides) theo phiên bản khóa, tái lập ngoại tuyến; validator FAIL rõ ràng khi bundle thiếu.
+FINDINGS: (1) Repo không có script dựng runtime phát hành macOS — pilot `macos-offline-pilot-theme-20261022-v4` được ghép tay; nơi duy nhất cài gói Python là overlay Debug của `prepare-xcode-run-payload.sh` (pip mạng, chỉ ghim cryptography, chỉ cài khi overlay chưa có → overlay cũ không bao giờ nhận pypdf). (2) Pilot `Runtime/lib/python3.12/site-packages` thiếu cả cryptography, cffi, pypdf. (3) cffi 2.1.1 không có wheel x86_64 tag 10_13, có tag `macosx_10_15_x86_64`; cryptography 44.0.2 dùng wheel universal2. (4) venv-dev của lead dựng từ chính interpreter pilot (`--system-site-packages`), nên mọi lần chạy pytest/pip qua venv-dev ghi `__pycache__/*.pyc` vào pilot; lần chạy của tôi để lại ~13 tệp .pyc (packaging/, encodings/cp1252, pip download) trước khi bật `PYTHONDONTWRITEBYTECODE=1`; ~175 tệp .pyc của pip lúc 04:32 có trước phiên này. Không tệp nội dung nào của pilot bị đổi, không gói nào được cài vào pilot.
+IMPLEMENTATION SUMMARY: Lock file có hash `ports/macos/requirements-runtime-macos.lock` (cryptography 44.0.2, cffi 2.1.1, pycparser 3.12, pypdf 6.21.2; sha256 arm64 + x86_64, đối chiếu PyPI JSON). Script mới `install-runtime-python-deps.sh` cài chỉ từ wheelhouse cục bộ (`--no-index --require-hashes --only-binary=:all:`; `--download` nạp wheelhouse một lần), vào site-packages của runtime hoặc `--target` overlay, rồi chạy validator trong cùng interpreter (`-s`). `prepare-xcode-run-payload.sh` dùng script này, dựng lại overlay khi stamp `lock.sha256` khác lock. `validate-encryption-runtime.py` FAIL khi thiếu một/hai mô-đun (liệt kê cả hai), sai version so với lock, thiếu dist-info, hoặc nạp từ user site; smoke AES-256-GCM + OOXML Agile encrypt/decrypt + pypdf ghi/đọc PDF 4 trang + `build_slides_handout_pdf` (3/tờ → 2 tờ). `validate-xcode-run-payload.py` đòi thêm `pypdf/`. Constraints Xcode thêm `pypdf==6.21.2`.
+FILES CHANGED: ports/macos/requirements-runtime-macos.lock (mới); ports/macos/scripts/install-runtime-python-deps.sh (mới); ports/macos/scripts/validate-encryption-runtime.py; ports/macos/scripts/validate-xcode-run-payload.py; ports/macos/scripts/prepare-xcode-run-payload.sh; ports/macos/requirements-xcode-run-constraints.txt; tests/macos/test_runtime_python_deps.py (mới, 5 test); tests/macos/test_xcode_run_payload.py (fixture overlay thêm `pypdf/` vì yêu cầu mới; +1 test từ chối overlay thiếu pypdf); docs/macos/PLAN-XCODE-RUN-DEV-2010.md (mục cập nhật MAC-12-RUNTIME); docs/macos/HANDOFF-MAC-12-RUNTIME-2510.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: pilot `Runtime/bin/python3 -s validate-encryption-runtime.py` (mới và bản cũ 382065e3); `python3 -m venv --system-site-packages <scratch>/rtvenv` từ interpreter pilot + `install-runtime-python-deps.sh --runtime rtvenv --wheelhouse <scratch> --download`; cài overlay ngoại tuyến bằng interpreter pilot (`--target`, không `--download`); wheelhouse bị sửa 1 byte; wheelhouse rỗng; `prepare-xcode-run-payload.sh` với biến Xcode giả (CONFIGURATION=Debug, TARGET_BUILD_DIR scratch, VNO_XCODE_PILOT_ROOT=pilot v4) 3 lượt (mới / dùng lại / overlay cũ thiếu pypdf); pytest có mục tiêu; pytest đầy đủ qua heavy-lock; `git diff --check`.
+BUILD RESULT: Runtime phát hành đầy đủ: NOT RUN (không có script dựng runtime trong repo và không được sửa/chép pilot 1.3 GB; đĩa còn ~5.9 GB). Xcode xcodebuild: NOT RUN (chỉ chạy script pha Debug với biến môi trường giả lập; Swift không đổi).
+TEST RESULTS: Validator trên pilot nguyên trạng: FAIL đúng (exit 1) "runtime Python thiếu mô-đun bắt buộc: cryptography (...); pypdf (...)" — bản cũ chỉ báo cryptography. rtvenv: PASS (exit 0; cryptography 44.0.2, pypdf 6.21.2, OpenSSL 3.4.1, AES-GCM, OOXML, PDF, handout). Overlay ngoại tuyến: PASS. Wheelhouse bị sửa: FAIL đúng (hash mismatch). Wheelhouse rỗng: FAIL đúng kèm hướng dẫn `--download`. prepare-xcode-run-payload.sh: PASS 3/3 lượt (lượt 2 không cài lại; lượt 3 tự cài lại). pytest `tests/macos + test_ooxml_encryption{,_main} + test_print_pipeline + test_packaging_imports`: PASS 76 passed, 1 skipped, 23 subtests. pytest đầy đủ: FAIL 1194 passed / 8 failed / 18 skipped / 0 error, 206 subtests (116 s) — ứng viên 1186/8/18/1; +6 test mới, +2 của `test_slides_handout_print.py` (hết lỗi thu thập sau khi cài pypdf vào venv-dev); cùng 8 FAIL Windows-only/C-6 như CANDIDATE-2510.
+KNOWN FAILURES: 8 FAIL có sẵn (test_desktop_launch no_port, 3× ooxml_encryption_roundtrip, 2× os_services_p2, p1_pool_orphans, writer_create_new_readback cần powershell).
+RISKS: THIRD-PARTY-NOTICES (dùng chung, gốc repo) ghi cryptography 50.0.2 / pypdf 6.21.1 / pycparser 3.0 theo Windows; macOS ship 44.0.2 / 6.21.2 / 3.12 (cùng giấy phép Apache-2.0/BSD-3, BSD-3, BSD-3) — cần chủ legal cập nhật danh sách theo nền tảng khi làm notice từ artifact cuối. x86_64 (Rosetta/Intel) chưa thử thực tế; hash x86_64 có trong lock. Thay đổi môi trường dùng chung: đã `pip install pypdf==6.21.2` (từ wheelhouse đã kiểm hash) vào /Volumes/Data/Worktrees/_lead/venv-dev.
+DEPENDENCIES/BLOCKERS: Chủ runtime/phát hành chạy bước cài lên runtime thật (lệnh dưới) rồi dựng lại pilot; legal cho notice.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Chủ runtime chạy trên bản sao pilot/runtime phát hành (không phải bản tham chiếu chỉ-đọc):
+  `ports/macos/scripts/install-runtime-python-deps.sh --runtime <pilot-mới>/Runtime --arch arm64 --download`
+  (lần dựng sau ngoại tuyến: bỏ `--download`, giữ `ports/macos/build/wheelhouse`), kiểm lại bằng
+  `<pilot-mới>/Runtime/bin/python3 -s ports/macos/scripts/validate-encryption-runtime.py --app-root <checkout>`; rồi Xcode Debug build với VNO_XCODE_PILOT_ROOT và mở Slides → In bản phát tay + Tệp → Thông tin → Mã hóa bằng mật khẩu trong app đóng gói.
+
+---
+
+## CODEX Q59 — 25/10/2026
+
+TASK: Đo lại 20 tệp `.doc` cũ, đối chiếu trang và cấu trúc Word nguồn/DOCX lưu; xử lý sai lệch có thể sửa an toàn.
+AGENT/ROLE: Codex / Writer Adapter.
+BRANCH: codex/q57.
+WORKTREE: E:\VNOffice-codex-q57. `git merge main` → fast-forward lên `e293fe6a`.
+OBJECTIVE: Đo chính xác bằng Word COM ẩn và app thật qua CDP; sửa lỗi trang/đoạn có test FAIL trước/PASS sau; bảo vệ bộ DOCX chuẩn 8/8.
+FINDINGS: Word page count nguồn/lưu và canvas trùng 20/20; từ, bảng, ảnh nội tuyến cũng trùng 20/20. Paragraph count FAIL ở legacy10 91→86, legacy14 1034→1020, legacy15 91→86. legacy20 Word shape count 2→1 nhưng Line 3 được thể hiện thành paragraph border; ảnh app vẫn có đường kẻ. Bằng chứng chi tiết: `E:\VNOffice-briefs\logs\Q59-work\Q59-measurement.md`.
+IMPLEMENTATION SUMMARY: Giữ source-aware cleanup page break ở cuối postprocess để bỏ `pageBreakBefore` do chuyển đổi sinh ra trước manual break nguồn, nhưng giữ intentional double break. Chuẩn hóa fingerprint để bỏ `aria-readonly` và `data-track-display` vốn chỉ là trạng thái UI. Commit nhóm: `0c623659`, `a8866779`. Không sửa heuristic khôi phục đoạn rỗng: nguồn DOCX 10/15→HTML round-trip loại 5 đoạn rỗng mỗi tệp; 14 mất 14 đoạn rỗng. Khôi phục theo số lượng có thể chèn sai vị trí và đổi trang, cần mapping nguồn ổn định; BLOCKED cho nhóm này, đề xuất phiếu riêng.
+FILES CHANGED: `adapters/libreoffice/common/ooxml_zip_patch.py`; `main.py`; `tests/test_writer_section_headerfooter_postprocess.py`; `adapters/libreoffice/writer/writer-adapter.js`; `tests/unit/writer-floating-image-import.test.js`; `docs/WORD2016-FEATURE-CHECKLIST.md` (tham chiếu dòng sinh lại); `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; regression Python trước/sau; regression Node trước/sau; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; ba script `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer or pagination"`; CDP kiểm 4 tệp mục tiêu + batch 20 app mở/lưu/chụp; Word COM ẩn đọc 20 nguồn/lưu và đo bù legacy07/14; batch DOCX 8 mẫu; xem ảnh sáng 20/20 và ảnh tối 4/4; `git diff --check`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — Node 3799/3799; pytest 315 passed, 848 deselected; i18n missingVI=0, missingEN=0; checklist verify 0 dòng hạ; CDP legacy06/13/14/20 4/4 đúng 3/1/15/1 và 20/20 tệp mở/lưu; Word/saved pages 20/20; DOCX set d01,d02,d03,d06,d07,d13,d20,d24 giữ số trang và edit PASS 8/8. Three page-break Python tests: FAIL 3/3 trước, PASS 3/3 sau. Fingerprint Node regression: FAIL 1/1 trước, PASS sau; full suite PASS.
+PRE-CHANGE TEST: FAIL — page-break regression 3 failures trước fix; fingerprint regression 1 failure trước fix. Cả hai nhóm đã PASS sau sửa.
+KNOWN FAILURES: Paragraphs legacy10 91→86, legacy14 1034→1020, legacy15 91→86: BLOCKED vì round-trip làm rơi đoạn rỗng và chưa có source mapping an toàn. Shape count legacy20 2→1, nhưng đường kẻ còn hiển thị. Ảnh tối legacy06/13/14/20 có chữ thiếu tương phản và nền trắng còn lại; ảnh sáng legacy07 có thanh cuộn ngang dài dưới vùng soạn thảo. Ghi nhận, chưa sửa vì ngoài mục tiêu sửa phân trang và chưa có xác định nguyên nhân an toàn.
+RISKS: Cleanup page break chỉ sửa khi chuỗi đoạn nguồn/đã chuyển khớp số lượng, nội dung rỗng và manual break; deliberate source breaks được giữ. Khôi phục đoạn rỗng theo heuristic có thể làm sai nội dung/vị trí hoặc pagination.
+DEPENDENCIES/BLOCKERS: Phục hồi đoạn rỗng cần mapping paragraph nguồn ổn định qua HTML import/export, sau đó phải đo Word lại và chạy đủ DOCX regression 8/8.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: 20 ảnh sáng 1366×768: `legacy01`, `legacy02`, `legacy03`, `legacy04`, `legacy05`, `legacy06`, `legacy07`, `legacy08`, `legacy09`, `legacy10`, `legacy11`, `legacy12`, `legacy13`, `legacy14`, `legacy15`, `legacy16`, `legacy17`, `legacy18`, `legacy19`, `legacy20` (mỗi ảnh `-1366x768.png` trong `E:\VNOffice-briefs\logs\Q59-work\screens\`). Thêm 8 ảnh CDP đã xem: legacy06/13/14/20 từng cặp `light` và `dark` (`-1366x768.png`) tại `E:\VNOffice-profiles\q59-final-20261025-02\q57-screenshots\`. 4 mục tiêu trang không bị cắt; ghi nhận tương phản tối và thanh cuộn ngang legacy07 như trên.
+NEXT ACTION: Tiếp tục phiếu riêng cho mapping/phục hồi đoạn rỗng legacy10/14/15; tạo `E:\VNOffice-briefs\logs\Q59.DONE` cho phiếu này.
+
+
+# Agent Handoff
+TASK: CODEX-Q60 — Chẩn đoán tốc độ mở XLSX lớn trong Sheet; sửa lỗi giao diện phát hiện khi đo.
+AGENT/ROLE: Codex / VN Sheet
+BRANCH: codex/q60
+WORKTREE: E:\VNOffice-codex-q60
+OBJECTIVE: Đo theo phase năm workbook LAN trên cùng hồ sơ warm; chỉ tối ưu nếu có thay đổi chứng minh được ít nhất 15% mà giữ nguyên dữ liệu và kết quả.
+FINDINGS: Không tìm được phase chung có cách cắt an toàn đã chứng minh; profile khác theo workbook/đường nạp. Median warm (lượt 2–4, giây; phase có thể chồng lấp):
+| Tệp | Soffice | Đọc FODS | Chờ metadata | Native overlay | Tối ưu FODS | Tạo payload | JS load/model | Vẽ lưới đầu | Đến lưới đầu |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| lan01 | 3.28 | 0.007 | 9.67 | 21.90 | 5.84 | — | 1.67 | 1.52 | 45.76 |
+| lan03 | 3.17 | 0.020 | 0.00 | 3.01 | 0.33 | 0.89 | 1.56 | 1.19 | 12.17 |
+| lan06 | 15.02 | 0.139 | 2.62 | 24.32 | 8.72 | — | 1.61 | 1.35 | 65.77 |
+| lan09 | 4.63 | 0.025 | 0.00 | 8.75 | 1.91 | 3.25 | 6.30 | 4.77 | 35.06 |
+| lan10 | 8.19 | 0.100 | 0.00 | 1.49 | 0.44 | 1.31 | 1.35 | 1.05 | 15.77 |
+The largest overlay helper is `overlay_cell_metadata_p1_fast`: warm median 13.56 s on lan01, 12.65 s on lan06, 3.48 s on lan09. It attaches source workbook metadata; skipping/reusing it without an exact equivalence proof could lose formatting/formulas, so no speculative speed patch was made. Speed after-change: NOT RUN because there was no speed-path change; improvement is not claimed. Performance objective is BLOCKED pending a safe >=15% candidate for the identified costly phases.
+IMPLEMENTATION SUMMARY: Two separately committed Sheet presentation fixes found during required screenshot review. Long worksheet tab labels now ellipsize and the tab list scrolls horizontally; dark theme uses a light default cell surface with readable default text while inline workbook colors/fills still take precedence.
+FILES CHANGED: apps/sheet/sheet.css; tests/live/cdp/sheet-tab-overflow-q60.desktop.mjs; tests/live/cdp/sheet-dark-contrast-q60.desktop.mjs; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge main` (already up to date); warm CDP matrix via `scripts/perf-q42-open-warm.mjs` (4 laps/file, three warm medians); tab overflow CDP pre/post at 1366x768; dark cell contrast CDP pre/post at 1366x768; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k sheet`; 27-file dirty XLSX batch with `VNO_AUDIT_MARK_DIRTY=1`, omitting lan14 and explicitly blocking Excel COM; `git diff --check`.
+BUILD RESULT: NOT RUN — no build-system changes.
+TEST RESULTS: PASS — Node 3799/3799; pytest 315 passed, 848 deselected; i18n VI/EN 3200 keys each, missing 0; checklist rows lowered 0. Batch: 27/27 saved, 27/27 diffs=0, 27/27 lint clean; Excel COM BLOCKED for all 27 by task rule. CDP tab labels FAIL before (path span width 734.9 px, extends beyond x=1366) and PASS after (label width 132 px, tab item width 160 px; no spill in screenshot). Dark contrast CDP FAIL before (black text on `rgb(30,30,30)`, ~1.26:1) and PASS after (100 sampled cells, worst 21:1).
+KNOWN FAILURES: Q60 speed objective remains BLOCKED: no safe candidate yet demonstrated >=15% on a measured phase. Excel COM intentionally not run. No after-speed benchmark was claimed.
+RISKS: White default grid cells in dark theme are a fidelity/readability choice; explicit cell fills and text colors from the workbook remain inline and override the defaults. Batch report records BLOCKED status because Excel COM is disabled, although save/diff/lint all succeeded.
+DEPENDENCIES/BLOCKERS: Need a safe, output-equivalent reduction for native overlay / metadata prefetch / FODS optimize before claiming Q60 performance complete.
+CORE PATCH ID (if any): None.
+COMMITS: `61024d4c fix(sheet): contain long worksheet tab labels`; `62c7cc23 fix(sheet): keep dark theme cell content readable`.
+GIAO DIỆN ĐÃ XEM:
+- lan01.xlsx light, 1366×768 — PASS; grid, tabs, ribbon and status visible; screenshot `E:\VNOffice-briefs\runs\q60-lan01-theme\light.png`.
+- lan01.xlsx dark, 1366×768 — initial FAIL for black text on dark cells; after fix PASS with readable cell text and intact ribbon/status; screenshot `E:\VNOffice-briefs\runs\q60-lan01-theme\dark.png`.
+- lan01/lan03/lan06/lan09/lan10 full-grid warm screenshots at `E:\VNOffice-briefs\runs\q60-before\<file>\lap-4.png` — content/grid visible in all; lan09 had long tab/path spill, logged and fixed.
+- lan09.xlsx tab bar, 1366×768 — initial FAIL, then PASS after ellipsis + horizontal scrolling; final screenshot `E:\VNOffice-briefs\runs\q60-ui-final.png`.
+NEXT ACTION: Keep the speed objective BLOCKED until an output-equivalent candidate is demonstrated to cut >=15% of a dominant phase; do not bypass native metadata overlays or rely on unverified caches.
+---
+
+# Agent Handoff
+TASK: CODEX Q61 — Recheck and fix UI Sweep invalid-input/focus findings (complete)
+AGENT/ROLE: Codex / UI platform, Writer, Sheet, Slides
+BRANCH: codex/q61
+WORKTREE: E:\VNOffice-codex-q61
+OBJECTIVE: Reproduce the UI Sweep findings on the real app via CDP, fix confirmed invalid numeric actions and focus defects, inspect screenshots, and report verified outcomes.
+FINDINGS: Confirmed invalid actions in Writer Zoom/Page Setup, Sheet Goal Seek/Row Height/Conditional Formatting, Slides Zoom; confirmed focus defects in Writer Page Setup and six Sheet dialogs. Word Count and three reported Slides command/dialog claims were false positives and opened successfully.
+IMPLEMENTATION SUMMARY: Shared validation feedback and VI/EN strings were added in prior commits. This step makes Sheet Goal Seek's required inputs validate on open, records a keyboard dropdown's command launcher before execution, restores focus through the shared dialog close path, and scrolls the Page Setup focus target fully into view. All six Sheet dialogs trap Tab and return focus to their launcher on Esc.
+FILES CHANGED THIS STEP: `apps/sheet/page-setup-dialog.js`; `apps/sheet/sheet-grid.js`; `platform/ui-kit/components.js`; `platform/ui-kit/dialogs.js`; `tests/live/cdp/q61-sheet-dialog-focus.desktop.mjs`; `docs/Q61-UI-RECHECK.md`; generated evidence in `docs/EXCEL2016-FEATURE-CHECKLIST.md`; screenshots under `docs/assets/q61-ui/`.
+COMMANDS RUN: `git merge main`; `node tests/run-tests.js`; all three `scripts/audit-0610/gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `node scripts/audit-0610/i18n_parity.mjs`; `python -m pytest tests -q -k "sheet_scenarios or sheet_page_margins or sheet_print_setup"`; CDP validation, Writer focus, and six-dialog Sheet focus probes; DOCX batch audit for d01,d02,d03,d05,d07,d08,d09,d11.
+BUILD RESULT: NOT RUN — build system unchanged.
+TEST RESULTS: PASS — `node tests/run-tests.js` 3802/3802; Sheet CDP focus 6/6 Escape and 6/6 Tab traps; numeric validation CDP 120 assertions; Writer focus 1/1; pytest 7 passed/1156 deselected; DOCX round-trip 8/8 with unchanged page counts; VI=3203/EN=3203 and 0 missing; evidence verifier 0 downgraded rows.
+KNOWN FAILURES: None in this ticket's confirmed findings. Existing generator coverage remains Word priority-1 missing 0, Sheet missing 1, Slides missing 4.
+RISKS: Remaining Page Setup content extends below the viewport at 1024×600 and is accessible through its scroll bar. The initially focused paper-size control is fully visible after the scroll adjustment.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Writer Zoom/Page Setup, Sheet Row Height/Conditional Formatting, Slides Zoom; Writer Page Setup focus; all six Sheet dropdown menus, dialogs and Esc return screens. Sheet dialog screenshots include 1366×768 and 1024×600 in light/dark plus initial 1024×600 paper-size view; numeric dialog set includes 20 screenshots across both sizes/themes. All screenshots were visually inspected. See `docs/Q61-UI-RECHECK.md` and `docs/assets/q61-ui/`.
+NEXT ACTION: None. `E:\VNOffice-briefs\logs\Q61.DONE` created after the Q61 commits.
+---
+
+# Agent Handoff
+TASK: CODEX Q64 — Kiểm thử không phụ thuộc nền tảng
+AGENT/ROLE: Codex / Tests + QA
+BRANCH: codex/q64
+WORKTREE: E:\VNOffice-codex-q64
+OBJECTIVE: Chuẩn hóa snapshot FODS theo LF và đánh dấu rõ các bài chỉ dùng API Windows; không đổi code sản phẩm.
+FINDINGS: Snapshot cũ băm XML thô được giữ trong `rawByName`, nên checkout CRLF cho hash `27d6a029…` còn LF cho `6490dc31…`; chuẩn hóa CRLF→LF cho đúng hash `6490dc31f4627743669263da9e197bf0ff13c6ced1943e2aa61ffb9d93dfef9f`, ba fixture còn lại giữ nguyên hash. INBOX-WIN #10 xác nhận Mac đổi fixture sang CRLF thì khớp hash cũ.
+IMPLEMENTATION SUMMARY: Bài snapshot chuẩn hóa newline trước `parseFods` và dùng mốc đã kiểm chứng từ nội dung LF. Thêm skip có lý do cho `MessageBoxW`, PowerShell/COM, `ole32` và parent-probe chỉ trên POSIX; trên Windows các bài vẫn chạy bình thường. Không đổi expected semantics, không sửa hàm sản phẩm, không cần cập nhật library changelog.
+FILES CHANGED: tests/unit/real-office-import-fidelity.test.js; tests/test_os_services_p2.py; tests/test_desktop_launch.py; tests/test_writer_create_new_readback.py; tests/test_ooxml_encryption_roundtrip.py; tests/test_p1_pool_orphans.py; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge main`; `node tests/run-tests.js`; `python -m pytest tests -q` (TEMP/TMP riêng trên E:); `node scripts/audit-0610/i18n_parity.mjs`; ba script `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`.
+BUILD RESULT: NOT RUN — chỉ thay đổi test/cấu hình; không đổi build system.
+TEST RESULTS: PASS — Node 3799/3799; pytest 1160 passed, 3 skipped (Windows, 764.78s); i18n missing=0; checklist demotions=0. Băm LF được tính độc lập và khớp mốc Mac.
+KNOWN FAILURES: Lượt pytest đầu với TEMP mặc định thất bại 10 bài do ổ C: còn 30 MB (9 bài updater guard headroom, 1 bài chuyển Dahua); hai bài đại diện PASS khi chạy lại với TEMP/TMP trên E: còn 23.1 GB, sau đó full pytest PASS. Không còn lỗi trong lượt cuối.
+RISKS: POSIX skips chưa được chạy lại trên máy Mac trong phiên này; Mac cần xác nhận npm suite 3822/3822 theo brief và pytest tương ứng.
+DEPENDENCIES/BLOCKERS: Cần Mac xác nhận lại trên nhánh sau đồng bộ.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Chuyển commit nhóm test cho người phụ trách review/merge; Mac xác nhận suite trên LF.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — phiếu chỉ thay đổi test/config, không mở app hay UI.
+
+---
+
+# Agent Handoff
+TASK: CODEX Q65 — Test nền tảng và neo checklist Excel
+AGENT/ROLE: Codex / Tests + QA
+BRANCH: codex/q65
+WORKTREE: E:\VNOffice-codex-q65
+OBJECTIVE: Sửa assertion LOCALAPPDATA theo Windows; thêm test POSIX cho `_p1_parent_alive` chạy trong spawned worker; thay dòng Goal Seek hard-code line range bằng anchor trong generator và sinh lại ba checklist.
+FINDINGS: macOS dùng `~/Library/Application Support/VNOffice`, nên assertion LOCALAPPDATA chỉ áp dụng trên Windows. Test worker POSIX phải xác nhận probe chạy trong process con và nhận đúng PID cha. Neo `showGoalSeekDialog()` được verifier phân giải thành `apps/sheet/sheet-grid.js:21276`.
+IMPLEMENTATION SUMMARY: Assertion `$LOCALAPPDATA/VNOffice` chỉ còn chạy khi `sys.platform == "win32"`. Thêm test spawned-worker có skip rõ lý do trên Windows; không sửa implementation `_p1_parent_alive`. Generator Excel dùng `{{L:apps/sheet/sheet-grid.js|showGoalSeekDialog()}}`; đã chạy lại cả ba generator.
+FILES CHANGED: `tests/test_os_services_p2.py`; `tests/test_p1_pool_orphans.py`; `scripts/audit-0610/gen_excel_checklist.py`; `docs/EXCEL2016-FEATURE-CHECKLIST.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; ba bài pytest mục tiêu; `npm test`; `python -m pytest tests -q -k "user_data_dir_equals_legacy_with_and_without_localappdata or parent_alive_probe_from_spawned_worker or workers_exit_after_their_parent_is_killed"`; `python -m pytest tests -q`; `node scripts/audit-0610/i18n_parity.mjs`; cả ba `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; kiểm tra diff/status.
+BUILD RESULT: NOT RUN — chỉ sửa test và script kiểm toán.
+TEST RESULTS: PASS — `npm test` 3802/3802, 0 fail; pytest liên quan 2 passed, 1 skipped (Windows, theo yêu cầu); i18n VI/EN 3203/3203, 0 missing; evidence verifier 0 dòng hạ. Pytest đầy đủ: 1159 passed, 4 skipped, 1 failed.
+KNOWN FAILURES: Pytest đầy đủ có lỗi `test_review_ranges_across_paragraphs_keep_valid_native_markup` trong `tests/test_writer_review_roundtrip.py`; chạy riêng ngay sau đó PASS (1 passed), nên lỗi full-run không tái hiện độc lập. Không sửa Writer do ngoài phạm vi. POSIX spawned-worker test chưa thể thực thi trên Windows; cần chạy trên macOS/POSIX.
+RISKS: Có thể có tương tác/flakiness ở Writer round-trip test trong full pytest; xác nhận trên lượt chạy tiếp theo. Tăng 1 skip dự kiến trên Windows do bài POSIX được gắn skip theo brief.
+DEPENDENCIES/BLOCKERS: Cần xác nhận bài spawned-worker trên POSIX.
+CORE PATCH ID (if any): None.
+COMMITS: `183c96f4` test: scope LOCALAPPDATA assertion to Windows; `a4cba6fc` test: probe parent liveness from spawned POSIX worker; `057e40d9` audit: anchor Goal Seek checklist evidence.
+NEXT ACTION: Review/merge các commit; chạy bài spawned-worker trên macOS/POSIX và rerun pytest full để xác minh lỗi Writer không tái diễn.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — phiếu chỉ thay đổi test/script, không mở app hay màn hình UI.
+
+## CODEX Q63 — 25/10/2026 (BLOCKED, chưa nghiệm thu)
+
+TASK: Xác minh các mục OOXMLKit trong INBOX-WIN #9.
+AGENT/ROLE: Codex / OOXMLKit Windows handoff.
+BRANCH: codex/ooxml-w3a.
+WORKTREE: E:\VNOffice-codex-ooxmlw3a. `git merge --autostash main` fast-forward tới c1c45846; khôi phục thay đổi cục bộ, ghép hai phần changelog. Đã đọc #9 và ENGINE-MAC-2410.md từ origin/mac/engine-cl-2410.
+OBJECTIVE: Kiểm chứng mục 1–4, đánh giá mục 6 (tách WebView target) theo điều kiện không đổi API công khai.
+FINDINGS: Mục 1 đã được Q62 xử lý trong Slide.swift: hộp chữ hiện có được dùng dù không có placeholder body; test PresentationRoundTripTests bao phủ ghi/đọc lại và notes master. Mac xác nhận Q62 trong INBOX-WIN #10. Mục 6 chưa làm: tách file công khai khỏi target sẽ đổi nơi import/API của client. Mục 2–4 đã có implementation và test mới trong worktree, nhưng chưa thể chạy Swift để xác nhận.
+IMPLEMENTATION SUMMARY: pptx.save so nội dung notes từng slide sau reopen và chặn >1 notesSlide/slide; lỗi noNotesMaster ánh xạ unsupported; JSON cú pháp sai ánh xạ request với thông điệp ổn định. Cập nhật ENGINE-PROTOCOL và LIBRARY-CHANGELOG. Chưa commit vì không đạt gate Swift test đỏ/xanh.
+FILES CHANGED: ports/ios/OOXMLKit/Package.swift; ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift; ports/ios/OOXMLKit/Tests/OOXMLBridgeTests/OOXMLBridgeTests.swift; docs/ooxml/ENGINE-PROTOCOL.md; docs/sync/LIBRARY-CHANGELOG.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge --autostash main` (fast-forward c1c45846); `git fetch origin`; `wsl -d Ubuntu -- bash -c 'echo ok'` (PASS) và tìm Swift (không có); Swift 6.4.1 Windows `swift test --filter OOXMLBridgeTests` (BLOCKED: thiếu CLI linker `link`); `node tests/run-tests.js` (PASS 3802/3802); `node scripts/audit-0610/i18n_parity.mjs` (0 missing VI/EN); `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix` (0 dòng hạ); `python -m pytest tests -q -k ooxml` (FAIL 1, PASS 52, deselected 1110); `git diff --check` (PASS).
+BUILD RESULT: BLOCKED — Swift chưa build được: WSL không có Swift, Windows toolchain thiếu linker. Lần chạy Swift test dùng mã nguồn HEAD tạm để tạo baseline đã dừng trước compile vì thiếu linker; mã nguồn được khôi phục từ bản staged.
+TEST RESULTS: Node PASS 3802/3802; i18n 0 khóa thiếu (VI=3203, EN=3203); checklist 0 dòng hạ. Pytest FAIL `test_engine_xlsx_save_delta_reopens_and_rejects_unsupported`: khác thứ tự danh sách part ZIP và có `xl/sharedStrings.xml` khi dùng exe từ worktree w1b. Swift trước/sau BLOCKED, không có số bài test.
+KNOWN FAILURES: Chưa chứng minh mục 2–4 bằng Swift test; pytest có 1 FAIL; các mục chưa được commit riêng; không tạo Q63.DONE.
+RISKS: Cần môi trường có Swift và linker để chạy test đỏ trước/sau, `scripts/run-tests.sh` (debug/release, kiểm chéo) và build lại exe Windows trước pytest.
+DEPENDENCIES/BLOCKERS: Cài/cấp linker Windows hoặc Swift Linux trong WSL; build `ooxml-engine.exe` từ source hiện tại.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — không đổi giao diện ứng dụng.
+NEXT ACTION: Cấp môi trường Swift có linker; chạy test fail trước/pass sau cho các mục 2–4, kiểm đầy đủ OOXMLKit và pytest với engine build hiện tại; commit riêng từng mục rồi mới tạo Q63.DONE.
+
+
+### Q63 addendum — verification attempt (25/10/2026)
+
+- `git merge main`: Already up to date. `git fetch origin`: completed; reviewed `origin/mac/engine-cl-2410` ENGINE-MAC-2410.md and INBOX-WIN #9/#10. Q62 mục 1 already fixed in shared source and confirmed by Mac #10 (notes text survives reopen; one notesSlide relationship); existing PresentationRoundTrip tests are the coverage.
+- `wsl -d Ubuntu -- bash -lc 'cd /mnt/e/VNOffice-codex-ooxmlw3a/ports/ios/OOXMLKit && ./okit-test.sh'`: BLOCKED, script is absent. Swift Windows test after adding toolchain/runtime to PATH and aliasing lld-link as link: BLOCKED before manifest compile, `unable to load standard library for target x86_64-unknown-windows-msvc`. Cannot establish Swift red-before/green-after.
+- `node tests/run-tests.js`: PASS 3802/3802. `node scripts/audit-0610/i18n_parity.mjs`: 0 missing VI/EN keys (3203 each; 21 identical/empty candidates). `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS, 0 demoted rows.
+- `python -m pytest tests -q -k ooxml`: FAIL 1, PASS 52, deselected 1110, using the existing w1b engine executable (not rebuilt): `test_engine_xlsx_save_delta_reopens_and_rejects_unsupported` found ZIP member order/sharedStrings differences.
+- No source/document implementation changes were made during this verification attempt. Existing staged Q63 changes remain uncommitted pending a Swift-capable toolchain and rebuilt Windows engine; do not create Q63.DONE yet. No UI was opened, so UI screenshot review is not applicable.
+
+### Q63 addendum — post-merge gate results (25/10/2026)
+
+- `git merge --autostash main`: fast-forward tới `ea2ad16b`; Q63 patch được khôi phục nguyên vẹn. `git fetch origin`: hoàn tất. Đối chiếu lại INBOX-WIN #9/#10 và ENGINE-MAC-2410: mục 1 đã được Q62 xử lý, Mac xác nhận; mục 6 chưa tách vì sẽ đổi nơi import/package API công khai.
+- Rà implementation hiện có cho mục 2–4: save reopen so `notesText` từng slide và giới hạn ≤1 notesSlide, lỗi noNotesMaster ánh xạ `unsupported`, JSON parse lỗi ánh xạ `request`; test và protocol/changelog có thay đổi tương ứng. Chưa sửa source trong lần tiếp tục này.
+- `powershell -NoProfile -File E:\VNOffice-briefs\run-swift-wsl.ps1 E:\VNOffice-codex-ooxmlw3a`: BLOCKED trước compile; WSL báo `swift: command not found`, không có số bài test. Windows Swift toolchain đã được xác định nhưng test Windows đã bị ghi BLOCKED trước đó vì thiếu standard library; không lặp lại.
+- `node tests/run-tests.js`: PASS 3826/3826. `node scripts/audit-0610/i18n_parity.mjs`: PASS, 0 missing (VI=3206, EN=3206). `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS, 0 dòng hạ.
+- `python -m pytest tests -q -k ooxml` với engine exe cũ từ w1b: FAIL 1, PASS 52, deselected 1171; `test_engine_xlsx_save_delta_reopens_and_rejects_unsupported` khác ZIP part order và có `xl/sharedStrings.xml`. Đây là engine dựng cũ, chưa build được exe mới từ patch hiện tại.
+- Patch Q63 vẫn chưa commit và không tạo `Q63.DONE`: bắt buộc Swift đỏ/xanh còn BLOCKED, pytest có FAIL trên exe cũ. Không mở UI; giao diện không áp dụng.
+
+
+### Q63 addendum — completed implementation and verification (25/10/2026)
+
+- `git merge main`: fast-forward from `ea2ad16b` to `75f271ed` before implementation. Q62 notes behavior in `Slide.swift` remains present; INBOX-WIN #10 confirms it, and the round-trip tests cover the existing-notes path.
+- Q63 mục 2 committed as `ce63662c` (`fix(ooxml): validate PPTX notes after reopen`): verifies notes text per slide on reopen (existing check), rejects >1 notesSlide relationship as `reopen`, and removes staging output. Regression comparison against the pre-change bridge: OOXMLBridgeTests 18 run / 6 failures; current bridge: 18 run / 0 failures. Full Swift suite: 204 / 204 PASS.
+- Q63 mục 3–4 committed as `b59a9695` (`fix(ooxml): normalize bridge error codes`): residual `PresentationError.noNotesMaster` maps to `unsupported`; malformed JSON maps to stable `request` without Cocoa text.
+- Mục 6 (split OOXMLWebViewBridge into another target) not changed: the symbols are currently exported by OOXMLBridge; moving them would change the public import surface, contrary to the condition in #9.
+- `node tests/run-tests.js`: PASS 3826/3826. `node scripts/audit-0610/i18n_parity.mjs`: VI=3206, EN=3206, missing=0. `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: 0 demoted rows (279 Word, 217 Sheet, 269 Slides).
+- `python -m pytest tests -q -k ooxml_engine`: 6 PASS, 1 FAIL, 1217 deselected. The failing XLSX smoke test used the pre-existing `w1b` engine exe and found ZIP member order/sharedStrings differences. Rebuilding was BLOCKED: `D:\swift\Runtimes\6.4.1\usr\bin` contains runtime files but no `swift` command.
+- The prescribed `run-swift-wsl.ps1` wrapper first reported Package.swift missing. Archived source was inspected and Swift tests were run directly under WSL from the snapshot; `swift test --filter OOXMLBridgeTests` passed 18/18 and full `swift test` passed 204/204.
+- `git diff --check`: PASS. UI screenshots: not applicable; no UI changed or opened. Pytest on a rebuilt current Windows engine remains NOT RUN/BLOCKED, so the full cross-platform verification gate is not green.

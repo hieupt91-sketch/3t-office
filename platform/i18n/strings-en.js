@@ -741,6 +741,7 @@ export const enStrings = {
     pasteSpecialTitle: "Paste Special", pasteSource: "Keep source formatting", pasteTheme: "Use destination theme", pasteImage: "Picture (PNG)", pasteText: "Text only",
     actionTitle: "Action on click", actionType: "When this object is clicked", actionNone: "None", actionNext: "Next slide", actionPrevious: "Previous slide", actionFirst: "First slide", actionLast: "Last slide", actionSpecific: "Specific slide", actionWeb: "Open a web address", actionSlide: "Choose a slide", actionUrl: "Web address",
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
+    zoomInvalid: "Enter a whole number from {min} to {max}.",
     canvasRegion: "Slide canvas region",
     removeSectionKeepSlides: "Remove Section (keep slides)",
     totalPrintSlides: "Total slides to print",
@@ -1656,6 +1657,7 @@ export const enStrings = {
   },
   writerDialogs: {
     pageSetup: {
+      marginInvalid: "Margins must be a number from {min} to {max} mm.",
       title: "Page Setup",
       paperSize: "Paper Size",
       orientation: "Orientation",
@@ -1679,6 +1681,7 @@ export const enStrings = {
       close: "Close",
       marginRangeError: "Page margins must be numbers from 0 to 100 mm."
     },
+    zoom: { invalid: "Enter a whole number from {min} to {max}." },
     paragraph: {
       leftIndent: "Left indentation",
       rightIndent: "Right indentation",

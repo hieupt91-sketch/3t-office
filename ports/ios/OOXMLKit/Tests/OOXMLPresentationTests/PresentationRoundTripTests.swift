@@ -156,6 +156,45 @@ final class PresentationRoundTripTests: XCTestCase {
                                               "ppt/notesSlides/_rels/notesSlide2.xml.rels"], name: "pptx-newnotes.pptx")
     }
 
+    func testCreateNotesMasterWhenDeckDoesNotHaveOne() throws {
+        let package = try OPCPackage(data: Fixtures.data(rich))
+        let presentation = try Presentation(package: package)
+        let master = try XCTUnwrap(package.relatedPart(from: presentation.mainPart, .notesMaster))
+        let presentationRels = try package.relationships(of: presentation.mainPart)
+        for relationship in presentationRels.filter(.notesMaster) { presentationRels.remove(id: relationship.id) }
+        try package.xml(presentation.mainPart).root.firstChild(NS.p, "notesMasterIdLst")?.removeFromParent()
+        package.removePart(master)
+
+        let withoutMaster = try package.save()
+        let deck = try Presentation(data: withoutMaster)
+        try deck.slides[1].setNotesText("Ghi chú tạo master mới")
+        let saved = try deck.save()
+        let reopened = try Presentation(data: saved)
+        XCTAssertEqual(reopened.slides[1].notesText, "Ghi chú tạo master mới")
+        let notesMaster = try XCTUnwrap(reopened.package.relatedPart(from: reopened.mainPart, .notesMaster))
+        XCTAssertTrue(reopened.package.hasPart(notesMaster))
+        XCTAssertEqual(reopened.package.contentType(of: notesMaster), "application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml")
+        XCTAssertEqual(PackageValidator.validate(saved), [])
+        let masterRel = try reopened.package.relationships(of: notesMaster)
+        XCTAssertEqual(masterRel.filter(.theme).count, 1)
+        let presentationXML = try reopened.package.xml(reopened.mainPart).root
+        XCTAssertLessThan(
+            try XCTUnwrap(presentationXML.elements.firstIndex { $0.is(NS.p, "notesMasterIdLst") }),
+            try XCTUnwrap(presentationXML.elements.firstIndex { $0.is(NS.p, "sldIdLst") })
+        )
+        try RoundTrip.verify(
+            original: withoutMaster,
+            saved: saved,
+            allowedChanges: ["[Content_Types].xml", "ppt/presentation.xml", "ppt/_rels/presentation.xml.rels",
+                             "ppt/notesMasters/notesMaster1.xml", "ppt/notesMasters/_rels/notesMaster1.xml.rels",
+                             "ppt/slides/_rels/slide2.xml.rels", "ppt/notesSlides/notesSlide2.xml",
+                             "ppt/notesSlides/_rels/notesSlide2.xml.rels"],
+            requireChanged: ["ppt/presentation.xml", "ppt/_rels/presentation.xml.rels", "ppt/notesMasters/notesMaster1.xml",
+                             "ppt/notesMasters/_rels/notesMaster1.xml.rels", "ppt/notesSlides/notesSlide2.xml"],
+            name: "pptx-add-notes-master.pptx"
+        )
+    }
+
     // MARK: Tệp thật (LibreOffice + SmartArt đóng gói tay)
 
     func testEveryRealPPTXOpenEditSaveReopen() throws {

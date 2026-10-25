@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import plistlib
 import subprocess
@@ -86,6 +87,8 @@ def test_xcode_run_validator_accepts_relative_offline_sidecars(tmp_path: Path) -
     (overlay / "cryptography/__init__.py").write_text("__version__ = '44.0.2'\n", encoding="utf-8")
     (overlay / "cffi").mkdir()
     (overlay / "cffi/__init__.py").write_text("pass\n", encoding="utf-8")
+    (overlay / "pypdf").mkdir()
+    (overlay / "pypdf/__init__.py").write_text("__version__ = '6.21.2'\n", encoding="utf-8")
 
     completed = subprocess.run(
         [sys.executable, str(VALIDATOR), str(product_root), "VNOfficeLauncher", "arm64"],
@@ -95,3 +98,22 @@ def test_xcode_run_validator_accepts_relative_offline_sidecars(tmp_path: Path) -
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert "PASS: VNOfficeLauncher.app Xcode Debug sidecar layout (arm64)" in completed.stdout
+
+
+def test_xcode_run_validator_rejects_overlay_without_pypdf(tmp_path: Path) -> None:
+    product_root = tmp_path / "Products" / "Debug" / "arm64"
+    contents = product_root / "VNOfficeLauncher.app/Contents"
+    contents.mkdir(parents=True)
+    with (contents / "Info.plist").open("wb") as stream:
+        plistlib.dump({"CFBundleExecutable": "VNOfficeLauncher", "VNOfficeAppKind": "writer"}, stream)
+    overlay = product_root / "RuntimeOverlay/arm64/site-packages"
+    (overlay / "cryptography").mkdir(parents=True)
+    (overlay / "cryptography/__init__.py").write_text("", encoding="utf-8")
+    (overlay / "cffi").mkdir()
+    (overlay / "cffi/__init__.py").write_text("", encoding="utf-8")
+    (product_root / "RuntimeOverlay/runtime-arch.txt").write_text("arm64\n", encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("_vno_xcode_payload_validator", VALIDATOR)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    errors = module.validate(product_root, "VNOfficeLauncher", "arm64")
+    assert any("Overlay thiếu pypdf package" in error for error in errors), errors

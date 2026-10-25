@@ -289,6 +289,60 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertRegex(paragraphs[1], r'<w:br\b[^>]*w:type="page"')
         self.assertNotIn("<w:pageBreakBefore", paragraphs[2])
 
+    def test_q59_collapse_generated_pbb_before_source_manual_break(self):
+        source = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            '<w:body><w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t></w:t></w:r></w:p>'
+            '<w:p><w:r><w:br w:type="page"/></w:r></w:p><w:sectPr/></w:body></w:document>'
+        )
+        converted = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            '<w:body><w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r/></w:p>'
+            '<w:p><w:r><w:br w:type="page"/></w:r></w:p><w:sectPr/></w:body></w:document>'
+        )
+        out = ooxml_zip_patch_mod._writer_collapse_consecutive_page_breaks(converted, source)
+        paragraphs = [out[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(out)]
+        self.assertNotIn("<w:pageBreakBefore", paragraphs[1])
+        self.assertRegex(paragraphs[2], r'<w:br\b[^>]*w:type="page"')
+
+    def test_q59_keep_source_intentional_consecutive_page_breaks(self):
+        source = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            '<w:body><w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r/></w:p>'
+            '<w:p><w:r><w:br w:type="page"/></w:r></w:p><w:sectPr/></w:body></w:document>'
+        )
+        converted = source
+        out = ooxml_zip_patch_mod._writer_collapse_consecutive_page_breaks(converted, source)
+        paragraphs = [out[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(out)]
+        self.assertIn("<w:pageBreakBefore", paragraphs[1])
+        self.assertRegex(paragraphs[2], r'<w:br\b[^>]*w:type="page"')
+
+    def test_q59_final_docx_cleanup_runs_after_other_postprocessors(self):
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:p><w:r/></w:p>'
+            '<w:p><w:r><w:br w:type="page"/></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r/></w:p>'
+            '<w:p><w:r><w:br w:type="page"/></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_consecutive_page_breaks(
+            converted, source_docx=source,
+        )
+        paragraphs = [
+            _read_entry(result, "word/document.xml").decode("utf-8")[start:end]
+            for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(
+                _read_entry(result, "word/document.xml").decode("utf-8")
+            )
+        ]
+        self.assertNotIn("<w:pageBreakBefore", paragraphs[1])
+        self.assertRegex(paragraphs[2], r'<w:br\b[^>]*w:type="page"')
+
     def test_r13a_duplicate_adjacent_tables_removed(self):
         """R13a (d09): LibreOffice HTML→DOCX clones a body table. Drop the extra copy."""
         finance = (

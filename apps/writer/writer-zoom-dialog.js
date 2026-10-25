@@ -1,3 +1,6 @@
+import { bindNumericDialogValidation } from "../../platform/ui-kit/numeric-dialog-validation.js";
+import { t } from "../../platform/i18n/i18n.js";
+
 /** Writer zoom controls for exact percentages and page fitting. */
 export async function showWriterZoomDialog(currentZoom = 100) {
   if (typeof document === "undefined" || !document.body) return null;
@@ -20,6 +23,16 @@ export async function showWriterZoomDialog(currentZoom = 100) {
     document.body.appendChild(overlay);
     const input = overlay.querySelector("#vno-writer-zoom-value");
     const error = overlay.querySelector("#vno-writer-zoom-error");
+    const applyButton = overlay.querySelector("#vno-writer-zoom-apply");
+    const validate = bindNumericDialogValidation({
+      inputs: input,
+      button: applyButton,
+      error,
+      min: 10,
+      max: 500,
+      integer: true,
+      message: () => t("writerDialogs.zoom.invalid", { min: 10, max: 500 })
+    });
     let settled = false;
     const close = value => {
       if (settled) return;
@@ -30,9 +43,9 @@ export async function showWriterZoomDialog(currentZoom = 100) {
     };
     overlay.querySelectorAll("[data-zoom]").forEach(button => button.addEventListener("click", () => { input.value = button.dataset.zoom; input.focus(); }));
     overlay.querySelectorAll("[data-fit]").forEach(button => button.addEventListener("click", () => close({ fit: button.dataset.fit })));
-    overlay.querySelector("#vno-writer-zoom-apply").addEventListener("click", () => {
+    applyButton.addEventListener("click", () => {
       const value = Number(input.value);
-      if (!Number.isInteger(value) || value < 10 || value > 500) { error.textContent = "Nhập số nguyên từ 10 đến 500."; input.focus(); return; }
+      if (!validate()) { input.focus(); return; }
       close({ zoom: value });
     });
     overlay.querySelectorAll(".vno-dialog-close-btn,.vno-dialog-close-footer-btn").forEach(button => button.addEventListener("click", () => close(null)));
