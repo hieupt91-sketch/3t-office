@@ -262,6 +262,9 @@ def finalize(font, family, style, weight, source_key, description, fixed_pitch=F
 
 def save(font, path: Path) -> None:
     font.recalcTimestamp = False
+    # fontTools serialises GSUB/GPOS with HarfBuzz's repacker whenever uharfbuzz happens to be importable, which
+    # lays the tables out differently: always use fontTools' own serialiser so output does not depend on extras.
+    font.cfg["fontTools.ttLib.tables.otBase:USE_HARFBUZZ_REPACKER"] = False
     font.save(str(path), reorderTables=True)
 
 
