@@ -1,6 +1,7 @@
 """Unit tests for the desktop launch contract; no GUI or SendKeys required."""
 
 import tempfile
+import sys
 import unittest
 import zipfile
 from pathlib import Path
@@ -110,6 +111,7 @@ class DesktopLaunchTests(unittest.TestCase):
             self.assertEqual(converted["calls"], 1)
             self.assertIsNone(api._initial_file)
 
+    @unittest.skipUnless(sys.platform == "win32", "the desktop error dialog uses Windows MessageBoxW")
     def test_main_returns_exit_code_when_no_port_available(self):
         with patch.object(main, "_start_static_server", side_effect=RuntimeError(
             "Không tìm thấy cổng trống trong khoảng 8080–8099"
