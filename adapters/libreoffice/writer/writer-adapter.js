@@ -10006,6 +10006,19 @@ export class WriterAdapter {
       targetDom.innerHTML = (targetDom.innerHTML || "") + html;
     }
     const table = targetDom?.querySelectorAll?.("table")?.[tablesBefore] || targetDom?.querySelector?.("table:last-of-type");
+    if (table) {
+      // contenteditable's insertHTML drops presentation CSS on some WebView2 builds.
+      // Persist the same geometry and grid styling as attributes so LibreOffice's
+      // HTML importer writes a full-width bordered table into DOCX.
+      table.setAttribute?.("width", "100%");
+      if (table.style) table.style.width = "100%";
+      for (const cell of Array.from(table.querySelectorAll?.("td,th") || [])) {
+        const borders = "border: 1px solid #94a3b8";
+        cell.style?.setProperty?.("border", "1px solid #94a3b8");
+        cell.style?.setProperty?.("padding", "6pt 10pt");
+        cell.setAttribute?.("data-vno-borders", borders);
+      }
+    }
     const firstCell = table?.rows?.[0]?.cells?.[0];
     if (firstCell) {
       firstCell.focus?.();
