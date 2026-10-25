@@ -1,5 +1,6 @@
 import XCTest
 @testable import OOXMLBridge
+import OOXMLKit
 import OOXMLTestSupport
 
 /// Test cầu nối ở mức GIAO THỨC JSON (như WebView gọi): mỗi op đi qua handle(_:) JSON thật.
@@ -324,9 +325,34 @@ final class OOXMLBridgeTests: XCTestCase {
         let slide = try call("slide.read", ["handle": reopenedHandle, "index": 0])
         XCTAssertEqual(slide["title"] as? String, "Kế hoạch kinh doanh 2028")
         XCTAssertEqual(slide["notes"] as? String, "Ghi chú đã cập nhật")
+        let reopenedDeck = try Presentation(data: savedData)
+        for slide in reopenedDeck.slides {
+            XCTAssertLessThanOrEqual(try reopenedDeck.package.relationships(of: slide.part).filter(.notesSlide).count, 1)
+        }
         let shapes = slide["shapes"] as? [[String: Any]] ?? []
         XCTAssertTrue(shapes.contains { $0["name"] as? String == "Tiêu đề chính" })
         XCTAssertEqual(try call("slide.read", ["handle": reopenedHandle, "index": 1])["title"] as? String, "Mục tiêu 2028")
+    }
+
+    func testPptxSaveDeltaRejectsDuplicateNotesRelationships() throws {
+        let dir = try Fixtures.scratchDirectory("pptx-save-duplicate-notes")
+        let source = dir.appendingPathComponent("source.pptx")
+        let target = dir.appendingPathComponent("staging.pptx")
+        let package = try OPCPackage(data: Fixtures.data("pptx/rich-deck.pptx"))
+        let presentation = try Presentation(package: package)
+        let slide = try XCTUnwrap(presentation.slides.first)
+        let notesPart = try XCTUnwrap(slide.notesPart)
+        try package.relationships(of: slide.part).add(.notesSlide, to: notesPart, reuseExisting: false)
+        try package.save().write(to: source)
+
+        let error = try callExpectingError("pptx.save", [
+            "source_document_path": source.path,
+            "target_path": target.path,
+            "delta": ["slides": []],
+        ])
+
+        XCTAssertEqual(error["code"] as? String, "reopen")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
     }
 
     func testPptxSaveDeltaUnsupportedDoesNotWriteTarget() throws {

@@ -712,6 +712,7 @@ Mọi lệnh `xlsx.save`, `docx.save`, `pptx.save` đều nhận các tham số 
   - `pptxSaveDelta`: [OOXMLBridge.swift:405-417](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L405-L417). Mở lại bằng `Presentation(data: savedData)`. Kiểm tra:
     - Tổng số slide ([OOXMLBridge.swift:408](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L408)).
     - Từng slide: Tiêu đề `title`, ghi chú `notesText`, danh sách tên các shape `allShapes.map(\.name)`, và toàn bộ nội dung chữ `text` ([OOXMLBridge.swift:413-415](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L413-L415)).
+    - Số quan hệ notesSlide của mỗi slide không vượt quá một; vi phạm trả `reopen` và xóa tệp staging.
 - **Cơ chế Rollback:** Nếu bất kỳ kiểm tra nào thất bại hoặc quá trình giải nén ném ngoại lệ:
   - Khối `catch` được kích hoạt ngay: `try? FileManager.default.removeItem(at: targetURL)` ([OOXMLBridge.swift:281, 420, 607](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L607)).
   - Tệp tạm bị xóa bỏ hoàn toàn khỏi đĩa.

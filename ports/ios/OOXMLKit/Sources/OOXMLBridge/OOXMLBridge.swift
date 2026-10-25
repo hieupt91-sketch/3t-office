@@ -414,6 +414,10 @@ public final class OOXMLBridge {
                       actual.allShapes.map(\.name) == expected.2, actual.text == expected.3 else {
                     throw BridgeError("reopen", "nội dung slide \(index + 1) sau khi mở lại không khớp")
                 }
+                let notesRelationshipCount = try reopened.package.relationships(of: actual.part).filter(.notesSlide).count
+                guard notesRelationshipCount <= 1 else {
+                    throw BridgeError("reopen", "slide \(index + 1) có nhiều hơn một quan hệ notesSlide sau khi mở lại")
+                }
             }
             return ["ok": true, "changedParts": try Self.changedZipParts(before: sourceData, after: savedData), "unsupported": [String]()]
         } catch {

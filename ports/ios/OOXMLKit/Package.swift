@@ -41,6 +41,6 @@ let package = Package(
         .testTarget(name: "OOXMLSpreadsheetTests", dependencies: ["OOXMLSpreadsheet", "OOXMLTestSupport"]),
         .testTarget(name: "OOXMLWordTests", dependencies: ["OOXMLWord", "OOXMLTestSupport"]),
         .testTarget(name: "OOXMLPresentationTests", dependencies: ["OOXMLPresentation", "OOXMLTestSupport"]),
-        .testTarget(name: "OOXMLBridgeTests", dependencies: ["OOXMLBridge", "OOXMLTestSupport"]),
+        .testTarget(name: "OOXMLBridgeTests", dependencies: ["OOXMLBridge", "OOXMLKit", "OOXMLTestSupport"]),
     ]
 )
