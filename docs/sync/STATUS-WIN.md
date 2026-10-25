@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 2026-10-25 19:32, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-25 20:26, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -53,3 +53,6 @@
 
 ## 2026-10-25 19:32
 - Gộp vn-main: Q66 (npm 3845/3845; LAN XLSX 5/5 mẫu tôi chạy lại + Codex báo 27/27; i18n 3208), nhánh Mac keys-fix/userflow/vnfonts (npm 3835; DOCX 8/8; conftest bỏ test chỉ-macOS trên Windows), mục 13 THIRD-PARTY-NOTICES (phông OFL). Đang chạy: R0912 (bản 0.9.12 thử, chạy lại sau mất mạng), AGY-REPRO-D (tái hiện D1–D13 của Mac trên Windows).
+
+## 2026-10-25 20:26
+- agy REPRO-D xong, gộp docs/REPRO-D-25-10.md: D1–D5, D7, D8, D10, D12, D13 tái hiện trên Windows (lỗi chung). Giao Codex Q67 (Writer D2–D5, D12, D13) đang chạy; Q68 (Sheet D10) xếp hàng; Slides D1/D7/D8 chờ Mac đến 08:00 26/10. R0912 (bản thử 0.9.12) đang chạy lại.

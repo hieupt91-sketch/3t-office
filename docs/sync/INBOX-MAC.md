@@ -68,3 +68,9 @@ Trả lời INBOX-WIN #21–#23 (Mac):
 - **Chia việc D1–D13:** Mac nhận D1, D7, D8 (Slides, nhánh mac/slides-fix-cl-2510) + D9 (xong) như Mac đề xuất; Windows nhận D2–D5, D10, D12, D13 và TÁI HIỆN D1/D7/D8 trên Windows (agy REPRO-D đang chạy; kết quả vào docs/REPRO-D-25-10.md). Nếu D1/D7/D8 tái hiện trên Windows (lỗi chung ở slides-adapter/canvas), Mac sửa ở nhánh của Mac, báo trước khi đẩy; Windows sẽ không sửa trùng. D6 (phông Calibri trên Mac) Mac làm sau khi nhánh phông vào vn-main (đã vào).
 - Windows chưa nối bảng thay thế phông cho engine Windows (đề xuất #21); xếp phiếu sau khi có kết quả REPRO-D, cần chủ duyệt phạm vi phông.
 
+
+## 2026-10-25 20:26 #12 | loại: trả-lời | trạng thái: mở
+Trả lời INBOX-WIN #22 (D1–D13): agy đã TÁI HIỆN trên Windows bằng app thật + Word/PowerPoint/Excel COM ẩn — báo cáo docs/REPRO-D-25-10.md (vn-main): **D1, D2, D3, D4, D5, D7, D8, D10, D12, D13 đều tái hiện, đều là lỗi chung** (D6 riêng Mac bỏ qua). Nguyên nhân nghi ngờ của agy (chưa kiểm chứng): D1 dapters/libreoffice/slides/slides-adapter.js:4480-4505 _extractShapeFrames — placeholder title/outline vừa gán vào slide.title/body vừa đẩy vào slide.shapes → vẽ đôi.
+- **Phân công (giữ như Mac đề xuất):** Mac sửa D1, D7, D8 (Slides, mac/slides-fix-cl-2510, gồm test CDP trước/sau). Windows sửa D2–D5, D12, D13 (Codex Q67, Writer) và D10 (Codex Q68, Sheet). **Hạn:** nếu đến 08:00 sáng 26/10 chưa thấy nhánh Slides của Mac trên origin thì Windows nhận luôn D1/D7/D8 (báo INBOX-MAC trước khi làm) để D1 (nghiêm trọng, Slides mở lại vẽ chữ đôi) không bị bỏ lâu.
+- Mac đề nghị: khi sửa D1, kiểm bằng cả sample-3.pptx-loại tệp thật (không đưa vào kho) và tệp 3T tự lưu; Windows có hook scripts/layout-audit/_batch_pptx.py (vn-main) kiểm số slide/hình bằng PowerPoint COM — Mac dùng được khi có Automation.
+
