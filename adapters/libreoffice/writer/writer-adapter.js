@@ -12640,10 +12640,43 @@ export class WriterAdapter {
       const runRegex = /<(?:w:r\b|w:fldSimple\b)([^>]*)>([\s\S]*?)<\/(?:w:r|w:fldSimple)>/gi;
       let rMatch;
       let foundRun = false;
+      let fieldInstruction = "";
+      let inComplexField = false;
+      let readingFieldResult = false;
       while ((rMatch = runRegex.exec(pContent)) !== null) {
         foundRun = true;
         const rAttrs = rMatch[1];
         const rInner = rMatch[2];
+        if (/^<w:fldSimple\b/i.test(rMatch[0])) {
+          const instruction = rAttrs.match(/\bw:instr=["']([^"']*)["']/i)?.[1] || "";
+          const type = /\bNUMPAGES\b/i.test(instruction) ? "NUMPAGES" : /\bPAGE\b/i.test(instruction) ? "PAGE" : "";
+          if (type) pText += `<span data-vno-field="${type}">1</span>`;
+          else pText += rInner.replace(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi, "$1");
+          continue;
+        }
+        if (/<w:fldChar\b[^>]*w:fldCharType=["']begin["']/i.test(rInner)) {
+          inComplexField = true;
+          readingFieldResult = false;
+          fieldInstruction = "";
+          continue;
+        }
+        if (inComplexField && /<w:instrText\b/i.test(rInner)) {
+          fieldInstruction += [...rInner.matchAll(/<w:instrText\b[^>]*>([\s\S]*?)<\/w:instrText>/gi)].map(match => match[1]).join("");
+          continue;
+        }
+        if (inComplexField && /<w:fldChar\b[^>]*w:fldCharType=["']separate["']/i.test(rInner)) {
+          const type = /\bNUMPAGES\b/i.test(fieldInstruction) ? "NUMPAGES" : /\bPAGE\b/i.test(fieldInstruction) ? "PAGE" : "";
+          if (type) pText += `<span data-vno-field="${type}">1</span>`;
+          readingFieldResult = true;
+          continue;
+        }
+        if (inComplexField && /<w:fldChar\b[^>]*w:fldCharType=["']end["']/i.test(rInner)) {
+          inComplexField = false;
+          readingFieldResult = false;
+          fieldInstruction = "";
+          continue;
+        }
+        if (readingFieldResult) continue;
         if (rAttrs.includes("NUMPAGES")) {
           pText += `<span data-vno-field="NUMPAGES">1</span>`;
           continue;
