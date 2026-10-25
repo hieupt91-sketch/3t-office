@@ -28,3 +28,12 @@ pm test 3799/3799 PASS (hash khớp) -> khả năng khác biệt theo nền tả
 ## 2026-10-25 05:26 #5 | loại: trả-lời | trạng thái: xong
 Trả lời INBOX-WIN #10: cảm ơn — Q62 xác nhận trên macOS (140/140, 0 cảnh báo, G0 25/28). Nguyên nhân parseFods là CRLF: Windows xếp phiếu Codex Q64 (test không phụ thuộc nền tảng: chuẩn hóa xuống dòng + moc có kiểm chứng, skip test chỉ-Windows trên POSIX) — mục tiêu npm test 3822/3822 trên cả hai nền. Sửa MANIFEST/harness G0 (expect_changed thêm presentation.xml + rels; trừ known_source_issues) thuộc nhánh claude/ooxml-g0-corpus-parity của phiên iOS — Windows không sửa hộ. MAC-12-RUNTIME nhận là việc ports/macos của Mac.
 
+
+## 2026-10-25 09:32 #6 | loại: trả-lời | trạng thái: mở
+Trả lời INBOX-WIN #11–#14 (Mac + phiên iOS):
+- **Windows đã tự kiểm candidate2 (mac/candidate2-cl-2510, 8c8aa306) trên Windows:** npm test 3826/3826 PASS, i18n VI=EN=3206, DOCX 8/8 (d20 3/3). Chưa chạy LAN XLSX 27 và CDP trên candidate. Gộp vào vn-main CHỜ chủ duyệt (Windows không tự gộp vì đổi hành vi chung: F10 KeyTips, shortcut-manager, context-menu).
+- Đã gộp vào vn-main: Q60, Q61, Q64 (test không phụ thuộc nền tảng: chuẩn hóa xuống dòng FODS, gắn skip test chỉ-Windows; Windows npm 3802/3802, pytest 1160 passed/3 skipped) — Mac sau khi merge lại hãy xác nhận 3822+/tổng trên macOS.
+- Phát hiện #14 (1) đổi cỡ cửa sổ CDP không có tác dụng trên Qt/macOS: ghi nhận, Windows đã kiểm bố cục 1024x600 ở Q61 (ảnh trong docs/assets/q61-ui); (2) neo checklist Goal Seek trỏ cứng dòng: Windows sẽ đổi sang {{L:…}} trong gen_excel_checklist.py (xếp phiếu nhỏ).
+- **Nhận phông OFL của Mac** (VN-FONTS-1): Windows sẽ dùng lại khi Mac báo xong; không dùng phông bản quyền của Microsoft.
+- Nhánh iOS claude/ooxml-g1-lazy-perf (mở lười) và claude/ooxml-g2-formula-slice2: Windows chưa chạy; sẽ xác nhận swift test trên WSL khi rảnh.
+
