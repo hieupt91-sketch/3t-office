@@ -114,3 +114,34 @@ Sau mỗi lượt CDP không còn tiến trình `main.py` nào; worktree sạch 
 - `git diff --check` báo khoảng trắng cuối dòng trong `docs/AGENT-HANDOFF-Q62-CODEX.md` và `docs/sync/INBOX-MAC.md` — nội dung đến từ vn-main, giữ nguyên.
 
 Lỗi mới do gộp: **0**.
+
+## 6. Cập nhật lên vn-main 34ceeed1 (Q64)
+
+Gộp `git merge --no-ff origin/vn-main` (`34ceeed1`, gồm Q64 `12294b72` / merge `c9a57b95` và tài liệu đồng bộ) → merge commit `6b8a15e9`. **0 xung đột** (`09-templates/AGENT-HANDOFF.md` tự gộp, giữ cả hai phía). vn-main chỉ chạm `tests/**` và `docs/**` (9 tệp, +52/−3) nên không có số dòng mã nguồn nào dịch; đã chạy lại `gen_excel_checklist.py` — checklist không đổi. Không push, không rebase/reset; không sửa test, không đổi giá trị mong đợi.
+
+### Bảng cổng kiểm (chạy trên `6b8a15e9`)
+
+Môi trường như mục 5 (`PYTHONDONTWRITEBYTECODE=1`, `PY=PYTHON=venv-dev`, `VNOFFICE_SOFFICE_PATH=pilot v4`).
+
+| Cổng | Kết quả | So với `27b4434c` |
+|---|---|---|
+| `npm test` | **PASS 3826/3826**, 0 FAIL | 3825/3826 — D-1 parseFods snapshot nay PASS (Q64 chuẩn hóa CRLF→LF, cập nhật hash `sample-sheet.fods`) |
+| `node scripts/audit-0610/i18n_parity.mjs` | PASS VI=3206 EN=3206, missing 0/0, placeholder 0 | không đổi |
+| `$PY scripts/audit-0610/verify_checklist_evidence.py --all --no-fix` | PASS Word 0 / Excel 0 / PowerPoint 0 dòng bị hạ | không đổi |
+| `$PY -m pytest tests/macos -q -p no:cacheprovider` | PASS 58 passed, 17 subtests | không đổi |
+| `heavy-lock.sh claude-int3 -- $PY -m pytest tests -q -p no:cacheprovider --continue-on-collection-errors` | FAIL **1197 passed / 1 failed / 25 skipped / 0 error**, 206 subtests (96 s) | 1197/8/18/0 → 7 FAIL cũ nay SKIPPED |
+| CDP `tests/live/cdp/macos-shortcuts.desktop.mjs` (HOME tạm, `PYWEBVIEW_GUI=qt`, qua heavy-lock) | PASS 14/14 | không đổi |
+| CDP Q61/Q60, Xcode | NOT RUN lượt này (Q64 không chạm mã giao diện hay `ports/macos/**`); kết quả mục 5 giữ nguyên | — |
+
+8 FAIL cũ → trạng thái mới:
+
+| Test | Trạng thái |
+|---|---|
+| `test_desktop_launch::test_main_returns_exit_code_when_no_port_available` | SKIPPED (MessageBoxW) |
+| 3× `test_ooxml_encryption_roundtrip` | SKIPPED (ole32 + PowerShell) |
+| `test_os_services_p2::test_show_error_never_raises_and_reports_through_a_result` | SKIPPED (MessageBoxW) |
+| `test_writer_create_new_readback::test_word_com_values_are_normalized_before_comparison` | SKIPPED (PowerShell/Word COM) |
+| `test_p1_pool_orphans::test_parent_alive_probe_reports_a_dead_pid_as_dead` (C-6) | SKIPPED (probe Windows) — không còn FAIL, nhưng nhánh POSIX của probe chưa có test |
+| `test_os_services_p2::test_user_data_dir_equals_legacy_with_and_without_localappdata` | **vẫn FAIL** — xem dưới |
+
+Lỗi còn lại: test trên khẳng định `_user_data_dir() == Path($LOCALAPPDATA) / "VNOffice"`, đúng chỉ trên Windows. Trên macOS backend Darwin và `_legacy_user_data_dir()` đều trả `~/Library/Application Support/VNOffice` (khẳng định thứ nhất «bằng bản cũ» PASS) — hành vi macOS đúng, kỳ vọng của test là Windows-only và Q64 chưa gắn skip cho khẳng định này. Đề nghị chủ vn-main tách khẳng định `LOCALAPPDATA` sau `sys.platform == "win32"` (không sửa ở nhánh này). Lỗi mới do gộp: **0**. Sau CDP không còn tiến trình `main.py`; worktree sạch.

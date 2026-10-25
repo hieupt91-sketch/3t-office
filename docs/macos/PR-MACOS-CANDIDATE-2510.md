@@ -1,6 +1,6 @@
 # PR: Ứng viên macOS 2510 → vn-main
 
-Nhánh nguồn: `mac/candidate2-cl-2510` (đỉnh mã: merge `27b4434c`, đã gồm vn-main `082221cb`). Đích: `vn-main`. 42 commit, 110 tệp (+8141/−111) so với vn-main; phần lớn ở `docs/macos`, `tests/macos`, `ports/macos`. Mọi nhánh gộp bằng `--no-ff`, không rebase/squash.
+Nhánh nguồn: `mac/candidate2-cl-2510` (đỉnh mã: merge `6b8a15e9`, đã gồm vn-main `34ceeed1`). Đích: `vn-main`. 45 commit, 112 tệp (+8265/−111) so với vn-main tính đến merge `6b8a15e9` (chưa tính commit tài liệu Q64); phần lớn ở `docs/macos`, `tests/macos`, `ports/macos`. Mọi nhánh gộp bằng `--no-ff`, không rebase/squash.
 
 ## Tóm tắt
 
@@ -22,18 +22,19 @@ Nhánh nguồn: `mac/candidate2-cl-2510` (đỉnh mã: merge `27b4434c`, đã g�
 | INTEGRATE-MAC-2510 | Ứng viên 1 + sửa số dòng bằng chứng checklist sau KEYS-1 | `a592bfed`, `382065e3` |
 | MAC-12-RUNTIME | Runtime Python macOS gói `cryptography` + `pypdf` khóa hash | `6b9cface` |
 | INTEGRATE-2 | Gộp vn-main `082221cb` (Q60/Q61/Q62) | merge `27b4434c` |
+| INTEGRATE-3 (Q64) | Gộp vn-main `34ceeed1` (Q64: chuẩn hóa xuống dòng FODS snapshot, bỏ qua test Windows-only trên POSIX) — tự gộp, 0 xung đột | merge `6b8a15e9` |
 
-Xung đột ở INTEGRATE-2: `apps/sheet/sheet-grid.js` chỉ ở khối import (giữ cả `keymap-macos.js` của KEYS-1 và `focus-manager.js` của Q61; diff sau gộp so với vn-main đúng bằng diff KEYS-1); `docs/EXCEL2016-FEATURE-CHECKLIST.md` sinh lại bằng `scripts/audit-0610/gen_excel_checklist.py`; `09-templates/AGENT-HANDOFF.md` giữ cả hai phía. Chi tiết: `docs/macos/CANDIDATE-2510.md` mục 5.
+Xung đột ở INTEGRATE-2: `apps/sheet/sheet-grid.js` chỉ ở khối import (giữ cả `keymap-macos.js` của KEYS-1 và `focus-manager.js` của Q61; diff sau gộp so với vn-main đúng bằng diff KEYS-1); `docs/EXCEL2016-FEATURE-CHECKLIST.md` sinh lại bằng `scripts/audit-0610/gen_excel_checklist.py`; `09-templates/AGENT-HANDOFF.md` giữ cả hai phía. Chi tiết: `docs/macos/CANDIDATE-2510.md` mục 5. Gộp Q64 (`6b8a15e9`) không xung đột, chỉ chạm `tests/**` và `docs/**` — chi tiết mục 6.
 
-## Cổng kiểm (trên `27b4434c`, macOS, venv-dev, LibreOffice pilot v4)
+## Cổng kiểm (trên `6b8a15e9`, macOS, venv-dev, LibreOffice pilot v4; CDP Q61 chạy trên `27b4434c`)
 
 | Cổng | Kết quả |
 |---|---|
-| `npm test` | FAIL 3825/3826 — chỉ `Sheet: parseFods workbook snapshots` (D-1, có sẵn trên vn-main) |
+| `npm test` | PASS 3826/3826, 0 FAIL (D-1 parseFods snapshot đã PASS sau Q64) |
 | `node scripts/audit-0610/i18n_parity.mjs` | PASS VI=EN=3206, thiếu 0/0, lệch placeholder 0 |
 | `verify_checklist_evidence.py --all --no-fix` | PASS Word 0 / Excel 0 / PowerPoint 0 dòng bị hạ |
 | `pytest tests/macos` | PASS 58 passed, 17 subtests |
-| `pytest tests` (đầy đủ) | FAIL 1197 passed / 8 failed / 18 skipped / 0 error — 8 FAIL là Windows-only/`powershell` + C-6, giống mốc |
+| `pytest tests` (đầy đủ) | FAIL 1197 passed / 1 failed / 25 skipped / 0 error — 7/8 FAIL cũ nay SKIPPED (Q64); còn `test_os_services_p2::test_user_data_dir_equals_legacy_with_and_without_localappdata` (kỳ vọng `%LOCALAPPDATA%`, Windows-only, chưa gắn skip ở vn-main) |
 | CDP `macos-shortcuts.desktop.mjs` (QtWebEngine thật) | PASS 14/14 |
 | CDP `q61-sheet-dialog-focus` | PASS 6/6 Esc trả focus, 6/6 Tab trap |
 | CDP `q61-dialog-validation` | PASS 120 khẳng định |
@@ -43,8 +44,8 @@ Xung đột ở INTEGRATE-2: `apps/sheet/sheet-grid.js` chỉ ở khối import 
 
 ## Lỗi đã biết
 
-- npm `parseFods workbook snapshots` (D-1; nguyên nhân hash trên macOS đã ghi ở INBOX-WIN #10).
-- pytest Windows-only: `test_desktop_launch` (no_port_available), 3× `test_ooxml_encryption_roundtrip`, 2× `test_os_services_p2`, `test_writer_create_new_readback` (cần powershell); `test_p1_pool_orphans` parent_alive (C-6, Integration).
+- npm `parseFods workbook snapshots` (D-1): đã khắc phục bởi Q64 (chuẩn hóa CRLF→LF trước khi băm), PASS trên macOS.
+- pytest: 7 test Windows-only cũ nay SKIPPED trên macOS (Q64). Còn 1 FAIL: `test_os_services_p2::test_user_data_dir_equals_legacy_with_and_without_localappdata` — khẳng định thứ hai đòi `_user_data_dir() == $LOCALAPPDATA/VNOffice`, đúng chỉ trên Windows; trên macOS cả `_user_data_dir()` và `_legacy_user_data_dir()` đều trả `~/Library/Application Support/VNOffice` (hành vi đúng). Cần vn-main gắn skip/tách khẳng định theo nền tảng (không sửa test ở đây). C-6 (`parent_alive`) nay SKIPPED, không còn FAIL nhưng probe trên POSIX chưa được kiểm.
 - Q61 trên QtWebEngine: đổi cỡ cửa sổ 1024×600 qua CDP không có tác dụng → bố cục cửa sổ nhỏ chưa kiểm thật trên Mac.
 - Checklist Excel dòng Goal Seek có trích dẫn cứng `sheet-grid.js:20373-20390` đã lệch từ vn-main (vẫn hợp lệ nhờ trích dẫn test).
 - 104/141 dòng phím macOS ở trạng thái «chờ xác minh bằng Office for Mac» (Automation BLOCKED).
