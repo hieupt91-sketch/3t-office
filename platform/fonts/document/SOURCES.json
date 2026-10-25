@@ -81,15 +81,15 @@
     "VNSans-Regular.ttf": {
       "family": "VN Sans",
       "style": "Regular",
-      "sha256": "a9b6e38e494b65a64e52e7736e3bd54d2800c3aa9e1fec5ce10170f9983aa8f8",
-      "bytes": 115144,
+      "sha256": "79acfbda872e8403a873522942db6a93f559d354d6c3a105fdc76a4dbe72f59a",
+      "bytes": 115240,
       "copyright": "Copyright 2020 The Open Sans Project Authors (https://github.com/googlefonts/opensans). Modifications copyright 2026 3T Office contributors (VN-FONTS-1)."
     },
     "VNSans-Bold.ttf": {
       "family": "VN Sans",
       "style": "Bold",
-      "sha256": "28231b73e325763a4ac2e96295cc2684da98c6b167dc529de4a69955d7f77a18",
-      "bytes": 115120,
+      "sha256": "7a6e4946c8eb7688ff54e33f90cc58702c3b5390b9bda4907cb8e141c27c66be",
+      "bytes": 115224,
       "copyright": "Copyright 2020 The Open Sans Project Authors (https://github.com/googlefonts/opensans). Modifications copyright 2026 3T Office contributors (VN-FONTS-1)."
     },
     "VNMono-Regular.ttf": {
@@ -109,10 +109,10 @@
     "VNSong-Regular.ttf": {
       "family": "VN Song",
       "style": "Regular",
-      "sha256": "6359facb276844d56a73e810e7105fd2859b0a085bc45c784b5690e0e7813022",
-      "bytes": 3289788,
+      "sha256": "d992447e4b7f4f81d6e1bab0dd711395e987d34213c51c2dc3d8b50edfc9b7fc",
+      "bytes": 3289996,
       "copyright": "(c) 2017-2024 Adobe (http://www.adobe.com/). Modifications copyright 2026 3T Office contributors (VN-FONTS-1).",
-      "glyphs": 8050
+      "glyphs": 8053
     }
   }
 }

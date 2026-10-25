@@ -88,7 +88,8 @@ CONSOLE_ADVANCE_2048 = 1126  # public statement, see module docstring
 # Vietnamese repertoire that must be complete in every output (precomposed + combining tone marks).
 VIETNAMESE = sorted(set(range(0x1EA0, 0x1EFA))
                     | {ord(c) for c in "ăâêôơưđĂÂÊÔƠƯĐàáãèéìíòóõùúýÀÁÃÈÉÌÍÒÓÕÙÚÝĩĨũŨ"}
-                    | {0x0300, 0x0301, 0x0303, 0x0309, 0x0323})
+                    | {0x0300, 0x0301, 0x0303, 0x0309, 0x0323,  # tone marks
+                       0x0302, 0x0306, 0x031B})  # circumflex, breve, horn (decomposed / NFD text)
 FORBIDDEN_NAME_PARTS = ("segoe", "aptos", "consolas", "simsun", "nsimsun", "selawik", "source", "noto", "microsoft")
 
 TOP, BOTTOM = "top", "bottom"
@@ -501,9 +502,41 @@ def build_vn_sans_ui(selawik: bytes, opensans: bytes, style: str):
 # ---------------------------------------------------------------------------------------------------------------
 # VN Sans (Open Sans instance)
 
+def add_combining_horn(font):
+    """Open Sans has the horn letters but no combining horn (U+031B), which decomposed (NFD) Vietnamese needs.
+    Cut it from the font's own ơ minus o; zero advance, outline placed just after the preceding letter so it sits
+    right even without positioning, and attached through the font's own top-right mark anchor class when present."""
+    from fontTools.ttLib.tables import otTables
+    cmap, hmtx = font.getBestCmap(), font["hmtx"]
+    if 0x031B in cmap:
+        return
+    o, horned = cmap[ord("o")], cmap[ord("ơ")]
+    o_adv = hmtx[o][0]
+    rec = _extract_difference(font, horned, o)
+    add_glyph(font, "horncomb", _glyph_from_recording(rec, (1, 0, 0, 1, -o_adv, 0)), 0, unicode=0x031B, mark=True)
+    marks, bases, markbase = mark_anchors(font)
+    top = marks[cmap[0x0301]][0] if cmap.get(0x0301) in marks else None
+    o_anchors = bases.get(o, {})
+    right = [c for c, (x, y) in o_anchors.items() if c != top and top in o_anchors and x > o_anchors[top][0] + 100
+             and y > 0.8 * font["OS/2"].sxHeight]
+    if markbase is None or not right:
+        return
+    ax, ay = o_anchors[right[0]]
+    record = otTables.MarkRecord()
+    record.Class = right[0]
+    anchor = otTables.Anchor()
+    anchor.Format = 1
+    anchor.XCoordinate, anchor.YCoordinate = int(ax - o_adv), int(ay)
+    record.MarkAnchor = anchor
+    markbase.MarkCoverage.glyphs.append("horncomb")
+    markbase.MarkArray.MarkRecord.append(record)
+    markbase.MarkArray.MarkCount = len(markbase.MarkArray.MarkRecord)
+
+
 def build_vn_sans(opensans: bytes, style: str):
     weight = 700 if style == "Bold" else 400
     font = instance(opensans, {"wght": weight, "wdth": 100})
+    add_combining_horn(font)
     finalize(font, "VN Sans", style, weight, "opensans",
              "Derived from Open Sans 3.003 (SIL OFL 1.1), static instance. Look-alike substitute only: not "
              "metric-compatible with any other font (VN-FONTS-1).")
@@ -617,6 +650,16 @@ def build_vn_song(noto: bytes, style: str = "Regular"):
         dx = (width_target - adv * sx) / 2
         return draw_transformed(font, source_name, (sx, 0, 0, 1, dx, 0)), width_target
 
+    # Combining horn (U+031B, for decomposed text) is cut from the source letters before they are made half-width,
+    # then given the same condensing as ơ so it lines up with the half-width o it follows.
+    horn = None
+    if 0x031B not in cmap:
+        o_src, horned_src = cmap[ord("o")], cmap[ord("ơ")]
+        horn_rec = _extract_difference(font, horned_src, o_src)
+        h_adv = hmtx[hwid.get(horned_src, horned_src)][0]
+        h_sx = min(1.0, half / h_adv) if h_adv else 1.0
+        horn = _glyph_from_recording(horn_rec, (h_sx, 0, 0, 1, (half - h_adv * h_sx) / 2 - half, 0))
+
     new_glyphs = {}
     for cp, name in sorted(cmap.items()):
         if unicodedata.combining(chr(cp)):
@@ -640,7 +683,8 @@ def build_vn_song(noto: bytes, style: str = "Regular"):
     #    zero advance, centred over the preceding half-width letter.
     xh = font["OS/2"].sxHeight or 500
     base_name = cmap[ord("a")]
-    for comb_cp, pre in ((0x0300, "à"), (0x0301, "á"), (0x0303, "ã"), (0x0309, "ả"), (0x0323, "ạ")):
+    for comb_cp, pre in ((0x0300, "à"), (0x0301, "á"), (0x0303, "ã"), (0x0309, "ả"), (0x0323, "ạ"),
+                         (0x0302, "â"), (0x0306, "ă")):
         if comb_cp in cmap and hmtx[cmap[comb_cp]][0] == 0:
             continue
         rec = _extract_difference(font, cmap[ord(pre)], base_name)
@@ -649,6 +693,8 @@ def build_vn_song(noto: bytes, style: str = "Regular"):
         g = _glyph_from_recording(rec, (1, 0, 0, 1, -half / 2 - cxm, 0))
         name = f"uni{comb_cp:04X}.vn"
         add_glyph(font, name, g, 0, unicode=comb_cp, mark=True)
+    if horn is not None:
+        add_glyph(font, "uni031B.vn", horn, 0, unicode=0x031B, mark=True)
     # 4) drop width-changing layout (kerning, proportional alternates): DBCS text is unkerned
     if "GPOS" in font:
         del font["GPOS"]
@@ -786,7 +832,8 @@ VN Sans UI (Regular, Bold)
   Open Sans horn widening, scaled).
 
 VN Sans (Regular, Bold)
-  Source: Open Sans 3.003 (SIL OFL 1.1). Changes: static instances (wght 400/700, wdth 100), renamed.
+  Source: Open Sans 3.003 (SIL OFL 1.1). Changes: static instances (wght 400/700, wdth 100), renamed;
+  combining horn (U+031B, for decomposed Vietnamese text) cut from the font's own horn letter.
   Metric note: a look-alike sans with full Vietnamese; NOT metric-compatible with any other font.
 
 VN Mono (Regular, Bold)
@@ -800,8 +847,8 @@ VN Song (Regular)
   Changes: static instance wght 400; subset to GB2312 (7445 characters) + Latin, Latin-1, Latin Extended,
   Vietnamese, general punctuation, CJK symbols and full-width forms; Latin letters, digits and Vietnamese set to
   half width (0.5 em, using the font's own half-width alternates where present, otherwise condensed and centred);
-  Han characters and GB2312 symbols full width (1 em); combining tone marks cut from the font's own precomposed
-  Vietnamese letters; kerning and proportional alternates removed (DBCS text is not kerned). Only one weight:
+  Han characters and GB2312 symbols full width (1 em); combining tone marks, circumflex, breve and horn cut from
+  the font's own precomposed Vietnamese letters; kerning and proportional alternates removed (DBCS text is not kerned). Only one weight:
   the bold of the substituted face is synthesised by the layout engine. Vertical metrics are the source's.
 
 2026-10-25  1.000  First release (VN-FONTS-1).

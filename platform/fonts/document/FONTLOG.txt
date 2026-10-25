@@ -17,7 +17,8 @@ VN Sans UI (Regular, Bold)
   Open Sans horn widening, scaled).
 
 VN Sans (Regular, Bold)
-  Source: Open Sans 3.003 (SIL OFL 1.1). Changes: static instances (wght 400/700, wdth 100), renamed.
+  Source: Open Sans 3.003 (SIL OFL 1.1). Changes: static instances (wght 400/700, wdth 100), renamed;
+  combining horn (U+031B, for decomposed Vietnamese text) cut from the font's own horn letter.
   Metric note: a look-alike sans with full Vietnamese; NOT metric-compatible with any other font.
 
 VN Mono (Regular, Bold)
@@ -31,8 +32,8 @@ VN Song (Regular)
   Changes: static instance wght 400; subset to GB2312 (7445 characters) + Latin, Latin-1, Latin Extended,
   Vietnamese, general punctuation, CJK symbols and full-width forms; Latin letters, digits and Vietnamese set to
   half width (0.5 em, using the font's own half-width alternates where present, otherwise condensed and centred);
-  Han characters and GB2312 symbols full width (1 em); combining tone marks cut from the font's own precomposed
-  Vietnamese letters; kerning and proportional alternates removed (DBCS text is not kerned). Only one weight:
+  Han characters and GB2312 symbols full width (1 em); combining tone marks, circumflex, breve and horn cut from
+  the font's own precomposed Vietnamese letters; kerning and proportional alternates removed (DBCS text is not kerned). Only one weight:
   the bold of the substituted face is synthesised by the layout engine. Vertical metrics are the source's.
 
 2026-10-25  1.000  First release (VN-FONTS-1).
