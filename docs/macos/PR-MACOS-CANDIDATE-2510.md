@@ -54,7 +54,7 @@ Xung đột ở INTEGRATE-2: `apps/sheet/sheet-grid.js` chỉ ở khối import 
 ## Quyết định chờ người phụ trách
 
 1. Quyền Automation (System Settings ▸ Privacy & Security ▸ Automation) cho Word/Excel/PowerPoint — mở khóa ORACLE-1, ENGINE-MAC `engine_office_check.sh`, KEYS-1 104 dòng, MAC-9 chọn phông.
-2. Giấy phép phông (Segoe UI, Aptos, Calibri/Cambria, Consolas, SimSun…) — có mua/cấp phép để đóng gói không.
+2. Giấy phép phông: **chủ đã quyết (25/10) KHÔNG mua** — đội tự dựng bộ phông riêng từ nguồn OFL (VN-FONTS-1, nhánh `mac/vnfonts-cl-2510`, chưa có trong PR này); không dùng tệp phông của Microsoft.
 3. Nhúng (subset) phông hệ thống macOS vào PDF khi xuất/in.
 4. Qt LGPL cho QtWebEngine (`PYWEBVIEW_GUI=qt`) trước khi phân phối.
 5. Apple Developer ID, bundle ID, ký + notarize (hiện `CODE_SIGNING_ALLOWED=NO`, engine ký ad-hoc).
