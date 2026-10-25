@@ -14,10 +14,11 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { connectToPort, findFreePort, sleep } from "./client.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../../..");
-const profilesBaseDir = "E:\\VNOffice-profiles";
+const profilesBaseDir = platformOutputPath("E:\\VNOffice-profiles", { directory: true });
 
 async function launchDesktopApp(appName, profileFolder) {
   const localAppData = path.join(profilesBaseDir, profileFolder);

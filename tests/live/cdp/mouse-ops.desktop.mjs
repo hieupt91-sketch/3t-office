@@ -19,8 +19,9 @@ import {
   typeText,
   sleep
 } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const LOCAL_APP_DATA = process.env.LOCALAPPDATA || "E:\\VNOffice-profiles\\agy-mouse";
+const LOCAL_APP_DATA = process.env.LOCALAPPDATA || platformOutputPath("E:\\VNOffice-profiles\\agy-mouse", { directory: true });
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 const results = [];

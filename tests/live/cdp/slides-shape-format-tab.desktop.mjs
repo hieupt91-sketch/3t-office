@@ -2,8 +2,9 @@
 // hoàn tác một bước, lưu PPTX (đọc lại bằng PowerPoint ở scripts/audit-0610/ppt_shape_format_readback.ps1).
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_SHAPEFMT_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\shape_format.pptx";
+const OUT = process.env.VNO_SHAPEFMT_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\shape_format.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push({ name, pass: Boolean(pass), detail });

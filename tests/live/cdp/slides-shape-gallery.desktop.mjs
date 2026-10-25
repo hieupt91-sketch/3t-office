@@ -1,8 +1,9 @@
 // Slides: thư viện hình dựng sẵn (Trang đầu > Hình), Đổi hình dạng, hoàn tác, lưu PPTX (PowerPoint đọc lại AutoShapeType).
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_SHAPEGAL_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\shape_gallery.pptx";
+const OUT = process.env.VNO_SHAPEGAL_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\shape_gallery.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push({ name, pass: Boolean(pass) });

@@ -1,11 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { launchApp } from "./session.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const root = process.env.VNO_APP_ROOT || path.resolve(".");
 const input = process.env.Q60_LAN09 || "E:\\VN OFice\\file test\\lan\\lan09.xlsx";
-const output = process.env.Q60_SCREENSHOT || "E:\\VNOffice-profiles\\codex-q60-speed\\lan09-tab-overflow.png";
-const localAppData = process.env.VNO_CDP_LOCALAPPDATA || "E:\\VNOffice-profiles\\codex-q60-speed\\visual";
+const output = process.env.Q60_SCREENSHOT || platformOutputPath("E:\\VNOffice-profiles\\codex-q60-speed\\lan09-tab-overflow.png");
+const localAppData = process.env.VNO_CDP_LOCALAPPDATA || platformOutputPath("E:\\VNOffice-profiles\\codex-q60-speed\\visual", { directory: true });
 const session = await launchApp("sheet", {
   root,
   localAppData,

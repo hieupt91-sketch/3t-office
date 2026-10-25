@@ -1,8 +1,9 @@
 // Slides: hiệu ứng nhấn mạnh «Nhịp đập» (Pulse): gán từ ribbon, lưu PPTX; PowerPoint COM đọc EffectType 75 (presetID 26).
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_PULSE_OUT || "E:\\VNOffice-profiles\\claude-multianim\\pulse.pptx";
+const OUT = process.env.VNO_PULSE_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-multianim\\pulse.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push(Boolean(pass));

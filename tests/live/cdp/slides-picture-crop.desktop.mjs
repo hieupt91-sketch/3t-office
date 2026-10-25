@@ -2,8 +2,9 @@
 import fs from "node:fs";
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_CROP_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\crop.pptx";
+const OUT = process.env.VNO_CROP_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\crop.pptx");
 const PIC = "E:\\VNOffice-profiles\\claude-slidetrans\\pic.png";
 const checks = [];
 const check = (name, pass, detail = "") => {

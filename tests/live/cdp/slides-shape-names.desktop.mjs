@@ -1,8 +1,9 @@
 // Slides: Ngăn chọn đổi tên (nhấp đúp / F2), ẩn/hiện, hoàn tác; lưu PPTX; mở lại. PowerPoint COM: scripts/audit-0610/ppt_shape_names_readback.ps1
 import { launchApp } from "./session.mjs";
 import { sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_SHAPENAMES_OUT || "E:\\VNOffice-profiles\\claude-shapenames\\shape_names.pptx";
+const OUT = process.env.VNO_SHAPENAMES_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-shapenames\\shape_names.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => { checks.push(Boolean(pass)); console.log(`${pass ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`); };
 const canvas = "window.__vnoAppInstance.adapter.canvas";

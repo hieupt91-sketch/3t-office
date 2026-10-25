@@ -12,9 +12,10 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { launchApp } from "./session.mjs";
 import { sleep, click } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const localAppData = process.env.VNO_CDP_LOCALAPPDATA || "E:\\VNOffice-profiles\\word-w6";
-const tempDir = "E:\\VNOffice-temp\\word-w6";
+const localAppData = process.env.VNO_CDP_LOCALAPPDATA || platformOutputPath("E:\\VNOffice-profiles\\word-w6", { directory: true });
+const tempDir = platformOutputPath("E:\\VNOffice-temp\\word-w6", { directory: true });
 fs.mkdirSync(tempDir, { recursive: true });
 fs.mkdirSync(localAppData, { recursive: true });
 

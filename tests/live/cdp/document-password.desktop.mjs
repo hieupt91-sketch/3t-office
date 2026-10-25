@@ -2,8 +2,9 @@
 import { launchApp } from "./session.mjs";
 import { sleep } from "./actions.mjs";
 import fs from "node:fs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_ENCRYPT_OUT || "E:\\VNOffice-profiles\\claude-shapenames\\ui_protected.docx";
+const OUT = process.env.VNO_ENCRYPT_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-shapenames\\ui_protected.docx");
 const checks = [];
 const check = (name, pass, detail = "") => { checks.push(Boolean(pass)); console.log(`${pass ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`); };
 const isCfb = (p) => { const b = fs.readFileSync(p); return b.length > 8 && b[0] === 0xD0 && b[1] === 0xCF && b[2] === 0x11 && b[3] === 0xE0; };

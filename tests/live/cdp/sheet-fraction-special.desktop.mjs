@@ -4,8 +4,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { launchApp } from "./session.mjs";
 import { sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const profile = process.env.VNO_CDP_LOCALAPPDATA || "E:\\VNOffice-profiles\\claude-fraction-real";
+const profile = process.env.VNO_CDP_LOCALAPPDATA || platformOutputPath("E:\\VNOffice-profiles\\claude-fraction-real", { directory: true });
 mkdirSync(profile, { recursive: true });
 
 function readExcelCells(filePath, coords) {

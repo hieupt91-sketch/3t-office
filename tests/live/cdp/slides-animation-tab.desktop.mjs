@@ -1,8 +1,9 @@
 // Slides: tab Hoạt hình — Hiệu ứng nhanh, Bắt đầu / Thời lượng / Trễ, Xem trước, hoàn tác, lưu PPTX.
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_ANIMTAB_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\anim_tab.pptx";
+const OUT = process.env.VNO_ANIMTAB_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\anim_tab.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push({ name, pass: Boolean(pass) });

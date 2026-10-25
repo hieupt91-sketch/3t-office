@@ -14,8 +14,9 @@ import { launchApp } from "./session.mjs";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { platformOutputPath } from "./output-path.mjs";
 
-const LOCAL_PROFILES_DIR = "E:\\VNOffice-profiles\\agy-ch81-cdp";
+const LOCAL_PROFILES_DIR = platformOutputPath("E:\\VNOffice-profiles\\agy-ch81-cdp", { directory: true });
 
 // Danh sách 27 tiêu chí kiểm tra
 const CHECKLIST_ITEMS = [

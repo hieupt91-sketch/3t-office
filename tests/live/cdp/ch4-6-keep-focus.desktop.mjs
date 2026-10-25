@@ -28,6 +28,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { launchApp, repoRoot } from "./session.mjs";
 import { click, press, typeText } from "./actions.mjs";
 import { sleep, readTargets, CdpClient } from "./client.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const appKinds = ["writer", "sheet", "slides"];
 const appTitles = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
@@ -647,7 +648,7 @@ async function testSlidesFocus(session) {
  * Main Runner
  */
 export async function runAllKeepFocusTests() {
-  const profileBase = "E:\\VNOffice-profiles";
+  const profileBase = platformOutputPath("E:\\VNOffice-profiles", { directory: true });
   let sessionIndex = 1;
 
   for (const app of appKinds) {

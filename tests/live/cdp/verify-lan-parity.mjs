@@ -5,6 +5,7 @@ import { execSync } from "node:child_process";
 import { launchApp, repoRoot } from "./session.mjs";
 import { press } from "./actions.mjs";
 import { sleep } from "./client.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const LAN_FILES = ["lan02.xlsx", "lan11.xlsx", "lan09.xlsx"];
 const LAN_SOURCE_DIRS = [
@@ -12,7 +13,7 @@ const LAN_SOURCE_DIRS = [
   path.join(repoRoot, "..", "VN OFice", "file test", "lan"),
 ];
 
-const AUDIT_SCREENSHOT_DIR = "E:\\VNOffice-dist\\audit-grid";
+const AUDIT_SCREENSHOT_DIR = platformOutputPath("E:\\VNOffice-dist\\audit-grid", { directory: true });
 const REF_WORKTREE_DIR = "E:\\VNOffice-grid-ref";
 const PARITY_REF_DIR = path.join(os.tmpdir(), "vno-grid-parity-ref");
 const TEMP_LAN_DIR = path.join(os.tmpdir(), "vno-lan-live");

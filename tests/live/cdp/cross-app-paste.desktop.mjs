@@ -27,6 +27,7 @@ import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { CdpClient, connectToPort, sleep } from "./client.mjs";
 import { press } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../../..");
@@ -35,17 +36,17 @@ const repoRoot = path.resolve(__dirname, "../../..");
 const APP_CONFIGS = {
   sheet: {
     port: 9381,
-    profileDir: "E:\\VNOffice-profiles\\agy-crosspaste-1",
+    profileDir: platformOutputPath("E:\\VNOffice-profiles\\agy-crosspaste-1", { directory: true }),
     readySelector: ".vno-sheet-container"
   },
   writer: {
     port: 9382,
-    profileDir: "E:\\VNOffice-profiles\\agy-crosspaste-2",
+    profileDir: platformOutputPath("E:\\VNOffice-profiles\\agy-crosspaste-2", { directory: true }),
     readySelector: ".vno-writer-body"
   },
   slides: {
     port: 9383,
-    profileDir: "E:\\VNOffice-profiles\\agy-crosspaste-3",
+    profileDir: platformOutputPath("E:\\VNOffice-profiles\\agy-crosspaste-3", { directory: true }),
     readySelector: ".vno-slide-canvas"
   }
 };

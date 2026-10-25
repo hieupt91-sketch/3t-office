@@ -4,8 +4,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { launchApp, repoRoot } from "./session.mjs";
 import { sleep } from "./client.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const outDir = "E:\\VNOffice-temp\\excel-h2-page-setup";
+const outDir = platformOutputPath("E:\\VNOffice-temp\\excel-h2-page-setup", { directory: true });
 const output = path.join(outDir, "page-setup-controls.xlsx");
 const source = path.join(repoRoot, "tests", "live", "cdp", "test_sheet_home.xlsx");
 await fs.mkdir(outDir, { recursive: true });

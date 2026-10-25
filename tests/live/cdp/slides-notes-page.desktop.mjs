@@ -1,8 +1,9 @@
 // Slides: Chế độ xem > Trang ghi chú — mở, sửa ghi chú, chuyển trang, hoàn tác, Esc đóng, lưu PPTX.
 import { launchApp } from "./session.mjs";
 import { click, press, typeText, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_NOTESPAGE_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\notes_page.pptx";
+const OUT = process.env.VNO_NOTESPAGE_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\notes_page.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push({ name, pass: Boolean(pass) });

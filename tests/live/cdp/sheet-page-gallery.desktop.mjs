@@ -3,8 +3,9 @@ import { copyFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const profile = process.env.VNO_CDP_LOCALAPPDATA || "E:\\VNOffice-profiles\\claude-sheet-pagegallery";
+const profile = process.env.VNO_CDP_LOCALAPPDATA || platformOutputPath("E:\\VNOffice-profiles\\claude-sheet-pagegallery", { directory: true });
 mkdirSync(profile, { recursive: true });
 const file = path.join(profile, "page-gallery.xlsx");
 copyFileSync(path.resolve("tests/live/cdp/test_sheet_home.xlsx"), file);

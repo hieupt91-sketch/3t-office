@@ -1,6 +1,7 @@
 // Tab Chuyển tiếp của Slides: thư viện hiệu ứng, thời lượng, tự chuyển trang, áp dụng tất cả, xem trước, hoàn tác.
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const checks = [];
 const check = (name, pass, detail = "") => {
@@ -66,7 +67,7 @@ try {
   t = JSON.parse(await trans(0));
   check("Tự chuyển sau 5 giây và tắt nhấp chuột", t?.advanceAfter === 5000 && t?.advanceOnClick === false, JSON.stringify(t));
 
-  const OUT = process.env.VNO_TRANSTAB_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\trans_tab_saved.pptx";
+  const OUT = process.env.VNO_TRANSTAB_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\trans_tab_saved.pptx");
   const savedTab = await ev(`(async () => { const a = window.__vnoAppInstance.adapter || window.__vnoAppInstance; return JSON.stringify(await window.pywebview.api.save_document_in_place(a.serializeToFodp(), 'slides', ${JSON.stringify(OUT)}, null)).slice(0, 80); })()`);
   check("Lưu PPTX có hiệu ứng từ tab Chuyển tiếp", /"status":\s*"ok"/.test(savedTab), savedTab);
   await click(cdp, '[data-command-id="slides.transition.preview"]');
