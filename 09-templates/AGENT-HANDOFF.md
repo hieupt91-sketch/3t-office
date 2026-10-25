@@ -1553,3 +1553,25 @@ DEPENDENCIES/BLOCKERS: Cần Mac xác nhận lại trên nhánh sau đồng bộ
 CORE PATCH ID (if any): None.
 NEXT ACTION: Chuyển commit nhóm test cho người phụ trách review/merge; Mac xác nhận suite trên LF.
 GIAO DIỆN ĐÃ XEM: Không áp dụng — phiếu chỉ thay đổi test/config, không mở app hay UI.
+
+---
+
+# Agent Handoff
+TASK: CODEX Q65 — Test nền tảng và neo checklist Excel
+AGENT/ROLE: Codex / Tests + QA
+BRANCH: codex/q65
+WORKTREE: E:\VNOffice-codex-q65
+OBJECTIVE: Sửa assertion LOCALAPPDATA theo Windows; thêm test POSIX cho `_p1_parent_alive` chạy trong spawned worker; thay dòng Goal Seek hard-code line range bằng anchor trong generator và sinh lại ba checklist.
+FINDINGS: macOS dùng `~/Library/Application Support/VNOffice`, nên assertion LOCALAPPDATA chỉ áp dụng trên Windows. Test worker POSIX phải xác nhận probe chạy trong process con và nhận đúng PID cha. Neo `showGoalSeekDialog()` được verifier phân giải thành `apps/sheet/sheet-grid.js:21276`.
+IMPLEMENTATION SUMMARY: Assertion `$LOCALAPPDATA/VNOffice` chỉ còn chạy khi `sys.platform == "win32"`. Thêm test spawned-worker có skip rõ lý do trên Windows; không sửa implementation `_p1_parent_alive`. Generator Excel dùng `{{L:apps/sheet/sheet-grid.js|showGoalSeekDialog()}}`; đã chạy lại cả ba generator.
+FILES CHANGED: `tests/test_os_services_p2.py`; `tests/test_p1_pool_orphans.py`; `scripts/audit-0610/gen_excel_checklist.py`; `docs/EXCEL2016-FEATURE-CHECKLIST.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; ba bài pytest mục tiêu; `npm test`; `python -m pytest tests -q -k "user_data_dir_equals_legacy_with_and_without_localappdata or parent_alive_probe_from_spawned_worker or workers_exit_after_their_parent_is_killed"`; `python -m pytest tests -q`; `node scripts/audit-0610/i18n_parity.mjs`; cả ba `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; kiểm tra diff/status.
+BUILD RESULT: NOT RUN — chỉ sửa test và script kiểm toán.
+TEST RESULTS: PASS — `npm test` 3802/3802, 0 fail; pytest liên quan 2 passed, 1 skipped (Windows, theo yêu cầu); i18n VI/EN 3203/3203, 0 missing; evidence verifier 0 dòng hạ. Pytest đầy đủ: 1159 passed, 4 skipped, 1 failed.
+KNOWN FAILURES: Pytest đầy đủ có lỗi `test_review_ranges_across_paragraphs_keep_valid_native_markup` trong `tests/test_writer_review_roundtrip.py`; chạy riêng ngay sau đó PASS (1 passed), nên lỗi full-run không tái hiện độc lập. Không sửa Writer do ngoài phạm vi. POSIX spawned-worker test chưa thể thực thi trên Windows; cần chạy trên macOS/POSIX.
+RISKS: Có thể có tương tác/flakiness ở Writer round-trip test trong full pytest; xác nhận trên lượt chạy tiếp theo. Tăng 1 skip dự kiến trên Windows do bài POSIX được gắn skip theo brief.
+DEPENDENCIES/BLOCKERS: Cần xác nhận bài spawned-worker trên POSIX.
+CORE PATCH ID (if any): None.
+COMMITS: `183c96f4` test: scope LOCALAPPDATA assertion to Windows; `a4cba6fc` test: probe parent liveness from spawned POSIX worker; `057e40d9` audit: anchor Goal Seek checklist evidence.
+NEXT ACTION: Review/merge các commit; chạy bài spawned-worker trên macOS/POSIX và rerun pytest full để xác minh lỗi Writer không tái diễn.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — phiếu chỉ thay đổi test/script, không mở app hay màn hình UI.
