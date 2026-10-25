@@ -1710,3 +1710,24 @@ DEPENDENCIES/BLOCKERS: None for source work. Excel COM reference remains blocked
 CORE PATCH ID (if any): None.
 UI REVIEW: Viewed screenshots at 1366x768: Slides Backstage template card — badge absent, card layout intact; Sheet vi-VN light/dark — values and result visible, no clipping/overlap; Sheet legacy-function warning light/dark — warning text and disable button fit, readable, no overlap. No visible issue found.
 NEXT ACTION: Review the five commits. Q66.DONE created after the completed gates and handoff.
+
+
+## Q69 handoff - 26/10/2026
+TASK: Q69 — Cache-Control cho máy chủ tĩnh và sửa sáu lỗi Sheet VI/EN.
+AGENT/ROLE: Codex / Windows Sheet + app runtime.
+BRANCH: codex/q69.
+WORKTREE: E:\VNOffice-codex-q69.
+OBJECTIVE: Buộc WebView kiểm tra lại tài nguyên giao diện sau cập nhật; sửa cách nhận/hiện số, ngày, TEXTJOIN, cảnh báo số ít/số nhiều và chuỗi UI EN; không đổi semantics XLSX.
+FINDINGS: Trước sửa, `HEAD /index.html` không có Cache-Control; WebView2/CDP cũng nhận JavaScript không có chính sách cache. UI đã nhận nội dung mới khi tải lại; không tái hiện được nội dung JS cũ trong profile sạch, nên chưa xác nhận được lỗi cache cũ là lỗi thực tế. Bộ test trước sửa ghi nhận sai locale ở formula bar/TEXTJOIN, cách đọc kiểu số EN, thứ tự ngày và ngữ pháp cảnh báo; ảnh CDP sau đó phát hiện nhãn thống kê thanh trạng thái EN còn tiếng Việt.
+IMPLEMENTATION SUMMARY: `main.py` gửi `Cache-Control: no-cache` cho HTML/JS/CSS/JSON và cache dài 30 ngày cho font/ảnh lớn; test HEAD/304. Sheet định dạng số theo ngôn ngữ app, giữ văn bản có dấu phẩy ở EN, nhận ngày mm/dd ở EN, hiện công thức đúng locale, dùng nhãn trạng thái VI/EN và cảnh báo đúng số ít/số nhiều. Không đổi cách lưu XLSX.
+FILES CHANGED: main.py; tests/test_static_server_cache_headers.py; apps/sheet/formula-engine.js; apps/sheet/number-formatter.js; apps/sheet/sheet-app.js; apps/sheet/sheet-grid.js; platform/i18n/strings-vi.js; platform/i18n/strings-en.js; platform/shell/app-shell.js; tests/unit/sheet-locale-input.test.js; tests/unit/sheet-formula-bar-display.test.js; tests/unit/sheet-legacy-function-warning.test.js; tests/live/cdp/q69-sheet-locale.desktop.mjs; docs/EXCEL2016-FEATURE-CHECKLIST.md; docs/screenshots/q69-sheet-*.png.
+COMMITS: eb1ec7d1 `fix: revalidate embedded UI assets`; 02bc5123 `fix: honor sheet number locale in display and text`.
+COMMANDS RUN: `python -m pytest tests/test_static_server_cache_headers.py tests/test_static_server_backlog.py -q`; 180 focused JS unit checks; `node tests/run-tests.js`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; all three gen_*_checklist.py scripts; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "static_server or sheet_locale or legacy_function_warning"`; CDP on fresh unique local profiles; XLSX round-trip with `VNO_AUDIT_MARK_DIRTY=1`; DOCX batch round-trip and hidden Word page-count checks; `git diff --check`.
+BUILD RESULT: NOT RUN — no build-system change.
+TEST RESULTS: PASS — Node 3855/3855; npm test 3855/3855; targeted pytest 3 passed, 1211 deselected; focused JS 180/180; i18n VI=3226 / EN=3226 / missing=0; checklist verification 0 rows demoted (279 Word, 217 Sheet, 269 Slides). CDP PASS all locale/cache/warning checks. XLSX 27/27 saved, diffs=0, lint=clean; Excel COM BLOCKED and was not launched. DOCX PASS 8/8, Word page count unchanged, edit PASS.
+KNOWN FAILURES: Excel COM BLOCKED per task policy; no remaining test failures.
+RISKS: `no-cache` causes revalidation for small UI files; fresh-profile startup measured 1803 ms before and 1773 ms after (one run each; no observed slowdown). Font and large image resources retain a 30-day cache.
+DEPENDENCIES/BLOCKERS: None for source work. Excel COM reference validation remains blocked by instruction.
+CORE PATCH ID (if any): None.
+UI REVIEW: Viewed six screenshots at 1366x768: Sheet VI light (`q69-sheet-vi-light.png`) and dark (`q69-sheet-vi-dark.png`); Sheet EN light (`q69-sheet-en-light.png`) and dark (`q69-sheet-en-dark.png`); EN entered values/status (`q69-sheet-en-values.png`); EN singular warning (`q69-sheet-en-warning.png`). Text, ribbon, grid, warning and status are readable; no clipping, overlap, obscured controls, weak contrast or mixed-language status labels found.
+NEXT ACTION: Q69 implementation committed; Q69.DONE created after this handoff.
