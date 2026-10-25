@@ -7,6 +7,8 @@ protocol FormulaContext {
     func cellValue(sheet: String, ref: CellReference) -> CellValue
     /// Các giá trị KHÔNG rỗng trong vùng (theo thứ tự hàng rồi cột).
     func nonEmptyValues(sheet: String, range: CellRange) -> [CellValue]
+    /// Số serial ngày giờ Excel của "bây giờ" (đã quy về múi giờ của engine) — cho TODAY/NOW.
+    var nowSerial: Double { get }
 }
 
 enum FormulaErrors {
@@ -29,7 +31,7 @@ struct FormulaEvaluator {
 
     // MARK: Cốt lõi
 
-    private func eval(_ e: FormulaExpr) -> EvalValue {
+    func eval(_ e: FormulaExpr) -> EvalValue {
         switch e {
         case .number(let d): return .scalar(.number(d))
         case .string(let s): return .scalar(.string(s))
@@ -61,7 +63,7 @@ struct FormulaEvaluator {
     }
 
     /// Ép về giá trị đơn. Vùng 1 ô → giá trị ô; vùng nhiều ô → #VALUE! (chưa hỗ trợ giao ngầm/mảng).
-    private func scalar(_ v: EvalValue) -> CellValue {
+    func scalar(_ v: EvalValue) -> CellValue {
         switch v {
         case .scalar(let c): return c
         case .ref(let sh, let r):
@@ -73,7 +75,7 @@ struct FormulaEvaluator {
     // MARK: Ép kiểu
 
     /// nil nếu không đổi được sang số (chuỗi không phải số). Lỗi phải được xử lý trước.
-    private func number(_ v: CellValue) -> Double? {
+    func number(_ v: CellValue) -> Double? {
         switch v {
         case .empty: return 0
         case .number(let d): return d
@@ -86,7 +88,7 @@ struct FormulaEvaluator {
         }
     }
 
-    private func bool(_ v: CellValue) -> Bool? {
+    func bool(_ v: CellValue) -> Bool? {
         switch v {
         case .empty: return false
         case .bool(let b): return b
@@ -175,8 +177,9 @@ struct FormulaEvaluator {
 
     // MARK: Hàm
 
-    private func call(_ name: String, _ args: [FormulaExpr]) -> EvalValue {
-        .scalar(callScalar(name, args))
+    func call(_ name: String, _ args: [FormulaExpr]) -> EvalValue {
+        if let v = callReference(name, args) { return v }
+        return .scalar(callScalar(name, args))
     }
 
     private func callScalar(_ name: String, _ args: [FormulaExpr]) -> CellValue {
@@ -226,7 +229,7 @@ struct FormulaEvaluator {
         case "NA":
             return args.isEmpty ? .error(FormulaErrors.na) : bad
         default:
-            return .error(FormulaErrors.name)
+            return callSlice2(name, args) ?? .error(FormulaErrors.name)
         }
     }
 
@@ -244,7 +247,7 @@ struct FormulaEvaluator {
 
     /// Trải phẳng đối số: (giá trị, có phải đối số trực tiếp (không từ vùng/ô) không).
     /// Một tham chiếu ô đơn cũng coi như vùng (Excel bỏ qua chữ/logic trong ô tham chiếu).
-    private func flatten(_ args: [FormulaExpr]) -> [(CellValue, Bool)] {
+    func flatten(_ args: [FormulaExpr]) -> [(CellValue, Bool)] {
         var out: [(CellValue, Bool)] = []
         for a in args {
             switch eval(a) {

@@ -26,6 +26,11 @@ public final class FormulaEngine {
     private var inputs: [String: [CellReference: FormulaCellInput]] = [:]
     private var computed: [CellAddress: CellValue] = [:]  // giá trị của ô công thức
 
+    /// Đồng hồ cho TODAY()/NOW(); test có thể thay bằng giờ cố định.
+    public var clock: () -> Date = { Date() }
+    /// Múi giờ quy đổi "bây giờ" sang số serial ngày.
+    public var timeZone: TimeZone = .current
+
     public private(set) var circularCells: [CellAddress] = []
     /// Thứ tự đã tính ở lần `recalculate()` gần nhất (chỉ ô công thức không bị vòng).
     public private(set) var evaluationOrder: [CellAddress] = []
@@ -187,6 +192,9 @@ public final class FormulaEngine {
         let engine: FormulaEngine
         let current: String
 
+        var nowSerial: Double {
+            ExcelDate.serial(from: engine.clock(), timeZone: engine.timeZone)
+        }
         func resolveSheet(_ name: String?) -> String? {
             name == nil ? current : engine.canonicalName(name!)
         }
