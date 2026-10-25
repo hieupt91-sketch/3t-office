@@ -503,7 +503,9 @@ export const enStrings = {
   sheetFormulaEntry: {
     status: { enter: "Enter", edit: "Edit", point: "Point" },
     referenceHint: "Click or drag across cells to insert references; press F2 to switch between Edit and Point.",
-    formulaBarLabel: "Sheet Formula Bar"
+    formulaBarLabel: "Sheet Formula Bar",
+    legacyFunctionWarning: "Functions {functions} are available starting with version 2019/365; older spreadsheet app versions may show #NAME?.",
+    disableLegacyFunctionWarning: "Turn off warnings for this session"
   },
   sheetTableStyles: {
     catLight: "Light",

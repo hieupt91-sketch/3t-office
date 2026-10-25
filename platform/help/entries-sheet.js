@@ -1994,6 +1994,20 @@ export const SHEET_HELP_ENTRIES = [
       "Nhấn Ctrl+S hoặc Lưu thành để mã hóa tệp. Lần mở sau, nhập đúng mật khẩu trong hộp thoại.",
       "Ghi nhớ mật khẩu ở nơi an toàn; nội dung sổ tính đang được bảo vệ sẽ không tạo bản khôi phục tự động."
     ]
+  },
+  {
+    id: "sheet.formula.legacyFunctionWarning",
+    app: "sheet",
+    commandIds: [],
+    title: "Cảnh báo hàm mới và khả năng tương thích",
+    summary: "Khi nhập công thức có hàm chỉ xuất hiện ở phiên bản 2019/365, Sheet hiện một thông báo nhẹ để bạn biết tệp mở bằng ứng dụng bảng tính cũ có thể trả về #NAME?. Cảnh báo không chặn việc nhập công thức.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["hàm mới", "hàm đời mới", "tương thích", "#NAME?", "UNIQUE", "FILTER", "SORT", "SORTBY", "XLOOKUP", "XMATCH", "IFS", "SWITCH", "TEXTJOIN", "CONCAT", "MAXIFS", "MINIFS", "LET", "SEQUENCE", "RANDARRAY"],
+    steps: [
+      "Chọn một ô rồi nhập công thức vào ô hoặc thanh công thức phía trên lưới. Cảnh báo áp dụng cho UNIQUE, FILTER, SORT, SORTBY, XLOOKUP, XMATCH, IFS, SWITCH, TEXTJOIN, CONCAT, MAXIFS, MINIFS, LET, SEQUENCE và RANDARRAY; mọi hàm có tiền tố _xlfn. cũng được nhận diện.",
+      "Nhấn Enter để xác nhận. Nếu công thức có hàm thuộc danh sách, một thanh thông báo dưới thanh ruy-băng nêu tên hàm và cho biết ứng dụng bảng tính phiên bản cũ có thể hiện #NAME?. Thông báo không chặn tính toán trong Sheet; mỗi hàm chỉ được nhắc một lần trong phiên đang mở.",
+      "Nếu không cần nhắc nữa, bấm Tắt cảnh báo trong phiên này trên thanh thông báo. Tùy chọn chỉ áp dụng đến khi đóng phiên ứng dụng; lần mở sau cảnh báo tự bật lại. Tab Công thức > nhóm Hàm tính toán là nơi tra cứu danh sách và chèn các hàm đang có trong Sheet."
+    ]
   }
 ];
 

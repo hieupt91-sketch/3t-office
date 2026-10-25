@@ -73,6 +73,21 @@ export async function runHelpCoverageTests() {
     }
   });
 
+  await test("Q66: cảnh báo hàm đời mới có Help khớp tab Công thức và không thêm lệnh ribbon", () => {
+    const entry = SHEET_HELP_ENTRIES.find(item => item.id === "sheet.formula.legacyFunctionWarning");
+    const steps = entry?.steps || [];
+    const text = [entry?.title, entry?.summary, ...steps].join(" ");
+    if (!entry || entry.ribbon?.tabId !== "formulas" || entry.ribbon?.group !== "Hàm tính toán") {
+      throw new Error("Help cảnh báo hàm phải chỉ đúng tab Công thức > nhóm Hàm tính toán.");
+    }
+    if (entry.commandIds.length !== 0 || analysis.sheet.liveCount !== 217) {
+      throw new Error(`Cảnh báo tự động không thêm lệnh ribbon: commands=${entry.commandIds.length}, live=${analysis.sheet.liveCount}`);
+    }
+    if (!text.includes("XLOOKUP") || !text.includes("_xlfn.") || !text.includes("Tắt cảnh báo trong phiên này")) {
+      throw new Error("Help thiếu tên hàm, tiền tố _xlfn. hoặc bước tắt cảnh báo trong phiên.");
+    }
+  });
+
   await test("Help Coverage: 100% lệnh ribbon VN Slides có handler đều được phủ bài Help", () => {
     const slides = analysis.slides;
     const uncovered = slides.uncoveredCommands.filter((c) => !PENDING_BACKLOG_EXCEPTIONS.has(c.commandId));

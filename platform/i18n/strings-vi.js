@@ -502,7 +502,9 @@ export const viStrings = {
   sheetFormulaEntry: {
     status: { enter: "Nhập", edit: "Sửa", point: "Trỏ" },
     referenceHint: "Chọn hoặc kéo qua ô để chèn tham chiếu; F2 chuyển giữa Sửa và Trỏ.",
-    formulaBarLabel: "Thanh công thức Sheet"
+    formulaBarLabel: "Thanh công thức Sheet",
+    legacyFunctionWarning: "Các hàm {functions} chỉ có từ phiên bản 2019/365; ứng dụng bảng tính phiên bản cũ có thể hiện #NAME?.",
+    disableLegacyFunctionWarning: "Tắt cảnh báo trong phiên này"
   },
   sheetTableStyles: {
     catLight: "Sáng",

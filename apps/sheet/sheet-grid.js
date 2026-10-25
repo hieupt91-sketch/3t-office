@@ -13,6 +13,7 @@ import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
 import { bindNumericDialogValidation } from "../../platform/ui-kit/numeric-dialog-validation.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
+import { findLegacyUnsupportedFunctions } from "./legacy-formula-warning.js";
 import {
   FormulaEntrySession,
   cycleAbsoluteReference,
@@ -7851,6 +7852,7 @@ export class SheetGridController {
           item.style = { ...(item.style || {}), numberFormat: { category: "date", dateFormat: "dd/mm/yyyy" } };
         }
       }
+      if (historyOptions.userInput && !isComposingFormula) this._warnForLegacyFormula(item.formula);
     } else {
       item.formula = "";
       const normalized = this._normalizeCellInput(val, item.style, escapedText);
@@ -8005,6 +8007,28 @@ export class SheetGridController {
       value: NumberFormatter.normalizeInputForFormat(value, nextStyle.numberFormat),
       style: nextStyle
     };
+  }
+
+  _warnForLegacyFormula(formula) {
+    if (this._legacyFunctionWarningsDisabled) return;
+    const shell = this.adapter?.shell || this.options.shell;
+    if (typeof shell?.showNotification !== "function") return;
+    const warned = this._warnedLegacyFunctions ||= new Set();
+    const functions = findLegacyUnsupportedFunctions(formula).filter(name => !warned.has(name));
+    if (!functions.length) return;
+    for (const name of functions) warned.add(name);
+    shell.showNotification({
+      type: "warning",
+      message: t("sheetFormulaEntry.legacyFunctionWarning", { functions: functions.join(", ") }),
+      actions: [{
+        label: t("sheetFormulaEntry.disableLegacyFunctionWarning"),
+        ariaLabel: t("sheetFormulaEntry.disableLegacyFunctionWarning"),
+        onClick: () => {
+          this._legacyFunctionWarningsDisabled = true;
+          shell.clearNotification?.();
+        }
+      }]
+    });
   }
 
   _buildFormulaDependencyGraph() {
