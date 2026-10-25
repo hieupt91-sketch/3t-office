@@ -1934,7 +1934,7 @@ export class SheetGridController {
         if (itm.formula) {
           text = String(itm.formula);
         } else if (itm.style?.numberFormat && typeof itm.val === "number") {
-          text = NumberFormatter.formatValue(itm.val, itm.style.numberFormat, this.options.numberLocale)?.text || String(itm.val);
+          text = NumberFormatter.formatValue(itm.val, itm.style.numberFormat, this.options?.numberLocale)?.text || String(itm.val);
         } else {
           text = String(itm.val ?? "");
         }
@@ -2388,7 +2388,7 @@ export class SheetGridController {
     const category = data.style?.numberFormat?.category;
     if (typeof val !== "number" || !Number.isFinite(val)) return val ?? "";
     if (category === "date") {
-      const text = NumberFormatter.formatValue(val, { category: "date", dateFormat: "dd/mm/yyyy" }, this.options.numberLocale).text;
+      const text = NumberFormatter.formatValue(val, { category: "date", dateFormat: "dd/mm/yyyy" }, this.options?.numberLocale).text;
       if (text && !/[#]/.test(text)) return text;
     } else if (category === "time") {
       const day = ((val % 1) + 1) % 1;
@@ -2401,7 +2401,7 @@ export class SheetGridController {
     } else if (category === "percentage") {
       return `${Number((val * 100).toPrecision(12))}%`;
     }
-    return NumberFormatter.formatGeneralNumber(val, this.options.numberLocale);
+    return val;
   }
 
   _validateDataValidationCommit(col, row, value, originalValue) {
@@ -7963,8 +7963,9 @@ export class SheetGridController {
     // value and display format at the point where literal cell edits are stored.
     const hasExplicitCurrency = typeof value === "string" && /(?:₫|VN(?:D|Đ))/iu.test(value);
     const supportsLocaleNumberInput = !category || ["general", "number", "accounting", "currency", "percentage"].includes(category);
-    if (typeof value === "string" && supportsLocaleNumberInput) {
-      const inferred = NumberFormatter.inferUserInput(value, nextStyle.numberFormat, this.options.numberLocale || {
+    if (typeof value === "string" && supportsLocaleNumberInput
+      && !NumberFormatter.isDateInput(value) && !NumberFormatter.isTimeInput(value)) {
+      const inferred = NumberFormatter.inferUserInput(value, nextStyle.numberFormat, this.options?.numberLocale || {
         decimalSeparator: ",",
         thousandsSeparator: "."
       });
@@ -22670,7 +22671,7 @@ export class SheetGridController {
       td.innerHTML = spanHtml;
       if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
     } else if (itm.style?.numberFormat && typeof itm.val === "number") {
-      const formatted = NumberFormatter.formatValue(itm.val, itm.style.numberFormat, this.options.numberLocale);
+      const formatted = NumberFormatter.formatValue(itm.val, itm.style.numberFormat, this.options?.numberLocale);
       if (formatted.isAccounting) {
         td.innerHTML = `<span class="vno-cell-accounting-symbol" style="float:left;user-select:none;color:inherit;">${this._escapeHtml(formatted.symbol || "")}</span><span class="vno-cell-accounting-num" style="float:right;color:inherit;">${this._escapeHtml(formatted.numberText)}</span>`;
         td.style.textAlign = itm.style?.textAlign || "right";
@@ -22683,7 +22684,7 @@ export class SheetGridController {
         else if (typeof itm.val === "number") td.style.textAlign = "right";
       }
     } else {
-      let text = typeof itm.val === "number" ? NumberFormatter.formatGeneralNumber(itm.val, this.options.numberLocale) : (itm.val ?? "");
+      let text = typeof itm.val === "number" ? NumberFormatter.formatGeneralNumber(itm.val, this.options?.numberLocale) : (itm.val ?? "");
       // S29a: ô không bọc chữ dùng white-space: pre (giữ dấu cách liên tiếp) nên phải tự bỏ xuống dòng như Excel
       // (Excel không hiện Alt+Enter khi Wrap Text tắt).
       if (!isWrap && typeof text === "string" && text.includes("\n")) text = text.replace(/\r?\n/g, "");

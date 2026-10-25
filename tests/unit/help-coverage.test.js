@@ -80,8 +80,8 @@ export async function runHelpCoverageTests() {
     if (!entry || entry.ribbon?.tabId !== "formulas" || entry.ribbon?.group !== "Hàm tính toán") {
       throw new Error("Help cảnh báo hàm phải chỉ đúng tab Công thức > nhóm Hàm tính toán.");
     }
-    if (entry.commandIds.length !== 0 || analysis.sheet.liveCount !== 217) {
-      throw new Error(`Cảnh báo tự động không thêm lệnh ribbon: commands=${entry.commandIds.length}, live=${analysis.sheet.liveCount}`);
+    if (!entry.commandIds.includes("sheet.formula.insertFunction") || analysis.sheet.liveCount !== 217) {
+      throw new Error(`Help liên kết lệnh Chèn hàm đã có mà không tăng số lệnh ribbon: commands=${entry.commandIds.length}, live=${analysis.sheet.liveCount}`);
     }
     if (!text.includes("XLOOKUP") || !text.includes("_xlfn.") || !text.includes("Tắt cảnh báo trong phiên này")) {
       throw new Error("Help thiếu tên hàm, tiền tố _xlfn. hoặc bước tắt cảnh báo trong phiên.");

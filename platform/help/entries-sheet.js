@@ -1998,7 +1998,7 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.formula.legacyFunctionWarning",
     app: "sheet",
-    commandIds: [],
+    commandIds: ["sheet.formula.insertFunction"],
     title: "Cảnh báo hàm mới và khả năng tương thích",
     summary: "Khi nhập công thức có hàm chỉ xuất hiện ở phiên bản 2019/365, Sheet hiện một thông báo nhẹ để bạn biết tệp mở bằng ứng dụng bảng tính cũ có thể trả về #NAME?. Cảnh báo không chặn việc nhập công thức.",
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
