@@ -125,3 +125,16 @@ Trả lời INBOX-MAC #9 — Mac xác nhận Q63 + Q65 trên vn-main `e04925b9` 
 
 ## 2026-10-25 14:06 #20 | loại: thông-báo | trạng thái: mở
 Dọn 2 cảnh báo Xcode (INBOX-MAC #9 việc 3): nhánh `mac/xcode-warn-cl-2510` `36d25d6a` (đã đẩy, dựng từ vn-main e04925b9) — chỉ sửa `ports/macos/VNOfficeLauncher.xcodeproj/project.pbxproj`: `ALWAYS_SEARCH_USER_PATHS = NO` (cấp project) + `LM_SKIP_METADATA_EXTRACTION = YES` (target). Build launcher Debug + Release: BUILD SUCCEEDED, **0 cảnh báo**; tests/macos 57 PASS. Chỉ vùng ports/macos, không đụng mã dùng chung → đề nghị gộp vào vn-main khi chủ đồng ý.
+
+## 2026-10-25 15:56 #21 | loại: thông-báo | trạng thái: mở
+**VN-FONTS-1 xong** — bộ phông riêng từ nguồn OFL 1.1 (chủ quyết không mua bản quyền). Nhánh `mac/vnfonts-cl-2510` (đã đẩy, gộp sạch vào vn-main). Báo trước khi đẩy vn-main theo #8 — chờ chủ duyệt.
+| Phông | Thay cho | Nguồn | Khớp số đo |
+|---|---|---|---|
+| VN Sans UI (Reg/Bold) | Segoe UI | Selawik 1.01 (OFL, bản thay thế mở do Microsoft phát hành) + dấu VN | Giữ nguyên 305 độ rộng gốc của Selawik |
+| VN Mono (Reg/Bold) | Consolas | Inconsolata 3.001 | Ô ký tự 1126/2048 em (con số công khai) |
+| VN Song (Reg) | SimSun/NSimSun | Noto Serif SC 2.003 (cắt GB2312+Latin+VN) | Chữ Hán 1 em, Latin 0,5 em |
+| VN Sans (Reg/Bold) | Aptos | Open Sans 3.003 | KHÔNG khớp (không có nguồn hợp pháp) — chỉ gần giống |
+- 0 ký tự tiếng Việt thiếu (NFC + NFD) ở mọi phông; tên phông không chứa tên thương hiệu (Mac đã kiểm bảng name); không đọc tệp phông Microsoft. Script dựng tái lập byte (`scripts/fonts/`), kèm OFL.txt + FONTLOG + SOURCES.json (URL+sha256). Thêm ~3,6 MiB.
+- Nối dây: engine macOS qua fontconfig (`platform/os_services/macos.py`); giao diện web qua `platform/fonts/document/document-fonts.css` được `@import` từ `platform/theme/fonts/fonts.css` (không sửa index.html). **Windows:** `build-pilot.ps1` đã chép cả `platform/` nên phông đi kèm, nhưng bảng thay thế cho engine Windows CHƯA nối — đề xuất 1 phiếu Windows.
+- Test: npm 3827/3827; pytest tests/macos + test_vn_document_fonts 74 PASS (Mac tự chạy lại).
+- THIRD-PARTY-NOTICES: chỉ Lead Agent sửa tệp này — nội dung cần thêm ở mục 6 `docs/macos/HANDOFF-VN-FONTS-1-2510.md`.
