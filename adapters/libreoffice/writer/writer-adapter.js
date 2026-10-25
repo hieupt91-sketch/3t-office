@@ -73,7 +73,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractOoxmlEndnoteText, extractOoxmlFootnoteText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 import { showChangeCaseDialog } from "../../../apps/writer/change-case-dialog.js";
 import { applyChangeCaseToSelection } from "../../../platform/text/change-case.js";
@@ -18848,7 +18848,10 @@ export class WriterAdapter {
       } else {
         this.isFinal = false;
       }
-      this._wordCountSourceText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
+      const mainText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
+      const footnoteText = extractOoxmlFootnoteText(result.ooxmlFootnotesXml);
+      const endnoteText = extractOoxmlEndnoteText(result.ooxmlEndnotesXml);
+      this._wordCountSourceText = [mainText, footnoteText, endnoteText].filter(value => typeof value === "string" && value.trim()).join("\n");
       this._wordCountSourceListItems = this._ooxmlListParagraphs(result.ooxmlDocumentXml, result.ooxmlStylesXml, result.ooxmlNumberingXml);
       this.isNewApplicationDocument = false;
       this.bodyDom?.classList?.remove("vno-new-application-document");

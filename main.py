@@ -5175,6 +5175,8 @@ class VnOfficeApi:
                             "ooxmlCommentsExtendedXml": _read_docx_comments_extended_xml(convert_src_path),
                             "ooxmlStylesXml": _read_docx_zip_entry(convert_src_path, "word/styles.xml"),
                             "ooxmlNumberingXml": _read_docx_zip_entry(convert_src_path, "word/numbering.xml"),
+                            "ooxmlFootnotesXml": _read_docx_zip_entry(convert_src_path, "word/footnotes.xml"),
+                            "ooxmlEndnotesXml": _read_docx_zip_entry(convert_src_path, "word/endnotes.xml"),
                             "ooxmlSettingsXml": _read_docx_zip_entry(convert_src_path, "word/settings.xml"),
                             "ooxmlCorePropertiesXml": _read_docx_zip_entry(convert_src_path, "docProps/core.xml"),
                         }
@@ -5328,6 +5330,10 @@ class VnOfficeApi:
                 payload["ooxmlHeaders"] = writer_ooxml_metadata.get("ooxmlHeaders", {})
                 payload["ooxmlFooters"] = writer_ooxml_metadata.get("ooxmlFooters", {})
                 payload["ooxmlRels"] = writer_ooxml_metadata.get("ooxmlRels", {})
+                if writer_ooxml_metadata.get("ooxmlFootnotesXml"):
+                    payload["ooxmlFootnotesXml"] = writer_ooxml_metadata["ooxmlFootnotesXml"]
+                if writer_ooxml_metadata.get("ooxmlEndnotesXml"):
+                    payload["ooxmlEndnotesXml"] = writer_ooxml_metadata["ooxmlEndnotesXml"]
                 if writer_ooxml_metadata.get("ooxmlSettingsXml"):
                     payload["ooxmlSettingsXml"] = writer_ooxml_metadata["ooxmlSettingsXml"]
             else:
@@ -5336,6 +5342,12 @@ class VnOfficeApi:
                 payload["ooxmlHeaders"] = all_hdrs
                 payload["ooxmlFooters"] = all_ftrs
                 payload["ooxmlRels"] = all_rels
+                footnotes_xml = _read_docx_zip_entry(src_path, "word/footnotes.xml")
+                if footnotes_xml:
+                    payload["ooxmlFootnotesXml"] = footnotes_xml
+                endnotes_xml = _read_docx_zip_entry(src_path, "word/endnotes.xml")
+                if endnotes_xml:
+                    payload["ooxmlEndnotesXml"] = endnotes_xml
                 settings_xml = _read_docx_zip_entry(src_path, "word/settings.xml")
                 if settings_xml:
                     payload["ooxmlSettingsXml"] = settings_xml

@@ -3,7 +3,7 @@
  */
 
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, countOoxmlWhitespaceOnlyParagraphCharacters, extractOoxmlDocumentText, extractWordCountText } from "../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, countOoxmlWhitespaceOnlyParagraphCharacters, extractOoxmlDocumentText, extractOoxmlEndnoteText, extractOoxmlFootnoteText, extractWordCountText } from "../../apps/writer/word-count.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
@@ -148,6 +148,25 @@ export async function runWriterWordCountTests() {
     const stats = countDocumentStats(text, { characterText: text });
     if (text !== "Alpha\u2028Beta\n" || stats.words !== 2 || stats.charactersWithSpaces !== 9 || stats.charactersNoSpaces !== 9) {
       throw new Error(`Page break word boundary is wrong: ${JSON.stringify({ text, stats })}`);
+    }
+  });
+
+  await test("Word Count: cộng nội dung chú thích chân trang OOXML, bỏ dấu phân cách", () => {
+    const xml = '<w:footnotes><w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:t>separator</w:t></w:r></w:p></w:footnote>'
+      + '<w:footnote w:id="1"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> ghi chú gồm bốn từ</w:t></w:r></w:p></w:footnote></w:footnotes>';
+    const text = extractOoxmlFootnoteText(xml);
+    const stats = countDocumentStats(text);
+    if (text !== "ghi chú gồm bốn từ" || stats.words !== 5) {
+      throw new Error(`Sai văn bản hoặc số từ chú thích: ${JSON.stringify({text,stats})}`);
+    }
+  });
+
+  await test("Word Count: cộng nội dung chú thích cuối trang OOXML, bỏ dấu phân cách", () => {
+    const xml = '<w:endnotes><w:endnote w:type="separator" w:id="-1"><w:p><w:r><w:t>separator</w:t></w:r></w:p></w:endnote>'
+      + '<w:endnote w:id="1"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t>ghi chú cuối trang</w:t></w:r></w:p></w:endnote></w:endnotes>';
+    const text = extractOoxmlEndnoteText(xml);
+    if (text !== "ghi chú cuối trang" || countDocumentStats(text).words !== 4) {
+      throw new Error(`Sai văn bản hoặc số từ endnote: ${JSON.stringify({text,stats:countDocumentStats(text)})}`);
     }
   });
 

@@ -214,6 +214,29 @@ export function extractOoxmlDocumentText(ooxmlDocumentXml) {
   return text;
 }
 
+function extractOoxmlNoteText(ooxmlNotesXml, elementName) {
+  const xml = String(ooxmlNotesXml || "");
+  if (!xml) return "";
+  const notes = [];
+  const noteRegex = new RegExp(`<w:${elementName}\\b([^>]*)>([\\s\\S]*?)<\\/w:${elementName}>`, "gi");
+  for (const match of xml.matchAll(noteRegex)) {
+    if (/\bw:type=["'](?:separator|continuationSeparator)["']/i.test(match[1])) continue;
+    const text = extractOoxmlDocumentText(`<w:document><w:body>${match[2]}</w:body></w:document>`);
+    if (text && text.trim()) notes.push(text.trim());
+  }
+  return notes.join("\n");
+}
+
+/** Extract authored Word footnote bodies, excluding separator and continuation markers. */
+export function extractOoxmlFootnoteText(ooxmlFootnotesXml) {
+  return extractOoxmlNoteText(ooxmlFootnotesXml, "footnote");
+}
+
+/** Extract authored Word endnote bodies, excluding separator and continuation markers. */
+export function extractOoxmlEndnoteText(ooxmlEndnotesXml) {
+  return extractOoxmlNoteText(ooxmlEndnotesXml, "endnote");
+}
+
 /**
  * Đếm đoạn văn có nội dung từ các khối DOM trong thân tài liệu.
  * @param {ParentNode | null | undefined} bodyEl
