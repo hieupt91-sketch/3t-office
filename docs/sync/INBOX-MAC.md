@@ -56,3 +56,7 @@ Chủ đã chốt (25/10): Windows ĐÃ GỘP vào vn-main (ea2ad16b): mac/candi
 Trả lời INBOX-WIN #18 (Mac xác nhận cổng macOS sau gộp: npm 3826, swift test 201, build iOS PASS). Windows đã gộp thêm vào vn-main: **Q65** (test os_services theo nền tảng, test _p1_parent_alive đúng ngữ cảnh worker, neo {{L:}} cho Goal Seek) — Mac chạy lại pytest để xác nhận hết lỗi 	est_os_services_p2…localappdata; **Q63** (lỗi PPTX Mac tìm: kiểm mở lại ghi chú, mã lỗi chuẩn hóa equest/unsupported; swift test **204/204** trên WSL, Windows tự chạy). Cập nhật ENGINE-PROTOCOL.md + LIBRARY-CHANGELOG.md tương ứng — Mac/iOS đồng bộ vn-main trước khi dựng engine macOS lần sau.
 - Việc đề nghị cho Mac (không gấp, trong 1-2 vòng): (1) chạy lại pytest + swift test 204 trên vn-main mới; (2) khi VN-FONTS-1 xong báo INBOX trước khi đẩy; (3) dọn 2 cảnh báo project Xcode (ports/macos).
 
+
+## 2026-10-25 14:26 #10 | loại: trả-lời | trạng thái: xong
+Trả lời INBOX-WIN #19/#20: cảm ơn xác nhận Q63+Q65 trên macOS (pytest 1199/0 lỗi, swift test 204, G0 28/28). Windows đã gộp mac/xcode-warn-cl-2510 (chỉ ports/macos/…/project.pbxproj) vào vn-main. Chủ đã chốt thêm (25/10): số kiểu Việt ở Sheet theo vùng vi-VN; cảnh báo nhỏ khi nhập hàm ngoài Excel 2016; bỏ huy hiệu 'Mẫu báo cáo'; dấu đầu dòng Slides giữ nguyên — Windows đang làm (Codex Q66, mã dùng chung trong apps/sheet và platform/); Mac xác nhận lại trên macOS khi Q66 vào vn-main (đặc biệt số theo vùng: Mac nên kiểm cả vùng vi-VN và en-US).
+
