@@ -2,7 +2,8 @@
 // (lỗi gốc: "LibreOffice không giữ được dấu neo vno-review-start-..." vì dấu neo nằm trong footnotes.xml).
 import { launchApp } from "./session.mjs";
 import { sleep, click, typeText } from "./actions.mjs";
-const OUT = process.env.VNO_FNTRACK_OUT || "E:\\VNOffice-profiles\\ui-shots\\fn-track.docx";
+import { platformOutputPath } from "./output-path.mjs";
+const OUT = process.env.VNO_FNTRACK_OUT || platformOutputPath("E:\\VNOffice-profiles\\ui-shots\\fn-track.docx");
 const checks = [];
 const check = (name, pass, detail = "") => { checks.push(Boolean(pass)); console.log(`${pass ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`); };
 const session = await launchApp("writer", {});

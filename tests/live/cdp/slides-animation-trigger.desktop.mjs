@@ -2,8 +2,9 @@
 // Đọc lại bằng scripts/audit-0610/ppt_trigger_readback.ps1 (PowerPoint thật).
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_TRIGGER_OUT || "E:\\VNOffice-profiles\\claude-multianim\\trigger_ui.pptx";
+const OUT = process.env.VNO_TRIGGER_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-multianim\\trigger_ui.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push(Boolean(pass));

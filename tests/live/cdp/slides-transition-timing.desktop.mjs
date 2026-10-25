@@ -2,9 +2,10 @@
 // hoàn tác, lưu bằng đường lưu thật; PowerPoint 2016 đọc lại ở scripts/audit-0610/ppt_transition_readback.ps1.
 import { launchApp } from "./session.mjs";
 import { click, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const SRC = process.env.VNO_TRANS_SRC || "E:\\VNOffice-profiles\\claude-slidetrans\\trans_src.pptx";
-const OUT = process.env.VNO_TRANS_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\trans_ui_saved.pptx";
+const OUT = process.env.VNO_TRANS_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\trans_ui_saved.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push({ name, pass: Boolean(pass), detail });

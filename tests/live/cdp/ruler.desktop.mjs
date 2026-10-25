@@ -5,8 +5,9 @@ import { launchApp } from "./session.mjs";
 import { press } from "./actions.mjs";
 import { sleep } from "./client.mjs";
 import { markerPositions, stateForMarkerPosition } from "../../../apps/writer/writer-ruler-controller.js";
+import { platformOutputPath } from "./output-path.mjs";
 
-const profile = "E:\\VNOffice-profiles\\codex-ruler";
+const profile = platformOutputPath("E:\\VNOffice-profiles\\codex-ruler", { directory: true });
 const output = path.join(profile, "ruler-roundtrip.docx");
 const results = [];
 const near = (actual, expected, tolerance = 0.7) => Math.abs(actual - expected) <= tolerance;

@@ -1,6 +1,7 @@
 // Q8: UI proof for PPTX-safe transition presets.
 import { launchApp } from "./session.mjs";
 import { click, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const checks = [];
 const check = (name, pass, detail = "") => { checks.push({ name, pass: Boolean(pass) }); console.log(`${pass ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`); };
@@ -20,7 +21,7 @@ try {
   }
   check("Không hiển thị Lật vì PPTX không lưu được hiệu ứng này", !options.some(o => o.value === "flip"), JSON.stringify(options));
   await click(cdp, "#vno-trans-cancel");
-  const out = process.env.VNO_TRANSITIONS_MORE_OUT || "E:\\VNOffice-profiles\\codex-q8\\transitions-more.pptx";
+  const out = process.env.VNO_TRANSITIONS_MORE_OUT || platformOutputPath("E:\\VNOffice-profiles\\codex-q8\\transitions-more.pptx");
   await click(cdp, "[data-dropdown-id=\"slides.transition.gallery\"]");
   const gallery = JSON.parse(await ev(`JSON.stringify([...document.querySelectorAll(".vno-ribbon-dropdown-item")].map(e => (e.getAttribute("title") || e.textContent).trim()))`));
   for (const label of ["Đẩy", "Quét", "Chia", "Che phủ"]) check(`Gallery có hiệu ứng ${label}`, gallery.some(item => item.includes(label)), JSON.stringify(gallery));

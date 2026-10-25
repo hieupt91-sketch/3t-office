@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import { launchApp, repoRoot } from "./session.mjs";
 import { click, press, typeText } from "./actions.mjs";
 import { sleep } from "./client.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const results = [];
 const check = (name, ok, detail = "") => {
@@ -27,7 +28,7 @@ async function takeScreenshot(cdp, filename) {
   }
 }
 
-const LOCALAPPDATA_DIR = "E:\\VNOffice-profiles\\agy-formula";
+const LOCALAPPDATA_DIR = platformOutputPath("E:\\VNOffice-profiles\\agy-formula", { directory: true });
 const session = await launchApp("sheet", {
   localAppData: LOCALAPPDATA_DIR,
   readyTimeoutMilliseconds: 60000

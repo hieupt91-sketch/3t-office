@@ -1,10 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { launchApp } from "./session.mjs";
 import { mouseClick, mouseRightClick, press } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const template = process.env.PPT_TEMPLATE || "E:\\VNOffice-profiles\\claude-pptpar\\template.pptx";
-const output = process.env.PPT_OUTPUT || "E:\\VNOffice-profiles\\claude-pptpar\\app_slideMenu.pptx";
+const output = process.env.PPT_OUTPUT || platformOutputPath("E:\\VNOffice-profiles\\claude-pptpar\\app_slideMenu.pptx");
 const screenshotDir = process.env.SCREENSHOT_DIR || "";
 const session = await launchApp("slides", { filePath: template, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
 const ev = expression => session.cdp.evaluate(expression, { awaitPromise: true, timeoutMilliseconds: 60000 });

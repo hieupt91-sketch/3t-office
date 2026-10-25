@@ -1,7 +1,7 @@
 // Writer: gõ bảng bằng Tab; Tab ở ô cuối thêm hàng mới — hàng mới cao bằng hàng cũ và giữ canh lề của hàng trên.
 // Lỗi gốc (phát hiện khi soạn thử): ô hàng mới bọc <p> nên cao hơn (55 so với 47 px) và mất canh phải của cột số.
 import { launchApp } from "./session.mjs";
-import { sleep, click, typeText, press } from "./actions.mjs";
+import { sleep, click, typeText, press, pressShortcut } from "./actions.mjs";
 
 const checks = [];
 const check = (name, pass, detail = "") => { checks.push(Boolean(pass)); console.log(`${pass ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`); };
@@ -11,7 +11,12 @@ try {
   const ev = (e) => cdp.evaluate(e, { awaitPromise: true, timeoutMilliseconds: 60000 });
   await sleep(2500);
   await click(cdp, ".vno-writer-body");
-  await ev(`window.globalCommandBus.execute("writer.table.insert")`);
+  // Chèn bảng 4 cột × 3 hàng như người dùng: Chèn → Bảng → bấm ô 4×3 trong lưới chọn cỡ (56f07440).
+  await click(cdp, "#vno-ribbon-tab-insert");
+  await click(cdp, '[data-command-id="writer.table.insert"]');
+  await cdp.waitFor("!!document.querySelector('[data-table-size-picker] [data-table-size=\"4x3\"]')", { timeoutMilliseconds: 5000 });
+  await click(cdp, '[data-table-size-picker] [data-table-size="4x3"]');
+  await cdp.waitFor("!!document.querySelector('.vno-writer-body table')", { timeoutMilliseconds: 5000 });
   await sleep(600);
   const rowsBefore = await ev(`document.querySelector('.vno-writer-body table').rows.length`);
   await click(cdp, ".vno-writer-body table td");
@@ -21,7 +26,7 @@ try {
   // Cột 2 canh phải ở hàng cuối, rồi Tab ở ô cuối để thêm hàng
   await press(cdp, "ArrowLeft"); // vẫn trong ô cuối
   await click(cdp, `.vno-writer-body table tr:last-child td:nth-child(2)`);
-  await press(cdp, "r", { ctrl: true });
+  await pressShortcut(cdp, "Ctrl+R", { commandId: "writer.para.alignRight" });
   await click(cdp, `.vno-writer-body table tr:last-child td:last-child`);
   await press(cdp, "End");
   await press(cdp, "Tab");

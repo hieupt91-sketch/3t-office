@@ -1,4 +1,5 @@
 import { sleep } from "./client.mjs";
+import { macCombosForBinding, normalizeMacCombo, normalizeWindowsCombo } from "../../../platform/commands/keymap-macos.js";
 export { sleep };
 
 const modifierBits = { alt: 1, ctrl: 2, meta: 4, shift: 8 };
@@ -61,6 +62,38 @@ export async function press(cdp, key, modifiers = {}, settleMilliseconds = 250, 
     windowsVirtualKeyCode: info.keyCode, modifiers: mask,
   }, timeoutMilliseconds);
   if (settleMilliseconds > 0) await sleep(settleMilliseconds);
+}
+
+const CDP_KEY_NAMES = {
+  ENTER: "Enter", TAB: "Tab", ESCAPE: "Escape", BACKSPACE: "Backspace", DELETE: "Delete", SPACE: " ",
+  UP: "ArrowUp", DOWN: "ArrowDown", LEFT: "ArrowLeft", RIGHT: "ArrowRight",
+  HOME: "Home", END: "End", PAGEUP: "PageUp", PAGEDOWN: "PageDown",
+};
+const COMBO_MODIFIERS = { CMD: "meta", CTRL: "ctrl", ALT: "alt", SHIFT: "shift" };
+
+/**
+ * Tổ hợp phím theo nền tảng của máy chạy test, tra từ bảng phím dùng chung (`keymap-macos.js`):
+ * viết tổ hợp kiểu Windows ("Ctrl+Shift+L") như trong command definitions; trên macOS trả tổ hợp
+ * Mac của đúng lệnh đó (Cmd+Shift+L, Cmd+Enter, Control+Shift+M cho Tăng thụt lề…), nơi khác giữ nguyên.
+ * @returns {{ key: string, modifiers: Record<string, boolean>, combo: string }}
+ */
+export function platformShortcut(windowsCombo, { commandId = null, platform = process.platform } = {}) {
+  const combo = platform === "darwin"
+    ? normalizeMacCombo(macCombosForBinding(windowsCombo, commandId)[0])
+    : normalizeWindowsCombo(windowsCombo);
+  const plusKey = combo.endsWith("++");
+  const parts = (plusKey ? combo.slice(0, -1) : combo).split("+").filter(Boolean);
+  const rawKey = plusKey ? "+" : parts.pop();
+  const modifiers = {};
+  for (const part of parts) if (COMBO_MODIFIERS[part]) modifiers[COMBO_MODIFIERS[part]] = true;
+  const key = CDP_KEY_NAMES[rawKey] || (/^[A-Z]$/.test(rawKey) ? rawKey.toLowerCase() : rawKey);
+  return { key, modifiers, combo };
+}
+
+/** Bấm một phím tắt ứng dụng bằng tổ hợp đúng nền tảng (xem `platformShortcut`). */
+export async function pressShortcut(cdp, windowsCombo, { commandId = null, settleMilliseconds = 250 } = {}) {
+  const { key, modifiers } = platformShortcut(windowsCombo, { commandId });
+  await press(cdp, key, modifiers, settleMilliseconds);
 }
 
 export async function typeText(cdp, value, delayMilliseconds = 50) {

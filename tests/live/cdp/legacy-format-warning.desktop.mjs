@@ -2,9 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { launchApp } from "./session.mjs";
 import { sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const corpus = process.env.VNO_Q52_LEGACY_CORPUS || "E:\\VN OFice\\file test\\lan-legacy";
-const artifacts = process.env.VNO_Q52_ARTIFACTS || "E:\\VNOffice-briefs\\logs\\Q52-work\\ui";
+const artifacts = process.env.VNO_Q52_ARTIFACTS || platformOutputPath("E:\\VNOffice-briefs\\logs\\Q52-work\\ui", { directory: true });
 await fs.mkdir(artifacts, { recursive: true });
 
 const checks = [];

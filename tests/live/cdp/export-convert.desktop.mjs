@@ -3,6 +3,7 @@
 
 import { launchApp } from "./session.mjs";
 import { sleep } from "./client.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
 const results = [];
 const check = (name, ok, detail = "") => {
@@ -10,7 +11,7 @@ const check = (name, ok, detail = "") => {
   console.log(`${ok ? "PASS" : "FAIL"} | ${name}${detail ? " | " + detail : ""}`);
 };
 
-const localAppData = process.env.VNO_CDP_LOCALAPPDATA || "E:\\VNOffice-profiles\\agy-export\\localappdata";
+const localAppData = process.env.VNO_CDP_LOCALAPPDATA || platformOutputPath("E:\\VNOffice-profiles\\agy-export\\localappdata", { directory: true });
 
 async function testAppExport(appKind, expectedFormats) {
   console.log(`\n=== BẮT ĐẦU KIỂM THỬ CDP: ${appKind.toUpperCase()} ===`);

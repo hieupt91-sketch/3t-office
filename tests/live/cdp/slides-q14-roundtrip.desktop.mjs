@@ -3,8 +3,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { launchApp } from "./session.mjs";
 import { click } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const outDir = process.env.VNO_Q14_OUT || "E:\\VNOffice-profiles\\q14-slides-final";
+const outDir = process.env.VNO_Q14_OUT || platformOutputPath("E:\\VNOffice-profiles\\q14-slides-final", { directory: true });
 const pptx = path.join(outDir, "q14-five-slides.pptx");
 const pdf = path.join(outDir, "q14-five-slides.pdf");
 const png = path.join(outDir, "q14-real-image.png");

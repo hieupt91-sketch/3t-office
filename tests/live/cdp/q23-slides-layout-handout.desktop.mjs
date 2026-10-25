@@ -2,8 +2,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { launchApp } from "./session.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const outDir = process.env.VNO_Q23_OUT || "E:\\VNOffice-profiles\\q23-slides-layout-handout";
+const outDir = process.env.VNO_Q23_OUT || platformOutputPath("E:\\VNOffice-profiles\\q23-slides-layout-handout", { directory: true });
 const pptx = path.join(outDir, "q23-layouts.pptx");
 const localAppData = process.env.VNO_CDP_LOCALAPPDATA;
 const reopenLocalAppData = process.env.VNO_Q23_REOPEN_LOCALAPPDATA;

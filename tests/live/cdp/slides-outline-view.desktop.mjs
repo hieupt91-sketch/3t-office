@@ -1,8 +1,9 @@
 // Slides: Chế độ xem > Dàn bài — mở, sửa tiêu đề/nội dung, Ctrl+Enter thêm trang, hoàn tác, Esc đóng, lưu PPTX.
 import { launchApp } from "./session.mjs";
 import { click, press, typeText, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_OUTLINE_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\outline.pptx";
+const OUT = process.env.VNO_OUTLINE_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\outline.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push({ name, pass: Boolean(pass) });

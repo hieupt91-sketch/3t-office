@@ -2,8 +2,9 @@
 // hoàn tác, và lưu DOCX (đọc lại bằng Word thật ở scripts/audit-0610/word_font_dialog_readback.ps1).
 import { launchApp } from "./session.mjs";
 import { click, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_FONTDLG_OUT || "E:\\VNOffice-profiles\\claude-wordpar\\fontdlg_effects.docx";
+const OUT = process.env.VNO_FONTDLG_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-wordpar\\fontdlg_effects.docx");
 const TEMPLATE = process.env.VNO_FONTDLG_TEMPLATE || "E:\\VNOffice-profiles\\claude-wordpar\\template.docx";
 const checks = [];
 const check = (name, pass, detail = "") => {

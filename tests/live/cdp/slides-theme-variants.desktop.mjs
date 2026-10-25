@@ -1,8 +1,9 @@
 // Slides: Thiết kế > Biến thể (Màu chủ đề / Phông chủ đề): áp dụng, hoàn tác, lưu PPTX (đọc lại bằng PowerPoint).
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_VARIANTS_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\variants.pptx";
+const OUT = process.env.VNO_VARIANTS_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\variants.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push({ name, pass: Boolean(pass) });

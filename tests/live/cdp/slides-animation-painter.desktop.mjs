@@ -1,8 +1,9 @@
 // Slides: Hoạt hình > Sao chép hoạt ảnh (hai lần nhấn), hoàn tác, lưu PPTX (PowerPoint đọc lại cả hai hiệu ứng).
 import { launchApp } from "./session.mjs";
 import { click, press, sleep } from "./actions.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const OUT = process.env.VNO_ANIMPAINT_OUT || "E:\\VNOffice-profiles\\claude-slidetrans\\anim_painter.pptx";
+const OUT = process.env.VNO_ANIMPAINT_OUT || platformOutputPath("E:\\VNOffice-profiles\\claude-slidetrans\\anim_painter.pptx");
 const checks = [];
 const check = (name, pass, detail = "") => {
   checks.push({ name, pass: Boolean(pass) });

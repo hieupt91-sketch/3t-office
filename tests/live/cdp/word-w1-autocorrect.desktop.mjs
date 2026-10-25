@@ -7,8 +7,9 @@ import {
   replayImeEventsCdp,
   replayWindowsImeCompositionCdp
 } from "./vietnamese-ime-simulator.mjs";
+import { platformOutputPath } from "./output-path.mjs";
 
-const outputRoot = process.env.VNO_WORD_W1_OUTPUT || "E:\\VNOffice-temp\\word-w1";
+const outputRoot = process.env.VNO_WORD_W1_OUTPUT || platformOutputPath("E:\\VNOffice-temp\\word-w1", { directory: true });
 const outputDocx = path.join(outputRoot, "word-w1-properties.docx");
 await fs.mkdir(outputRoot, { recursive: true });
 await fs.rm(outputDocx, { force: true });
