@@ -71,6 +71,7 @@ class PoolOrphanTests(unittest.TestCase):
                 pass
         self.assertEqual(survivors, [], "pool workers must exit when the parent process dies")
 
+    @unittest.skipUnless(sys.platform == "win32", "the parent-alive probe uses Windows process inspection")
     def test_parent_alive_probe_reports_a_dead_pid_as_dead(self):
         sys.path.insert(0, str(ROOT))
         import main as vnmain

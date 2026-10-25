@@ -3,6 +3,7 @@
 import os
 import secrets
 import shutil
+import sys
 import subprocess
 import tempfile
 import ctypes
@@ -11,6 +12,12 @@ from pathlib import Path
 import pytest
 
 import main
+
+
+pytestmark = pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="the roundtrip test validates the Windows CFB container with ole32 and Office readback with PowerShell",
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]

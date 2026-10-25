@@ -1533,3 +1533,23 @@ DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Writer Zoom/Page Setup, Sheet Row Height/Conditional Formatting, Slides Zoom; Writer Page Setup focus; all six Sheet dropdown menus, dialogs and Esc return screens. Sheet dialog screenshots include 1366×768 and 1024×600 in light/dark plus initial 1024×600 paper-size view; numeric dialog set includes 20 screenshots across both sizes/themes. All screenshots were visually inspected. See `docs/Q61-UI-RECHECK.md` and `docs/assets/q61-ui/`.
 NEXT ACTION: None. `E:\VNOffice-briefs\logs\Q61.DONE` created after the Q61 commits.
+---
+
+# Agent Handoff
+TASK: CODEX Q64 — Kiểm thử không phụ thuộc nền tảng
+AGENT/ROLE: Codex / Tests + QA
+BRANCH: codex/q64
+WORKTREE: E:\VNOffice-codex-q64
+OBJECTIVE: Chuẩn hóa snapshot FODS theo LF và đánh dấu rõ các bài chỉ dùng API Windows; không đổi code sản phẩm.
+FINDINGS: Snapshot cũ băm XML thô được giữ trong `rawByName`, nên checkout CRLF cho hash `27d6a029…` còn LF cho `6490dc31…`; chuẩn hóa CRLF→LF cho đúng hash `6490dc31f4627743669263da9e197bf0ff13c6ced1943e2aa61ffb9d93dfef9f`, ba fixture còn lại giữ nguyên hash. INBOX-WIN #10 xác nhận Mac đổi fixture sang CRLF thì khớp hash cũ.
+IMPLEMENTATION SUMMARY: Bài snapshot chuẩn hóa newline trước `parseFods` và dùng mốc đã kiểm chứng từ nội dung LF. Thêm skip có lý do cho `MessageBoxW`, PowerShell/COM, `ole32` và parent-probe chỉ trên POSIX; trên Windows các bài vẫn chạy bình thường. Không đổi expected semantics, không sửa hàm sản phẩm, không cần cập nhật library changelog.
+FILES CHANGED: tests/unit/real-office-import-fidelity.test.js; tests/test_os_services_p2.py; tests/test_desktop_launch.py; tests/test_writer_create_new_readback.py; tests/test_ooxml_encryption_roundtrip.py; tests/test_p1_pool_orphans.py; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge main`; `node tests/run-tests.js`; `python -m pytest tests -q` (TEMP/TMP riêng trên E:); `node scripts/audit-0610/i18n_parity.mjs`; ba script `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`.
+BUILD RESULT: NOT RUN — chỉ thay đổi test/cấu hình; không đổi build system.
+TEST RESULTS: PASS — Node 3799/3799; pytest 1160 passed, 3 skipped (Windows, 764.78s); i18n missing=0; checklist demotions=0. Băm LF được tính độc lập và khớp mốc Mac.
+KNOWN FAILURES: Lượt pytest đầu với TEMP mặc định thất bại 10 bài do ổ C: còn 30 MB (9 bài updater guard headroom, 1 bài chuyển Dahua); hai bài đại diện PASS khi chạy lại với TEMP/TMP trên E: còn 23.1 GB, sau đó full pytest PASS. Không còn lỗi trong lượt cuối.
+RISKS: POSIX skips chưa được chạy lại trên máy Mac trong phiên này; Mac cần xác nhận npm suite 3822/3822 theo brief và pytest tương ứng.
+DEPENDENCIES/BLOCKERS: Cần Mac xác nhận lại trên nhánh sau đồng bộ.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Chuyển commit nhóm test cho người phụ trách review/merge; Mac xác nhận suite trên LF.
+GIAO DIỆN ĐÃ XEM: Không áp dụng — phiếu chỉ thay đổi test/config, không mở app hay UI.
