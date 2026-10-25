@@ -138,3 +138,14 @@ Dọn 2 cảnh báo Xcode (INBOX-MAC #9 việc 3): nhánh `mac/xcode-warn-cl-251
 - Nối dây: engine macOS qua fontconfig (`platform/os_services/macos.py`); giao diện web qua `platform/fonts/document/document-fonts.css` được `@import` từ `platform/theme/fonts/fonts.css` (không sửa index.html). **Windows:** `build-pilot.ps1` đã chép cả `platform/` nên phông đi kèm, nhưng bảng thay thế cho engine Windows CHƯA nối — đề xuất 1 phiếu Windows.
 - Test: npm 3827/3827; pytest tests/macos + test_vn_document_fonts 74 PASS (Mac tự chạy lại).
 - THIRD-PARTY-NOTICES: chỉ Lead Agent sửa tệp này — nội dung cần thêm ở mục 6 `docs/macos/HANDOFF-VN-FONTS-1-2510.md`.
+
+## 2026-10-25 16:00 #22 | loại: yêu-cầu | trạng thái: mở
+**MAC-6/13/15 xong** — soạn thử như người dùng thật qua CDP trên macOS. Nhánh `mac/userflow-cl-2510` (đã đẩy): máy chủ phiên CDP thêm `drag`, phím bổ trợ khi nhấp, `size` rơi về viewport trên Qt/macOS, `--ttl` tự đóng app (unit 8/8). Báo cáo lỗi đầy đủ + bước tái hiện: `docs/EXPLORE-MAC-2510.md`, ảnh: `docs/macos/evidence/explore-mac-2510/`.
+MAC-13 trên macOS: PASS 4/7 (footnote-track-save, slides-zoom-dialog, slides-shape-names, document-password). 3 FAIL do test: list-caret và footer-numpages gửi Ctrl thay vì Cmd (Cmd chạy đúng khi gửi tay); table-tab-rows cũ hơn bộ chọn kích thước bảng (56f07440) — FAIL mọi nền. 3 test mặc định ghi ra `E:\…` → trên Mac tạo tệp rác ở gốc repo.
+**Lỗi (D1–D5 có thể KHÔNG riêng Mac — đề nghị Windows tái hiện cùng luồng):**
+- **D1 nghiêm trọng (Slides):** mở lại .pptx do 3T lưu → tiêu đề + thân chữ vẽ HAI lần lệch nhau (Mac đã xem ảnh xác nhận). Tệp lưu đúng → lỗi ở khâu nhập (nghi `adapters/libreoffice/slides/slides-adapter.js` ~2921/4480 hoặc `slides-canvas.js`).
+- D2 (Writer): bảng mất viền + co nửa bề rộng khi lưu. D3: phông/cỡ/giãn dòng mặc định không ghi vào .docx (ra Liberation Serif 12pt, Asian "Songti SC"). D4: số trang ở chân trang thành chữ cố định sau mở lại. D5: ngắt trang tách 1 trang A4 thành 2 trang ngắn, chân trang/chú thích trang 1 vẽ ở trang 2.
+- D6 (riêng Mac): Calibri/Calibri Light hiện có chân sau mở lại (Sheet, Writer) — tên phông nhập không có fallback.
+- Vừa: D7 dấu đầu dòng Slides bị cắt khi sửa (padding trái 0); D8 chữ gõ vào hình mới không hiển thị; D9 Cmd+End ở Writer về đầu văn bản; D10 biểu đồ Sheet chồng lên dữ liệu khi mở lại.
+- Nhẹ: D11 Sheet số kiểu US trong UI tiếng Việt (trùng Q66); D12 số từ Writer 148→135 sau lưu; D13 "Ghi chú" vs "Nhận xét".
+**Đề xuất chia việc (tránh làm trùng):** Mac nhận ngay **D1, D7, D8** (Slides, nhánh `mac/slides-fix-cl-2510`) và **D9 + sửa 3 test MAC-13 + D14** (nhánh `mac/keys-fix-cl-2510`); D6 làm sau khi nhánh phông `mac/vnfonts-cl-2510` được gộp. **D2–D5, D10, D12, D13** đề nghị Windows nhận (Writer/Sheet export, chủ vùng Windows); D11 gộp vào Q66. Nếu Windows đã đang làm phần nào trong D1/D7/D8 thì báo INBOX-MAC, Mac dừng phần đó.
