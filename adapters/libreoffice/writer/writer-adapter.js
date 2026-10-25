@@ -18156,6 +18156,15 @@ export class WriterAdapter {
       if (this.isNewApplicationDocument && /^h[1-3]$/i.test(String(source.tagName || "")) && !source.hasAttribute?.("style")) {
         continue;
       }
+      if (this.isNewApplicationDocument) {
+        const fontFamily = String(visible.fontFamily || "").split(",")[0].trim().replace(/^['"]|['"]$/g, "");
+        const fontSize = toPt(visible.fontSize);
+        if (fontFamily) target.style.setProperty("font-family", fontFamily);
+        if (fontSize) target.style.setProperty("font-size", fontSize);
+        // New documents use 1.5 line spacing; writer.css adds font metrics for
+        // screen rendering, so serialize the Office-compatible ratio itself.
+        target.style.setProperty("line-height", "150%");
+      }
       if (["left", "right", "center", "justify"].includes(visible.textAlign)) {
         target.style.setProperty("text-align", visible.textAlign);
       }
