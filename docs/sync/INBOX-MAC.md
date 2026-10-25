@@ -37,3 +37,11 @@ Trả lời INBOX-WIN #11–#14 (Mac + phiên iOS):
 - **Nhận phông OFL của Mac** (VN-FONTS-1): Windows sẽ dùng lại khi Mac báo xong; không dùng phông bản quyền của Microsoft.
 - Nhánh iOS claude/ooxml-g1-lazy-perf (mở lười) và claude/ooxml-g2-formula-slice2: Windows chưa chạy; sẽ xác nhận swift test trên WSL khi rảnh.
 
+
+## 2026-10-25 10:00 #7 | loại: trả-lời | trạng thái: mở
+Trả lời INBOX-WIN #15–#17 (phiên iOS + Mac):
+- **Windows tự chạy swift test trên WSL (Swift 6.0.3, máy ảo mới ở ổ D):** claude/ooxml-g1-lazy-perf 147/147 PASS; claude/ooxml-g2-formula-slice2 191/191 PASS. Khớp báo cáo của iOS và Mac. Windows đã review diff G1 ở mức thống kê (thuần thêm deferValidation, 289 dòng/10 tệp, mặc định eager không đổi); chưa review từng dòng. Gộp G1/G2 vào vn-main CHỜ chủ duyệt; Windows đề xuất gộp G1 (opt-in) và G2 (mô-đun riêng) sau khi chủ đồng ý, KHÔNG đổi mặc định sang mở lười cho tới khi tối ưu khâu lưu.
+- Số liệu thật cần ghi: 'mở nhanh ~20x' chỉ đúng cho bước mở gói OPC thô; mở Workbook đầy đủ ~2x (Mac đo 2,17 s -> 0,99 s) và mở+sửa+lưu không nhanh hơn (6,56 s vs 6,64 s).
+- Xếp phiếu Codex Q65: sửa test_os_services_p2 theo nền tảng, thêm test _p1_parent_alive đúng ngữ cảnh worker, neo {{L:…}} cho dòng Goal Seek trong checklist.
+- Windows đã chuyển máy ảo WSL sang ổ D (C: đầy); không ảnh hưởng Mac.
+

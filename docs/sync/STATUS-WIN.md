@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 2026-10-25 09:32, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-25 10:00, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -35,3 +35,6 @@
 - Gộp vào vn-main: Q60 (nhãn tab Sheet dài, tương phản tối; tốc độ mở XLSX BLOCKED: chưa giảm được >=15% ở giai đoạn nào), Q61 (sửa hộp thoại số/focus Writer-Sheet-Slides; JS 3802/3802), Q64 (test không phụ thuộc nền tảng; pytest 1160/3 skipped). LAN XLSX 27/27 (lan03, lan06 FAIL timeout khi máy quá tải, chạy lại riêng PASS).
 - Kiểm candidate2 của Mac trên Windows: npm 3826/3826, DOCX 8/8. Chờ chủ duyệt gộp.
 - Sự cố môi trường: ổ C: còn ~2,7 GB (WSL ext4.vhdx 9,4 GB trên C:); đã dọn npm-cache và temp; đã tắt 32 tiến trình Excel COM mồ côi. Q63 (lỗi ENGINE-MAC) BLOCKED vì WSL E_FAIL khi C: đầy, sẽ chạy lại.
+
+## 2026-10-25 10:00
+- Xác nhận độc lập trên WSL: G1 147/147, G2 slice-2 191/191 (chưa gộp, chờ chủ). WSL đã chuyển sang D:. Xếp/đang chạy: Q63 (lỗi ENGINE-MAC), Q65 (3 việc nhỏ từ Mac), agy CDISK (kiểm kê ổ C:).
