@@ -2147,7 +2147,14 @@ export class SlidesAdapter {
     const pad = this._padKey(shape);
     const columns = Math.max(1, Math.min(8, Math.trunc(Number(shape.textColumns)) || 1));
     const columnKey = columns > 1 ? `_c${columns}_${String(Number.isFinite(Number(shape.columnSpacing)) ? Number(shape.columnSpacing) : 18).replace(/\./g, "_")}` : "";
-    if (!vAlign && !dir && !pad && !columnKey) return "";
+    if (!vAlign && !dir && !pad && !columnKey) {
+      // FIX-SLIDES-2510 D8: hình ghi ra draw:custom-shape (hình dựng sẵn, mũi tên, lật) có chữ cần style riêng mang
+      // draw:auto-grow-height="false" + căn giữa (_textStyleGraphicAttrs); với style tô màu chung gr<màu>,
+      // LibreOffice co custom-shape theo chiều cao chữ khi lưu PPTX (spAutoFit — mũi tên 200×120 còn 200×27).
+      // draw:rect / draw:ellipse không bị co (đo soffice 25-10) nên giữ tên style cũ.
+      const isCustomShapeExport = shape?.type === "arrow" || Boolean(shape?.geomType || shape?.flipH || shape?.flipV);
+      return isCustomShapeExport && String(shape?.text ?? "").trim() ? "_fixed" : "";
+    }
     return `_${vAlign || "m"}${dir ? `_${dir}` : ""}${pad}${columnKey}`;
   }
 
@@ -2163,6 +2170,10 @@ export class SlidesAdapter {
     let attrs = "";
     if (shape.textVAlign) {
       attrs += ` draw:textarea-vertical-align="${this._escapeXml(shape.textVAlign)}"`;
+    } else if (shape.type !== "textbox" && shape.type !== "text") {
+      // FIX-SLIDES-2510 D8: canvas căn chữ của hình vào GIỮA (flex center); không ghi rõ thì LibreOffice dùng
+      // mặc định «trên» (PPTX anchor="t") → mở lại chữ nằm sát mép trên, ra ngoài thân mũi tên và mất hút.
+      attrs += ` draw:textarea-vertical-align="middle"`;
     }
     if (shape.textDirection && shape.textDirection !== "horizontal") {
       const writingMode = shape.textDirection === "stacked" ? "tb-lr" : "tb-rl";
