@@ -1480,3 +1480,56 @@ DEPENDENCIES/BLOCKERS: Phục hồi đoạn rỗng cần mapping paragraph ngu�
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: 20 ảnh sáng 1366×768: `legacy01`, `legacy02`, `legacy03`, `legacy04`, `legacy05`, `legacy06`, `legacy07`, `legacy08`, `legacy09`, `legacy10`, `legacy11`, `legacy12`, `legacy13`, `legacy14`, `legacy15`, `legacy16`, `legacy17`, `legacy18`, `legacy19`, `legacy20` (mỗi ảnh `-1366x768.png` trong `E:\VNOffice-briefs\logs\Q59-work\screens\`). Thêm 8 ảnh CDP đã xem: legacy06/13/14/20 từng cặp `light` và `dark` (`-1366x768.png`) tại `E:\VNOffice-profiles\q59-final-20261025-02\q57-screenshots\`. 4 mục tiêu trang không bị cắt; ghi nhận tương phản tối và thanh cuộn ngang legacy07 như trên.
 NEXT ACTION: Tiếp tục phiếu riêng cho mapping/phục hồi đoạn rỗng legacy10/14/15; tạo `E:\VNOffice-briefs\logs\Q59.DONE` cho phiếu này.
+
+
+# Agent Handoff
+TASK: CODEX-Q60 — Chẩn đoán tốc độ mở XLSX lớn trong Sheet; sửa lỗi giao diện phát hiện khi đo.
+AGENT/ROLE: Codex / VN Sheet
+BRANCH: codex/q60
+WORKTREE: E:\VNOffice-codex-q60
+OBJECTIVE: Đo theo phase năm workbook LAN trên cùng hồ sơ warm; chỉ tối ưu nếu có thay đổi chứng minh được ít nhất 15% mà giữ nguyên dữ liệu và kết quả.
+FINDINGS: Không tìm được phase chung có cách cắt an toàn đã chứng minh; profile khác theo workbook/đường nạp. Median warm (lượt 2–4, giây; phase có thể chồng lấp):
+| Tệp | Soffice | Đọc FODS | Chờ metadata | Native overlay | Tối ưu FODS | Tạo payload | JS load/model | Vẽ lưới đầu | Đến lưới đầu |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| lan01 | 3.28 | 0.007 | 9.67 | 21.90 | 5.84 | — | 1.67 | 1.52 | 45.76 |
+| lan03 | 3.17 | 0.020 | 0.00 | 3.01 | 0.33 | 0.89 | 1.56 | 1.19 | 12.17 |
+| lan06 | 15.02 | 0.139 | 2.62 | 24.32 | 8.72 | — | 1.61 | 1.35 | 65.77 |
+| lan09 | 4.63 | 0.025 | 0.00 | 8.75 | 1.91 | 3.25 | 6.30 | 4.77 | 35.06 |
+| lan10 | 8.19 | 0.100 | 0.00 | 1.49 | 0.44 | 1.31 | 1.35 | 1.05 | 15.77 |
+The largest overlay helper is `overlay_cell_metadata_p1_fast`: warm median 13.56 s on lan01, 12.65 s on lan06, 3.48 s on lan09. It attaches source workbook metadata; skipping/reusing it without an exact equivalence proof could lose formatting/formulas, so no speculative speed patch was made. Speed after-change: NOT RUN because there was no speed-path change; improvement is not claimed. Performance objective is BLOCKED pending a safe >=15% candidate for the identified costly phases.
+IMPLEMENTATION SUMMARY: Two separately committed Sheet presentation fixes found during required screenshot review. Long worksheet tab labels now ellipsize and the tab list scrolls horizontally; dark theme uses a light default cell surface with readable default text while inline workbook colors/fills still take precedence.
+FILES CHANGED: apps/sheet/sheet.css; tests/live/cdp/sheet-tab-overflow-q60.desktop.mjs; tests/live/cdp/sheet-dark-contrast-q60.desktop.mjs; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge main` (already up to date); warm CDP matrix via `scripts/perf-q42-open-warm.mjs` (4 laps/file, three warm medians); tab overflow CDP pre/post at 1366x768; dark cell contrast CDP pre/post at 1366x768; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k sheet`; 27-file dirty XLSX batch with `VNO_AUDIT_MARK_DIRTY=1`, omitting lan14 and explicitly blocking Excel COM; `git diff --check`.
+BUILD RESULT: NOT RUN — no build-system changes.
+TEST RESULTS: PASS — Node 3799/3799; pytest 315 passed, 848 deselected; i18n VI/EN 3200 keys each, missing 0; checklist rows lowered 0. Batch: 27/27 saved, 27/27 diffs=0, 27/27 lint clean; Excel COM BLOCKED for all 27 by task rule. CDP tab labels FAIL before (path span width 734.9 px, extends beyond x=1366) and PASS after (label width 132 px, tab item width 160 px; no spill in screenshot). Dark contrast CDP FAIL before (black text on `rgb(30,30,30)`, ~1.26:1) and PASS after (100 sampled cells, worst 21:1).
+KNOWN FAILURES: Q60 speed objective remains BLOCKED: no safe candidate yet demonstrated >=15% on a measured phase. Excel COM intentionally not run. No after-speed benchmark was claimed.
+RISKS: White default grid cells in dark theme are a fidelity/readability choice; explicit cell fills and text colors from the workbook remain inline and override the defaults. Batch report records BLOCKED status because Excel COM is disabled, although save/diff/lint all succeeded.
+DEPENDENCIES/BLOCKERS: Need a safe, output-equivalent reduction for native overlay / metadata prefetch / FODS optimize before claiming Q60 performance complete.
+CORE PATCH ID (if any): None.
+COMMITS: `61024d4c fix(sheet): contain long worksheet tab labels`; `62c7cc23 fix(sheet): keep dark theme cell content readable`.
+GIAO DIỆN ĐÃ XEM:
+- lan01.xlsx light, 1366×768 — PASS; grid, tabs, ribbon and status visible; screenshot `E:\VNOffice-briefs\runs\q60-lan01-theme\light.png`.
+- lan01.xlsx dark, 1366×768 — initial FAIL for black text on dark cells; after fix PASS with readable cell text and intact ribbon/status; screenshot `E:\VNOffice-briefs\runs\q60-lan01-theme\dark.png`.
+- lan01/lan03/lan06/lan09/lan10 full-grid warm screenshots at `E:\VNOffice-briefs\runs\q60-before\<file>\lap-4.png` — content/grid visible in all; lan09 had long tab/path spill, logged and fixed.
+- lan09.xlsx tab bar, 1366×768 — initial FAIL, then PASS after ellipsis + horizontal scrolling; final screenshot `E:\VNOffice-briefs\runs\q60-ui-final.png`.
+NEXT ACTION: Keep the speed objective BLOCKED until an output-equivalent candidate is demonstrated to cut >=15% of a dominant phase; do not bypass native metadata overlays or rely on unverified caches.
+---
+
+# Agent Handoff
+TASK: CODEX Q61 — Recheck and fix UI Sweep invalid-input/focus findings (complete)
+AGENT/ROLE: Codex / UI platform, Writer, Sheet, Slides
+BRANCH: codex/q61
+WORKTREE: E:\VNOffice-codex-q61
+OBJECTIVE: Reproduce the UI Sweep findings on the real app via CDP, fix confirmed invalid numeric actions and focus defects, inspect screenshots, and report verified outcomes.
+FINDINGS: Confirmed invalid actions in Writer Zoom/Page Setup, Sheet Goal Seek/Row Height/Conditional Formatting, Slides Zoom; confirmed focus defects in Writer Page Setup and six Sheet dialogs. Word Count and three reported Slides command/dialog claims were false positives and opened successfully.
+IMPLEMENTATION SUMMARY: Shared validation feedback and VI/EN strings were added in prior commits. This step makes Sheet Goal Seek's required inputs validate on open, records a keyboard dropdown's command launcher before execution, restores focus through the shared dialog close path, and scrolls the Page Setup focus target fully into view. All six Sheet dialogs trap Tab and return focus to their launcher on Esc.
+FILES CHANGED THIS STEP: `apps/sheet/page-setup-dialog.js`; `apps/sheet/sheet-grid.js`; `platform/ui-kit/components.js`; `platform/ui-kit/dialogs.js`; `tests/live/cdp/q61-sheet-dialog-focus.desktop.mjs`; `docs/Q61-UI-RECHECK.md`; generated evidence in `docs/EXCEL2016-FEATURE-CHECKLIST.md`; screenshots under `docs/assets/q61-ui/`.
+COMMANDS RUN: `git merge main`; `node tests/run-tests.js`; all three `scripts/audit-0610/gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `node scripts/audit-0610/i18n_parity.mjs`; `python -m pytest tests -q -k "sheet_scenarios or sheet_page_margins or sheet_print_setup"`; CDP validation, Writer focus, and six-dialog Sheet focus probes; DOCX batch audit for d01,d02,d03,d05,d07,d08,d09,d11.
+BUILD RESULT: NOT RUN — build system unchanged.
+TEST RESULTS: PASS — `node tests/run-tests.js` 3802/3802; Sheet CDP focus 6/6 Escape and 6/6 Tab traps; numeric validation CDP 120 assertions; Writer focus 1/1; pytest 7 passed/1156 deselected; DOCX round-trip 8/8 with unchanged page counts; VI=3203/EN=3203 and 0 missing; evidence verifier 0 downgraded rows.
+KNOWN FAILURES: None in this ticket's confirmed findings. Existing generator coverage remains Word priority-1 missing 0, Sheet missing 1, Slides missing 4.
+RISKS: Remaining Page Setup content extends below the viewport at 1024×600 and is accessible through its scroll bar. The initially focused paper-size control is fully visible after the scroll adjustment.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Writer Zoom/Page Setup, Sheet Row Height/Conditional Formatting, Slides Zoom; Writer Page Setup focus; all six Sheet dropdown menus, dialogs and Esc return screens. Sheet dialog screenshots include 1366×768 and 1024×600 in light/dark plus initial 1024×600 paper-size view; numeric dialog set includes 20 screenshots across both sizes/themes. All screenshots were visually inspected. See `docs/Q61-UI-RECHECK.md` and `docs/assets/q61-ui/`.
+NEXT ACTION: None. `E:\VNOffice-briefs\logs\Q61.DONE` created after the Q61 commits.

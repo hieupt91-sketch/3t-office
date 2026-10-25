@@ -324,7 +324,7 @@ Tổng: 4 mục ưu tiên 1.
 | Hiển thị | Đường lưới (Gridlines) | 🟢 | - | slides.view.gridlines; hiển thị lưới tọa độ căn hình (docs/SLIDES-BUTTON-MATRIX-1011.md:91) |
 | Hiển thị | Đường dẫn hướng (Guides) | 🟢 | - | slides.view.guides; hiển thị đường guide căn chỉnh thông minh (docs/SLIDES-BUTTON-MATRIX-1011.md:92) |
 | Hiển thị | Ghi chú (Notes Pane toggle) | ✅ | - | FIX-L4/L6: slides.notes.toggle bật tắt vùng ghi chú diễn giả (docs/SLIDES-BUTTON-MATRIX-1011.md:87) |
-| Thu phóng | Thu phóng (Zoom Dialog) | 🟢 | - | slides.view.zoomDialog: nhập phần trăm 50–200 chính xác (75% đúng 0,75), nút 200/100/75/50, Vừa cửa sổ, bấm số % thanh trạng thái cũng mở; khoảng 10–400% của bản gốc chưa có (CDP tests/live/cdp/slides-zoom-dialog.desktop.mjs; apps/slides/slides-zoom-dialog.js:5 hộp thoại) |
+| Thu phóng | Thu phóng (Zoom Dialog) | 🟢 | - | slides.view.zoomDialog: nhập phần trăm 50–200 chính xác (75% đúng 0,75), nút 200/100/75/50, Vừa cửa sổ, bấm số % thanh trạng thái cũng mở; khoảng 10–400% của bản gốc chưa có (CDP tests/live/cdp/slides-zoom-dialog.desktop.mjs; apps/slides/slides-zoom-dialog.js:8 hộp thoại) |
 | Thu phóng | Phóng to (Zoom In) | ✅ | - | FIX-L14: slides.view.zoomIn bước tăng 10 điểm phần trăm đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:93) |
 | Thu phóng | Thu nhỏ (Zoom Out) | ✅ | - | FIX-L14: slides.view.zoomOut bước giảm 10 điểm phần trăm đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:94) |
 | Thu phóng | 100% (Zoom Reset) | ✅ | - | FIX-L14: slides.view.zoomReset đặt lại 100% đối chiếu View.Zoom=100 (docs/SLIDES-BUTTON-MATRIX-1011.md:95) |
