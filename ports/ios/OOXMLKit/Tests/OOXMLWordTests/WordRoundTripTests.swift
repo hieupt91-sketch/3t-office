@@ -215,6 +215,36 @@ final class WordRoundTripTests: XCTestCase {
         XCTAssertThrowsError(try WordDocument(data: Data()))
     }
 
+    func testRunTextEffectsRoundTrip() throws {
+        let doc = try WordDocument(data: try Fixtures.data(rich))
+        let run = doc.paragraphs[1].runs[0]
+        XCTAssertFalse(run.isCaps)
+        run.setCaps(true)
+        run.setSmallCaps(true)
+        run.setStrike(true)
+        run.setDoubleStrike(true)
+        run.setOutline(true)
+        run.setShadow(true)
+        run.setEmboss(true)
+        run.setImprint(true)
+        run.setVanish(true)
+        let saved = try doc.save()
+        let docXML = try RoundTrip.partString(saved, "word/document.xml")
+        for tag in ["w:caps", "w:smallCaps", "w:strike", "w:dstrike", "w:outline", "w:shadow", "w:emboss", "w:imprint", "w:vanish"] {
+            XCTAssertTrue(docXML.contains("<\(tag)"), docXML)
+        }
+        let reopened = try WordDocument(data: saved)
+        let re = reopened.paragraphs[1].runs[0]
+        XCTAssertTrue(re.isCaps && re.isSmallCaps && re.isStrike && re.isDoubleStrike)
+        XCTAssertTrue(re.isOutline && re.isShadow && re.isEmboss && re.isImprint && re.isVanish)
+        re.setCaps(false)
+        re.setStrike(false)
+        let cleared = try WordDocument(data: try reopened.save())
+        XCTAssertFalse(cleared.paragraphs[1].runs[0].isCaps)
+        XCTAssertFalse(cleared.paragraphs[1].runs[0].isStrike)
+        XCTAssertTrue(cleared.paragraphs[1].runs[0].isShadow, "chỉ tắt caps/strike, shadow vẫn còn")
+    }
+
     func testImageInfo() {
         XCTAssertNil(ImageInfo(Data([1, 2, 3])))
         let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00, 0xFF, 0xC0, 0x00, 0x11, 0x08, 0x01, 0x2C, 0x02, 0x58, 0x03])
@@ -222,5 +252,32 @@ final class WordRoundTripTests: XCTestCase {
         XCTAssertEqual(info?.width, 600)
         XCTAssertEqual(info?.height, 300)
         XCTAssertEqual(info?.ext, "jpeg")
+    }
+
+    func testParagraphSpacingRoundTrip() throws {
+        let original = try Fixtures.data(rich)
+        let doc = try WordDocument(data: original)
+        try doc.paragraphs[0].setSpacing(before: 120, after: 60, line: 360, lineRule: "auto")
+        let saved = try doc.save()
+        let docXML = try RoundTrip.partString(saved, "word/document.xml")
+        XCTAssertTrue(docXML.contains("<w:spacing"), docXML)
+        XCTAssertTrue(docXML.contains("w:before=\"120\""), docXML)
+        XCTAssertTrue(docXML.contains("w:line=\"360\""), docXML)
+        let reopened = try WordDocument(data: saved)
+        let spacing = reopened.paragraphs[0].spacing
+        XCTAssertEqual(spacing?.before, 120)
+        XCTAssertEqual(spacing?.after, 60)
+        XCTAssertEqual(spacing?.line, 360)
+        XCTAssertEqual(spacing?.lineRule, "auto")
+        // Xóa spacing → mở lại không còn.
+        try reopened.paragraphs[0].setSpacing()
+        let cleared = try WordDocument(data: try reopened.save())
+        XCTAssertNil(cleared.paragraphs[0].spacing)
+        // Giá trị không hợp lệ bị từ chối, không ghi gì.
+        XCTAssertThrowsError(try doc.paragraphs[0].setSpacing(before: -1))
+        XCTAssertThrowsError(try doc.paragraphs[0].setSpacing(lineRule: "sai"))
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["word/document.xml"], requireChanged: ["word/document.xml"],
+                             name: "docx-paragraph-spacing.docx")
     }
 }

@@ -5,12 +5,14 @@ public enum WordError: Error, Equatable, CustomStringConvertible {
     case notAWordDocument
     case paragraphNotInDocument
     case unsupportedImageFormat
+    case invalidSpacing(String)
 
     public var description: String {
         switch self {
         case .notAWordDocument: return "Tệp không phải văn bản DOCX"
         case .paragraphNotInDocument: return "Đoạn văn không thuộc tài liệu này"
         case .unsupportedImageFormat: return "Chỉ hỗ trợ chèn ảnh PNG, JPEG, GIF"
+        case .invalidSpacing(let message): return message
         }
     }
 }
@@ -129,6 +131,44 @@ public final class Paragraph {
         }
     }
 
+    /// Giãn đoạn đọc từ `w:spacing`: before/after tính bằng 1/20 point,
+    /// line tính bằng 1/240 dòng (240 = giãn đơn), lineRule: auto|exact|atLeast.
+    /// Trả nil khi đoạn không có phần tử spacing.
+    public var spacing: (before: Int?, after: Int?, line: Int?, lineRule: String?)? {
+        guard let spacing = element.firstChild(NS.w, "pPr")?.firstChild(NS.w, "spacing") else { return nil }
+        func intAttr(_ name: String) -> Int? {
+            guard let v = spacing.attribute(WordText.qn(element, name)) else { return nil }
+            return Int(v)
+        }
+        return (before: intAttr("before"), after: intAttr("after"),
+                line: intAttr("line"), lineRule: spacing.attribute(WordText.qn(element, "lineRule")))
+    }
+
+    /// Đặt giãn đoạn (ghi vào `w:spacing`, giữ đúng thứ tự schema của pPr).
+    /// Truyền nil cho tất cả để xóa spacing. before/after phải >= 0, line phải > 0,
+    /// lineRule (nếu có) phải là auto, exact hoặc atLeast.
+    public func setSpacing(before: Int? = nil, after: Int? = nil, line: Int? = nil, lineRule: String? = nil) throws {
+        if let before, before < 0 { throw WordError.invalidSpacing("giãn trước đoạn phải >= 0") }
+        if let after, after < 0 { throw WordError.invalidSpacing("giãn sau đoạn phải >= 0") }
+        if let line, line <= 0 { throw WordError.invalidSpacing("giãn dòng phải > 0") }
+        if let lineRule, !["auto", "exact", "atLeast"].contains(lineRule) {
+            throw WordError.invalidSpacing("lineRule phải là auto, exact hoặc atLeast")
+        }
+        let pPr = WordText.ensurePPr(element)
+        for e in pPr.children(NS.w, "spacing") { e.removeFromParent() }
+        if before != nil || after != nil || line != nil || lineRule != nil {
+            var attributes: [XAttribute] = []
+            if let before { attributes.append(XAttribute(name: WordText.qn(pPr, "before"), value: String(before))) }
+            if let after { attributes.append(XAttribute(name: WordText.qn(pPr, "after"), value: String(after))) }
+            if let line { attributes.append(XAttribute(name: WordText.qn(pPr, "line"), value: String(line))) }
+            if let lineRule { attributes.append(XAttribute(name: WordText.qn(pPr, "lineRule"), value: lineRule)) }
+            pPr.insertChild(XElement(name: WordText.qn(pPr, "spacing"), attributes: attributes),
+                            schemaOrder: WordText.pPrOrder)
+        }
+        if pPr.elements.isEmpty && pPr.attributes.isEmpty { pPr.removeFromParent() }
+        story.markModified()
+    }
+
     public var runs: [Run] {
         WordText.textRuns(element).map { Run(paragraph: self, element: $0) }
     }
@@ -182,6 +222,26 @@ public final class Run {
 
     public func setBold(_ on: Bool) { WordText.setToggle(element, "b", on); paragraph.story.markModified() }
     public func setItalic(_ on: Bool) { WordText.setToggle(element, "i", on); paragraph.story.markModified() }
+    /// Hiệu ứng chữ (toggle trong rPr, theo đúng mẫu bold/italic): chữ hoa,
+    /// chữ hoa nhỏ, gạch ngang đơn/đôi, viền, bóng, nổi, chìm, ẩn.
+    public var isCaps: Bool { WordText.toggle(element, "caps") }
+    public var isSmallCaps: Bool { WordText.toggle(element, "smallCaps") }
+    public var isStrike: Bool { WordText.toggle(element, "strike") }
+    public var isDoubleStrike: Bool { WordText.toggle(element, "dstrike") }
+    public var isOutline: Bool { WordText.toggle(element, "outline") }
+    public var isShadow: Bool { WordText.toggle(element, "shadow") }
+    public var isEmboss: Bool { WordText.toggle(element, "emboss") }
+    public var isImprint: Bool { WordText.toggle(element, "imprint") }
+    public var isVanish: Bool { WordText.toggle(element, "vanish") }
+    public func setCaps(_ on: Bool) { WordText.setToggle(element, "caps", on); paragraph.story.markModified() }
+    public func setSmallCaps(_ on: Bool) { WordText.setToggle(element, "smallCaps", on); paragraph.story.markModified() }
+    public func setStrike(_ on: Bool) { WordText.setToggle(element, "strike", on); paragraph.story.markModified() }
+    public func setDoubleStrike(_ on: Bool) { WordText.setToggle(element, "dstrike", on); paragraph.story.markModified() }
+    public func setOutline(_ on: Bool) { WordText.setToggle(element, "outline", on); paragraph.story.markModified() }
+    public func setShadow(_ on: Bool) { WordText.setToggle(element, "shadow", on); paragraph.story.markModified() }
+    public func setEmboss(_ on: Bool) { WordText.setToggle(element, "emboss", on); paragraph.story.markModified() }
+    public func setImprint(_ on: Bool) { WordText.setToggle(element, "imprint", on); paragraph.story.markModified() }
+    public func setVanish(_ on: Bool) { WordText.setToggle(element, "vanish", on); paragraph.story.markModified() }
     public func setUnderline(_ on: Bool) { WordText.setValueProperty(element, "u", on ? "single" : nil); paragraph.story.markModified() }
     /// Màu chữ dạng hex RRGGBB, nil = tự động.
     public func setColor(_ hex: String?) { WordText.setValueProperty(element, "color", hex); paragraph.story.markModified() }

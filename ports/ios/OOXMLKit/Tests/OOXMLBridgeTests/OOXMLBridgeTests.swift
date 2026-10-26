@@ -428,4 +428,242 @@ final class OOXMLBridgeTests: XCTestCase {
         XCTAssertEqual(try call("info", ["handle": reopenedHandle])["slides"] as? Int, 3)
         XCTAssertEqual(try call("slide.read", ["handle": reopenedHandle, "index": 1])["title"] as? String, "")
     }
+
+    // MARK: Bridge ops mới — hyperlink và core properties
+
+    func testSheetHyperlinkBridgeRoundTrip() throws {
+        let h = try openFixture("xlsx/rich-excel.xlsx")
+        try call("sheet.setHyperlink", ["handle": h, "sheet": "Dữ liệu", "ref": "A1", "target": "https://example.invalid/tai-lieu"])
+        var links = try call("sheet.hyperlinks", ["handle": h, "sheet": "Dữ liệu"])["hyperlinks"] as! [[String: Any]]
+        XCTAssertTrue(links.contains { $0["cell"] as? String == "A1" && $0["target"] as? String == "https://example.invalid/tai-lieu" })
+
+        // Xuất → mở lại bằng bridge mới → liên kết vẫn còn.
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        links = try call("sheet.hyperlinks", ["handle": h2, "sheet": "Dữ liệu"])["hyperlinks"] as! [[String: Any]]
+        XCTAssertTrue(links.contains { $0["cell"] as? String == "A1" })
+
+        // Xóa → xuất → mở lại → liên kết không còn.
+        try call("sheet.removeHyperlink", ["handle": h2, "sheet": "Dữ liệu", "ref": "A1"])
+        let b64b = try call("exportBytes", ["handle": h2])["base64"] as! String
+        let h3 = try call("open", ["base64": b64b])["handle"] as! String
+        links = try call("sheet.hyperlinks", ["handle": h3, "sheet": "Dữ liệu"])["hyperlinks"] as! [[String: Any]]
+        XCTAssertFalse(links.contains { $0["cell"] as? String == "A1" })
+    }
+
+    func testSetPropertiesBridgeRoundTrip() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        try call("setProperties", ["handle": h, "title": "Tieu de test", "creator": "Tester"])
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let savedData = Data(base64Encoded: b64)!
+        let pkg = try OPCPackage(data: savedData)
+        let part = try pkg.relatedPart(from: .root, .coreProperties)
+        XCTAssertNotNil(part)
+        let core = try pkg.xml(part!)
+        XCTAssertEqual(core.root.firstChild(NS.dc, "title")?.textContent, "Tieu de test")
+        XCTAssertEqual(core.root.firstChild(NS.dc, "creator")?.textContent, "Tester")
+    }
+
+    func testSheetAutoFilterBridgeRoundTrip() throws {
+        let h = try openFixture("xlsx/rich-excel.xlsx")
+        try call("sheet.setAutoFilter", ["handle": h, "sheet": "Dữ liệu", "range": "A1:E2"])
+        var b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        var sheetXML = try RoundTrip.partString(Data(base64Encoded: b64)!, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(sheetXML.contains("<autoFilter ref=\"A1:E2\"/>"), sheetXML)
+
+        // Xóa → xuất → mở lại → không còn autoFilter.
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        try call("sheet.removeAutoFilter", ["handle": h2, "sheet": "Dữ liệu"])
+        b64 = try call("exportBytes", ["handle": h2])["base64"] as! String
+        sheetXML = try RoundTrip.partString(Data(base64Encoded: b64)!, "xl/worksheets/sheet1.xml")
+        XCTAssertFalse(sheetXML.contains("<autoFilter "), sheetXML)
+    }
+
+    func testSlideDuplicateBridgeRoundTrip() throws {
+        let h = try openFixture("pptx/rich-deck.pptx")
+        XCTAssertEqual(try call("info", ["handle": h])["slides"] as? Int, 3)
+        let dup = try call("slide.duplicate", ["handle": h, "index": 0])
+        XCTAssertEqual(dup["slides"] as? Int, 4)
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        XCTAssertEqual(try call("info", ["handle": h2])["slides"] as? Int, 4)
+    }
+
+    func testSheetDimensionsAndPageSetupBridgeRoundTrip() throws {
+        let h = try openFixture("xlsx/rich-excel.xlsx")
+        try call("sheet.setColumnWidth", ["handle": h, "sheet": "Dữ liệu", "col": 2, "width": 20.5])
+        try call("sheet.setColumnHidden", ["handle": h, "sheet": "Dữ liệu", "col": 3, "hidden": true])
+        try call("sheet.setRowHeight", ["handle": h, "sheet": "Dữ liệu", "row": 2, "height": 30])
+        try call("sheet.setRowHidden", ["handle": h, "sheet": "Dữ liệu", "row": 3, "hidden": true])
+        try call("sheet.setPageSetup", ["handle": h, "sheet": "Dữ liệu",
+                                        "margins": ["left": 0.5, "right": 0.5, "top": 0.5, "bottom": 0.5, "header": 0.2, "footer": 0.2],
+                                        "orientation": "landscape", "paperSize": 9])
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let sheetXML = try RoundTrip.partString(Data(base64Encoded: b64)!, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(sheetXML.contains("width=\"20.5\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("hidden=\"1\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("ht=\"30\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("<pageMargins left=\"0.5\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("orientation=\"landscape\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("paperSize=\"9\""), sheetXML)
+    }
+
+    func testSheetStateAndWorkbookOptionsBridge() throws {
+        let h = try openFixture("xlsx/rich-excel.xlsx")
+        let sheets = try call("info", ["handle": h])["sheets"] as! [[String: Any]]
+        let other = sheets.first { ($0["name"] as? String) != "Dữ liệu" }!
+        let otherName = other["name"] as! String
+        try call("sheet.setState", ["handle": h, "sheet": otherName, "state": "hidden"])
+        let after = try call("info", ["handle": h])["sheets"] as! [[String: Any]]
+        XCTAssertEqual(after.first { ($0["name"] as? String) == otherName }!["state"] as? String, "hidden")
+        try call("workbook.setCalculationOptions", ["handle": h, "calcMode": "manual", "iterate": false, "date1904": false])
+        try call("workbook.setTheme", ["handle": h, "preset": "ocean"])
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let wbXML = try RoundTrip.partString(Data(base64Encoded: b64)!, "xl/workbook.xml")
+        XCTAssertTrue(wbXML.contains("calcMode=\"manual\""), wbXML)
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        let reopened = try call("info", ["handle": h2])["sheets"] as! [[String: Any]]
+        XCTAssertEqual(reopened.first { ($0["name"] as? String) == otherName }!["state"] as? String, "hidden")
+    }
+
+    func testDocSetSpacingBridgeRoundTrip() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        try call("doc.setSpacing", ["handle": h, "index": 0, "before": 120, "after": 60, "line": 360, "lineRule": "auto"])
+        let read = try call("doc.read", ["handle": h, "from": 0, "count": 1])["paragraphs"] as! [[String: Any]]
+        let spacing = read.first!["spacing"] as! [String: Any]
+        XCTAssertEqual(spacing["before"] as? Int, 120)
+        XCTAssertEqual(spacing["line"] as? Int, 360)
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        let re = try call("doc.read", ["handle": h2, "from": 0, "count": 1])["paragraphs"] as! [[String: Any]]
+        XCTAssertEqual((re.first!["spacing"] as! [String: Any])["after"] as? Int, 60)
+    }
+
+    func testDocSetRunEffectBridgeRoundTrip() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        try call("doc.setRunEffect", ["handle": h, "index": 1, "run": 0, "effect": "caps", "on": true])
+        try call("doc.setRunEffect", ["handle": h, "index": 1, "run": 0, "effect": "shadow", "on": true])
+        let read = try call("doc.read", ["handle": h, "from": 1, "count": 1])["paragraphs"] as! [[String: Any]]
+        let runs = read.first!["runs"] as! [[String: Any]]
+        XCTAssertEqual(runs.first!["caps"] as? Bool, true)
+        XCTAssertEqual(runs.first!["shadow"] as? Bool, true)
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        let re = try call("doc.read", ["handle": h2, "from": 1, "count": 1])["paragraphs"] as! [[String: Any]]
+        let reRuns = re.first!["runs"] as! [[String: Any]]
+        XCTAssertEqual(reRuns.first!["caps"] as? Bool, true)
+        XCTAssertEqual(reRuns.first!["shadow"] as? Bool, true)
+    }
+
+    func testDocStyleAndRevisionsBridge() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        let count = try call("doc.acceptAllRevisions", ["handle": h])["count"] as! Int
+        XCTAssertGreaterThanOrEqual(count, 0)
+        try call("doc.setStyle", ["handle": h, "index": 0, "style": "Title"])
+        let read = try call("doc.read", ["handle": h, "from": 0, "count": 1])
+        let paras = read["paragraphs"] as! [[String: Any]]
+        XCTAssertEqual(paras.first!["style"] as? String, "Title")
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        let re = try call("doc.read", ["handle": h2, "from": 0, "count": 1])["paragraphs"] as! [[String: Any]]
+        XCTAssertEqual(re.first!["style"] as? String, "Title")
+    }
+
+    func testSlideTitleAndRenameShapeBridge() throws {
+        let h = try openFixture("pptx/rich-deck.pptx")
+        try call("slide.setTitle", ["handle": h, "index": 0, "text": "Tieu de moi"])
+        let read = try call("slide.read", ["handle": h, "index": 0])
+        XCTAssertEqual(read["title"] as? String, "Tieu de moi")
+        let shapes = read["shapes"] as! [[String: Any]]
+        let firstName = shapes.first!["name"] as! String
+        try call("slide.renameShape", ["handle": h, "index": 0, "shape": firstName, "new": "Khung moi"])
+        let re = try call("slide.read", ["handle": h, "index": 0])["shapes"] as! [[String: Any]]
+        XCTAssertTrue(re.contains { ($0["name"] as? String) == "Khung moi" })
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        XCTAssertEqual(try call("slide.read", ["handle": h2, "index": 0])["title"] as? String, "Tieu de moi")
+    }
+
+    func testSheetViewPrintProtectionValidationBridge() throws {
+        let h = try openFixture("xlsx/rich-excel.xlsx")
+        try call("sheet.setViewOptions", ["handle": h, "sheet": "Dữ liệu",
+                                          "options": ["showGridLines": false, "showRowColumnHeaders": true, "zoomScale": 150]])
+        try call("sheet.setPrintOptions", ["handle": h, "sheet": "Dữ liệu",
+                                           "options": ["gridLines": true, "headings": true]])
+        try call("sheet.setSheetProtection", ["handle": h, "sheet": "Dữ liệu", "options": [:]])
+        try call("workbook.setWorkbookProtection", ["handle": h, "lockStructure": true])
+        try call("sheet.addDataValidation", ["handle": h, "sheet": "Dữ liệu", "range": "A1:A2",
+                                             "rule": ["type": "whole", "operator": "between", "formula1": "1", "formula2": "10"]])
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let saved = Data(base64Encoded: b64)!
+        let sheetXML = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(sheetXML.contains("showGridLines=\"0\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("zoomScale=\"150\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("<printOptions"), sheetXML)
+        XCTAssertTrue(sheetXML.contains("gridLines=\"1\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("<sheetProtection"), sheetXML)
+        XCTAssertTrue(sheetXML.contains("type=\"whole\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("sqref=\"A1:A2\""), sheetXML)
+        let wbXML = try RoundTrip.partString(saved, "xl/workbook.xml")
+        XCTAssertTrue(wbXML.contains("<workbookProtection"), wbXML)
+    }
+
+    func testSheetConditionalFormattingBridgeRoundTrip() throws {
+        let h = try openFixture("xlsx/rich-excel.xlsx")
+        try call("sheet.addConditionalFormatting", ["handle": h, "sheet": "Dữ liệu", "range": "A1:A2",
+                                                    "rule": ["type": "cellIs", "operator": "greaterThan", "formula": ["100"], "priority": 1]])
+        try call("sheet.addConditionalFormatting", ["handle": h, "sheet": "Dữ liệu", "range": "B1:B2",
+                                                    "rule": ["type": "colorScale", "formula": [], "priority": 2,
+                                                             "visual": ["kind": "colorScale",
+                                                                          "thresholds": [["type": "min"], ["type": "max"]],
+                                                                          "colors": ["FF0000", "00FF00"]]]])
+        var b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        var sheetXML = try RoundTrip.partString(Data(base64Encoded: b64)!, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(sheetXML.contains("sqref=\"A1:A2\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("<cfRule type=\"cellIs\" priority=\"1\" operator=\"greaterThan\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("<formula>100</formula>"), sheetXML)
+        XCTAssertTrue(sheetXML.contains("<colorScale>"), sheetXML)
+
+        // Xóa theo vùng → chỉ còn colorScale; xóa hết → không còn conditionalFormatting.
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        try call("sheet.clearConditionalFormatting", ["handle": h2, "sheet": "Dữ liệu", "range": "A1:A2"])
+        b64 = try call("exportBytes", ["handle": h2])["base64"] as! String
+        sheetXML = try RoundTrip.partString(Data(base64Encoded: b64)!, "xl/worksheets/sheet1.xml")
+        XCTAssertFalse(sheetXML.contains("sqref=\"A1:A2\""), sheetXML)
+        XCTAssertTrue(sheetXML.contains("sqref=\"B1:B2\""), sheetXML)
+        let h3 = try call("open", ["base64": b64])["handle"] as! String
+        try call("sheet.clearConditionalFormatting", ["handle": h3, "sheet": "Dữ liệu"])
+        b64 = try call("exportBytes", ["handle": h3])["base64"] as! String
+        sheetXML = try RoundTrip.partString(Data(base64Encoded: b64)!, "xl/worksheets/sheet1.xml")
+        XCTAssertFalse(sheetXML.contains("<conditionalFormatting"), sheetXML)
+    }
+
+    func testSlideSetTableCellBridgeRoundTrip() throws {
+        // rich-deck slide 2 (index 1) có bảng 2x2, ô (1,1) ban đầu là "14,1 tỷ".
+        let h = try openFixture("pptx/rich-deck.pptx")
+        try call("slide.setTableCell", ["handle": h, "index": 1, "row": 1, "column": 1, "text": "15,0 tỷ"])
+        let read = try call("slide.read", ["handle": h, "index": 1])["shapes"] as! [[String: Any]]
+        let table = read.first { $0["table"] != nil }!["table"] as! [[String]]
+        XCTAssertTrue(table.flatMap { $0 }.contains("15,0 tỷ"))
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        let re = try call("slide.read", ["handle": h2, "index": 1])["shapes"] as! [[String: Any]]
+        let reTable = re.first { $0["table"] != nil }!["table"] as! [[String]]
+        XCTAssertTrue(reTable.flatMap { $0 }.contains("15,0 tỷ"))
+        XCTAssertFalse(reTable.flatMap { $0 }.contains("14,1 tỷ"))
+    }
+
+    func testDocInsertImageBridgeRoundTrip() throws {
+        // PNG 1x1 trong suốt.
+        let pngB64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+        let h = try openFixture("docx/rich-word.docx")
+        let before = try call("doc.read", ["handle": h])["total"] as! Int
+        let result = try call("doc.insertImage", ["handle": h, "base64": pngB64, "description": "Anh test"])
+        XCTAssertEqual(result["paragraphs"] as? Int, before + 1)
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let docXML = try RoundTrip.partString(Data(base64Encoded: b64)!, "word/document.xml")
+        XCTAssertTrue(docXML.contains("<w:drawing>"), docXML)
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        XCTAssertEqual(try call("doc.read", ["handle": h2])["total"] as? Int, before + 1)
+    }
 }
