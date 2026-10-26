@@ -902,8 +902,15 @@ class _SofficeUnoWorker:
     def _python_path() -> str | None:
         if not SOFFICE_PATH:
             return None
-        candidate = Path(SOFFICE_PATH).resolve().parent / "python.exe"
-        return str(candidate) if candidate.is_file() else None
+        parent = Path(SOFFICE_PATH).resolve().parent
+        # Windows first (previous behaviour), then the names LibreOffice
+        # ships on macOS/Linux. Only an existing file is returned, so a
+        # platform without any bundled Python still fails exactly as before.
+        for name in ("python.exe", "python", "python3"):
+            candidate = parent / name
+            if candidate.is_file():
+                return str(candidate)
+        return None
 
     def start(self) -> None:
         python_path = self._python_path()
