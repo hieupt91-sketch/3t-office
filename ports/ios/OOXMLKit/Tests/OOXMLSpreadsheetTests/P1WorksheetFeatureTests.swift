@@ -62,6 +62,25 @@ final class P1WorksheetFeatureTests: XCTestCase {
         XCTAssertEqual(FormulaRewriter.rewriteScalarConcat("CONCAT({\"a\", \"b\"}, C1)"), "(({\"a\", \"b\"})&(C1))")
     }
 
+    func testRewriteLegacyConcatOnSheet() throws {
+        let original = try Fixtures.data("xlsx/rich-excel.xlsx")
+        let wb = try Workbook(data: original)
+        let ws = try wb.worksheet(at: 0)
+        try ws.setFormula("CONCAT(A1, \"x\", B1)", at: "Z99")
+        try ws.setFormula("SUM(A1:A5)", at: "Z98")
+        XCTAssertEqual(try ws.rewriteLegacyConcat(), 1)
+        XCTAssertEqual(try ws.cell("Z99")?.formula, "((A1)&(\"x\")&(B1))")
+        XCTAssertEqual(try ws.cell("Z98")?.formula, "SUM(A1:A5)")
+        let saved = try wb.save()
+        let reopened = try Workbook(data: saved)
+        XCTAssertEqual(try reopened.worksheet(at: 0).cell("Z99")?.formula, "((A1)&(\"x\")&(B1))")
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["xl/worksheets/sheet1.xml", "xl/workbook.xml", "xl/calcChain.xml",
+                                              "[Content_Types].xml", "xl/_rels/workbook.xml.rels"],
+                             requireChanged: ["xl/worksheets/sheet1.xml"],
+                             name: "xlsx-legacy-concat.xlsx")
+    }
+
     func testReviewW3SingleFormulaValidationAndPasswordHash() throws {
         let workbook = try Workbook(data: Fixtures.data("xlsx/rich-excel.xlsx"))
         let sheet = try workbook.worksheet(named: "Dữ liệu")

@@ -1710,3 +1710,23 @@ DEPENDENCIES/BLOCKERS: None for source work. Excel COM reference remains blocked
 CORE PATCH ID (if any): None.
 UI REVIEW: Viewed screenshots at 1366x768: Slides Backstage template card — badge absent, card layout intact; Sheet vi-VN light/dark — values and result visible, no clipping/overlap; Sheet legacy-function warning light/dark — warning text and disable button fit, readable, no overlap. No visible issue found.
 NEXT ACTION: Review the five commits. Q66.DONE created after the completed gates and handoff.
+
+---
+
+# Agent Handoff
+TASK: OOXMLKit Bridge + model API moi (numbering, field, section link, showSettings, theme, CONCAT)
+AGENT/ROLE: Muse / Lead Agent (overall ownership 3t-office)
+BRANCH: muse/ooxmlkit-bridge-2510 (da day, 85930ee2) + muse/ooxmlkit-numbering-2510 (chua day, 6 commit tu 85930ee2)
+WORKTREE: ~/workspace/3t-office-numbering (VM Muse) va ~/Developer/3t-office (Mac, dung de day)
+OBJECTIVE: Lo Bridge tu model API san co ra ngoai + them 6 API model con thieu theo PATCH-TO-OOXMLKIT-MAPPING (10 muc ha loai "can API moi"), moi API kem Bridge op + test mo-sua-luu-mo lai + dong changelog, de tien toi bo LibreOffice dan.
+FINDINGS: Bridge goc gom setHyperlink/removeHyperlink/hyperlinks, setProperties chung, setAutoFilter, view/print options, protection, data validation, insertImage, conditional formatting, setTableCell, Paragraph.spacing, Run text effects. 6 API moi: Paragraph numbering (numPr dung thu tu schema, dung lai num cung format/cap, tu tao numbering part), Paragraph.appendField (field phuc hop begin/instr/separate/ket qua/end), Section link-to-previous (bat = xoa tham chieu rieng, tat = sao chep header/footer section truoc thanh part moi), Presentation.showSettings (loop/showAnimation/showNarration/useTimings), Presentation.theme (chi doc: ten theme, bang mau srgb/lastClr, font latin chinh/phu), Worksheet/Workbook.rewriteLegacyConcat (ap dung rewriteScalarConcat co san len cong thuc thuong; cong thuc chia se/mang giu nguyen).
+IMPLEMENTATION SUMMARY: Chi sua ports/ios/OOXMLKit (Sources/OOXMLWord, Sources/OOXMLPresentation, Sources/OOXMLSpreadsheet, Sources/OOXMLBridge, Tests) + docs/sync/LIBRARY-CHANGELOG.md. Khong sua main.py, khong sua adapter JS, khong dung vung Q67/Q68/Q69.
+FILES CHANGED: ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift; Sources/OOXMLWord/WordDocument.swift; Sources/OOXMLWord/WordDocumentModel.swift; Sources/OOXMLPresentation/Presentation.swift; Sources/OOXMLSpreadsheet/Worksheet.swift; Sources/OOXMLSpreadsheet/Workbook.swift; Tests/OOXMLBridgeTests/OOXMLBridgeTests.swift; Tests/OOXMLWordTests/WordRoundTripTests.swift; Tests/OOXMLPresentationTests/PresentationRoundTripTests.swift; Tests/OOXMLSpreadsheetTests/P1WorksheetFeatureTests.swift; docs/sync/LIBRARY-CHANGELOG.md.
+COMMANDS RUN: Swift 6.0.3 tren VM (copy package sang /tmp vi swift test trong workspace loi copy Fixtures 513); Xcode tren Mac cho nhanh Bridge (220 passed, coverage 92%).
+BUILD RESULT: NOT RUN — khong doi build system.
+TEST RESULTS: PASS — Bridge 232/232 tren VM (tu 220 len 232 qua 6 API moi); Xcode Mac 220/220 cho nhanh Bridge (truoc khi them 6 API moi).
+KNOWN FAILURES: Nhanh numbering CHUA DAY len GitHub (cho duong day qua Mac). Kiem chung C2 tren Mac BLOCKED (xem muc duoi); khong lien quan truc tiep toi nhanh nay.
+RISKS: Lich su nhanh VM (4 commit Bridge) da lech voi remote (1 commit gop 85930ee2) — khong bao gio day nhanh VM de len remote; moi viec tiep theo phai dua tren remote 85930ee2. Nhanh numbering dua dung tren 85930ee2.
+DEPENDENCIES/BLOCKERS: Day nhanh numbering qua Mac (patch + script da chuan bi); kiem chung C2 Mac (script ~/Developer/verify-c2.command) truoc khi merge C2 vao vn-main.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Chay script day nhanh numbering tren Mac; sau do tiep tuc chuong trinh 1-4 (muc 3 parity, muc 4 cat LibreOffice khi du 4 cong + quyet dinh cua chu).

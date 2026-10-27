@@ -555,6 +555,80 @@ final class OOXMLBridgeTests: XCTestCase {
         XCTAssertEqual(reRuns.first!["shadow"] as? Bool, true)
     }
 
+    func testDocSetNumberingBridgeRoundTrip() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        try call("doc.setNumbering", ["handle": h, "index": 0, "format": "bullet"])
+        var read = try call("doc.read", ["handle": h, "from": 0, "count": 1])["paragraphs"] as! [[String: Any]]
+        var numbering = read.first!["numbering"] as! [String: Any]
+        XCTAssertEqual(numbering["format"] as? String, "bullet")
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        read = try call("doc.read", ["handle": h2, "from": 0, "count": 1])["paragraphs"] as! [[String: Any]]
+        numbering = read.first!["numbering"] as! [String: Any]
+        XCTAssertEqual(numbering["format"] as? String, "bullet")
+        try call("doc.removeNumbering", ["handle": h2, "index": 0])
+        read = try call("doc.read", ["handle": h2, "from": 0, "count": 1])["paragraphs"] as! [[String: Any]]
+        XCTAssertNil(read.first!["numbering"])
+    }
+
+    func testDocInsertFieldBridgeRoundTrip() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        try call("doc.insertField", ["handle": h, "index": 0, "instruction": "PAGE", "result": "3"])
+        var read = try call("doc.read", ["handle": h, "from": 0, "count": 1])["paragraphs"] as! [[String: Any]]
+        XCTAssertTrue((read.first!["text"] as! String).hasSuffix("3"))
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        read = try call("doc.read", ["handle": h2, "from": 0, "count": 1])["paragraphs"] as! [[String: Any]]
+        XCTAssertTrue((read.first!["text"] as! String).hasSuffix("3"))
+    }
+
+    func testDocSectionsBridge() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        let sections = try call("doc.sections", ["handle": h])["sections"] as! [[String: Any]]
+        XCTAssertEqual(sections.count, 1)
+        let headerLinked = sections.first!["headerLinked"] as! [String: Bool]
+        XCTAssertEqual(headerLinked["default"], false)
+        // Section đầu tiên không liên kết được + index ngoài phạm vi đều báo lỗi.
+        _ = try callExpectingError("doc.setSectionLinked", ["handle": h, "index": 0, "kind": "header", "linked": true])
+        _ = try callExpectingError("doc.setSectionLinked", ["handle": h, "index": 5, "kind": "header", "linked": true])
+    }
+
+    func testSlideShowSettingsBridgeRoundTrip() throws {
+        let h = try openFixture("pptx/rich-deck.pptx")
+        var settings = try call("slide.showSettings", ["handle": h])
+        XCTAssertEqual(settings["loop"] as? Bool, false)
+        try call("slide.setShowSettings", ["handle": h, "loop": true, "useTimings": false])
+        settings = try call("slide.showSettings", ["handle": h])
+        XCTAssertEqual(settings["loop"] as? Bool, true)
+        XCTAssertEqual(settings["useTimings"] as? Bool, false)
+        XCTAssertEqual(settings["showAnimation"] as? Bool, true)
+        let b64 = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": b64])["handle"] as! String
+        settings = try call("slide.showSettings", ["handle": h2])
+        XCTAssertEqual(settings["loop"] as? Bool, true)
+        XCTAssertEqual(settings["useTimings"] as? Bool, false)
+    }
+
+    func testSlideThemeBridge() throws {
+        let h = try openFixture("pptx/rich-deck.pptx")
+        let theme = try call("slide.theme", ["handle": h])
+        XCTAssertEqual(theme["found"] as? Bool, true)
+        XCTAssertEqual(theme["name"] as? String, "Office")
+        let colors = theme["colors"] as! [String: String]
+        XCTAssertEqual(colors["accent1"], "18A303")
+        XCTAssertEqual(theme["majorFontLatin"] as? String, "Arial")
+    }
+
+    func testSheetRewriteLegacyConcatBridge() throws {
+        let h = try openFixture("xlsx/rich-excel.xlsx")
+        try call("sheet.setFormula", ["handle": h, "ref": "Z99", "formula": "CONCAT(A1, B1)"])
+        let result = try call("sheet.rewriteLegacyConcat", ["handle": h])
+        XCTAssertEqual(result["changed"] as? Int, 1)
+        let read = try call("sheet.read", ["handle": h, "range": "Z99:Z99"])
+        let cells = read["cells"] as! [[String: Any]]
+        XCTAssertEqual(cells.first?["formula"] as? String, "((A1)&(B1))")
+    }
+
     func testDocStyleAndRevisionsBridge() throws {
         let h = try openFixture("docx/rich-word.docx")
         let count = try call("doc.acceptAllRevisions", ["handle": h])["count"] as! Int

@@ -6,6 +6,9 @@ public enum WordError: Error, Equatable, CustomStringConvertible {
     case paragraphNotInDocument
     case unsupportedImageFormat
     case invalidSpacing(String)
+    case invalidNumbering(String)
+    case invalidField(String)
+    case invalidSection(String)
 
     public var description: String {
         switch self {
@@ -13,6 +16,9 @@ public enum WordError: Error, Equatable, CustomStringConvertible {
         case .paragraphNotInDocument: return "Đoạn văn không thuộc tài liệu này"
         case .unsupportedImageFormat: return "Chỉ hỗ trợ chèn ảnh PNG, JPEG, GIF"
         case .invalidSpacing(let message): return message
+        case .invalidNumbering(let message): return message
+        case .invalidField(let message): return message
+        case .invalidSection(let message): return message
         }
     }
 }
@@ -169,6 +175,40 @@ public final class Paragraph {
         story.markModified()
     }
 
+    /// Định dạng danh sách của đoạn, đọc từ `w:numPr` trong pPr (nil = không đánh số).
+    public var numbering: (numId: Int, level: Int)? {
+        guard let numPr = element.firstChild(NS.w, "pPr")?.firstChild(NS.w, "numPr"),
+              let numIdText = numPr.firstChild(NS.w, "numId")?.attribute(WordText.qn(numPr, "val")),
+              let numId = Int(numIdText) else { return nil }
+        let level = numPr.firstChild(NS.w, "ilvl")?.attribute(WordText.qn(numPr, "val")).flatMap(Int.init) ?? 0
+        return (numId: numId, level: level)
+    }
+
+    /// Gắn đoạn vào một danh sách đánh số (tìm định nghĩa num có sẵn cùng format/cấp,
+    /// nếu không có thì tạo abstractNum + num mới trong `word/numbering.xml`).
+    /// level phải trong 0...8; format không hợp lệ hoặc level ngoài khoảng bị từ chối.
+    public func setNumbering(_ format: NumberingFormat, level: Int = 0) throws {
+        guard (0...8).contains(level) else { throw WordError.invalidNumbering("cấp danh sách phải trong 0...8") }
+        let numId = try story.document.numberingId(for: format, level: level)
+        let pPr = WordText.ensurePPr(element)
+        for e in pPr.children(NS.w, "numPr") { e.removeFromParent() }
+        let numPr = XElement(name: WordText.qn(pPr, "numPr"))
+        numPr.append(XElement(name: WordText.qn(pPr, "ilvl"),
+                              attributes: [XAttribute(name: WordText.qn(pPr, "val"), value: String(level))]))
+        numPr.append(XElement(name: WordText.qn(pPr, "numId"),
+                              attributes: [XAttribute(name: WordText.qn(pPr, "val"), value: String(numId))]))
+        pPr.insertChild(numPr, schemaOrder: WordText.pPrOrder)
+        story.markModified()
+    }
+
+    /// Bỏ đánh số của đoạn (giữ lại chữ và các định dạng khác).
+    public func removeNumbering() {
+        guard let pPr = element.firstChild(NS.w, "pPr") else { return }
+        for e in pPr.children(NS.w, "numPr") { e.removeFromParent() }
+        if pPr.elements.isEmpty && pPr.attributes.isEmpty { pPr.removeFromParent() }
+        story.markModified()
+    }
+
     public var runs: [Run] {
         WordText.textRuns(element).map { Run(paragraph: self, element: $0) }
     }
@@ -183,6 +223,38 @@ public final class Paragraph {
     /// Áp đậm/nghiêng/gạch chân cho mọi run chữ của đoạn.
     public func setBold(_ on: Bool) { for r in runs where !r.text.isEmpty { r.setBold(on) } }
     public func setItalic(_ on: Bool) { for r in runs where !r.text.isEmpty { r.setItalic(on) } }
+
+    /// Chèn một field phức hợp ở cuối đoạn: begin → instrText → separate →
+    /// kết quả (nếu có) → end. Lệnh field (ví dụ `PAGE`, `NUMPAGES`, `DATE`)
+    /// được lưu dạng ` PAGE `; chữ kết quả đọc được như chữ thường của đoạn
+    /// (instrText bị bỏ qua khi đọc), Word sẽ tự cập nhật lại khi mở.
+    /// Lệnh rỗng bị từ chối.
+    @discardableResult
+    public func appendField(instruction: String, result: String? = nil) throws -> [Run] {
+        let code = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !code.isEmpty else { throw WordError.invalidField("lệnh field không được rỗng") }
+        func fieldRun(_ type: String) -> XElement {
+            let r = XElement(name: WordText.qn(element, "r"))
+            r.append(XElement(name: WordText.qn(element, "fldChar"),
+                              attributes: [XAttribute(name: WordText.qn(element, "fldCharType"), value: type)]))
+            return r
+        }
+        var runs: [XElement] = [fieldRun("begin")]
+        let instr = XElement(name: WordText.qn(element, "r"))
+        let instrText = XElement(name: WordText.qn(element, "instrText"))
+        instrText.setAttribute("xml:space", "preserve")
+        instrText.setText(" \(code) ")
+        instr.append(instrText)
+        runs.append(instr)
+        runs.append(fieldRun("separate"))
+        if let result {
+            runs.append(contentsOf: WordText.makeRuns(result, rPr: nil, context: element))
+        }
+        runs.append(fieldRun("end"))
+        for r in runs { element.append(r) }
+        story.markModified()
+        return runs.map { Run(paragraph: self, element: $0) }
+    }
 
     /// Thêm một run chữ ở cuối đoạn, kế thừa định dạng run chữ cuối (nếu có).
     @discardableResult

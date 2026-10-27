@@ -26,6 +26,106 @@ public struct SlideSection: Equatable, Sendable {
     public let slideIds: [UInt32]
 }
 
+/// Cài đặt trình chiếu (p:showSettings trong p:presentationPr). Giá trị mặc
+/// định theo PowerPoint khi chưa có phần tử: loop tắt, animation/narration/
+ /// timings bật.
+public struct ShowSettings: Equatable, Sendable {
+    public var loop: Bool
+    public var showAnimation: Bool
+    public var showNarration: Bool
+    public var useTimings: Bool
+
+    public init(loop: Bool = false, showAnimation: Bool = true, showNarration: Bool = true, useTimings: Bool = true) {
+        self.loop = loop
+        self.showAnimation = showAnimation
+        self.showNarration = showNarration
+        self.useTimings = useTimings
+    }
+}
+
+extension Presentation {
+    /// Đọc cài đặt trình chiếu; chưa có phần tử thì trả về mặc định.
+    public var showSettings: ShowSettings {
+        guard let ss = document.root.firstChild(NS.p, "presentationPr")?.firstChild(NS.p, "showSettings") else {
+            return ShowSettings()
+        }
+        func b(_ name: String, _ def: Bool) -> Bool {
+            guard let v = ss.attribute(name) else { return def }
+            return v == "1" || v.lowercased() == "true"
+        }
+        return ShowSettings(loop: b("loop", false), showAnimation: b("showAnimation", true),
+                            showNarration: b("showNarration", true), useTimings: b("useTimings", true))
+    }
+
+    /// Ghi cài đặt trình chiếu, tự tạo p:presentationPr (đứng trước extLst)
+    /// và p:showSettings (đứng trước extLst của presentationPr) khi chưa có.
+    /// Các thuộc tính khác của presentationPr/showSettings giữ nguyên.
+    public func setShowSettings(_ s: ShowSettings) {
+        let pr: XElement
+        if let existing = document.root.firstChild(NS.p, "presentationPr") {
+            pr = existing
+        } else {
+            pr = XElement(name: "p:presentationPr")
+            if let ext = document.root.firstChild(NS.p, "extLst") { document.root.insert(pr, before: ext) }
+            else { document.root.append(pr) }
+        }
+        let ss: XElement
+        if let existing = pr.firstChild(NS.p, "showSettings") {
+            ss = existing
+        } else {
+            ss = XElement(name: "p:showSettings")
+            if let ext = pr.firstChild(NS.p, "extLst") { pr.insert(ss, before: ext) } else { pr.append(ss) }
+        }
+        ss.setAttribute("loop", s.loop ? "1" : "0")
+        ss.setAttribute("showAnimation", s.showAnimation ? "1" : "0")
+        ss.setAttribute("showNarration", s.showNarration ? "1" : "0")
+        ss.setAttribute("useTimings", s.useTimings ? "1" : "0")
+        package.markModified(mainPart)
+    }
+}
+
+/// Thông tin trích từ theme của bản trình chiếu (a:theme): tên theme, bảng
+/// màu (slot -> mã hex srgb, hoặc lastClr của sysClr) và font latin chính/phụ.
+/// Dùng để đối chiếu/đồng bộ màu sắc, font khi không còn LibreOffice.
+public struct ThemeInfo: Equatable, Sendable {
+    public let name: String?
+    public let colorSchemeName: String?
+    public let colors: [String: String]
+    public let majorFontLatin: String?
+    public let minorFontLatin: String?
+    public let part: String
+}
+
+extension Presentation {
+    /// Theme của slide đầu tiên (qua layout -> slideMaster -> theme), dự phòng
+    /// là theme gắn trực tiếp vào presentation. Không có theme thì nil.
+    public var theme: ThemeInfo? {
+        var part: PartName?
+        for slide in slides {
+            if let layout = slide.layoutPart,
+               let master = try? package.relatedPart(from: layout, .slideMaster),
+               let candidate = try? package.relatedPart(from: master, .theme),
+               package.hasPart(candidate) { part = candidate; break }
+        }
+        if part == nil { part = try? package.relatedPart(from: mainPart, .theme) }
+        guard let part, let doc = try? package.xml(part) else { return nil }
+        let root = doc.root
+        var colors: [String: String] = [:]
+        let scheme = root.firstChild(NS.a, "themeElements")?.firstChild(NS.a, "clrScheme")
+        for slot in scheme?.elements ?? [] where slot.namespaceURI == NS.a.primaryURI {
+            if let srgb = slot.firstChild(NS.a, "srgbClr")?.attribute("val") { colors[slot.localName] = srgb }
+            else if let sys = slot.firstChild(NS.a, "sysClr"), let last = sys.attribute("lastClr") { colors[slot.localName] = last }
+        }
+        let fonts = root.firstChild(NS.a, "themeElements")?.firstChild(NS.a, "fontScheme")
+        return ThemeInfo(name: root.attribute("name"),
+                         colorSchemeName: scheme?.attribute("name"),
+                         colors: colors,
+                         majorFontLatin: fonts?.firstChild(NS.a, "majorFont")?.firstChild(NS.a, "latin")?.attribute("typeface"),
+                         minorFontLatin: fonts?.firstChild(NS.a, "minorFont")?.firstChild(NS.a, "latin")?.attribute("typeface"),
+                         part: part.value)
+    }
+}
+
 /// Bản trình chiếu PPTX/PPTM/POTX.
 public final class Presentation {
     public let package: OPCPackage

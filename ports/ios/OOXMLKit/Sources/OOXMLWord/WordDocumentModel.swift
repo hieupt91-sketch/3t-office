@@ -244,3 +244,206 @@ struct ImageInfo {
         return nil
     }
 }
+
+/// Định dạng một cấp danh sách trong `word/numbering.xml`.
+public enum NumberingFormat: String, Sendable {
+    case decimal, bullet, lowerLetter, upperLetter, lowerRoman, upperRoman
+    /// Ký hiệu cấp (lvlText) tương ứng; bullet dùng ký tự đầu dòng thay cho số.
+    var levelText: String {
+        switch self {
+        case .decimal, .lowerRoman, .upperRoman: return "%1."
+        case .lowerLetter, .upperLetter: return "%1)"
+        case .bullet: return "•"
+        }
+    }
+}
+
+extension WordDocument {
+    /// Phần numbering của tài liệu (tìm qua quan hệ `numbering`, nếu chưa có thì
+    /// tạo `word/numbering.xml` mới kèm quan hệ và kiểu nội dung chuẩn).
+    func numberingPart() throws -> (part: PartName, doc: XDocument) {
+        if let part = try package.relatedPart(from: mainPart, .numbering), package.hasPart(part) {
+            return (part, try package.xml(part))
+        }
+        let part = PartName("/word/numbering.xml")
+        let root = XElement(name: "w:numbering",
+                            attributes: [XAttribute(name: "xmlns:w", value: NS.w.primaryURI)])
+        let doc = XDocument(root: root)
+        package.setXML(doc, for: part,
+                       contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml")
+        _ = try package.relationships(of: mainPart).add(.numbering, to: part)
+        return (part, doc)
+    }
+
+    /// numId dùng cho format/cấp cho trước: dùng lại num đã có cùng format ở cấp đó,
+    /// nếu không có thì tạo abstractNum + num mới (id = max hiện có + 1).
+    func numberingId(for format: NumberingFormat, level: Int) throws -> Int {
+        let (part, doc) = try numberingPart()
+        let root = doc.root
+        func intAttr(_ e: XElement?, _ name: String) -> Int? {
+            e?.attribute(WordText.qn(root, name)).flatMap(Int.init)
+        }
+        let abstracts = root.children(NS.w, "abstractNum")
+        let nums = root.children(NS.w, "num")
+        for num in nums {
+            guard let numId = intAttr(num, "numId") ?? intAttr(num.firstChild(NS.w, "numId"), "val"),
+                  let abstractId = num.firstChild(NS.w, "abstractNumId")?.attribute(WordText.qn(root, "val")).flatMap(Int.init),
+                  let ab = abstracts.first(where: { intAttr($0, "abstractNumId") == abstractId }),
+                  let lvl = ab.children(NS.w, "lvl").first(where: { intAttr($0, "ilvl") == level }),
+                  lvl.firstChild(NS.w, "numFmt")?.attribute(WordText.qn(root, "val")) == format.rawValue else { continue }
+            return numId
+        }
+        // Tạo mới: abstractNum (singleLevel, 1 cấp) rồi num trỏ tới nó.
+        let newAbstractId = (abstracts.compactMap { intAttr($0, "abstractNumId") }.max() ?? -1) + 1
+        let newNumId = (nums.compactMap { n in
+            n.attribute(WordText.qn(root, "numId")).flatMap(Int.init)
+                ?? n.firstChild(NS.w, "numId")?.attribute(WordText.qn(root, "val")).flatMap(Int.init)
+        }.max() ?? 0) + 1
+        let ab = XElement(name: WordText.qn(root, "abstractNum"),
+                          attributes: [XAttribute(name: WordText.qn(root, "abstractNumId"), value: String(newAbstractId))])
+        ab.append(XElement(name: WordText.qn(root, "multiLevelType"),
+                           attributes: [XAttribute(name: WordText.qn(root, "val"), value: "singleLevel")]))
+        let lvl = XElement(name: WordText.qn(root, "lvl"),
+                           attributes: [XAttribute(name: WordText.qn(root, "ilvl"), value: String(level))])
+        if format != .bullet {
+            lvl.append(XElement(name: WordText.qn(root, "start"),
+                                attributes: [XAttribute(name: WordText.qn(root, "val"), value: "1")]))
+        }
+        lvl.append(XElement(name: WordText.qn(root, "numFmt"),
+                            attributes: [XAttribute(name: WordText.qn(root, "val"), value: format.rawValue)]))
+        lvl.append(XElement(name: WordText.qn(root, "lvlText"),
+                            attributes: [XAttribute(name: WordText.qn(root, "val"), value: format.levelText)]))
+        lvl.append(XElement(name: WordText.qn(root, "lvlJc"),
+                            attributes: [XAttribute(name: WordText.qn(root, "val"), value: "left")]))
+        let pPr = XElement(name: WordText.qn(root, "pPr"))
+        pPr.append(XElement(name: WordText.qn(root, "ind"),
+                            attributes: [XAttribute(name: WordText.qn(root, "left"), value: "720"),
+                                         XAttribute(name: WordText.qn(root, "hanging"), value: "360")]))
+        lvl.append(pPr)
+        ab.append(lvl)
+        if let firstNum = nums.first { root.insert(ab, before: firstNum) } else { root.append(ab) }
+        let num = XElement(name: WordText.qn(root, "num"),
+                           attributes: [XAttribute(name: WordText.qn(root, "numId"), value: String(newNumId))])
+        num.append(XElement(name: WordText.qn(root, "abstractNumId"),
+                            attributes: [XAttribute(name: WordText.qn(root, "val"), value: String(newAbstractId))]))
+        root.append(num)
+        package.markModified(part)
+        return newNumId
+    }
+
+    /// Format của một numId ở cấp cho trước (nil nếu không tra được).
+    public func numberingFormat(numId: Int, level: Int) -> String? {
+        guard let part = try? package.relatedPart(from: mainPart, .numbering),
+              let doc = try? package.xml(part) else { return nil }
+        let root = doc.root
+        guard let num = root.children(NS.w, "num").first(where: {
+            $0.attribute(WordText.qn(root, "numId")) == String(numId)
+                || $0.firstChild(NS.w, "numId")?.attribute(WordText.qn(root, "val")) == String(numId)
+        }),
+        let abstractId = num.firstChild(NS.w, "abstractNumId")?.attribute(WordText.qn(root, "val")),
+        let ab = root.children(NS.w, "abstractNum").first(where: { $0.attribute(WordText.qn(root, "abstractNumId")) == abstractId }),
+        let lvl = ab.children(NS.w, "lvl").first(where: { $0.attribute(WordText.qn(root, "ilvl")) == String(level) }) else { return nil }
+        return lvl.firstChild(NS.w, "numFmt")?.attribute(WordText.qn(root, "val"))
+    }
+}
+
+/// Loại header/footer của một section (default = trang thường; first chỉ có
+/// hiệu lực khi section bật titlePg, even khi tài liệu bật evenAndOddHeaders).
+public enum SectionHeaderFooterType: String, Sendable { case `default`, first, even }
+
+public enum SectionHeaderFooterKind: String, Sendable { case header, footer }
+
+/// Một section của tài liệu DOCX: sectPr trong pPr của đoạn ngắt section, hoặc
+/// sectPr cuối thân văn bản. Header/footer "liên kết tới section trước" trong
+/// Word chính là việc sectPr KHÔNG có headerReference/footerReference loại đó
+/// (section sẽ dùng header/footer của section trước); section đầu tiên không
+/// có khái niệm liên kết.
+public final class Section {
+    public let document: WordDocument
+    public let index: Int
+    let element: XElement
+
+    init(document: WordDocument, index: Int, element: XElement) {
+        self.document = document
+        self.index = index
+        self.element = element
+    }
+
+    private func reference(kind: SectionHeaderFooterKind, type: SectionHeaderFooterType) -> XElement? {
+        let name = kind == .header ? "headerReference" : "footerReference"
+        return element.children(NS.w, name).first { ref in
+            (ref.attribute(WordText.qn(element, "type")) ?? "default") == type.rawValue
+        }
+    }
+
+    public func isLinkedToPrevious(kind: SectionHeaderFooterKind, type: SectionHeaderFooterType = .default) -> Bool {
+        guard index > 0 else { return false }
+        return reference(kind: kind, type: type) == nil
+    }
+
+    /// Bật/tắt liên kết tới section trước. Bật = xóa tham chiếu riêng của section
+    /// (kế thừa section trước). Tắt = sao chép header/footer của section trước
+    /// thành part mới (ảnh và tài nguyên khác dùng chung) rồi tham chiếu tới nó;
+    /// nếu section trước cũng không có header/footer loại đó thì tạo part rỗng.
+    public func setLinkedToPrevious(_ linked: Bool, kind: SectionHeaderFooterKind, type: SectionHeaderFooterType = .default) throws {
+        if linked {
+            guard index > 0 else { throw WordError.invalidSection("section đầu tiên không liên kết tới section trước") }
+            for e in element.children(NS.w, kind == .header ? "headerReference" : "footerReference")
+                where (e.attribute(WordText.qn(element, "type")) ?? "default") == type.rawValue {
+                e.removeFromParent()
+            }
+        } else {
+            if reference(kind: kind, type: type) != nil { return }
+            let stem = kind == .header ? "header" : "footer"
+            let newPart = document.package.uniquePartName(prefix: "/word/\(stem)", ext: "xml")
+            let prevRef = document.sections[index > 0 ? index - 1 : 0].reference(kind: kind, type: type)
+            if index > 0, let prevRef,
+               let rid = prevRef.attribute("\(element.prefix(for: NS.r) ?? "r"):id"),
+               let prevPart = try? document.package.relationships(of: document.mainPart).targetPart(id: rid) {
+                var copied: [PartName: PartName] = [:]
+                try document.package.duplicatePart(prevPart, as: newPart, shareable: { _ in true }, copied: &copied)
+            } else {
+                let root = XElement(name: "w:\(kind == .header ? "hdr" : "ftr")",
+                                    attributes: [XAttribute(name: "xmlns:w", value: NS.w.primaryURI)])
+                packageSetXML(newPart, root: root, kind: kind)
+            }
+            let relId = try document.package.relationships(of: document.mainPart)
+                .add(kind == .header ? .header : .footer, to: newPart)
+            let ref = XElement(name: WordText.qn(element, kind == .header ? "headerReference" : "footerReference"),
+                               attributes: [XAttribute(name: WordText.qn(element, "type"), value: type.rawValue),
+                                            XAttribute(name: "\(element.prefix(for: NS.r) ?? "r"):id", value: relId)])
+            if kind == .header {
+                element.insert(ref, at: 0)
+            } else {
+                let headers = element.children(NS.w, "headerReference")
+                if let last = headers.last { element.insert(ref, after: last) } else { element.insert(ref, at: 0) }
+            }
+        }
+        document.body.markModified()
+    }
+
+    private func packageSetXML(_ part: PartName, root: XElement, kind: SectionHeaderFooterKind) {
+        document.package.setXML(XDocument(root: root), for: part,
+                                contentType: kind == .header
+                                    ? "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"
+                                    : "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml")
+    }
+}
+
+extension WordDocument {
+    /// Các section theo thứ tự: đoạn mang sectPr trong pPr trước, sectPr cuối
+    /// thân văn bản cuối cùng.
+    public var sections: [Section] {
+        var out: [Section] = []
+        for p in body.paragraphs {
+            if let sectPr = p.element.firstChild(NS.w, "pPr")?.firstChild(NS.w, "sectPr") {
+                out.append(Section(document: self, index: out.count, element: sectPr))
+            }
+        }
+        if let final = body.container.elements.last, final.is(NS.w, "sectPr") {
+            out.append(Section(document: self, index: out.count, element: final))
+        }
+        return out
+    }
+}
+

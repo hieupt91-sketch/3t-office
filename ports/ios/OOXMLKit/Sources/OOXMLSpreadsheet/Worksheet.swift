@@ -870,6 +870,25 @@ public final class Worksheet {
         touched(ref)
     }
 
+    /// Viết lại CONCAT vô hướng trong mọi công thức thường của sheet thành
+    /// toán tử & (theo `FormulaRewriter.rewriteScalarConcat`), để Excel đời
+    /// cũ đọc được. Chỉ đụng công thức thường (formulaType nil): công thức
+    /// chia sẻ/mảng được giữ nguyên vì viết lại sẽ làm mất thuộc tính loại
+    /// của chúng. Trả về số ô đã đổi.
+    @discardableResult
+    public func rewriteLegacyConcat() throws -> Int {
+        var changed = 0
+        for cell in cells {
+            guard let f = cell.formula, cell.formulaType == nil else { continue }
+            let rewritten = FormulaRewriter.rewriteScalarConcat(f)
+            if rewritten != f {
+                try setFormula(rewritten, at: cell.reference.a1, cachedValue: cell.value)
+                changed += 1
+            }
+        }
+        return changed
+    }
+
     /// Xóa nội dung, giữ định dạng ô.
     public func clear(_ a1: String) throws {
         let ref = try parse(a1)

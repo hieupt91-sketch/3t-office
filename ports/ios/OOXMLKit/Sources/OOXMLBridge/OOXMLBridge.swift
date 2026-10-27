@@ -90,6 +90,7 @@ public final class OOXMLBridge {
         case "sheet.setValue": return try sheetSetValue(args)
         case "sheet.setFormula": return try sheetSetFormula(args)
         case "sheet.clear": try worksheet(args).clear(try args.string("ref")); return [:]
+        case "sheet.rewriteLegacyConcat": return ["changed": try worksheet(args).rewriteLegacyConcat()]
         case "sheet.format": try worksheet(args).applyFormat(BridgeValue.format(from: args.dict("change")), at: try args.string("ref")); return [:]
         case "sheet.merge": try worksheet(args).merge(try args.string("range")); return [:]
         case "sheet.unmerge": try worksheet(args).unmerge(try args.string("range")); return [:]
@@ -127,6 +128,18 @@ public final class OOXMLBridge {
         case "doc.setStyle": try paragraph(args).setStyle(args.optString("style")); return [:]
         case "doc.setSpacing": try paragraph(args).setSpacing(before: args.optInt("before"), after: args.optInt("after"), line: args.optInt("line"), lineRule: args.optString("lineRule")); return [:]
         case "doc.setRunEffect": try docSetRunEffect(args); return [:]
+        case "doc.setNumbering": guard let format = NumberingFormat(rawValue: try args.string("format")) else { throw BridgeError("args", "định dạng numbering không hỗ trợ") }; try paragraph(args).setNumbering(format, level: args.optInt("level") ?? 0); return [:]
+        case "doc.removeNumbering": try paragraph(args).removeNumbering(); return [:]
+        case "doc.insertField": _ = try paragraph(args).appendField(instruction: try args.string("instruction"), result: args.optString("result")); return [:]
+        case "doc.sections": return ["sections": try word(args).sections.map { sec -> [String: Any] in
+            func linked(_ kind: SectionHeaderFooterKind) -> [String: Bool] {
+                ["default": sec.isLinkedToPrevious(kind: kind, type: .default),
+                 "first": sec.isLinkedToPrevious(kind: kind, type: .first),
+                 "even": sec.isLinkedToPrevious(kind: kind, type: .even)]
+            }
+            return ["index": sec.index, "headerLinked": linked(.header), "footerLinked": linked(.footer)]
+        }]
+        case "doc.setSectionLinked": try docSetSectionLinked(args); return [:]
         case "doc.acceptAllRevisions": return ["count": try word(args).acceptAllRevisions()]
         case "doc.insertImage": return try docInsertImage(args)
         case "doc.rejectAllRevisions": return ["count": try word(args).rejectAllRevisions()]
@@ -143,6 +156,18 @@ public final class OOXMLBridge {
         case "slide.replace": return ["count": try presentation(args).replaceText(try args.string("find"), with: try args.string("replace"))]
         case "slide.delete": try presentation(args).deleteSlide(at: try args.int("index")); return [:]
         case "slide.duplicate": try presentation(args).duplicateSlide(at: try args.int("index")); return ["slides": try presentation(args).slides.count]
+        case "slide.theme": guard let t = try presentation(args).theme else { return ["found": false] }
+            return ["found": true, "name": t.name as Any, "colorSchemeName": t.colorSchemeName as Any,
+                    "colors": t.colors, "majorFontLatin": t.majorFontLatin as Any,
+                    "minorFontLatin": t.minorFontLatin as Any, "part": t.part]
+        case "slide.showSettings": let s = try presentation(args).showSettings
+            return ["loop": s.loop, "showAnimation": s.showAnimation, "showNarration": s.showNarration, "useTimings": s.useTimings]
+        case "slide.setShowSettings": let deck = try presentation(args); var s = deck.showSettings
+            if let v = args.optBool("loop") { s.loop = v }
+            if let v = args.optBool("showAnimation") { s.showAnimation = v }
+            if let v = args.optBool("showNarration") { s.showNarration = v }
+            if let v = args.optBool("useTimings") { s.useTimings = v }
+            deck.setShowSettings(s); return [:]
         case "slide.move": try presentation(args).moveSlide(from: try args.int("from"), to: try args.int("to")); return [:]
 
         default: throw BridgeError("op", "thao tác '\(op)' không hỗ trợ")
@@ -884,6 +909,15 @@ public final class OOXMLBridge {
 
     // MARK: Doc
 
+    private func docSetSectionLinked(_ args: Args) throws {
+        let doc = try word(args)
+        let i = try args.int("index")
+        guard doc.sections.indices.contains(i) else { throw BridgeError("index", "section \(i) ngoài phạm vi") }
+        guard let kind = SectionHeaderFooterKind(rawValue: try args.string("kind")) else { throw BridgeError("args", "kind section không hỗ trợ") }
+        let type = SectionHeaderFooterType(rawValue: args.optString("type") ?? "default") ?? .default
+        try doc.sections[i].setLinkedToPrevious(args.optBool("linked") ?? true, kind: kind, type: type)
+    }
+
     private func docSetRunEffect(_ args: Args) throws {
         let p = try paragraph(args)
         let ri = try args.int("run")
@@ -929,6 +963,11 @@ public final class OOXMLBridge {
             var o: [String: Any] = ["index": i, "text": p.text]
             if let s = p.styleId { o["style"] = s }
             if let alignment = p.alignment { o["alignment"] = alignment }
+            if let n = p.numbering {
+                var numbering: [String: Any] = ["numId": n.numId, "level": n.level]
+                if let format = p.story.document.numberingFormat(numId: n.numId, level: n.level) { numbering["format"] = format }
+                o["numbering"] = numbering
+            }
             if let sp = p.spacing {
                 var spacing: [String: Any] = [:]
                 if let v = sp.before { spacing["before"] = v }

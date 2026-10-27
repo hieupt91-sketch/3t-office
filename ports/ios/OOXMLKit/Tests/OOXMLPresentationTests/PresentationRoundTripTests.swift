@@ -6,6 +6,43 @@ import OOXMLTestSupport
 final class PresentationRoundTripTests: XCTestCase {
     let rich = "pptx/rich-deck.pptx"
 
+    func testShowSettingsRoundTrip() throws {
+        let original = try Fixtures.data(rich)
+        let deck = try Presentation(data: original)
+        XCTAssertEqual(deck.showSettings, ShowSettings())
+        deck.setShowSettings(ShowSettings(loop: true, showAnimation: true, showNarration: false, useTimings: false))
+        let saved = try deck.save()
+        let xml = try RoundTrip.partString(saved, "ppt/presentation.xml")
+        XCTAssertTrue(xml.contains("<p:showSettings"), xml)
+        XCTAssertTrue(xml.contains("loop=\"1\""), xml)
+        XCTAssertTrue(xml.contains("showNarration=\"0\""), xml)
+        XCTAssertTrue(xml.contains("useTimings=\"0\""), xml)
+        // presentationPr đứng trước extLst (đúng thứ tự schema CT_Presentation).
+        XCTAssertLessThan(xml.range(of: "<p:presentationPr")!.lowerBound, xml.range(of: "<p:extLst")!.lowerBound)
+        let reopened = try Presentation(data: saved)
+        XCTAssertEqual(reopened.showSettings, ShowSettings(loop: true, showAnimation: true, showNarration: false, useTimings: false))
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["ppt/presentation.xml"],
+                             requireChanged: ["ppt/presentation.xml"],
+                             name: "pptx-show-settings.pptx")
+    }
+
+    func testThemeExtraction() throws {
+        let deck = try Presentation(data: try Fixtures.data(rich))
+        let theme = try XCTUnwrap(deck.theme)
+        XCTAssertEqual(theme.name, "Office")
+        XCTAssertEqual(theme.colorSchemeName, "LibreOffice")
+        XCTAssertEqual(theme.colors["dk1"], "000000")
+        XCTAssertEqual(theme.colors["lt1"], "FFFFFF")
+        XCTAssertEqual(theme.colors["accent1"], "18A303")
+        XCTAssertEqual(theme.colors["accent2"], "0369A3")
+        XCTAssertEqual(theme.colors["hlink"], "0000EE")
+        XCTAssertEqual(theme.colors["folHlink"], "551A8B")
+        XCTAssertEqual(theme.majorFontLatin, "Arial")
+        XCTAssertEqual(theme.minorFontLatin, "Arial")
+        XCTAssertTrue(theme.part.hasPrefix("/ppt/theme/theme"))
+    }
+
     func testReadRichDeck() throws {
         let deck = try Presentation(data: try Fixtures.data(rich))
         XCTAssertEqual(deck.slides.count, 3)

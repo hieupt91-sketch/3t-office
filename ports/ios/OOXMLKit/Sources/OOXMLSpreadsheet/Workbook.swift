@@ -250,6 +250,17 @@ public final class Workbook {
         package.markModified(workbookPart)
     }
 
+    /// Viết lại CONCAT vô hướng trong mọi sheet thường của sổ (xem
+    /// `Worksheet.rewriteLegacyConcat`). Trả về tổng số ô đã đổi.
+    @discardableResult
+    public func rewriteLegacyConcat() throws -> Int {
+        var total = 0
+        for (i, info) in sheets.enumerated() where info.kind == .worksheet {
+            total += try worksheet(at: i).rewriteLegacyConcat()
+        }
+        return total
+    }
+
     public func worksheet(named name: String) throws -> Worksheet {
         guard let info = sheets.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
             throw SpreadsheetError.sheetNotFound(name)

@@ -245,6 +245,105 @@ final class WordRoundTripTests: XCTestCase {
         XCTAssertTrue(cleared.paragraphs[1].runs[0].isShadow, "chỉ tắt caps/strike, shadow vẫn còn")
     }
 
+    func testParagraphNumberingRoundTrip() throws {
+        let original = try Fixtures.data(rich)
+        let doc = try WordDocument(data: original)
+        let p0 = doc.paragraphs[0]
+        XCTAssertNil(p0.numbering)
+        // Dùng lại num decimal sẵn có của fixture (abstract 0, num 1).
+        try p0.setNumbering(.decimal)
+        XCTAssertEqual(p0.numbering?.numId, 1)
+        XCTAssertEqual(p0.numbering?.level, 0)
+        XCTAssertEqual(doc.numberingFormat(numId: 1, level: 0), "decimal")
+        // Bullet chưa có -> tạo abstractNum + num mới.
+        try p0.setNumbering(.bullet)
+        let bullet = try XCTUnwrap(p0.numbering)
+        XCTAssertNotEqual(bullet.numId, 1)
+        XCTAssertEqual(doc.numberingFormat(numId: bullet.numId, level: 0), "bullet")
+        let saved = try doc.save()
+        let numberingXML = try RoundTrip.partString(saved, "word/numbering.xml")
+        XCTAssertTrue(numberingXML.contains("w:val=\"bullet\""), numberingXML)
+        let docXML = try RoundTrip.partString(saved, "word/document.xml")
+        XCTAssertTrue(docXML.contains("<w:numPr>"), docXML)
+        let reopened = try WordDocument(data: saved)
+        XCTAssertEqual(reopened.paragraphs[0].numbering?.numId, bullet.numId)
+        reopened.paragraphs[0].removeNumbering()
+        let cleared = try WordDocument(data: try reopened.save())
+        XCTAssertNil(cleared.paragraphs[0].numbering)
+        XCTAssertThrowsError(try doc.paragraphs[0].setNumbering(.decimal, level: 9))
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["word/document.xml", "word/numbering.xml"],
+                             requireChanged: ["word/document.xml", "word/numbering.xml"],
+                             name: "docx-paragraph-numbering.docx")
+    }
+
+    func testInsertFieldRoundTrip() throws {
+        let original = try Fixtures.data(rich)
+        let doc = try WordDocument(data: original)
+        let p0 = doc.paragraphs[0]
+        let before = p0.text
+        _ = try p0.appendField(instruction: "PAGE", result: "1")
+        XCTAssertTrue(p0.text.hasSuffix("1"), p0.text)
+        XCTAssertTrue(p0.text.hasPrefix(before))
+        _ = try p0.appendField(instruction: "NUMPAGES")
+        XCTAssertThrowsError(try p0.appendField(instruction: "   "))
+        let saved = try doc.save()
+        let docXML = try RoundTrip.partString(saved, "word/document.xml")
+        XCTAssertTrue(docXML.contains("fldCharType=\"begin\""), docXML)
+        XCTAssertTrue(docXML.contains("fldCharType=\"separate\""), docXML)
+        XCTAssertTrue(docXML.contains("fldCharType=\"end\""), docXML)
+        XCTAssertTrue(docXML.contains("> PAGE <"), docXML)
+        XCTAssertTrue(docXML.contains("> NUMPAGES <"), docXML)
+        let reopened = try WordDocument(data: saved)
+        XCTAssertTrue(reopened.paragraphs[0].text.hasSuffix("1"))
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["word/document.xml"],
+                             requireChanged: ["word/document.xml"],
+                             name: "docx-insert-field.docx")
+    }
+
+    func testSectionLinkToPreviousRoundTrip() throws {
+        let original = try Fixtures.data(rich)
+        let doc = try WordDocument(data: original)
+        XCTAssertEqual(doc.sections.count, 1)
+        XCTAssertFalse(doc.sections[0].isLinkedToPrevious(kind: .header))
+        XCTAssertThrowsError(try doc.sections[0].setLinkedToPrevious(true, kind: .header))
+        // Tạo section thứ 2: chép sectPr cuối thân vào pPr của đoạn đầu.
+        let bodySectPr = try XCTUnwrap(doc.body.container.elements.last)
+        let pPr = WordText.ensurePPr(doc.paragraphs[0].element)
+        pPr.append(bodySectPr.deepCopy())
+        doc.body.markModified()
+        XCTAssertEqual(doc.sections.count, 2)
+        let last = doc.sections[1]
+        XCTAssertFalse(last.isLinkedToPrevious(kind: .header))
+        // Liên kết header tới section trước: tham chiếu riêng bị xóa.
+        try last.setLinkedToPrevious(true, kind: .header)
+        XCTAssertTrue(last.isLinkedToPrevious(kind: .header))
+        var saved = try doc.save()
+        var docXML = try RoundTrip.partString(saved, "word/document.xml")
+        XCTAssertEqual(docXML.components(separatedBy: "<w:headerReference").count - 1, 1, docXML)
+        // Hủy liên kết: sao chép header của section trước thành part mới.
+        try last.setLinkedToPrevious(false, kind: .header)
+        XCTAssertFalse(last.isLinkedToPrevious(kind: .header))
+        saved = try doc.save()
+        let pkg = try OPCPackage(data: saved)
+        XCTAssertTrue(pkg.partNames.map(\.value).contains("/word/header2.xml"))
+        let reopened = try WordDocument(data: saved)
+        XCTAssertEqual(reopened.sections.count, 2)
+        XCTAssertFalse(reopened.sections[1].isLinkedToPrevious(kind: .header))
+        // Liên kết footer: tham chiếu riêng bị xóa, mở lại vẫn liên kết.
+        try reopened.sections[1].setLinkedToPrevious(true, kind: .footer)
+        XCTAssertTrue(reopened.sections[1].isLinkedToPrevious(kind: .footer))
+        docXML = try RoundTrip.partString(try reopened.save(), "word/document.xml")
+        XCTAssertEqual(docXML.components(separatedBy: "<w:footerReference").count - 1, 1, docXML)
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["word/document.xml", "word/_rels/document.xml.rels",
+                                              "[Content_Types].xml",
+                                              "word/header*", "word/_rels/header*"],
+                             requireChanged: ["word/document.xml"],
+                             name: "docx-section-link.docx")
+    }
+
     func testImageInfo() {
         XCTAssertNil(ImageInfo(Data([1, 2, 3])))
         let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00, 0xFF, 0xC0, 0x00, 0x11, 0x08, 0x01, 0x2C, 0x02, 0x58, 0x03])
