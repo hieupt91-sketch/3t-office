@@ -437,6 +437,11 @@ def main(argv: list[str] | None = None) -> int:
     os.environ["UNO_PATH"] = str(program_dir)
     os.environ["URE_BOOTSTRAP"] = f"vnd.sun.star.pathname:{program_dir / 'fundamental.ini'}"
     sys.path.insert(0, str(program_dir))
+    if sys.platform == "darwin":
+        # macOS: uno.py lives in Contents/Resources, not next to soffice.
+        resources = program_dir.parent / "Resources"
+        if resources.is_dir():
+            sys.path.insert(0, str(resources))
 
     process: subprocess.Popen[str] | None = None
     desktop = None

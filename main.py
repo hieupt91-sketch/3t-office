@@ -910,6 +910,23 @@ class _SofficeUnoWorker:
             candidate = parent / name
             if candidate.is_file():
                 return str(candidate)
+        # macOS only: LibreOffice ships its Python inside the app framework,
+        # not next to soffice (LibreOfficePython.framework/Versions/<ver>/
+        # bin/python3). A bundle normally ships a single version, so the
+        # first existing file wins. Other platforms behave exactly as before.
+        if sys.platform == "darwin":
+            framework_bin = (
+                parent.parent
+                / "Frameworks"
+                / "LibreOfficePython.framework"
+                / "Versions"
+            )
+            for candidate in sorted(framework_bin.glob("*/bin/python3")):
+                if candidate.is_file():
+                    return str(candidate)
+            for candidate in sorted(framework_bin.glob("*/bin/python3.*")):
+                if candidate.is_file():
+                    return str(candidate)
         return None
 
     def start(self) -> None:
