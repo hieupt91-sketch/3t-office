@@ -1,5 +1,6 @@
 import importlib.util
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -59,6 +60,18 @@ class SofficeUnoWorkerStartupTest(unittest.TestCase):
         self.assertEqual("context", context)
         self.assertEqual(3, attempts)
         self.assertEqual([unittest.mock.call(0.02), unittest.mock.call(0.02)], sleep.call_args_list)
+
+    def test_ure_bootstrap_value_only_when_fundamental_ini_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            program_dir = Path(tmp)
+            # macOS pilot bundle: no fundamental.ini anywhere -> None, so
+            # the worker must not point soffice at a nonexistent bootstrap.
+            self.assertIsNone(WORKER._ure_bootstrap_value(program_dir))
+            (program_dir / "fundamental.ini").write_text("", encoding="utf-8")
+            self.assertEqual(
+                f"vnd.sun.star.pathname:{program_dir / 'fundamental.ini'}",
+                WORKER._ure_bootstrap_value(program_dir),
+            )
 
     def test_creation_flags_include_supported_windows_flags(self):
         expected = (

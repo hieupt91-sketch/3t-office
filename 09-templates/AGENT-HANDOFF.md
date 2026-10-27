@@ -1710,3 +1710,23 @@ DEPENDENCIES/BLOCKERS: None for source work. Excel COM reference remains blocked
 CORE PATCH ID (if any): None.
 UI REVIEW: Viewed screenshots at 1366x768: Slides Backstage template card — badge absent, card layout intact; Sheet vi-VN light/dark — values and result visible, no clipping/overlap; Sheet legacy-function warning light/dark — warning text and disable button fit, readable, no overlap. No visible issue found.
 NEXT ACTION: Review the five commits. Q66.DONE created after the completed gates and handoff.
+
+---
+
+# Agent Handoff
+TASK: Fix leg 3 macOS — worker UNO không trỏ URE_BOOTSTRAP tới fundamental.ini không tồn tại (mục 2, sau khi script verify-c2-fix chạy 27/10 21:17).
+AGENT/ROLE: Muse / Lead Agent (overall ownership 3t-office).
+BRANCH: muse/uno-mac-bootstrap-2510 (từ muse/uno-mac-layout-2510 81412f2; nội dung fix đã có trên remote ở 935bb18d).
+WORKTREE: ~/workspace/3t-office-macfix (VM Muse).
+OBJECTIVE: Sửa chân 3 đã dự kiến: sau khi 2 chân đầu xong (_python_path tìm được framework python3, uno.py đọc được qua Resources), WORKER START vẫn FAIL lỗi transport "Bộ xử lý tài liệu đã dừng".
+FINDINGS: Worker main() đặt URE_BOOTSTRAP = program_dir/fundamental.ini (Contents/MacOS) rồi spawn soffice kế thừa env đó; bundle pilot Mac không có fundamental.ini ở đâu cả (đã quét toàn bundle 26/10) nên soffice chết ngay khi khởi động, _connect thấy process đã chết và báo lỗi transport — khớp chính xác message Mac gửi về. `import uno` vẫn qua được vì uno.py tìm thấy qua sys.path Resources, nên lỗi nằm ở phía soffice, không phải phía import. Profile worker là thư mục riêng lo-profile-{app_kind} nên kẹt profile với app pilot không phải nguyên nhân chính (chưa loại trừ hoàn toàn, vẫn cần chạy thực tế).
+IMPLEMENTATION SUMMARY: Thêm helper _ure_bootstrap_value(program_dir): chỉ trả về vnd.sun.star.pathname:... khi fundamental.ini thật sự tồn tại; main() chỉ ghi đè URE_BOOTSTRAP khi helper trả về giá trị, nếu không có file thì giữ nguyên giá trị ngoài (nếu có) hoặc bỏ đặt — để soffice dùng bootstrap mặc định của bundle (cùng cách app pilot tự chạy được). Hành vi Windows/Linux không đổi (file tồn tại -> giá trị y như cũ). Không đụng UNO_PATH, không đụng main.py, không tự tạo fundamental.ini giả.
+FILES CHANGED: adapters/libreoffice/common/soffice_uno_worker.py; tests/test_soffice_uno_worker_startup.py; 09-templates/AGENT-HANDOFF.md (tệp này).
+COMMANDS RUN: python3 -m py_compile (worker + test) PASS; python3 tests/test_soffice_uno_worker_startup.py: 3/3 PASS (2 cũ + 1 mới test_ure_bootstrap_value_only_when_fundamental_ini_exists).
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: Unit VM PASS như trên. Kiểm chứng đầu-cuối trên Mac (worker START OK thật) CHƯA CHẠY — VM không có soffice macOS, phải chạy script verify trên Mac.
+KNOWN FAILURES: Chưa có — chờ chạy Mac.
+RISKS: Nếu soffice Mac vẫn FAIL sau fix này thì giả thuyết tiếp theo là soffice cần bootstrap chỉ rõ khác hoặc lỗi ở tầng pipe macOS — cần chạy soffice trực tiếp để xem stderr (worker nuốt stderr bằng DEVNULL nên log hiện tại không đủ).
+DEPENDENCIES/BLOCKERS: Chạy script verify-c2-bootstrap trên Mac (1 lần nhấp đúp; Terminal điều khiển từ xa vẫn bị chặn nên Muse không tự chạy thay được).
+CORE PATCH ID (if any): None.
+NEXT ACTION: Chạy script trên Mac, đọc c2-bootstrap-result.txt; nếu START OK thì xin chủ duyệt gộp muse/uno-mac-layout-2510 (935bb18d) + muse/uno-mac-bootstrap-2510 vào vn-main theo checklist đã soạn; nếu vẫn FAIL thì điều tra từ stderr soffice trực tiếp.

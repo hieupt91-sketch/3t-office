@@ -425,6 +425,18 @@ def _stop_server(desktop: Any, process: subprocess.Popen[str] | None) -> None:
             process.wait(timeout=3)
 
 
+def _ure_bootstrap_value(program_dir: Path) -> str | None:
+    """Return the URE_BOOTSTRAP value for this program dir, or None when
+    the bundle ships no fundamental.ini (macOS pilot layout). Pointing
+    soffice at a nonexistent bootstrap makes it exit during startup,
+    which surfaces at pipe connect as a transport error ("document
+    processor stopped") even though `import uno` itself succeeded."""
+    bootstrap = program_dir / "fundamental.ini"
+    if bootstrap.is_file():
+        return f"vnd.sun.star.pathname:{bootstrap}"
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     worker_started = time.monotonic()
     args = list(sys.argv[1:] if argv is None else argv)
@@ -435,7 +447,16 @@ def main(argv: list[str] | None = None) -> int:
     soffice_path, profile_uri, pipe_name, app_kind = args
     program_dir = Path(soffice_path).resolve().parent
     os.environ["UNO_PATH"] = str(program_dir)
-    os.environ["URE_BOOTSTRAP"] = f"vnd.sun.star.pathname:{program_dir / 'fundamental.ini'}"
+    # Only override URE_BOOTSTRAP when the file really exists (Windows/
+    # Linux layout). On the macOS pilot bundle there is no fundamental.ini
+    # at all, so leave any outer value untouched — or unset — and let
+    # soffice use its bundle-default bootstrap instead of exiting.
+    previous_bootstrap = os.environ.get("URE_BOOTSTRAP")
+    bootstrap_value = _ure_bootstrap_value(program_dir)
+    if bootstrap_value is not None:
+        os.environ["URE_BOOTSTRAP"] = bootstrap_value
+    elif previous_bootstrap is None:
+        os.environ.pop("URE_BOOTSTRAP", None)
     sys.path.insert(0, str(program_dir))
     if sys.platform == "darwin":
         # macOS: uno.py lives in Contents/Resources, not next to soffice.
