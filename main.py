@@ -2690,6 +2690,16 @@ def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str
 
 
 def _print_pdf_job(app_kind: str, pdf_path: str, printer: str, copies: int, pages: str, output_path: str | None) -> dict:
+    services = _os_services()
+    native_printer = getattr(services, "printer_services", None) if services else None
+    if native_printer is not None:
+        result = native_printer.print_pdf(
+            Path(pdf_path), printer, copies, pages,
+            Path(output_path) if output_path else None,
+        )
+        if result.is_ok:
+            return {"ok": True, "printer": printer}
+        return {"ok": False, "error": result.error.message if result.error else "Không gửi được lệnh in."}
     if (
         printer.casefold() == "microsoft print to pdf"
         and output_path
@@ -4052,6 +4062,22 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Không tải được trang xem trước. Hãy đóng hộp thoại In và thử lại."}
 
     def get_installed_printers(self):
+        services = _os_services()
+        native_printer = getattr(services, "printer_services", None) if services else None
+        if native_printer is not None:
+            result = native_printer.list_installed()
+            if not result.is_ok:
+                return {"status": "error", "message": result.error.message if result.error else "Không đọc được máy in."}
+            printers = [
+                {"name": item.name, "isDefault": item.is_default, "status": item.status}
+                for item in (result.value or ())
+            ]
+            if not printers:
+                return {"status": "error", "message": "Chưa cài máy in nào."}
+            return {
+                "status": "ok", "printers": printers,
+                "defaultPrinter": _get_print_pipeline_module().select_default_printer(printers),
+            }
         return _get_print_pipeline_module().list_installed_printers()
 
     def print_document(self, session_id, settings):
@@ -4068,8 +4094,11 @@ class VnOfficeApi:
         destination_path = options.get("destinationPath")
         copies = options.get("copies")
         page_range = str(options.get("pageRange", "") or "").strip()
+        services = _os_services()
+        native_printer = getattr(services, "printer_services", None) if services else None
+        is_native_pdf_destination = native_printer is not None and printer.casefold() == "save as pdf"
         if (
-            printer.casefold() == "microsoft print to pdf"
+            (printer.casefold() == "microsoft print to pdf" or is_native_pdf_destination)
             and not destination_path
             and copies == 1
             and not page_range

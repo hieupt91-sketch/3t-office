@@ -55,6 +55,12 @@ class ServiceResultTests(unittest.TestCase):
     def test_successful_call_without_data_is_allowed(self):
         self.assertTrue(self.pkg.ServiceResult.ok().is_ok)
 
+    def test_printer_info_is_neutral_and_printer_service_is_optional_during_migration(self):
+        item = self.pkg.PrinterInfo("Office printer", is_default=True, status="Ready")
+        self.assertEqual(item.name, "Office printer")
+        self.assertTrue(item.is_default)
+        self.assertIsNone(self.pkg.OSServices().printer_services)
+
 
 class FactoryTests(unittest.TestCase):
     def setUp(self):
@@ -88,8 +94,8 @@ class FactoryTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.pkg.get_services("fakeos-1", strict=True)
 
-    def test_contract_lists_the_ten_services_and_closed_child_purposes(self):
-        self.assertEqual(len(self.pkg.SERVICE_FIELDS), 10)
+    def test_contract_lists_services_and_closed_child_purposes(self):
+        self.assertEqual(len(self.pkg.SERVICE_FIELDS), 11)
         self.assertEqual(
             set(self.pkg.CHILD_PURPOSES),
             {"uno-worker", "document-engine", "print", "update-helper", "open-path"},

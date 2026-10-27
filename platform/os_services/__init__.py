@@ -26,6 +26,8 @@ from .base import (  # noqa: F401  (re-exported contract)
     OfficeEngineInfo,
     OfficeExportRequest,
     OSServices,
+    PrinterInfo,
+    PrinterServices,
     RegistrationReport,
     ServiceError,
     ServiceResult,
