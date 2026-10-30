@@ -1,4 +1,4 @@
-# STATUS-MAC (cập nhật: 26/10/2026 00:32, Claude Mac)
+# STATUS-MAC (cập nhật: 31/10/2026 03:53, Claude Mac)
 ## Môi trường Mac
 - macOS 15.8.1 (24H32), arm64; Xcode 26.3 (17C529), Swift 6.2.4 khi dùng `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - Lưu ý: `xcode-select -p` đang trỏ Command Line Tools (Swift 6.1.2) → `swift test` trơn báo `no such module 'XCTest'`; phải đặt `DEVELOPER_DIR`.
@@ -67,3 +67,13 @@
 - **Chờ Windows đồng ý:** thêm `Cache-Control: no-cache` cho máy chủ tĩnh trong `main.py` + tắt cache trong bộ CDP (cache QtWebEngine dùng chung giữa worktree; rủi ro chạy JS cũ sau cập nhật).
 - BLOCKED: so sánh với Office for Mac (quyền Automation chưa cấp); dựng lại runtime thật có pypdf/cryptography (bước của chủ).
 - Gián đoạn do giới hạn phiên: 07–09h, 12–14h, 17–19h, 21h–00h10 ngày 25/10.
+
+## 31/10 — tình hình mới nhất
+- Tạm dừng 26/10 01:00 → 31/10 03:00 (hết hạn mức tuần của Claude).
+- Đã vào vn-main: `mac/slides-fix-cl-2510` (D1/D7/D8).
+- **Chờ chủ duyệt gộp (đã đẩy, gộp sạch vào vn-main 4c7da4c8):**
+  - `mac/calibri-cl-2510` — D6 Calibri→Carlito trên giao diện (npm 3857/3857).
+  - `mac/filedialog-cl-2610` — MAC-3 hộp thoại Mở/Lưu/Lưu thành macOS (npm 3857/3857, CDP 20/20; cần chủ thử tay 11 bước).
+  - `mac/slides2-cl-3110` — 4 lỗi Slides còn lại + test CDP chạy được trên Windows (npm 3862/3862, CDP 15/15 + 18/18).
+- Chờ chủ quyết: màu tô hình bị thay bằng màu nhấn theme khi lưu; chữ trong hình mất căn ngang khi lưu (đổi ngữ nghĩa tệp — AGENTS §11).
+- BLOCKED: so sánh Office for Mac (quyền Automation); dựng lại runtime thật có pypdf/cryptography (bước của chủ).
