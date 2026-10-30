@@ -2153,7 +2153,15 @@ export class SlidesAdapter {
       // LibreOffice co custom-shape theo chiều cao chữ khi lưu PPTX (spAutoFit — mũi tên 200×120 còn 200×27).
       // draw:rect / draw:ellipse không bị co (đo soffice 25-10) nên giữ tên style cũ.
       const isCustomShapeExport = shape?.type === "arrow" || Boolean(shape?.geomType || shape?.flipH || shape?.flipV);
-      return isCustomShapeExport && String(shape?.text ?? "").trim() ? "_fixed" : "";
+      const hasText = Boolean(String(shape?.text ?? "").trim());
+      if (isCustomShapeExport && hasText) return "_fixed";
+      // SLIDES-2-3110 d: style tô màu chung gr<màu> giờ mang draw:textarea-vertical-align="middle" (chữ nhật/elip căn
+      // giữa như trình soạn → PPTX anchor="ctr"). Hộp chữ (căn trên như PowerPoint) có nền không dùng chung style đó
+      // nữa: style riêng «_box» y hệt nội dung cũ. Hình không nền có chữ (grNone dùng chung với hộp chữ) dùng «_m».
+      const isTextBox = shape?.type === "textbox" || shape?.type === "text";
+      const transparent = this._isTransparentFill(shape);
+      if (isTextBox) return transparent ? "" : "_box";
+      return transparent && hasText ? "_m" : "";
     }
     return `_${vAlign || "m"}${dir ? `_${dir}` : ""}${pad}${columnKey}`;
   }
@@ -3154,7 +3162,7 @@ export class SlidesAdapter {
       if (key === "none" || !color) continue;
       xml += `
     <style:style style:name="gr${key}" style:family="graphic">
-      <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="${this._escapeXml(color)}"/>
+      <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="${this._escapeXml(color)}" draw:textarea-vertical-align="middle"/>
     </style:style>`;
     }
     for (const [styleName, shape] of namedStyles) {
@@ -4131,7 +4139,9 @@ export class SlidesAdapter {
       textHtml: this._shapeHtmlFromXml(inner),
       animation: this._noneAnimation()
     };
-    if (style.textVAlign) shape.textVAlign = style.textVAlign;
+    // SLIDES-2-3110 d: «giữa» là mặc định canvas của hình (không phải hộp chữ) và lưu luôn ghi lại «middle» →
+    // không thêm thuộc tính thừa khi đọc (giữ «trên/dưới» tường minh).
+    if (style.textVAlign && style.textVAlign !== "middle") shape.textVAlign = style.textVAlign;
     if (style.textColumns > 1) {
       shape.textColumns = style.textColumns;
       const gap = style.columnSpacingRaw ? this._odfLengthToPx(style.columnSpacingRaw, false) : null;
@@ -4932,6 +4942,66 @@ export class SlidesAdapter {
     </style:master-page>`);
   }
 
+  /**
+   * SLIDES-2-3110 a: thanh nhấn chủ đề do 3T ghi vào master (`_serializeMasterPageXml`). FODP của 3T giữ
+   * `draw:rect draw:style-name="grMasterAccent"`; qua PPTX soffice trả về `draw:custom-shape` (ooxml-rect) ở 0,0,
+   * rộng bằng trang, cao 0,25 cm, tô màu nhấn. Trả { accentColor } hoặc null (tệp PowerPoint / tệp ngoài đã lưu
+   * bằng 3T không có dải này vì 3T không ghi thanh nhấn cho tệp ngoài).
+   */
+  _parseVnoMasterAccent(xmlText, graphicStyles, pageWidthPx) {
+    const masters = String(xmlText || "").match(/<style:master-page\b[^>]*[^/]>[\s\S]*?<\/style:master-page>/gi) || [];
+    const fillOf = (styleName) => {
+      const fill = graphicStyles?.get?.(styleName)?.fill;
+      return fill && fill !== "transparent" ? fill : null;
+    };
+    const maxHeight = this._odfLengthToPx("0.4cm");
+    for (const master of masters) {
+      if (/<draw:rect\b[^>]*draw:style-name=["']grMasterAccent["']/i.test(master)) {
+        return { accentColor: fillOf("grMasterAccent") };
+      }
+      const shapeRe = /<draw:(?:custom-shape|rect)\b([^>]*)>/gi;
+      let m;
+      while ((m = shapeRe.exec(master)) !== null) {
+        const attrs = m[1];
+        if (/presentation:class=/i.test(attrs)) continue;
+        const x = this._odfLengthToPx(this._attr(attrs, "svg:x") || "0cm");
+        const y = this._odfLengthToPx(this._attr(attrs, "svg:y") || "0cm");
+        const w = this._odfLengthToPx(this._attr(attrs, "svg:width") || "0cm");
+        const h = this._odfLengthToPx(this._attr(attrs, "svg:height") || "0cm");
+        const color = fillOf(this._attr(attrs, "draw:style-name"));
+        if (color && Math.abs(x) <= 1 && Math.abs(y) <= 1 && h > 0 && h <= maxHeight && w >= pageWidthPx * 0.95) {
+          return { accentColor: color };
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Bảng màu chủ đề trong tệp (`loext:theme` của master) theo đúng các ô `apply_native_slides_theme` ghi khi lưu
+   * PPTX: dark1 = chữ nội dung, light1 = nền, dark2 = tiêu đề, accent1 = nhấn. Chỉ dùng cho tệp 3T (vnoNative).
+   */
+  _parseFileThemeColors(xmlText) {
+    const theme = String(xmlText || "").match(/<loext:theme\b([^>]*)>([\s\S]*?)<\/loext:theme>/i);
+    if (!theme) return {};
+    const colors = {};
+    const colorRe = /<loext:color\b([^>]*)\/?>/gi;
+    let m;
+    while ((m = colorRe.exec(theme[2])) !== null) {
+      const slot = this._attr(m[1], "loext:name");
+      const color = this._attr(m[1], "loext:color");
+      if (slot && /^#[0-9a-f]{6}$/i.test(color || "")) colors[slot] = color.toLowerCase();
+    }
+    const name = this._unescapeXml(this._attr(theme[1], "loext:name") || "");
+    return {
+      ...(name ? { name } : {}),
+      ...(colors.accent1 ? { accentColor: colors.accent1 } : {}),
+      ...(colors.light1 ? { bgColor: colors.light1 } : {}),
+      ...(colors.dark1 ? { bodyColor: colors.dark1 } : {}),
+      ...(colors.dark2 ? { titleColor: colors.dark2 } : {})
+    };
+  }
+
   _parseMasterTheme(xmlText) {
     const master = String(xmlText || "").match(/<style:master-page\b([^>]*)>/i)?.[1] || "";
     this._sourceThemeB64 = this._attr(master, "vno:src-theme") || "";
@@ -5424,7 +5494,15 @@ export class SlidesAdapter {
 
     Object.defineProperty(parsedSlides, "sections", { value: parsedSections, enumerable: false });
     Object.defineProperty(parsedSlides, "slideShowSettings", { value: this._parsePresentationSettings(xmlText), enumerable: false });
-    Object.defineProperty(parsedSlides, "masterTheme", { value: this._parseMasterTheme(xmlText), enumerable: false });
+    // SLIDES-2-3110 a: tệp do 3T tạo mang thanh nhấn chủ đề trong master (FODP: grMasterAccent; qua PPTX: dải
+    // ooxml-rect ở mép trên) → không phải tệp ngoài; chủ đề lấy lại từ tệp (loext:theme do apply_native_slides_theme ghi).
+    const vnoAccent = this._parseVnoMasterAccent(xmlText, graphicStyles, presentationWidth);
+    const fileTheme = this._parseMasterTheme(xmlText);
+    const masterTheme = vnoAccent
+      ? { ...this._parseFileThemeColors(xmlText), ...(vnoAccent.accentColor ? { accentColor: vnoAccent.accentColor } : {}), ...(fileTheme || {}) }
+      : fileTheme;
+    Object.defineProperty(parsedSlides, "vnoNative", { value: Boolean(vnoAccent), enumerable: false });
+    Object.defineProperty(parsedSlides, "masterTheme", { value: masterTheme, enumerable: false });
     Object.defineProperty(parsedSlides, "slideWidth", { value: presentationWidth, enumerable: false });
     Object.defineProperty(parsedSlides, "slideHeight", { value: presentationHeight, enumerable: false });
     return parsedSlides;
@@ -5512,7 +5590,9 @@ export class SlidesAdapter {
     if (ooxmlPresPropsXml) xml = overlayFodpShowProperties(xml, ooxmlPresPropsXml);
     const newSlides = this.parseFodp(xml);
     if (newSlides && newSlides.length > 0) {
-      this.canvas.imported = true;
+      // SLIDES-2-3110 a: tệp do 3T tạo (master có thanh nhấn chủ đề) không phải tệp ngoài — giữ thanh nhấn khi soạn,
+      // ở hình thu nhỏ và khi lưu lại. Trước đây mọi tệp mở đều là «imported» → thanh nhấn biến mất sau khi mở lại.
+      this.canvas.imported = !newSlides.vnoNative;
       // Tệp mở từ ngoài: toạ độ canvas theo 96 dpi (1 px = 0,75 pt) như trước.
       this.canvas.ptPerPx = 0.75;
       if (newSlides.slideWidth && newSlides.slideHeight) {
@@ -5554,6 +5634,9 @@ export class SlidesAdapter {
       if (typeof this.canvas.selectSlide === "function") {
         this.canvas.selectSlide(0);
       }
+      // SLIDES-2-3110 b: tệp mở tính 0,75 pt/px → trang 16:9 là 1280×720 px; ở 100 % trang tràn vùng nhìn (thanh
+      // trạng thái/ghi chú che phần dưới). Thu nhỏ cho vừa như PowerPoint khi mở tệp; trang vừa sẵn giữ nguyên.
+      this.canvas.fitToWindowIfOverflowing?.();
       // Dấu vân tay lúc vừa mở: slide nào còn nguyên đến lúc lưu thì lưu lại đúng XML gốc của PowerPoint.
       for (const slide of this.canvas.slides) {
         if (slide?.srcSlide) slide._srcFp = this._slideFingerprint(slide);

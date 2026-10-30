@@ -327,6 +327,7 @@ import { runWriterTabsTablesAgyTests } from "./unit/writer-tabs-tables-agy.test.
 import { runSheetThemesTests } from "./unit/sheet-themes.test.js";
 import { run as runWriterWord2016Parity2Tests } from "./unit/writer-word2016-parity2.test.js";
 import { runSlidesFix2510Tests } from "./unit/slides-fix-2510.test.js";
+import { runSlides23110Tests } from "./unit/slides-2-3110.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -663,7 +664,8 @@ async function runAll() {
     { title: "272. Unit Tests — Writer Tabs Dialog, Ruler Tab Stops, Go To, Split Table, Text Direction, Table Properties (AGY-WRITER1)", runner: runWriterTabsTablesAgyTests },
     { title: "273. Unit Tests — Sheet Workbook Themes, Colors, Fonts Parity (AGY-THEMES)", runner: runSheetThemesTests },
     { title: "273. Unit Tests — Writer Selection Pane, Group/Ungroup, Split Window, Table Styles, Table Formula (Word 2016 Parity Round 2)", runner: runWriterWord2016Parity2Tests },
-    { title: "274. Unit Tests — FIX-SLIDES-2510 (D1 mở lại PPTX vẽ hai lần, D7 dấu đầu dòng, D8 chữ trong hình)", runner: runSlidesFix2510Tests }
+    { title: "274. Unit Tests — FIX-SLIDES-2510 (D1 mở lại PPTX vẽ hai lần, D7 dấu đầu dòng, D8 chữ trong hình)", runner: runSlidesFix2510Tests },
+    { title: "275. Unit Tests — SLIDES-2-3110 (a thanh nhấn sau mở lại, b vừa vùng nhìn, c hình dựng sẵn ở hình thu nhỏ/trình chiếu, d chữ hình căn giữa khi lưu)", runner: runSlides23110Tests }
   ];
 
   for (const suite of suites) {

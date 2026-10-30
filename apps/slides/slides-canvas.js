@@ -4701,8 +4701,11 @@ export class SlidesCanvasController {
       return `<div class="vno-show-shape vno-show-wordart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:transparent;display:flex;align-items:center;justify-content:center;overflow:visible">${text}</div>`;
     }
     const isDiagramNode = !!(shape.diagramGroupId || shape.diagramRole === "node");
-    const radius = shape.type === "ellipse" ? "50%" : (isDiagramNode ? "6px" : "0px");
-    const border = (shape.stroke || shape.strokeColor) ? `border:${shape.strokeWidth || 1}px solid ${shape.stroke || shape.strokeColor};box-sizing:border-box;` : "";
+    // SLIDES-2-3110 c: hình dựng sẵn vẽ bằng SVG (cùng _presetForShape với trình soạn), phần tử không tô nền/viền.
+    const preset = this._presetForShape(shape);
+    const geometry = this._presetGeometrySvg(shape, preset);
+    const radius = shape.type === "ellipse" ? "50%" : (isDiagramNode ? "6px" : (preset?.css?.borderRadius || "0px"));
+    const border = !geometry && (shape.stroke || shape.strokeColor) ? `border:${shape.strokeWidth || 1}px solid ${shape.stroke || shape.strokeColor};box-sizing:border-box;` : "";
     const opacity = isDiagramNode ? ".85" : (shape.opacity != null ? String(shape.opacity) : "1");
     const textWeight = shape.fontWeight ? `font-weight:${shape.fontWeight};` : (!isDiagramNode ? "font-weight:normal;" : "");
     const textSize = shape.fontSize ? `font-size:${typeof shape.fontSize === "number" ? `${shape.fontSize}px` : shape.fontSize};` : "";
@@ -4710,7 +4713,8 @@ export class SlidesCanvasController {
     const textAlign = shape.textAlign ? `text-align:${shape.textAlign};` : "";
     const textStyle = [textWeight, textSize, textColor, textAlign].filter(Boolean).join("");
     const text = shape.text !== undefined ? `<span class="vno-show-shape-text"${textStyle ? ` style="${textStyle}"` : ""}>${this._escapeShapeText(shape.text)}</span>` : "";
-    return `<div class="vno-show-shape"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:${shape.fill || shape.color || "#3b82f6"};opacity:${opacity};border-radius:${radius};${border}">${text}</div>`;
+    const background = geometry ? "transparent" : (shape.fill || shape.color || "#3b82f6");
+    return `<div class="vno-show-shape"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:${background};opacity:${opacity};border-radius:${radius};${border}">${geometry}${text}</div>`;
   }
 
   _getMorphMatches(fromSlide, toSlide) {
@@ -4782,11 +4786,18 @@ export class SlidesCanvasController {
       const box = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:${bg};overflow:hidden;box-sizing:border-box`;
       return `<div class="vno-sorter-shape-node vno-sorter-textbox" style="${box}">${this._escapeShapeText(shape.text || "")}</div>`;
     }
-    if (shape.type !== "rect" && shape.type !== "ellipse") return "";
+    if (shape.type !== "rect" && shape.type !== "ellipse" && shape.type !== "arrow") return "";
+    const box = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%`;
+    // SLIDES-2-3110 c: hình dựng sẵn (mũi tên, sao…) vẽ bằng SVG như trình soạn, không thành khối chữ nhật.
+    const preset = this._presetForShape(shape);
+    const geometry = this._presetGeometrySvg(shape, preset);
+    if (geometry) {
+      return `<div class="vno-sorter-shape-node vno-sorter-preset" style="${box};background:transparent">${geometry}<span class="vno-sorter-shape-text">${this._escapeShapeText(shape.text || "")}</span></div>`;
+    }
     const isDiagramNode = !!(shape.diagramGroupId || shape.diagramRole === "node");
-    const radius = shape.type === "ellipse" ? "50%" : (isDiagramNode ? "4px" : "0px");
+    const radius = shape.type === "ellipse" ? "50%" : (isDiagramNode ? "4px" : (preset?.css?.borderRadius || "0px"));
     const border = (shape.stroke || shape.strokeColor) ? `;border:${Math.max(1, Math.round((shape.strokeWidth || 1) * 0.2))}px solid ${shape.stroke || shape.strokeColor};box-sizing:border-box` : "";
-    const style = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:${shape.fill || shape.color || "#3b82f6"};border-radius:${radius}${border}`;
+    const style = `${box};background:${shape.fill || shape.color || "#3b82f6"};border-radius:${radius}${border}`;
     return `<div class="vno-sorter-shape-node" style="${style}">${this._escapeShapeText(shape.text || "")}</div>`;
   }
 
@@ -7038,6 +7049,25 @@ const startEditing = (initialText) => {
     return null;
   }
 
+  /**
+   * SLIDES-2-3110 c: SVG (chuỗi HTML) của hình dựng sẵn cho các đường vẽ bằng chuỗi — Sắp xếp trang, in/xem trước
+   * in, trang ghi chú, hình thu nhỏ ngăn trái, trình chiếu. Cùng `_presetForShape()` với trình soạn nên mọi nơi vẽ
+   * cùng một hình; thuộc tính SVG khớp `renderPresetGeometry()` (platform/shapes, bản DOM của trình soạn).
+   * Trả "" khi hình không có đường vẽ preset (chữ nhật thường, elip, roundRect chỉ bo góc CSS).
+   */
+  _presetGeometrySvg(shape, preset = this._presetForShape(shape)) {
+    if (!preset?.path) return "";
+    const esc = (value) => this._escapeShapeText(String(value));
+    const stroke = shape.stroke || shape.strokeColor;
+    let strokeAttrs = "";
+    if (stroke) {
+      const dash = String(shape.strokeDash || "");
+      const dashAttr = (shape.strokeDash || shape.strokeKind === "dash") ? ` stroke-dasharray="${/^Dot$/i.test(dash) ? "1 3" : "8 4"}"` : "";
+      strokeAttrs = ` stroke="${esc(stroke)}" stroke-width="${esc(shape.strokeWidth || 1)}" vector-effect="non-scaling-stroke"${dashAttr}`;
+    }
+    return `<svg class="vno-shape-geometry" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><path d="${esc(preset.path)}" fill="${esc(shape.fill || shape.color || "#3b82f6")}"${strokeAttrs}/></svg>`;
+  }
+
   _textDirectionCss(direction) {
     if (direction === "vertical") return "writing-mode:vertical-rl;text-orientation:mixed;";
     if (direction === "vertical270") return "writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);";
@@ -7364,10 +7394,12 @@ const startEditing = (initialText) => {
         `;
       }
 
+      // SLIDES-2-3110 c: hình của trang (hình dựng sẵn bằng SVG) vẽ cùng hàm với Sắp xếp trang/in.
+      const thumbShapes = (slide.shapes || []).filter(shape => !shape.hidden).map(shape => this._shapeSorterHtml(shape)).join("");
       item.innerHTML = `
         <span class="vno-slide-thumb-num${slide.hidden ? " is-hidden-number" : ""}">${idx + 1}${slide.hidden ? `<span class="vno-slide-hidden-mark" title="${t("slidesDialogs.hiddenSlideBadge", "Ẩn")}">⊘</span>` : ""}</span>
         <div class="vno-slide-thumb-card" style="${this._slideSurfaceInlineStyle(slide)};font-family:${theme.fontFamily || "sans-serif"};">
-          ${cardInner}
+          ${cardInner}${thumbShapes ? `<div class="vno-slide-thumb-shapes" aria-hidden="true">${thumbShapes}</div>` : ""}
         </div>
       `;
       item.tabIndex = idx === this.currentSlideIndex ? 0 : -1;
@@ -10082,6 +10114,12 @@ const startEditing = (initialText) => {
     }
     if (themeConfig.id && !themeConfig.themeId) {
       themeConfig = { ...themeConfig, themeId: themeConfig.id };
+    }
+    // SLIDES-2-3110 a: chủ đề đọc lại từ tệp PPTX do 3T lưu chỉ mang tên (ID hoặc tên hiển thị) + bảng màu →
+    // nhận lại đúng chủ đề VN để thư viện Thiết kế đánh dấu đúng ô (không trộn logo/phông của chủ đề mẫu).
+    if (!themeConfig.themeId && themeConfig.name) {
+      const known = SLIDE_MASTER_THEMES.find(t => t.id === themeConfig.name || t.name === themeConfig.name);
+      if (known) themeConfig = { ...themeConfig, themeId: known.id };
     }
 
     // Có chủ đề được nạp từ tệp hoặc do người dùng chọn: từ giờ chủ đề này mới được ghi vào tệp khi lưu.
@@ -13203,6 +13241,22 @@ const startEditing = (initialText) => {
     if (stageW <= 0 || stageH <= 0) return this.setZoom(1.0);
     const scale = Math.min(2.0, Math.max(0.3, Math.floor(Math.min(stageW / canvasW, stageH / canvasH) * 10) / 10));
     return this.setZoom(scale);
+  }
+
+  /**
+   * SLIDES-2-3110 b: chỉ thu nhỏ khi trang ở mức thu phóng hiện tại TRÀN vùng nhìn (tệp mở tính 0,75 pt/px nên trang
+   * 16:9 là 1280×720 px). Không phóng to tài liệu vừa sẵn; chưa có layout thật (clientWidth 0) thì không làm gì.
+   */
+  fitToWindowIfOverflowing() {
+    const stageW = Number(this.stageEl?.clientWidth) || 0;
+    const stageH = Number(this.stageEl?.clientHeight) || 0;
+    if (!this.canvasEl || stageW <= 0 || stageH <= 0) return false;
+    const availW = stageW - 64;
+    const availH = stageH - (this.isNotesVisible ? 200 : 80);
+    const w = (this.slideSize?.width || 960) * this.zoomLevel;
+    const h = (this.slideSize?.height || 540) * this.zoomLevel;
+    if (w <= availW && h <= availH) return false;
+    return this.fitToWindow();
   }
 
   newWindow() {
