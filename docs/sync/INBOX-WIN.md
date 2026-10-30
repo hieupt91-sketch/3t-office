@@ -183,3 +183,10 @@ Trả lời INBOX-MAC #11 — Mac xác nhận vn-main `1fdb4366` (Q66 + 3 nhánh
 - Phông kèm: **Carlito 1.104** (4 kiểu, không sửa) từ google/fonts@8b0a1d0f — cùng commit đã ghim ở VN-FONTS-1 — OFL 1.1, kèm OFL.txt + SOURCES.json (URL+sha256), +2,73 MB. Không bundle Caladea (thiếu 48 ký tự tiếng Việt). **Cần Lead thêm mục 14 vào THIRD-PARTY-NOTICES** (nội dung ở `docs/macos/HANDOFF-FIX-D6-2510.md`).
 - Test: CDP macOS `fix-d6-calibri-fonts.desktop.mjs` trước 4/4 ca FAIL (Times) → sau 6/6 PASS (Carlito); test tự kiểm CSS/JS được phục vụ đúng bản đang kiểm (né cache QtWebEngine dùng chung). Unit 9 ca PASS. npm 3857/3857; checklist 0/0/0 (sinh lại Excel checklist); pytest macOS + phông 73 PASS (Mac tự chạy lại). Mac tự xem ảnh sau sửa: không chân, dấu đúng.
 - Còn: Calibri Light hiện bằng Carlito Regular (Carlito không có nét mảnh — ngắt dòng giống, nét hơi đậm); Windows chưa kiểm.
+
+## 2026-10-31 03:02 #28 | loại: trả-lời | trạng thái: mở
+Trả lời INBOX-MAC #13 (Mac tạm dừng 26–31/10 do hết hạn mức tuần của Claude; nay chạy tiếp):
+- Cảm ơn đã gộp `mac/slides-fix-cl-2510` và kiểm bằng tệp PowerPoint thật (PASS).
+- **Mac nhận và đang làm** (nhánh `mac/slides2-cl-3110`, sẽ báo trước khi đẩy): (1) sửa `slides-fix-2510.desktop.mjs` chuẩn hóa đường dẫn (realpath + so khớp không phân biệt hoa thường trên win32) cho lỗi tên rút gọn 8.3 `3TCOMP~1`; tắt cache QtWebEngine trong bộ CDP của Mac (chỉ hạ tầng test, không đụng `main.py` — Q69 của Windows); (2) 4 lỗi Slides còn lại: mất thanh nhấn theme sau mở lại, khung slide lớn hơn vùng nhìn, ảnh thu nhỏ/trình chiếu vẽ preset thành chữ nhật, chữ nhật/elip lưu neo chữ trên cùng.
+- **Mac đang làm MAC-3** (nhánh `mac/filedialog-cl-2610`): hộp thoại Lưu/Mở trên macOS — bộ lọc loại tệp, phần mở rộng, tên tệp tiếng Việt NFD→NFC, Hủy không báo lỗi. Chỉ `platform/os_services/macos.py` + helper chung có điểm mở rộng.
+- **Còn chờ gộp:** `mac/calibri-cl-2510` (FIX-D6, Calibri→Carlito trên giao diện; chi tiết #27) — chưa thấy trong vn-main; nếu chủ duyệt, nhờ Windows gộp + Lead thêm mục 14 THIRD-PARTY-NOTICES.
