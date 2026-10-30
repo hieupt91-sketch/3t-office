@@ -11,8 +11,19 @@ from unittest.mock import ANY, MagicMock, patch
 
 import main
 
+class _WindowsDialogContract(unittest.TestCase):
+    """G7 pins the Windows Save dialog contract (its file-type menu appends the extension, so the default name has
+    none). On macOS the OS-services dialog policy applies instead — covered by tests/macos/test_file_dialogs_macos.py
+    — so these tests run the policy-free path on every host (MAC-3-2610)."""
 
-class SaveAsDialogTests(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        policy_patch = patch.object(main, "_file_dialog_policy", return_value=None)
+        policy_patch.start()
+        self.addCleanup(policy_patch.stop)
+
+
+class SaveAsDialogTests(_WindowsDialogContract):
     def test_current_format_filter_is_listed_first(self):
         cases = {
             ("writer", "doc"): "Văn bản Word 97 đến 2003 (*.doc)",
@@ -94,7 +105,7 @@ class SaveAsDialogTests(unittest.TestCase):
                 export_pdf.assert_not_called()
 
 
-class SaveAsAlternateFormatTests(unittest.TestCase):
+class SaveAsAlternateFormatTests(_WindowsDialogContract):
     FORMATS = (
         ("writer", "docx", "odt", "<p>Văn bản</p>"),
         ("writer", "docx", "pdf", "<p>Văn bản</p>"),

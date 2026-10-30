@@ -79,6 +79,7 @@ import { runSheetArrayFormulaTests } from "./unit/sheet-array-formulas.test.js";
 import { runSlidesDiagramTests } from "./unit/slides-diagrams.test.js";
 import { runShortcutScopeTests } from "./unit/shortcut-scope.test.js";
 import { runMacOSKeymapTests } from "./unit/macos-keymap.test.js";
+import { runMacOSFileDialogTests } from "./unit/macos-file-dialogs.test.js";
 import { runCaretBoundaryTests } from "./unit/caret-boundary.test.js";
 import { runWriterRefMailAuditTests } from "./unit/writer-refmail-audit.test.js";
 import { runSheetImageTests } from "./unit/sheet-images.test.js";
@@ -410,6 +411,7 @@ async function runAll() {
     { title: "47. Behavioral Tests — VN Slides SmartArt-like Diagrams", runner: runSlidesDiagramTests },
     { title: "48. Runtime Tests — Active App Shortcut Scope", runner: runShortcutScopeTests },
     { title: "48b. Runtime Tests — macOS Cmd/Option Shortcut Map", runner: runMacOSKeymapTests },
+    { title: "48b2. Unit Tests — macOS Open/Save Dialog Names & Help (MAC-3-2610)", runner: runMacOSFileDialogTests },
     { title: "48c. Unit Tests — Document Boundary Caret (Cmd/Ctrl+Home/End, D9)", runner: runCaretBoundaryTests },
     { title: "49. Behavioral & Unit Tests — VN Writer References & Mailings Audit", runner: runWriterRefMailAuditTests },
     { title: "50. Behavioral Tests — VN Sheet Insert Pictures", runner: runSheetImageTests },

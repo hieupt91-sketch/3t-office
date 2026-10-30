@@ -76,9 +76,9 @@ def _early_forward_if_running(argv: list[str]) -> bool:
     app_kind = None
     file_path = None
     app_by_extension = {
-        ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
+        ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer", ".dotx": "writer",
         ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet", ".xltx": "sheet", ".xlt": "sheet",
-        ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
+        ".pptx": "slides", ".ppt": "slides", ".odp": "slides", ".potx": "slides",
     }
     for arg in argv:
         if arg.startswith("--app="):
@@ -592,9 +592,9 @@ TASKBAR_RELAUNCH_DISPLAY_NAMES = {"writer": "Doc", "sheet": "Sheet", "slides": "
 TASKBAR_LAUNCHER_EXES = {"writer": "Doc.exe", "sheet": "Sheet.exe", "slides": "Slide.exe"}
 SUITE_TITLE = "3T Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
-    ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
+    ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer", ".dotx": "writer",
     ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet", ".xltx": "sheet", ".xlt": "sheet",
-    ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
+    ".pptx": "slides", ".ppt": "slides", ".odp": "slides", ".potx": "slides",
 }
 
 
@@ -753,6 +753,57 @@ def _os_services():
             _OS_SERVICES_LOAD_FAILED = True
             return None
     return _OS_SERVICES
+
+
+def _file_dialog_policy():
+    """MAC-3-2610: what this OS's native Open/Save dialogs do (platform/os_services/file_dialogs.py).
+
+    None (Windows, Linux, legacy mode) keeps the previous dialog code path below unchanged.
+    """
+    services = _os_services()
+    return getattr(services, "file_dialogs", None) if services is not None else None
+
+
+def _create_file_dialog(window, dialog_type, **kwargs):
+    """Single entry point for the document Open/Save dialogs (pywebview create_file_dialog)."""
+    stub_path = os.environ.get("VNO_CDP_FILE_DIALOG_STUB")
+    if stub_path and os.environ.get("VNO_CDP_DEBUG_PORT"):
+        # Test-only: native panels cannot be driven over CDP. Production never sets these variables.
+        return _cdp_file_dialog_stub(stub_path, dialog_type, kwargs)
+    return window.create_file_dialog(dialog_type, **kwargs)
+
+
+def _cdp_file_dialog_stub(stub_path, dialog_type, kwargs):
+    """Answer a dialog from a JSON queue written by a CDP test and log the arguments the app passed."""
+    try:
+        from webview.util import parse_file_type
+        for item in kwargs.get("file_types") or ():
+            parse_file_type(item)  # same validation pywebview applies before any backend
+    except ImportError:
+        pass
+    with open(stub_path, "r", encoding="utf-8") as handle:
+        state = json.load(handle)
+    responses = state.get("responses") or []
+    response = responses.pop(0) if responses else None
+    state["responses"] = responses
+    with open(stub_path, "w", encoding="utf-8") as handle:
+        json.dump(state, handle, ensure_ascii=False)
+    with open(stub_path + ".calls.jsonl", "a", encoding="utf-8") as handle:
+        handle.write(json.dumps({"type": "save" if dialog_type == webview.SAVE_DIALOG else "open",
+                                 **{key: (list(value) if isinstance(value, tuple) else value)
+                                    for key, value in kwargs.items()}}, ensure_ascii=False) + "\n")
+    if isinstance(response, list):
+        return tuple(response)
+    return response
+
+
+def _dialog_paths(result) -> list[str]:
+    """pywebview returns None (cancel), a string (Cocoa Save) or a tuple of paths; empty strings mean cancel."""
+    if not result:
+        return []
+    if isinstance(result, (str, os.PathLike)):
+        return [str(result)] if str(result) else []
+    return [str(item) for item in result if item]
 
 
 def _user_data_dir() -> Path:
@@ -2596,7 +2647,7 @@ def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) ->
         return resolved_path, default_ext
 
     ext = suffix.lstrip(".")
-    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "xltx", "ppt", "pptx", "odt", "ods", "odp", "pdf", "csv", "html", "htm"}:
+    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "xltx", "dotx", "potx", "ppt", "pptx", "odt", "ods", "odp", "pdf", "csv", "html", "htm"}:
         if ext == "htm":
             return file_path, "html"
         return file_path, ext
@@ -2604,22 +2655,44 @@ def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) ->
     return file_path, default_ext
 
 
-def _convert_xlsx_to_template(xlsx_path: str) -> None:
-    """Đổi gói .xlsx đã lưu thành mẫu .xltx: chỉ thay loại nội dung của xl/workbook.xml."""
+# Mẫu Office: lưu như tài liệu thường rồi chỉ đổi loại nội dung của phần chính (đúng như Word/Excel/PowerPoint ghi mẫu).
+_OOXML_TEMPLATE_FORMATS = {
+    # đuôi mẫu: (đuôi dựng, loại nội dung tài liệu, loại nội dung mẫu, tên phần chính khi báo lỗi)
+    "xltx": ("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml",
+             "application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml", "bảng tính", "sổ làm việc"),
+    "dotx": ("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml",
+             "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml", "tài liệu", "văn bản chính"),
+    "potx": ("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml",
+             "application/vnd.openxmlformats-officedocument.presentationml.template.main+xml", "bản trình chiếu", "bản trình bày"),
+}
+
+
+def _template_build_format(target_format: str | None) -> str | None:
+    """Định dạng thật cần dựng cho một định dạng mẫu (.xltx→xlsx, .dotx→docx, .potx→pptx); còn lại giữ nguyên."""
+    entry = _OOXML_TEMPLATE_FORMATS.get((target_format or "").lower())
+    return entry[0] if entry else target_format
+
+
+def _convert_ooxml_to_template(package_path: str, template_format: str) -> None:
+    """Đổi gói OOXML đã lưu thành mẫu: chỉ thay loại nội dung của phần chính trong [Content_Types].xml."""
     import zipfile
-    main_ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"
-    template_ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml"
-    tmp_path = xlsx_path + ".tpl"
-    with zipfile.ZipFile(xlsx_path) as zin, zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zout:
+    _build, main_ct, template_ct, kind, part = _OOXML_TEMPLATE_FORMATS[template_format]
+    tmp_path = package_path + ".tpl"
+    with zipfile.ZipFile(package_path) as zin, zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zout:
         for item in zin.infolist():
             data = zin.read(item.filename)
             if item.filename == "[Content_Types].xml":
                 text = data.decode("utf-8")
                 if main_ct not in text:
-                    raise DocumentEngineError("Không tạo được mẫu: gói bảng tính thiếu phần sổ làm việc.")
+                    raise DocumentEngineError(f"Không tạo được mẫu: gói {kind} thiếu phần {part}.")
                 data = text.replace(main_ct, template_ct).encode("utf-8")
             zout.writestr(item, data)
-    os.replace(tmp_path, xlsx_path)
+    os.replace(tmp_path, package_path)
+
+
+def _convert_xlsx_to_template(xlsx_path: str) -> None:
+    """Đổi gói .xlsx đã lưu thành mẫu .xltx: chỉ thay loại nội dung của xl/workbook.xml."""
+    _convert_ooxml_to_template(xlsx_path, "xltx")
 
 
 def _sheet_fods_for_export(fods: str, target_format: str | None) -> str:
@@ -4813,6 +4886,9 @@ class VnOfficeApi:
         if not self._server_port:
             return {"status": "error", "message": "Máy chủ giao diện của 3T Office chưa sẵn sàng."}
 
+        policy = _file_dialog_policy()
+        if policy is not None:
+            source_path = Path(policy.normalize_existing_path(str(source_path)))
         file_name = source_path.name
         child_api = VnOfficeApi(app_kind=app_kind, initial_file=str(source_path), server_port=self._server_port)
         child_api._start_document_engine()
@@ -4996,6 +5072,7 @@ class VnOfficeApi:
     def _open_document_dialog_impl(self, app_kind="writer", source_path=None, password=None):
         """Mở hộp thoại chọn tệp NATIVE thật của hệ điều hành, chuyển đổi tệp thật sang
         định dạng trung gian mà UI có thể hiển thị."""
+        policy = _file_dialog_policy()
         if source_path:
             src_path = str(source_path)
         elif self._initial_file:
@@ -5008,15 +5085,33 @@ class VnOfficeApi:
             if not window:
                 return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
 
-            file_types = OPEN_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))
+            if policy is not None:
+                dialog_kwargs = {"file_types": policy.open_file_types(app_kind)}
+                if policy.open_allows_multiple:
+                    dialog_kwargs["allow_multiple"] = True
+            else:
+                dialog_kwargs = {"file_types": OPEN_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))}
             try:
-                result = window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types)
+                result = _create_file_dialog(window, webview.OPEN_DIALOG, **dialog_kwargs)
             except Exception as exc:  # lỗi hệ thống khi mở hộp thoại
                 return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
 
-            if not result:
+            chosen = _dialog_paths(result)
+            if not chosen:
                 return {"status": "cancelled"}
-            src_path = result[0]
+            if policy is not None:
+                chosen = [policy.normalize_existing_path(path) for path in chosen]
+            src_path = chosen[0]
+            # Như Office for Mac: chọn nhiều tệp thì tệp đầu mở ở cửa sổ này, các tệp sau mở cửa sổ riêng.
+            additional = [path for path in chosen[1:] if FILE_APP_KINDS.get(Path(path).suffix.lower()) == app_kind]
+            if additional:
+                threading.Thread(
+                    target=self._open_additional_files, args=(additional, app_kind),
+                    daemon=True, name="3T Office open more files",
+                ).start()
+        if policy is not None:
+            # Tên tệp tiếng Việt từ macOS thường ở dạng tách dấu (NFD): hiển thị/ghi nhớ ở dạng dựng sẵn (NFC).
+            src_path = policy.normalize_existing_path(src_path)
 
         _notify_document_open_progress(self)
 
@@ -5396,21 +5491,33 @@ class VnOfficeApi:
         self._document_password = password if encrypted_source else None
         return payload
 
+    def _open_additional_files(self, paths, app_kind):
+        for path in paths:
+            try:
+                result = self.open_file_in_new_window(path, app_kind)
+            except Exception as exc:
+                result = {"status": "error", "message": str(exc)}
+            if not isinstance(result, dict) or result.get("status") != "ok":
+                logging.getLogger("vnoffice.open").warning(
+                    "Could not open an additional selected %s file in a new window.", app_kind,
+                )
+
     def _open_writer_reference_document_impl(self):
         window = _active_window(self)
         if not window:
             return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
+        policy = _file_dialog_policy()
+        file_types = (policy.open_file_types("writer") if policy is not None
+                      else OPEN_FILE_TYPES.get("writer", ("Tất cả tệp (*.*)",)))
         try:
-            result = window.create_file_dialog(
-                webview.OPEN_DIALOG,
-                file_types=OPEN_FILE_TYPES.get("writer", ("Tất cả tệp (*.*)",)),
-            )
+            result = _create_file_dialog(window, webview.OPEN_DIALOG, file_types=file_types)
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
-        if not result:
+        chosen = _dialog_paths(result)
+        if not chosen:
             return {"status": "cancelled"}
 
-        reference_path = result[0]
+        reference_path = policy.normalize_existing_path(chosen[0]) if policy is not None else chosen[0]
         previous_initial = self._initial_file
         previous_current = self._current_file_path
         try:
@@ -5438,14 +5545,16 @@ class VnOfficeApi:
             "Tất cả tệp (*.*)",
         )
         try:
-            result = window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types)
+            result = _create_file_dialog(window, webview.OPEN_DIALOG, file_types=file_types)
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
 
-        if not result:
+        chosen = _dialog_paths(result)
+        if not chosen:
             return {"status": "cancelled"}
 
-        src_path = result[0]
+        policy = _file_dialog_policy()
+        src_path = policy.normalize_existing_path(chosen[0]) if policy is not None else chosen[0]
         ext = Path(src_path).suffix.lower()
         file_name = Path(src_path).name
         self._reporting_file_path = src_path
@@ -5519,7 +5628,7 @@ class VnOfficeApi:
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
                 stage_started = time.perf_counter()
-                build_format = "xlsx" if (app_kind == "sheet" and target_format == "xltx") else target_format
+                build_format = _template_build_format(target_format)
                 src_path = _write_save_source(content, app_kind, tmp, build_format)
                 if audit_timings is not None:
                     audit_timings["fodsWriteMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
@@ -5528,7 +5637,7 @@ class VnOfficeApi:
                     src_path, app_kind, build_format, source_document_path=source_path, timings=audit_timings,
                 )
                 if build_format != target_format:
-                    _convert_xlsx_to_template(out_path)
+                    _convert_ooxml_to_template(out_path, target_format)
                 if self._document_password and target_format not in {"docx", "xlsx", "pptx"}:
                     raise DocumentEngineError("Hãy xóa mật khẩu trước khi lưu sang định dạng không hỗ trợ mã hóa.")
                 out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
@@ -5580,31 +5689,62 @@ class VnOfficeApi:
                 default_ext = "html" if s_ext == "htm" else s_ext
                 default_stem = Path(suggested_name).stem
 
-        if target_format == "pdf":
-            file_types = ("Tài liệu PDF (*.pdf)", "Tất cả tệp (*.*)")
+        policy = _file_dialog_policy()
+        if policy is not None:
+            # MAC-3-2610: macOS Save panels have no file-type menu (pywebview Cocoa/Qt), so the name carries the
+            # extension of the chosen format; unnamed documents start as "Tài liệu 1.docx" in ~/Documents.
+            default_stem, default_ext = policy.suggested_save_name(app_kind, suggested_name, target_format)
+            dialog_kwargs = {
+                "save_filename": policy.dialog_save_filename(default_stem, default_ext),
+                "file_types": policy.save_file_types(app_kind, default_ext),
+            }
+            initial_directory = policy.initial_directory(source_path)
+            if initial_directory:
+                dialog_kwargs["directory"] = initial_directory
         else:
-            file_types = _save_file_types_for_format(app_kind, default_ext)
+            if target_format == "pdf":
+                file_types = ("Tài liệu PDF (*.pdf)", "Tất cả tệp (*.*)")
+            else:
+                file_types = _save_file_types_for_format(app_kind, default_ext)
 
-        # Leave the extension off so the native dialog can append the extension
-        # for whichever file type the user selects, including a different format.
-        dialog_kwargs = {"save_filename": default_stem, "file_types": file_types}
-        # Like Word/Excel/PowerPoint, Save As starts in the folder of the file being edited.
-        source_dir = os.path.dirname(str(source_path)) if source_path else ""
-        if source_dir and os.path.isdir(source_dir):
-            dialog_kwargs["directory"] = source_dir
+            # Leave the extension off so the native dialog can append the extension
+            # for whichever file type the user selects, including a different format.
+            dialog_kwargs = {"save_filename": default_stem, "file_types": file_types}
+            # Like Word/Excel/PowerPoint, Save As starts in the folder of the file being edited.
+            source_dir = os.path.dirname(str(source_path)) if source_path else ""
+            if source_dir and os.path.isdir(source_dir):
+                dialog_kwargs["directory"] = source_dir
 
         try:
             # pywebview's Windows SaveFileDialog uses the native overwrite prompt; if
             # the user declines/cancels it, create_file_dialog returns an empty result.
-            save_result = window.create_file_dialog(webview.SAVE_DIALOG, **dialog_kwargs)
+            save_result = _create_file_dialog(window, webview.SAVE_DIALOG, **dialog_kwargs)
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được hộp thoại lưu: {exc}"}
 
-        if not save_result:
+        chosen = _dialog_paths(save_result)
+        if not chosen:
             return {"status": "cancelled"}
-        dest_path = save_result if isinstance(save_result, str) else save_result[0]
+        dest_path = chosen[0]
 
-        dest_path, actual_format = _infer_save_format_from_path(dest_path, app_kind=app_kind)
+        if policy is not None:
+            dest_path, actual_format, corrected = policy.resolve_saved_path(
+                dest_path, default_ext, policy.save_extensions(app_kind, target_format),
+            )
+            if policy.needs_overwrite_confirmation(dest_path, corrected):
+                # The native panel asked about the name the user typed, not the one with the added extension.
+                try:
+                    confirmed = window.create_confirmation_dialog(
+                        "Thay thế tệp đã có?",
+                        f"Tệp “{os.path.basename(dest_path)}” đã có trong thư mục này. "
+                        "Thay thế sẽ ghi đè nội dung của tệp đó. Bạn có muốn thay thế không?",
+                    )
+                except Exception as exc:
+                    return {"status": "error", "message": f"Không mở được xác nhận thay thế tệp: {exc}"}
+                if not confirmed:
+                    return {"status": "cancelled"}
+        else:
+            dest_path, actual_format = _infer_save_format_from_path(dest_path, app_kind=app_kind)
         target_format = actual_format
         if app_kind == "sheet" and target_format == "csv" and _fods_sheet_count(content) > 1:
             try:
@@ -5630,13 +5770,13 @@ class VnOfficeApi:
                 else:
                     # Mẫu .xltx: đi hết đường lưu .xlsx (giữ mọi bước hậu kỳ của VN Office)
                     # rồi chỉ đổi loại nội dung của sổ thành "template".
-                    build_format = "xlsx" if (app_kind == "sheet" and target_format == "xltx") else target_format
+                    build_format = _template_build_format(target_format)
                     src_path = _write_save_source(content, app_kind, tmp, build_format)
                     out_path = _convert_save_source_to_native(
                         src_path, app_kind, build_format, source_document_path=source_path,
                     )
                     if build_format != target_format:
-                        _convert_xlsx_to_template(out_path)
+                        _convert_ooxml_to_template(out_path, target_format)
                     if self._document_password and target_format not in {"docx", "xlsx", "pptx"}:
                         raise DocumentEngineError("Hãy xóa mật khẩu trước khi lưu sang định dạng không hỗ trợ mã hóa.")
                     out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
