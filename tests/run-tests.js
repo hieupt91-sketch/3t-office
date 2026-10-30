@@ -326,6 +326,7 @@ import { runSheetNotesFidelityTests } from "./unit/sheet-notes-fidelity.test.js"
 import { runWriterTabsTablesAgyTests } from "./unit/writer-tabs-tables-agy.test.js";
 import { runSheetThemesTests } from "./unit/sheet-themes.test.js";
 import { run as runWriterWord2016Parity2Tests } from "./unit/writer-word2016-parity2.test.js";
+import { runSlidesFix2510Tests } from "./unit/slides-fix-2510.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -661,7 +662,8 @@ async function runAll() {
     { title: "271. Unit Tests — Sheet Notes Parity, Show/Hide, Resize, Drag, Formats & VML Drawing (AGY-NOTES)", runner: runSheetNotesFidelityTests },
     { title: "272. Unit Tests — Writer Tabs Dialog, Ruler Tab Stops, Go To, Split Table, Text Direction, Table Properties (AGY-WRITER1)", runner: runWriterTabsTablesAgyTests },
     { title: "273. Unit Tests — Sheet Workbook Themes, Colors, Fonts Parity (AGY-THEMES)", runner: runSheetThemesTests },
-    { title: "273. Unit Tests — Writer Selection Pane, Group/Ungroup, Split Window, Table Styles, Table Formula (Word 2016 Parity Round 2)", runner: runWriterWord2016Parity2Tests }
+    { title: "273. Unit Tests — Writer Selection Pane, Group/Ungroup, Split Window, Table Styles, Table Formula (Word 2016 Parity Round 2)", runner: runWriterWord2016Parity2Tests },
+    { title: "274. Unit Tests — FIX-SLIDES-2510 (D1 mở lại PPTX vẽ hai lần, D7 dấu đầu dòng, D8 chữ trong hình)", runner: runSlidesFix2510Tests }
   ];
 
   for (const suite of suites) {

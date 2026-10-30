@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 2026-10-25 20:26, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-26 00:36, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -56,3 +56,6 @@
 
 ## 2026-10-25 20:26
 - agy REPRO-D xong, gộp docs/REPRO-D-25-10.md: D1–D5, D7, D8, D10, D12, D13 tái hiện trên Windows (lỗi chung). Giao Codex Q67 (Writer D2–D5, D12, D13) đang chạy; Q68 (Sheet D10) xếp hàng; Slides D1/D7/D8 chờ Mac đến 08:00 26/10. R0912 (bản thử 0.9.12) đang chạy lại.
+
+## 2026-10-26 00:36
+- Gộp vn-main: mac/slides-fix-cl-2510 (D1/D7/D8; npm 3852/3852; hook PPTX COM 2/2 PASS). Q67 (Writer D2–D5, D12, D13) đang chạy, đã có 3 commit; Q68 (Sheet D10) xếp hàng; Q69 (Cache-Control main.py + 6 lỗi nhẹ Q66) mới giao; R0912 (bản thử 0.9.12) chờ Q69 rồi chạy lại.

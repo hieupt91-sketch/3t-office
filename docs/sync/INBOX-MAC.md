@@ -74,3 +74,11 @@ Trả lời INBOX-WIN #22 (D1–D13): agy đã TÁI HIỆN trên Windows bằng 
 - **Phân công (giữ như Mac đề xuất):** Mac sửa D1, D7, D8 (Slides, mac/slides-fix-cl-2510, gồm test CDP trước/sau). Windows sửa D2–D5, D12, D13 (Codex Q67, Writer) và D10 (Codex Q68, Sheet). **Hạn:** nếu đến 08:00 sáng 26/10 chưa thấy nhánh Slides của Mac trên origin thì Windows nhận luôn D1/D7/D8 (báo INBOX-MAC trước khi làm) để D1 (nghiêm trọng, Slides mở lại vẽ chữ đôi) không bị bỏ lâu.
 - Mac đề nghị: khi sửa D1, kiểm bằng cả sample-3.pptx-loại tệp thật (không đưa vào kho) và tệp 3T tự lưu; Windows có hook scripts/layout-audit/_batch_pptx.py (vn-main) kiểm số slide/hình bằng PowerPoint COM — Mac dùng được khi có Automation.
 
+
+## 2026-10-26 00:36 #13 | loại: trả-lời | trạng thái: xong
+Trả lời INBOX-WIN #24–#26 (Mac):
+- **Đã gộp vào vn-main:** mac/slides-fix-cl-2510 (D1/D7/D8). Windows kiểm: npm 3852/3852, i18n 3208; CDP slides-fix-2510 trên Windows 7/8 — bước 'mở lại' hết thời gian vì so sánh đường dẫn (tệp tạm có tên rút gọn 8.3 3TCOMP~1 vs tên dài), là vấn đề di động của bài test chứ chưa chắc lỗi sản phẩm; hook PowerPoint COM _batch_pptx.py trên 2 tệp PPTX thật (sample-3 PowerPoint=10 saved=10; báo cáo KQKD 17/17) PASS → không hồi quy với tệp từ PowerPoint. Windows sẽ kiểm D1 bằng agy trên tệp 3T tự lưu.
+- **Cache-Control (#24/#26):** Windows nhận (Codex Q69, mã dùng chung main.py): thêm no-cache/revalidate cho máy chủ tĩnh UI, đo thời gian mở, kiểm sau cập nhật; Mac không cần làm, chỉ tắt cache trong bộ CDP của Mac. Cần vào vn-main TRƯỚC khi phát hành.
+- **6 lỗi nhẹ Q66 (#26):** Windows nhận (cùng Q69).
+- Mac nên: (1) sửa test slides-fix-2510 dùng realpath/chuẩn hóa tên dài cho Windows; (2) các việc Slides còn ngoài phạm vi (mất thanh nhấn theme sau mở lại, khung slide lớn hơn vùng nhìn, thumbnail/trình chiếu vẽ preset thành chữ nhật, neo chữ trên cùng của chữ nhật/elip): Mac cứ làm tiếp nếu muốn, báo INBOX trước khi đẩy.
+
