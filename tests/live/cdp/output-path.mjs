@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, realpathSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -23,4 +23,27 @@ export function platformOutputPath(windowsDefault, { directory = false, platform
     throw new Error(`Không tạo được thư mục ra cho bài CDP: ${mapped} (${error.message})`);
   }
   return mapped;
+}
+
+/**
+ * Dạng chuẩn để SO SÁNH đường dẫn tệp giữa Node và app (Python/WebView trả về). Windows: `os.tmpdir()` hay trả tên
+ * rút gọn 8.3 (vd. `C:\\Users\\3TCOMP~1\\…`) trong khi app trả tên dài (hoặc ngược lại) → so chuỗi thẳng không bao giờ
+ * khớp. Ở đây: path.resolve → realpathSync.native (Windows: GetFinalPathNameByHandle mở rộng tên 8.3; macOS: gỡ
+ * symlink /var → /private/var) → «/» thống nhất → chữ thường trên win32 (NTFS không phân biệt hoa thường).
+ * Tệp chưa tồn tại: giữ dạng path.resolve.
+ */
+export function canonicalPath(value, { platform = process.platform, realpath = realpathSync.native } = {}) {
+  const raw = String(value || "");
+  if (!raw) return "";
+  const pathApi = platform === "win32" ? path.win32 : path.posix;
+  let resolved = pathApi.resolve(raw);
+  try { resolved = realpath(resolved); } catch { /* tệp chưa có: giữ dạng resolve */ }
+  const slashed = resolved.replace(/\\/g, "/");
+  return platform === "win32" ? slashed.toLowerCase() : slashed;
+}
+
+/** Hai đường dẫn chỉ cùng một tệp (sau canonicalPath); chuỗi rỗng không bao giờ khớp. */
+export function samePath(left, right, options = {}) {
+  const a = canonicalPath(left, options);
+  return a !== "" && a === canonicalPath(right, options);
 }
