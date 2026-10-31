@@ -1749,3 +1749,23 @@ DEPENDENCIES/BLOCKERS: None for source work. Excel COM reference validation rema
 CORE PATCH ID (if any): None.
 UI REVIEW: Viewed six screenshots at 1366x768: Sheet VI light (`q69-sheet-vi-light.png`) and dark (`q69-sheet-vi-dark.png`); Sheet EN light (`q69-sheet-en-light.png`) and dark (`q69-sheet-en-dark.png`); EN entered values/status (`q69-sheet-en-values.png`); EN singular warning (`q69-sheet-en-warning.png`). Text, ribbon, grid, warning and status are readable; no clipping, overlap, obscured controls, weak contrast or mixed-language status labels found.
 NEXT ACTION: Q69 implementation committed; Q69.DONE created after this handoff.
+## CODEX R0912 — 26/10/2026
+
+TASK: Kiểm bản đóng gói VN Office 0.9.12 chưa phát hành.
+AGENT/ROLE: Codex / kiểm build Windows + runtime.
+BRANCH: codex/r0912.
+WORKTREE: E:\VNOffice-codex-r0912; `git merge main` fast-forward tới `4c7da4c8`.
+OBJECTIVE: Đặt version theo build process, dựng package/installer, xác minh runtime offline, mở/lưu mẫu, mã hóa và PDF handout; không phát hành.
+FINDINGS: `build-pilot.ps1 -Version 0.9.12` đặt phiên bản chỉ trong package (`APP_VERSION`, `VERSION.txt`); source giữ `0.9.0-pilot1`. Bundle có cryptography 50.0.2 và pypdf 6.21.1. Update source rỗng, updater disabled. Installer per-user vẫn ghi HKCU và thao tác shortcut chung.
+IMPLEMENTATION SUMMARY: Không đổi source/build scripts. Dựng package 1,188,553,548 byte và installer 409,560,493 byte; package mở/lưu d03/lan05/sample-3, mã hóa DOCX và xuất handout PDF. Đã khôi phục HKCU về cài đặt 0.9.10 sau migration tự động trong lần chạy package.
+FILES CHANGED: `09-templates/AGENT-HANDOFF.md` (handoff); báo cáo/evidence ngoài repo tại `D:\VNOffice-briefs\runs\R0912`.
+COMMITS: Không có thay đổi code/build; handoff tài liệu được commit riêng.
+COMMANDS RUN: `git merge main`; build-pilot 0.9.12; build-installer; CDP password/open-save/handout; `node tests/run-tests.js`; i18n parity; verify checklist evidence; pytest selector updater/encryption/print/handout/build.
+BUILD RESULT: PASS package + installer build; actual installer run BLOCKED vì ghi HKCU và thao tác shortcut Desktop/Start Menu; không phát hành/tag.
+TEST RESULTS: PASS Node 3852/3852; i18n VI=EN=3208, missing 0; checklist 0 dòng hạ; pytest 67 passed/1146 deselected. CDP: d03/lan05/sample-3 open/save PASS; mật khẩu CFB round-trip PASS; handout 3/6/9-up + notes 11/11 PASS; process-proxy offline open/save PASS, updater disabled không lỗi.
+KNOWN FAILURES: Tên máy in mặc định dạng URL mạng bị cắt trong dropdown của hộp thoại In. System-wide offline/firewall test BLOCKED vì không có quyền Administrator. Installer không chạy để tránh thay đổi shell tích hợp của bản hiện hữu.
+RISKS: Kết quả runtime là từ package chạy trong thư mục build, không phải installer; không chứng minh cài đặt end-to-end. Offline kiểm bằng proxy tiến trình, không ngắt adapter mạng. Bản 0.9.12 chưa phát hành.
+DEPENDENCIES/BLOCKERS: Cần phương thức cài thử cô lập HKCU/shortcut hoặc môi trường Windows dùng riêng; quyền admin nếu cần kiểm tra ngắt mạng toàn hệ thống.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: 1366×768 package — Writer d03 sáng/tối, Sheet lan05 sáng/tối, Slides sample-3 sáng/tối: đạt. Writer Tệp > Thông tin và hộp thoại mật khẩu trống/sai: đạt. Slides In mặc định/ghi chú/handout 3/6/9 và trạng thái ổn định: nội dung/nút trong khung; tên máy in dài bị cắt trong ô chọn. Ảnh tại `D:\VNOffice-briefs\runs\R0912\ui-shots`, `password-test`, `handout-exact`.
+NEXT ACTION: Chủ cân nhắc tạo môi trường cài thử cô lập; xử lý truncation máy in trong phiếu UI riêng nếu cần. Chưa phát hành 0.9.12.
