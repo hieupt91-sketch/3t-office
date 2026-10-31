@@ -10,4 +10,6 @@ if sys.platform == "win32":
         "test_os_services_macos.py",
         "test_runtime_python_deps.py",
         "test_xcode_run_payload.py",
+        # Chinh sach hop thoai macOS (ten NFD -> NFC); Windows khong co chinh sach nay.
+        "test_file_dialogs_macos.py",
     ]
