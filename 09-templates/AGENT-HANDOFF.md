@@ -1811,3 +1811,22 @@ CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: Đã mở và xem ảnh 1366×768 thực tế cho Writer d03, Sheet lan05, Slides sample-3 ở Sáng và Tối (6 ảnh trong E:\VNOffice-briefs\runs\R0912-20261031\ui-shots\package-<app>-<theme>-1366x768.png): cả sáu màn hình đã tải đủ; ribbon, canvas/bảng và trạng thái ứng dụng nhìn được, không thấy chữ bị cắt/chồng lấn hay thành phần khuất. Đã xem hộp thoại mật khẩu DOCX và màn hình sau mở thành công (encrypted-open-dialog.png, encrypted-open-result.png); dialog nằm gọn, nút Mở tệp thấy rõ, tài liệu mở lại bình thường.
 PERFORMANCE: App khởi chạy + nạp dữ liệu lần đầu (candidate): Writer 3.637s, Sheet 5.236s, Slides 9.921s; mở lại cùng profile: 3.706s, 4.929s, 9.905s. Source trên cùng bộ file/profile riêng: 24.462s, 22.795s, 30.419s. Một lần đo cho mỗi trường hợp; log `performance-compare.log` và `performance-warm.log`.
 NEXT ACTION: Chờ chủ duyệt mới cài installer vào thư mục riêng; khắc phục/đánh dấu test tracker sai scope Windows rồi chạy lại full pytest; kiểm thử trên môi trường mạng thực sự ngắt. Chưa kết luận release-ready.
+
+
+## CODEX Q71 — Windows pytest process_tracker_ps (31/10/2026)
+TASK: Q71 — Phân loại lỗi pytest Windows ở process_tracker_ps.
+AGENT/ROLE: Codex / Windows test triage.
+BRANCH: codex/q71.
+WORKTREE: E:\VNOffice-codex-q71; `git merge main` báo Already up to date.
+OBJECTIVE: Xác định lỗi test hay sản phẩm; giữ nguyên hành vi macOS và xác minh full pytest Windows.
+FINDINGS: Trước sửa, `python -m pytest tests/test_process_tracker_ps.py -q` FAIL: 1 failed, 6 passed, 1 skipped. Test zombie giả lập macOS `ps` nhưng trên Windows `process_identity()` đi vào nhánh kernel32; PID giả 77 không tồn tại. Không phải lỗi sản phẩm.
+IMPLEMENTATION SUMMARY: Thêm `skipIf(os.name == "nt")` chỉ cho test identity fallback `ps`, với lý do Windows dùng kernel32. Test parsing dùng chung tiếp tục chạy; hành vi macOS/Linux không đổi.
+FILES CHANGED: `tests/test_process_tracker_ps.py`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; pytest target trước/sau; full pytest với TMP/TEMP=`E:\VNOffice-briefs\tmp`; `npm test`; i18n parity; checklist evidence verifier.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS target sau sửa 6 passed, 2 skipped; PASS full pytest 1213 passed, 6 skipped, 0 failed (708.30s); PASS Node via `npm test` 3859/3859; PASS i18n VI=3229, EN=3229, missing=0; PASS checklist verifier 0 dòng bị hạ. Hai lượt Node chạy đồng thời trước đó mỗi lượt 3858/3859; chạy tuần tự đạt 3859/3859.
+KNOWN FAILURES: Không còn lỗi liên quan. Skip mới là kiểm thử POSIX/macOS fallback không áp dụng trên Windows; zombie integration POSIX cũng skip theo điều kiện có sẵn.
+RISKS: Không có thay đổi runtime; không chạy COM hay CDP vì task chỉ sửa scope pytest nền tảng.
+CORE PATCH ID (if any): None.
+GIAO DIEN DA XEM: NOT APPLICABLE — không thay đổi UI và không chạy app.
+NEXT ACTION: Review commit Q71; có thể chuyển phiếu tiếp theo.
