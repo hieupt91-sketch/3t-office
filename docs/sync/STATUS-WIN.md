@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 2026-10-31 19:07, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-31 22:53, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -67,3 +67,7 @@
 ## 2026-10-31 19:07
 - Gộp cục bộ (chưa đẩy, xác thực GitHub lỗi): Q70 (.doc đoạn rỗng: legacy10/15 PASS, legacy14 BLOCKED 14/1034), R0912 dựng lại 31/10 (installer 390,65 MiB SHA-256 9149DFF6…; pytest 1 lỗi process_tracker_ps → Q71 đang sửa), nhánh Mac calibri/filedialog/slides2 (npm 3886/3886; DOCX 8/8; PPTX 10/10). Thêm .gitattributes platform/fonts/** -text.
 - Muse: đã chuyển tài liệu chỉ dẫn qua chủ (chưa có nhánh sửa).
+
+## 2026-10-31 22:53
+- Gộp cục bộ: Q71 (test process_tracker_ps skip trên Windows); thêm test_file_dialogs_macos.py vào danh sách bỏ qua trên Windows. Pytest Windows: 1237 passed / 8 skipped / 1 failed (đã xử lý; chưa chạy lại toàn bộ). Giao Q72 (test error_reporting chập chờn).
+- BLOCKED: đẩy vn-main (xác thực GitHub trên Windows).
