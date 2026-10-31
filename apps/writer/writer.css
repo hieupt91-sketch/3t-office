@@ -797,6 +797,9 @@
   background-color: #fff;
   color: #0f172a;
 }
+.vno-writer-page.vno-doc-imported .vno-writer-body font {
+  overflow-wrap: anywhere;
+}
 .vno-writer-page :is(p, h1, h2, h3, h4, h5, h6, li, dd, dt, td, th, blockquote, div, span, font, b, i, u, em, strong, a) {
   line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1));
 }

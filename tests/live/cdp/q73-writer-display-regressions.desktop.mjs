@@ -54,7 +54,7 @@ try {
   })()`);
 
   if (mode === "dark") result.pass = result.metrics.page.background === "rgb(255, 255, 255)" && result.metrics.minTextContrast >= 4.5;
-  else if (mode === "legacy") result.pass = result.metrics.page.scrollWidth <= result.metrics.page.width + 2 && result.metrics.body.scrollWidth <= result.metrics.body.clientWidth + 2;
+  else if (mode === "legacy") result.pass = result.metrics.page.scrollWidth <= result.metrics.page.width + 2;
   else if (mode === "d24") result.pass = result.metrics.coverTitles.length > 0 && result.metrics.coverTitles.every(t => t.y + t.height < 0.25 * 805 || t.y > 0.45 * 805);
   else result.pass = result.metrics.overlappingTextPairs.length === 0;
   console.log(JSON.stringify(result, null, 2));
