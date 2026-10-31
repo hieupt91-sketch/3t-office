@@ -266,6 +266,9 @@ class OSServices:
     # Optional extra, not part of SERVICE_FIELDS: an OS whose document engine already sees every installed font
     # with suitable substitutes (Windows) leaves it None and nothing changes there.
     document_fonts: DocumentFonts | None = None
+    # Optional extra (MAC-3-2610): what the OS's native Open/Save dialogs already do (file_dialogs.FileDialogPolicy).
+    # None keeps main.py's previous dialog code path (Windows, Linux).
+    file_dialogs: object | None = None
 
 
 SERVICE_FIELDS = (

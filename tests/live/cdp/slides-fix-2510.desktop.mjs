@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import zlib from "node:zlib";
 import { launchApp, repoRoot } from "./session.mjs";
+import { canonicalPath, samePath } from "./output-path.mjs";
 import { click, insertText, press, mouseClick, sleep } from "./actions.mjs";
 
 const outDir = process.env.VNO_FIX2510_OUT || mkdtempSync(path.join(os.tmpdir(), "vno-fix2510-"));
@@ -152,6 +153,21 @@ async function typeInto(session, selectorExpr, text) {
   await insertText(session.cdp, text);
 }
 
+/**
+ * Chờ phiên mở lại nạp xong ĐÚNG tệp. So đường dẫn ở phía Node bằng samePath() (realpath + chuẩn hóa): trên Windows
+ * os.tmpdir() có thể là tên rút gọn 8.3 (3TCOMP~1) còn app trả tên dài — so chuỗi trong trang trước đây không bao giờ khớp.
+ */
+async function waitForReopened(session, expectedPath, timeoutMilliseconds = 240000) {
+  const deadline = Date.now() + timeoutMilliseconds;
+  let last = null;
+  while (Date.now() < deadline) {
+    last = JSON.parse(await ev(session, `(() => { const a = window.__vnoAppInstance?.adapter; return JSON.stringify({ path: String(a?._sourcePath || a?.sourceFilePath || ''), slides: a?.canvas?.slides?.length || 0 }); })()`).catch(() => "null"));
+    if (last && last.slides >= 2 && samePath(last.path, expectedPath)) return last;
+    await sleep(500);
+  }
+  throw new Error(`Hết thời gian chờ mở lại ${expectedPath}: ${JSON.stringify(last)} (chuẩn hóa: ${canonicalPath(last?.path)} ≠ ${canonicalPath(expectedPath)})`);
+}
+
 let session = null;
 try {
   // ---------------------------------------------------------------- Soạn (bản mới)
@@ -194,8 +210,7 @@ try {
 
   // ---------------------------------------------------------------- Mở lại
   session = await launchApp("slides", { filePath: pptx, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
-  const norm = pptx.replace(/\\/g, "/").toLowerCase();
-  await session.cdp.waitFor(`(() => { const a = window.__vnoAppInstance?.adapter; const p = String(a?._sourcePath || a?.sourceFilePath || '').replace(/\\\\/g, '/').toLowerCase(); return p === ${JSON.stringify(norm)} && a?.canvas?.slides?.length >= 2; })()`, { timeoutMilliseconds: 240000, intervalMilliseconds: 500 });
+  await waitForReopened(session, pptx);
   await sleep(2500);
   await verifyServedCode(session, "Phiên mở lại");
   for (const [index, title, bodyText] of [[0, "Báo cáo tổng hợp", "Nhóm Dự án mẫu"], [1, "Việc cần làm", "Mục một"]]) {

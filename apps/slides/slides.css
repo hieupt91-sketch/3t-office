@@ -949,9 +949,16 @@
 /* FIX-SLIDES-2510 D8: lớp SVG của hình dựng sẵn (position:absolute) vẽ đè lên khối chữ không định vị.
    Định vị khối chữ (không đặt z-index để không vượt lên trên các hình khác) để chữ nằm trên hình. */
 .vno-shape-geometry ~ .vno-shape-text,
-.vno-shape-geometry ~ .vno-diagram-node-text {
+.vno-shape-geometry ~ .vno-diagram-node-text,
+.vno-shape-geometry ~ .vno-show-shape-text,
+.vno-shape-geometry ~ .vno-sorter-shape-text {
   position: relative;
 }
+
+/* SLIDES-2-3110 c: hình của trang trong hình thu nhỏ ngăn trái (cùng _shapeSorterHtml với Sắp xếp trang). */
+.vno-slide-thumb-card { position: relative; }
+.vno-slide-thumb-shapes { position: absolute; inset: 0; pointer-events: none; }
+.vno-slide-thumb-shapes .vno-sorter-shape-node { font-size: 5px; padding: 1px; }
 
 [data-theme="dark"] .vno-shape-text.is-textbox-text {
   color: var(--vno-text-primary, #f1f5f9);

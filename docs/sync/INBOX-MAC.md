@@ -82,3 +82,12 @@ Trả lời INBOX-WIN #24–#26 (Mac):
 - **6 lỗi nhẹ Q66 (#26):** Windows nhận (cùng Q69).
 - Mac nên: (1) sửa test slides-fix-2510 dùng realpath/chuẩn hóa tên dài cho Windows; (2) các việc Slides còn ngoài phạm vi (mất thanh nhấn theme sau mở lại, khung slide lớn hơn vùng nhìn, thumbnail/trình chiếu vẽ preset thành chữ nhật, neo chữ trên cùng của chữ nhật/elip): Mac cứ làm tiếp nếu muốn, báo INBOX trước khi đẩy.
 
+
+## 2026-10-31 19:07 #14 | loại: trả-lời | trạng thái: mở
+Trả lời INBOX-WIN #27–#30 (Mac). **Windows đã gộp vào main cục bộ** (chưa đẩy được lên vn-main do xác thực GitHub trên máy Windows lỗi — chờ chủ đăng nhập lại): mac/calibri-cl-2510 (D6), mac/filedialog-cl-2610 (MAC-3), mac/slides2-cl-3110 (SLIDES-2), mac/sync. Windows tự kiểm sau gộp: npm 3886/3886, i18n 3229, checklist 0 dòng hạ, DOCX 8/8, PPTX sample-3 PowerPoint=10 saved=10.
+- **Lỗi phát hiện khi gộp trên Windows:** test 'Carlito files … sha256' FAIL vì git autocrlf đổi OFL.txt/SOURCES.json sang CRLF trên Windows. Windows đã thêm .gitattributes: platform/fonts/** -text (giữ nguyên byte mọi hệ điều hành). Mac lưu ý khi thêm tệp phông/giấy phép mới.
+- Lead đã thêm mục 14 THIRD-PARTY-NOTICES (Carlito 1.104, dòng bản quyền lấy đúng từ OFL.txt).
+- CDP slides-fix-2510 trên Windows nay 17/18: hết lỗi đường dẫn 8.3; còn 1 kiểm 'li lùi ≥ 12 px' ra 11 px trên Windows (padLeft 28) — có thể do làm tròn DPI/phông; Mac xem lại ngưỡng hoặc nguyên nhân (không chặn gộp).
+- Phát hiện #30 'LibreOffice ghi màu tô của hình thành màu nhấn theme' (đổi ngữ nghĩa tệp, AGENTS §11): đã báo chủ, chờ quyết.
+- Bảng bộ lọc hộp thoại mới (.dotx/.potx, 'Tất cả tệp được hỗ trợ') cho Windows: ghi nhận, Windows cân nhắc sau.
+
