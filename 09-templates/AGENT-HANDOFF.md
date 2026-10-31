@@ -1830,3 +1830,23 @@ RISKS: Không có thay đổi runtime; không chạy COM hay CDP vì task chỉ 
 CORE PATCH ID (if any): None.
 GIAO DIEN DA XEM: NOT APPLICABLE — không thay đổi UI và không chạy app.
 NEXT ACTION: Review commit Q71; có thể chuyển phiếu tiếp theo.
+
+
+## CODEX Q72 — Đồng bộ test backoff báo lỗi nền (31/10/2026)
+TASK: Q72 — Làm xác định test_error_reporting backoff khi có report mới.
+AGENT/ROLE: Codex / Windows Python tests.
+BRANCH: codex/q72; `git merge main` fast-forward từ 9bf0bfb9 lên 975bcf2e.
+WORKTREE: E:\VNOffice-codex-q72.
+OBJECTIVE: Loại phụ thuộc sleep/thời gian thực khỏi kiểm tra sender backoff mà vẫn chứng minh report mới không gửi sớm.
+FINDINGS: Test cũ polling list thread và `sleep(0.2)` nên chịu trễ lịch chạy CPU; lượt baseline hiện tại pass 1/1, phù hợp tính flaky được báo trước (không tái hiện FAIL trong lượt baseline này). Không quan sát được race khiến sender bỏ qua backoff.
+IMPLEMENTATION SUMMARY: Thêm seam `_monotonic()` cho đồng hồ retry có thể giả lập. Test chạy sender loop với `ManualWake`, đồng hồ giả, và Events: chờ send đầu, xác nhận vào backoff, thêm report mới và xác nhận chưa retry, sau đó tăng đồng hồ và xác nhận retry xảy ra.
+FILES CHANGED: `adapters/error_reporting/reporter.py`; `tests/test_error_reporting.py`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: pytest target trước/sau; target 30 lượt tuần tự; bốn tiến trình pytest target đồng thời; full pytest tuần tự với TMP/TEMP=`E:\VNOffice-briefs\tmp`; `node tests/run-tests.js`; `npm test`; i18n parity; checklist evidence verifier; diff stat/check.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS target baseline 1/1; PASS target after 1/1; PASS stress 30/30 lượt, 0 fail; PASS 4 tiến trình đồng thời, 0 fail; PASS full pytest 1213 passed, 6 skipped, 0 failed (680.57s); PASS Node `npm test` 3886/3886; PASS `node tests/run-tests.js` 3886/3886; PASS i18n VI=EN=3229, missing=0; PASS checklist evidence 0 dòng hạ.
+KNOWN FAILURES: Hai full pytest chạy đồng thời ban đầu có 15 lỗi LibreOffice chuyển đổi do đụng tài nguyên/profile; chạy lại một full pytest tuần tự đạt 1213/1213. `npm test` chạy đồng thời với cùng runner có một lượt 3885/3886; lượt tuần tự PASS 3886/3886. Baseline test target không FAIL trong lượt đã chạy trước sửa.
+RISKS: Chưa tìm thấy lỗi runtime sản phẩm tái hiện được; thay đổi runtime chỉ bọc `time.monotonic()` qua hàm riêng để test kiểm soát clock.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: NOT APPLICABLE — test backoff không có UI và không khởi chạy app.
+NEXT ACTION: Commit riêng Q72; sau đó tạo `E:\VNOffice-briefs\logs\Q72.DONE`.

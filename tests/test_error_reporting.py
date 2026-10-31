@@ -17,6 +17,7 @@ from adapters.error_reporting.reporter import (
     load_client_config,
     sanitize_text,
 )
+from adapters.error_reporting import reporter as reporter_module
 
 
 class _CaptureHandler(BaseHTTPRequestHandler):
@@ -277,25 +278,66 @@ class ErrorReportingTests(unittest.TestCase):
     def test_background_sender_does_not_bypass_backoff_when_new_reports_arrive(self):
         reporter = ErrorReporter(
             "0.9.0-pilot1", "writer", self.data_dir / "backoff",
-            endpoint="https://reports.example.invalid", sender_thread=True,
+            endpoint="https://reports.example.invalid", sender_thread=False,
         )
         self.addCleanup(reporter.stop)
-        attempts = []
+        attempts = 0
+        attempt_events = [threading.Event(), threading.Event()]
+        clock = [100.0]
+
+        class ManualWake:
+            def __init__(self):
+                self.condition = threading.Condition()
+                self.is_set = False
+                self.wait_count = 0
+
+            def set(self):
+                with self.condition:
+                    self.is_set = True
+                    self.condition.notify_all()
+
+            def clear(self):
+                with self.condition:
+                    self.is_set = False
+
+            def wait(self, timeout=None):
+                del timeout  # Time advances only when the test explicitly advances its clock.
+                with self.condition:
+                    self.wait_count += 1
+                    self.condition.notify_all()
+                    self.condition.wait_for(lambda: self.is_set)
+                    return True
+
+            def wait_for_count(self, count):
+                with self.condition:
+                    return self.condition.wait_for(lambda: self.wait_count >= count, timeout=1)
+
+        wake = ManualWake()
+        reporter._wake = wake
 
         def fail_send(_event):
-            attempts.append(time.monotonic())
+            nonlocal attempts
+            attempts += 1
+            if attempts <= len(attempt_events):
+                attempt_events[attempts - 1].set()
             raise OSError("temporary outage")
 
         reporter._post_json = fail_send
-        reporter.set_consent(True)
-        reporter.record_error(error_type="RuntimeError", message="first", operation="open.docx")
-        deadline = time.monotonic() + 1
-        while not attempts and time.monotonic() < deadline:
-            time.sleep(0.01)
-        self.assertEqual(len(attempts), 1)
-        reporter.record_error(error_type="RuntimeError", message="second", operation="open.docx")
-        time.sleep(0.2)
-        self.assertEqual(len(attempts), 1, "new reports must not skip the exponential retry delay")
+        with patch.object(reporter_module, "_monotonic", side_effect=lambda: clock[0]):
+            reporter.set_consent(True)
+            reporter.record_error(error_type="RuntimeError", message="first", operation="open.docx")
+            reporter._thread = threading.Thread(target=reporter._sender_loop, name="test-error-reporter", daemon=True)
+            reporter._thread.start()
+            self.assertTrue(attempt_events[0].wait(1), "sender should attempt the first queued report")
+            self.assertEqual(attempts, 1)
+            self.assertTrue(wake.wait_for_count(2), "sender should enter backoff wait after the first failure")
+            reporter.record_error(error_type="RuntimeError", message="second", operation="open.docx")
+            self.assertTrue(wake.wait_for_count(3), "sender should return to waiting after rejecting an early retry")
+            self.assertEqual(attempts, 1, "new reports must not skip the exponential retry delay")
+            clock[0] += 1.0
+            reporter.wake_sender()
+            self.assertTrue(attempt_events[1].wait(1), "sender should retry after the backoff expires")
+            self.assertEqual(attempts, 2, "queued reports should retry once the backoff expires")
 
     def test_feedback_attachment_is_copied_only_after_explicit_choice(self):
         source = Path(self.temp.name) / "Tài liệu riêng.docx"
