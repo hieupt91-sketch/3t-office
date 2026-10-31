@@ -131,6 +131,19 @@ export async function runSheetChartTests() {
       assert(panel.style.cssText.includes("left:961px") && panel.style.cssText.includes("top:22px"), panel.style.cssText);
     });
 
+    await test("Sheet Charts D10: vị trí chèn được ghi vào model để giữ anchor khi lưu", async () => {
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí"]);
+      await grid.initializeOptionalDocumentFeatures();
+      grid.chartLayer = chartLayer();
+      grid.setCellValue("B", 1, "Tên hàng");
+      grid.setCellValue("C", 1, "Số lượng");
+      grid.setCellValue("B", 2, "Bút bi");
+      grid.setCellValue("C", 2, 120);
+      const chart = grid.insertChart("bar", { start: { c: "B", r: 1 }, end: { c: "C", r: 2 } });
+      assert(chart.x === 346 && chart.y === 28, `Anchor model=${JSON.stringify({ x: chart.x, y: chart.y })}`);
+      assert(grid.chartLayer.children[0].style.cssText.includes("left:346px") && grid.chartLayer.children[0].style.cssText.includes("top:28px"), grid.chartLayer.children[0].style.cssText);
+    });
+
     await test("Sheet Charts: sửa riêng tiêu đề trục X/Y, render SVG và hoàn tác được", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       await grid.initializeOptionalDocumentFeatures();
