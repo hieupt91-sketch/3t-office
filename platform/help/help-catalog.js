@@ -18,6 +18,7 @@ import { RETRO_PLATFORM_HELP_ENTRIES } from "./entries-retro-platform.js";
 import { VIETNAMESE_TYPING_HELP_ENTRIES } from "./entries-vietnamese-typing.js";
 import { MACOS_FONT_HELP_ENTRIES } from "./entries-macos-fonts.js";
 import { MACOS_SHORTCUT_HELP_ENTRIES } from "./entries-macos-shortcuts.js";
+import { MACOS_FILE_HELP_ENTRIES } from "./entries-macos-files.js";
 
 /** @type {Array<HelpEntry>} */
 export const HELP_ENTRIES = [
@@ -35,7 +36,8 @@ export const HELP_ENTRIES = [
   ...RETRO_PLATFORM_HELP_ENTRIES,
   ...VIETNAMESE_TYPING_HELP_ENTRIES,
   ...MACOS_FONT_HELP_ENTRIES,
-  ...MACOS_SHORTCUT_HELP_ENTRIES
+  ...MACOS_SHORTCUT_HELP_ENTRIES,
+  ...MACOS_FILE_HELP_ENTRIES
 ];
 
 /**
