@@ -523,6 +523,9 @@ _SHEET_OPEN_SESSION_TTL_SECONDS = 600
 class _StaticFileHandler(http.server.SimpleHTTPRequestHandler):
     """Serve files from ROOT_DIR with correct MIME types for JS/CSS."""
 
+    _REVALIDATE_SUFFIXES = {".html", ".htm", ".js", ".mjs", ".css", ".json"}
+    _LONG_CACHE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".woff", ".woff2", ".ttf", ".otf"}
+
     def __init__(self, *args, directory=None, **kwargs):
         super().__init__(*args, directory=directory or ROOT_DIR, **kwargs)
 
@@ -531,6 +534,16 @@ class _StaticFileHandler(http.server.SimpleHTTPRequestHandler):
         if ext in _STATIC_MIME_OVERRIDES:
             return _STATIC_MIME_OVERRIDES[ext]
         return super().guess_type(path)
+
+    def end_headers(self):
+        ext = os.path.splitext(self.path.split("?", 1)[0])[1].lower()
+        if ext in self._REVALIDATE_SUFFIXES:
+            self.send_header("Cache-Control", "no-cache")
+        elif ext in self._LONG_CACHE_SUFFIXES:
+            self.send_header("Cache-Control", "public, max-age=2592000")
+        else:
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
 
     def log_message(self, fmt, *args):
         pass  # quiet — do not spam console on every request

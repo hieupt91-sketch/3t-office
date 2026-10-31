@@ -647,11 +647,11 @@ export class AppShell {
           <span class="vno-macro-recording-dot" aria-hidden="true"></span>
           <span class="vno-macro-recording-text">${t("macro.statusRecording", "Đang ghi Macro...")}</span>
         </span>
-        <span id="vno-status-docinfo" aria-live="polite">Sẵn sàng</span>
+        <span id="vno-status-docinfo" aria-live="polite">${t("common.ready", "Sẵn sàng")}</span>
         <span aria-hidden="true">|</span>
-        <span>Tiếng Việt (Việt Nam)</span>
+        <span>${t("common.interfaceLocale", "Tiếng Việt (Việt Nam)")}</span>
         <span aria-hidden="true">|</span>
-        <span>Bảng mã: Unicode dựng sẵn (NFC)</span>
+        <span>${t("common.characterEncoding", "Bảng mã: Unicode dựng sẵn (NFC)")}</span>
       </div>
 
       <div class="vno-statusbar-right">

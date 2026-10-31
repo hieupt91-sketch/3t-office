@@ -10,7 +10,8 @@ export async function runSheetFormulaBarDisplayTests() {
   const eq = (actual, expected) => {
     if (actual !== expected) throw new Error(`Mong đợi ${JSON.stringify(expected)}, nhận ${JSON.stringify(actual)}`);
   };
-  const bar = data => SheetGridController.prototype._formulaBarTextFor.call({}, data);
+  const bar = (data, locale = { locale: "vi-VN", decimalSeparator: ",", thousandsSeparator: "." }) =>
+    SheetGridController.prototype._formulaBarTextFor.call({ options: { numberLocale: locale } }, data);
 
   test("Thanh công thức: ngày hiện dd/mm/yyyy như Excel, không hiện số serial", () => {
     eq(bar({ val: 46387, style: { numberFormat: { category: "date" } } }), "31/12/2026");
@@ -26,7 +27,8 @@ export async function runSheetFormulaBarDisplayTests() {
   });
   test("Thanh công thức: công thức, số thường, chữ và ô trống giữ nguyên", () => {
     eq(bar({ formula: "=A1*2", val: 20 }), "=A1*2");
-    eq(bar({ val: 1234.56 }), 1234.56);
+    eq(bar({ val: 1234.56 }), "1234,56");
+    eq(bar({ val: 1234.56 }, { locale: "en-US", decimalSeparator: ".", thousandsSeparator: "," }), "1234.56");
     eq(bar({ val: "hello" }), "hello");
     eq(bar(undefined), "");
   });

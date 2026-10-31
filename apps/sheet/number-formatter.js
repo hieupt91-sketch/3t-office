@@ -318,6 +318,9 @@ export class NumberFormatter {
       case "dd/mm/yyyy":
         result = `${dd}/${mm}/${yyyy}`;
         break;
+      case "mm/dd/yyyy":
+        result = `${mm}/${dd}/${yyyy}`;
+        break;
       case "dd-mm-yyyy":
         result = `${dd}-${mm}-${yyyy}`;
         break;
@@ -630,15 +633,16 @@ export class NumberFormatter {
 
     const dateMatch = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (dateMatch) {
-      const day = Number(dateMatch[1]);
-      const month = Number(dateMatch[2]);
+      const isEnglish = String(locale.locale || "").toLowerCase().startsWith("en");
+      const month = Number(dateMatch[isEnglish ? 1 : 2]);
+      const day = Number(dateMatch[isEnglish ? 2 : 1]);
       const year = Number(dateMatch[3]);
       const date = new Date(Date.UTC(year, month - 1, day));
       if (date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day) {
         const excelEpoch = Date.UTC(1899, 11, 30);
         return {
           value: (date.getTime() - excelEpoch) / 86400000,
-          numberFormat: { category: "date", dateFormat: "dd/mm/yyyy" }
+          numberFormat: { category: "date", dateFormat: isEnglish ? "mm/dd/yyyy" : "dd/mm/yyyy" }
         };
       }
     }
