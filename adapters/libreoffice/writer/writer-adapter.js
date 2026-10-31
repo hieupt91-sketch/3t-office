@@ -73,7 +73,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractOoxmlEndnoteText, extractOoxmlFootnoteText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 import { showChangeCaseDialog } from "../../../apps/writer/change-case-dialog.js";
 import { applyChangeCaseToSelection } from "../../../platform/text/change-case.js";
@@ -9682,7 +9682,7 @@ export class WriterAdapter {
           : "Chưa chọn văn bản";
         const noSelMsg = (typeof t === "function" && t("writerDialogs.comments.noSelectionMsg") !== "writerDialogs.comments.noSelectionMsg")
           ? t("writerDialogs.comments.noSelectionMsg")
-          : "Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.";
+          : "Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm nhận xét.";
         await showAlertDialog({
           title: noSelTitle,
           message: noSelMsg,
@@ -9694,16 +9694,16 @@ export class WriterAdapter {
 
     const addTitle = (typeof t === "function" && t("writerDialogs.comments.addCommentTitle") !== "writerDialogs.comments.addCommentTitle")
       ? t("writerDialogs.comments.addCommentTitle")
-      : "Thêm ghi chú";
+      : "Thêm nhận xét";
     const addPlaceholder = (typeof t === "function" && t("writerDialogs.comments.addCommentPlaceholder") !== "writerDialogs.comments.addCommentPlaceholder")
       ? t("writerDialogs.comments.addCommentPlaceholder")
-      : "Nhập nội dung ghi chú...";
+      : "Nhập nội dung nhận xét...";
     const addConfirm = (typeof t === "function" && t("writerDialogs.comments.addCommentBtn") !== "writerDialogs.comments.addCommentBtn")
       ? t("writerDialogs.comments.addCommentBtn")
-      : "Thêm ghi chú";
+      : "Thêm nhận xét";
     const notePrefix = (typeof t === "function" && t("writerRibbon.group.comments") !== "writerRibbon.group.comments")
       ? t("writerRibbon.group.comments")
-      : "Ghi chú";
+      : "Nhận xét";
 
     const content = args && Object.prototype.hasOwnProperty.call(args, "content")
       ? args.content
@@ -9724,7 +9724,7 @@ export class WriterAdapter {
     mark.setAttribute("role", "button");
     const openCommentPattern = (typeof t === "function" && t("writerDialogs.comments.openCommentAria") !== "writerDialogs.comments.openCommentAria")
       ? t("writerDialogs.comments.openCommentAria")
-      : "Mở ghi chú cho: {text}";
+      : "Mở nhận xét cho: {text}";
     mark.setAttribute("aria-label", openCommentPattern.replace("{text}", anchorText.slice(0, 80)));
 
     try {
@@ -9852,12 +9852,13 @@ export class WriterAdapter {
       return;
     }
     this.commentsPanel.hidden = false;
+    this.commentsPanel.setAttribute?.("aria-label", t("writerDialogs.comments.panelLabel", "Nhận xét tài liệu"));
 
     const title = document.createElement("h2");
     title.className = "vno-comments-title";
     const titleParts = [];
-    if (hasComments) titleParts.push(`Ghi chú (${this.comments.length})`);
-    if (hasRevisions) titleParts.push(`Bản sửa (${trackChanges.length})`);
+    if (hasComments) titleParts.push(`${t("writerDialogs.comments.panelLabel", "Nhận xét tài liệu")} (${this.comments.length})`);
+    if (hasRevisions) titleParts.push(`${t("writerDialogs.comments.revisionsLabel", "Bản sửa")} (${trackChanges.length})`);
     title.textContent = titleParts.join(" • ") || "Đánh dấu";
     this.commentsPanel.appendChild(title);
 
@@ -9892,8 +9893,9 @@ export class WriterAdapter {
       remove.type = "button";
       remove.className = "vno-comment-delete";
       remove.dataset.commentDelete = comment.id;
-      remove.setAttribute("aria-label", `Xóa ghi chú cho ${comment.anchorText}`);
-      remove.textContent = "Xóa";
+      const deletePattern = t("writerDialogs.comments.deleteCommentAria", "Xóa nhận xét cho: {text}");
+      remove.setAttribute("aria-label", deletePattern.replace("{text}", comment.anchorText));
+      remove.textContent = t("writerDialogs.comments.deleteCommentButton", "Xóa");
       meta.append(info, remove);
       card.append(preview, content, meta);
       for (const reply of comment.replies || []) {
@@ -10006,6 +10008,19 @@ export class WriterAdapter {
       targetDom.innerHTML = (targetDom.innerHTML || "") + html;
     }
     const table = targetDom?.querySelectorAll?.("table")?.[tablesBefore] || targetDom?.querySelector?.("table:last-of-type");
+    if (table) {
+      // contenteditable's insertHTML drops presentation CSS on some WebView2 builds.
+      // Persist the same geometry and grid styling as attributes so LibreOffice's
+      // HTML importer writes a full-width bordered table into DOCX.
+      table.setAttribute?.("width", "100%");
+      if (table.style) table.style.width = "100%";
+      for (const cell of Array.from(table.querySelectorAll?.("td,th") || [])) {
+        const borders = "border: 1px solid #94a3b8";
+        cell.style?.setProperty?.("border", "1px solid #94a3b8");
+        cell.style?.setProperty?.("padding", "6pt 10pt");
+        cell.setAttribute?.("data-vno-borders", borders);
+      }
+    }
     const firstCell = table?.rows?.[0]?.cells?.[0];
     if (firstCell) {
       firstCell.focus?.();
@@ -12627,10 +12642,43 @@ export class WriterAdapter {
       const runRegex = /<(?:w:r\b|w:fldSimple\b)([^>]*)>([\s\S]*?)<\/(?:w:r|w:fldSimple)>/gi;
       let rMatch;
       let foundRun = false;
+      let fieldInstruction = "";
+      let inComplexField = false;
+      let readingFieldResult = false;
       while ((rMatch = runRegex.exec(pContent)) !== null) {
         foundRun = true;
         const rAttrs = rMatch[1];
         const rInner = rMatch[2];
+        if (/^<w:fldSimple\b/i.test(rMatch[0])) {
+          const instruction = rAttrs.match(/\bw:instr=["']([^"']*)["']/i)?.[1] || "";
+          const type = /\bNUMPAGES\b/i.test(instruction) ? "NUMPAGES" : /\bPAGE\b/i.test(instruction) ? "PAGE" : "";
+          if (type) pText += `<span data-vno-field="${type}">1</span>`;
+          else pText += rInner.replace(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi, "$1");
+          continue;
+        }
+        if (/<w:fldChar\b[^>]*w:fldCharType=["']begin["']/i.test(rInner)) {
+          inComplexField = true;
+          readingFieldResult = false;
+          fieldInstruction = "";
+          continue;
+        }
+        if (inComplexField && /<w:instrText\b/i.test(rInner)) {
+          fieldInstruction += [...rInner.matchAll(/<w:instrText\b[^>]*>([\s\S]*?)<\/w:instrText>/gi)].map(match => match[1]).join("");
+          continue;
+        }
+        if (inComplexField && /<w:fldChar\b[^>]*w:fldCharType=["']separate["']/i.test(rInner)) {
+          const type = /\bNUMPAGES\b/i.test(fieldInstruction) ? "NUMPAGES" : /\bPAGE\b/i.test(fieldInstruction) ? "PAGE" : "";
+          if (type) pText += `<span data-vno-field="${type}">1</span>`;
+          readingFieldResult = true;
+          continue;
+        }
+        if (inComplexField && /<w:fldChar\b[^>]*w:fldCharType=["']end["']/i.test(rInner)) {
+          inComplexField = false;
+          readingFieldResult = false;
+          fieldInstruction = "";
+          continue;
+        }
+        if (readingFieldResult) continue;
         if (rAttrs.includes("NUMPAGES")) {
           pText += `<span data-vno-field="NUMPAGES">1</span>`;
           continue;
@@ -18143,6 +18191,15 @@ export class WriterAdapter {
       if (this.isNewApplicationDocument && /^h[1-3]$/i.test(String(source.tagName || "")) && !source.hasAttribute?.("style")) {
         continue;
       }
+      if (this.isNewApplicationDocument) {
+        const fontFamily = String(visible.fontFamily || "").split(",")[0].trim().replace(/^['"]|['"]$/g, "");
+        const fontSize = toPt(visible.fontSize);
+        if (fontFamily) target.style.setProperty("font-family", fontFamily);
+        if (fontSize) target.style.setProperty("font-size", fontSize);
+        // New documents use 1.5 line spacing; writer.css adds font metrics for
+        // screen rendering, so serialize the Office-compatible ratio itself.
+        target.style.setProperty("line-height", "150%");
+      }
       if (["left", "right", "center", "justify"].includes(visible.textAlign)) {
         target.style.setProperty("text-align", visible.textAlign);
       }
@@ -18793,7 +18850,10 @@ export class WriterAdapter {
       } else {
         this.isFinal = false;
       }
-      this._wordCountSourceText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
+      const mainText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
+      const footnoteText = extractOoxmlFootnoteText(result.ooxmlFootnotesXml);
+      const endnoteText = extractOoxmlEndnoteText(result.ooxmlEndnotesXml);
+      this._wordCountSourceText = [mainText, footnoteText, endnoteText].filter(value => typeof value === "string" && value.trim()).join("\n");
       this._wordCountSourceListItems = this._ooxmlListParagraphs(result.ooxmlDocumentXml, result.ooxmlStylesXml, result.ooxmlNumberingXml);
       this.isNewApplicationDocument = false;
       this.bodyDom?.classList?.remove("vno-new-application-document");

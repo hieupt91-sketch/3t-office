@@ -1710,3 +1710,23 @@ DEPENDENCIES/BLOCKERS: None for source work. Excel COM reference remains blocked
 CORE PATCH ID (if any): None.
 UI REVIEW: Viewed screenshots at 1366x768: Slides Backstage template card — badge absent, card layout intact; Sheet vi-VN light/dark — values and result visible, no clipping/overlap; Sheet legacy-function warning light/dark — warning text and disable button fit, readable, no overlap. No visible issue found.
 NEXT ACTION: Review the five commits. Q66.DONE created after the completed gates and handoff.
+
+
+## Q67 handoff - 26/10/2026
+TASK: Q67 — Sửa Writer D2-D5, D12, D13 theo tái hiện Windows.
+AGENT/ROLE: Codex / Writer adapter and round-trip.
+BRANCH: codex/q67.
+WORKTREE: E:\VNOffice-codex-q67.
+OBJECTIVE: Xác minh từng lỗi trên app thật bằng CDP và Word COM ẩn trước khi sửa; giữ DOCX/legacy tương thích và commit từng mục riêng.
+FINDINGS: D2 mất border và độ rộng bảng sau mở lại; D3 không ghi mặc định ND30 ra DOCX; D4 trường PAGE/NUMPAGES phức bị dựng thành chữ; D5 canvas dùng vùng liên tục nhưng ngắt trang đúng trong DOCX; D12 cần cộng cả footnote lẫn endnote để khớp Word Count có chú thích; D13 panel/help dùng lẫn “Ghi chú” và “Nhận xét”.
+IMPLEMENTATION SUMMARY: D2 đánh dấu/định dạng bảng mới để export giữ width 100% và border; D3 xuất font Times New Roman 14pt, line-height 150%; D4 hydrate lại complex PAGE/NUMPAGES; D5 chỉ thêm bài đo round-trip, giữ thiết kế canvas hiện có; D12 chuyển sidecar footnote/endnote tới word counter; D13 chuẩn hóa nhãn Nhận xét, bổ sung i18n VI/EN và đồng bộ Help.
+COMMITS: cdbf6484 D2; 0b5a4b92 D3; 4742784e D4; 7122d973 D5 diagnostic; b7a34d10 D12; b914989e D13.
+COMMANDS RUN: `git merge main`; CDP D2-D5/D12/D13 (đỏ trước, xanh sau với từng sửa); `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; ba `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; pytest liên quan; batch DOCX d01,d02,d03,d06,d07,d13,d20,d24; legacy DOC CDP 4 mẫu.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: Node PASS 3848/3848; CDP D2 4/4, D3 4/4, D4 5/5, D5 3/3, D12 3/3, D13 5/5; pytest PASS 7, 1206 deselected; DOCX batch PASS 8/8 (lưu/chỉnh sửa và số trang khớp Word); legacy PASS 4/4 (3/1/15/1); i18n VI=3211, EN=3211, missing=0; checklist evidence 0 dòng hạ. Hidden Word COM: D2 border 12/12, 9355 dxa; D3 TNR 14pt/1.5; D4 hai trường; D12 Word body=62, có chú thích=123 và Writer=123.
+KNOWN FAILURES: Ảnh tối của legacy DOC cho thấy chữ đen/màu nhúng và một số ô bảng thiếu tương phản trên nền tối; đã lưu ảnh, vấn đề hiển thị cần phiếu riêng. Lần gọi legacy đầu thiếu cờ `--experimental-websocket` nên CDP không kết nối; chạy lại đúng cờ và đạt 4/4.
+RISKS: D5 vẫn trình bày như canvas cuộn liên tục dù DOCX có page break chuẩn; đây là mô hình hiển thị hiện tại. Word COM chỉ dùng ẩn và readback; không dùng Excel COM.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: D2 trước/sau — bảng có viền và vừa khổ; D3 trước/sau — nội dung rõ; D4 trước/sau — footer không cắt; D5 trước/sau — hai canvas cards, break đúng; D12 sau — 123 từ và ghi chú cuối trang rõ; D13 VI/EN — tiêu đề và thao tác xóa đúng ngôn ngữ, không tràn; legacy06, legacy13, legacy14, legacy20 sáng/tối ở 1366×768 — trang/bố cục không tràn viewport, tương phản tối kém ở DOC cũ (q57-screenshots).
+NEXT ACTION: Không còn việc Q67 chưa hoàn tất; Q67.DONE được tạo sau handoff.

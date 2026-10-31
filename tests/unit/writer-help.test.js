@@ -48,6 +48,19 @@ export async function runWriterHelpTests() {
     }
   });
 
+  await test("Help: nội dung Nhận xét trỏ đúng nhóm ribbon hiện tại", () => {
+    const entries = Object.fromEntries(WRITER_HELP_ENTRIES.map(entry => [entry.id, entry]));
+    const insert = entries["writer.comment.insertRibbonHelp"];
+    const navigation = entries["writer.review.commentNavigation"];
+    if (!insert || !navigation) throw new Error("Thiếu hướng dẫn thêm/duyệt nhận xét");
+    if (insert.ribbon.group !== "Nhận xét" || navigation.ribbon.group !== "Nhận xét") {
+      throw new Error("Hướng dẫn nhận xét phải trỏ tới nhóm Nhận xét trên ribbon");
+    }
+    if (/nhóm Ghi chú/i.test(navigation.steps.join(" ")) || /nhóm Ghi chú/i.test(insert.summary)) {
+      throw new Error("Help còn gọi nhóm nhận xét là Ghi chú");
+    }
+  });
+
   await test("Help: mỗi bài có tiêu đề, mô tả, vị trí ribbon và bước dùng thật (không placeholder)", () => {
     const banned = /lorem|todo|placeholder|xxx|nội dung mẫu|coming soon/i;
     for (const entry of WRITER_HELP_ENTRIES) {
