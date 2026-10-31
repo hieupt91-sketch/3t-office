@@ -34,7 +34,11 @@ export function buildCdpEnvironment({
   return {
     ...baseEnvironment,
     LOCALAPPDATA: localAppData,
-    ...(platform === "darwin" && isolatedHome ? { HOME: isolatedHome } : {}),
+    // macOS: Qt/QtWebEngine resolve ~/Library/Caches through CoreFoundation, which ignores $HOME, so the HTTP
+    // disk cache (~/Library/Caches/main.py/QtWebEngine) was shared by every worktree and served stale JS/CSS
+    // from 127.0.0.1:8080. CFFIXED_USER_HOME moves that cache into the per-run home, deleted on close.
+    // Chromium's --disk-cache-dir/--disk-cache-size are ignored by QtWebEngine 6 (measured). Test-only.
+    ...(platform === "darwin" && isolatedHome ? { HOME: isolatedHome, CFFIXED_USER_HOME: isolatedHome } : {}),
     ...(platform !== "win32" ? { XDG_DATA_HOME: localAppData } : {}),
     ...(platform === "win32" ? { WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=" + debugPort } : {}),
     ...(platform === "darwin" ? {
