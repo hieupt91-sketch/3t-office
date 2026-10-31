@@ -1,4 +1,4 @@
-# STATUS-WIN (cập nhật: 2026-10-26 00:36, Claude Windows)
+# STATUS-WIN (cập nhật: 2026-10-31 14:56, Claude Windows)
 ## Đã vào `vn-main` (mới nhất `e293fe6a`)
 - Writer: sửa lệch +1 trang `.doc` (thẻ ngắt từ ẩn), d20.docx lưu đúng 3 trang (giữ tab/br khi sửa khoảng trắng nhập), TOC, hộp văn bản, in theo ngữ cảnh.
 - Sheet: biểu đồ kết hợp/tròn, tiền tố `_xlfn.`, lọc PivotTable, lưu tệp lớn có giới hạn.
@@ -59,3 +59,7 @@
 
 ## 2026-10-26 00:36
 - Gộp vn-main: mac/slides-fix-cl-2510 (D1/D7/D8; npm 3852/3852; hook PPTX COM 2/2 PASS). Q67 (Writer D2–D5, D12, D13) đang chạy, đã có 3 commit; Q68 (Sheet D10) xếp hàng; Q69 (Cache-Control main.py + 6 lỗi nhẹ Q66) mới giao; R0912 (bản thử 0.9.12) chờ Q69 rồi chạy lại.
+
+## 2026-10-31 14:56
+- Gộp cục bộ vào main (CHƯA đẩy: xác thực GitHub lỗi): Q67 (Writer D2-D5/D12/D13), Q68 (Sheet D10), Q69 (Cache-Control + 6 lỗi nhẹ Q66), R0912 (báo cáo dựng 0.9.12 thử, chưa phát hành). npm 3859/3859; i18n 3229; DOCX 8/8; LAN XLSX 5/5 mẫu.
+- Review độc lập OOXMLKit (Codex): docs/REVIEW-CODEX-OOXMLKIT-31-10.md. Nhánh muse/ooxmlkit-numbering-2510 chưa nên gộp: setShowSettings ghi sai schema (presentationPr/showSettings trong presentation.xml thay vì presProps.xml/showPr). Swift: vn-main 204/204, bridge 220/220, numbering 232/232.
