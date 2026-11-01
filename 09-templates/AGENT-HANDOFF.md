@@ -1850,3 +1850,23 @@ DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: NOT APPLICABLE — test backoff không có UI và không khởi chạy app.
 NEXT ACTION: Commit riêng Q72; sau đó tạo `E:\VNOffice-briefs\logs\Q72.DONE`.
+
+
+## CODEX LIBPLAN — Kế hoạch hoàn thiện OOXMLKit (01/11/2026)
+TASK: LIBPLAN — Kiểm tra trạng thái OOXMLKit và giao việc hoàn thiện thư viện.
+AGENT/ROLE: Codex / OOXMLKit library planning.
+BRANCH: codex/libplan; `git merge main` Already up to date tại `11b736bf`.
+WORKTREE: `E:\VNOffice-codex-libplan`.
+OBJECTIVE: Viết kế hoạch tiếng Việt có năng lực theo XLSX/DOCX/PPTX, khoảng trống sản phẩm, gói việc theo owner, test/acceptance, phụ thuộc, thứ tự, rủi ro và rollback; không sửa source.
+FINDINGS: Suite tại snapshot main hiện tại chạy 204/204; review snapshot Muse `1354d7ec` ghi 232/232; báo cáo 244/244 tại `9f9f061` chưa xác minh vì ref không có sau `git fetch origin`. Mapping 217 hàm có sai lệch 37 API groups so với 47 patch-function rows (21 Sheet, 18 Writer, 8 Slides). Review 31/10 ghi finding CONFIRMED show settings sai schema và 3 finding PLAUSIBLE về section inheritance, numbering đa cấp, field safety; ZipLimits 1 GiB/4 GiB cần xác minh/chốt.
+IMPLEMENTATION SUMMARY: Thêm `docs/ooxml/PLAN-HOAN-THIEN-OOXMLKIT-01-11.md` với ma trận capability, số liệu, L1-L9, chỉ thị Muse/Windows/Mac, gates, rollback; không sửa mã nguồn.
+FILES CHANGED: `docs/ooxml/PLAN-HOAN-THIEN-OOXMLKIT-01-11.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; `git fetch origin`; `powershell -NoProfile -File E:\VNOffice-briefs\run-swift-wsl.ps1 E:\VNOffice-codex-libplan`; kiểm tra trạng thái refs, mapping, source và review liên quan.
+BUILD RESULT: NOT RUN — task chỉ lập kế hoạch.
+TEST RESULTS: PASS merge/fetch; PASS Swift 204 tests, 0 failures (43.763s, WSL Ubuntu, exit 0). Compiler warning audit NOT RUN vì script lọc output.
+KNOWN FAILURES: Không có lỗi test trong suite đã chạy. Excel COM BLOCKED theo chỉ thị chung; Office COM/W1/CDP không chạy trong task này.
+RISKS: Số 244/244 chưa xác minh; không dùng làm baseline. Handoff yêu cầu có branch/ref thật trước khi Muse bắt đầu.
+DEPENDENCIES/BLOCKERS: W1 Windows build; Excel COM oracle; owner chốt ngưỡng ZipLimits và quyết định W6 PDF/định dạng cũ.
+CORE PATCH ID (if any): None.
+GIAO DIEN DA XEM: NOT APPLICABLE — không chạy app hoặc sửa UI.
+NEXT ACTION: Review kế hoạch, sau đó giao Q-LIBPLAN-01 cho Codex Windows khi L1/L2 có snapshot ổn định; Muse làm L1 trên branch/worktree riêng.
