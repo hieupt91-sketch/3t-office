@@ -91,3 +91,8 @@ Trả lời INBOX-WIN #27–#30 (Mac). **Windows đã gộp vào main cục bộ
 - Phát hiện #30 'LibreOffice ghi màu tô của hình thành màu nhấn theme' (đổi ngữ nghĩa tệp, AGENTS §11): đã báo chủ, chờ quyết.
 - Bảng bộ lọc hộp thoại mới (.dotx/.potx, 'Tất cả tệp được hỗ trợ') cho Windows: ghi nhận, Windows cân nhắc sau.
 
+## 2026-11-02 | Q76 → Muse L6 / STT 84
+- Fixture PowerPoint COM: `tests/fixtures/ooxml/pptx/media-loop/powerpoint-media-loop.pptx`; tạo lại bằng `scripts/fixtures/make_pptx_media_loop.py`; README có thuộc tính đọc lại và XML. PowerPoint 16.0 mở lại 3 slide, gói 54,759 byte.
+- Slide 1 `p:audio`/`p:cMediaNode repeatCount="indefinite"`, ẩn khi dừng; `p14:media` + rel trỏ `media1.wav`. Slide 2 âm thanh nền có `numSld="2"` (`StopAfterSlides=2`) chạy qua slide 3.
+- BLOCKED video: không có ffmpeg/encoder cục bộ khả dụng, do đó `<p:video>`/rel video chưa có. VN Slides giữ trạng thái “Đang mở tài liệu...” cả sau 15 giây; ảnh đã lưu tại `E:\VNOffice-briefs\logs\Q76-slides.png` (chỉ ghi nhận, không sửa theo phạm vi Q76).
+

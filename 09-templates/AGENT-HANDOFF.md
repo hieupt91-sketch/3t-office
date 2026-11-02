@@ -1870,3 +1870,24 @@ DEPENDENCIES/BLOCKERS: W1 Windows build; Excel COM oracle; owner chốt ngưỡn
 CORE PATCH ID (if any): None.
 GIAO DIEN DA XEM: NOT APPLICABLE — không chạy app hoặc sửa UI.
 NEXT ACTION: Review kế hoạch, sau đó giao Q-LIBPLAN-01 cho Codex Windows khi L1/L2 có snapshot ổn định; Muse làm L1 trên branch/worktree riêng.
+
+---
+
+# Agent Handoff
+TASK: CODEX Q76 — fixture PPTX media lặp cho Muse L6 / STT 84
+AGENT/ROLE: Codex / OOXML fixture
+BRANCH: codex/q76
+WORKTREE: E:\VNOffice-codex-q76
+OBJECTIVE: Tạo fixture PowerPoint-authored có media timing đọc lại được qua PowerPoint COM; bàn giao XML evidence cho Muse.
+FINDINGS: PowerPoint 16.0 COM lưu/mở lại được audio `LoopUntilStopped` và `StopAfterSlides=2`; máy không có ffmpeg hay thư viện encoder video khả dụng nên chưa thể tạo video. VN Slides giữ overlay “Đang mở tài liệu...” khi mở PPTX này.
+IMPLEMENTATION SUMMARY: Thêm script tái tạo WAV sin 2 giây, ba slide, audio lặp ở slide 1 và audio chạy qua slide 2–3; PowerPoint COM mở lại và đọc thuộc tính. README trích timing/relationships. Ghi handoff ngắn cho Muse trong INBOX-MAC.
+FILES CHANGED: `scripts/fixtures/make_pptx_media_loop.py`; `tests/fixtures/ooxml/pptx/media-loop/powerpoint-media-loop.pptx`; `tests/fixtures/ooxml/pptx/media-loop/tone-2s.wav`; `tests/fixtures/ooxml/pptx/media-loop/README.md`; `docs/sync/INBOX-MAC.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; `python scripts/fixtures/make_pptx_media_loop.py`; `python -m pytest tests -q -k media_loop`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; VN Slides CDP open/screenshot.
+BUILD RESULT: NOT RUN — chỉ thêm fixture, script và tài liệu.
+TEST RESULTS: PASS — PowerPoint COM 16.0 reopen, 3 slides, 54,759-byte PPTX; audio readback `LoopUntilStopped=-1`, `HideWhileNotPlaying=-1`, `StopAfterSlides=2`; pytest 4/4; npm 3886/3886; i18n VI/EN missing 0; checklist rows downgraded 0.
+KNOWN FAILURES: Video BLOCKED (không có ffmpeg/encoder, chưa có `<p:video>`). CDP mở fixture không xong sau 15 giây; overlay loading và slide canvas trống.
+RISKS: Fixture hiện chỉ có audio, chưa đáp ứng phần video của Muse L6; khi có ffmpeg, chạy script để tạo MP4 và PPTX đầy đủ.
+DEPENDENCIES/BLOCKERS: Máy Windows có PowerPoint để tạo lại; ffmpeg/encoder để bổ sung video. VN Slides import hang cần phiếu sửa riêng.
+CORE PATCH ID (if any): None.
+GIAO DIEN DA XEM: VN Slides editor 1366×706 — ảnh `E:\VNOffice-briefs\logs\Q76-slides.png`; ribbon hiển thị, không thấy thông báo lỗi, nhưng overlay “Đang mở tài liệu...” che canvas suốt 15 giây; ghi nhận lỗi mở tệp, không sửa theo phạm vi Q76.
+NEXT ACTION: Muse dùng audio fixture/XML evidence hiện có và bổ sung video từ máy có encoder; giao lỗi VN Slides import sang phiếu riêng.
