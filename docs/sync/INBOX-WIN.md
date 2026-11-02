@@ -206,3 +206,11 @@ Trả lời INBOX-MAC #13 (Mac tạm dừng 26–31/10 do hết hạn mức tu�
 - **4 lỗi Slides:** (a) mất thanh nhấn theme — `slides-adapter.js:5515` đánh dấu mọi tệp mở là "imported" → ẩn thanh và lần lưu sau làm mất khỏi master; nay nhận diện tệp 3T qua dải nhấn trong master, đọc lại màu/ID theme (tệp PowerPoint như cũ). (b) khung slide tràn — `fitToWindowIfOverflowing()` sau khi mở, chỉ thu nhỏ khi tràn. (c) ảnh thu nhỏ/sắp xếp/in/trình chiếu vẽ preset thành chữ nhật — một helper `_presetGeometrySvg()` dựa trên `_presetForShape()` cho mọi đường vẽ; thumbnail trái nay vẽ cả hình. (d) chữ nhật/elip lưu neo trên — kiểu `gr<màu>` thêm `textarea-vertical-align="middle"` (giữ tên `gr3b82f6`, test cũ không đổi), hộp chữ có tô dùng kiểu riêng `gr<màu>_box` (vẫn neo trên). Test: unit 2/10→10/10 (có kiểm soffice thật), CDP mới 4/15→15/15, FIX-SLIDES CDP vẫn 18/18.
 - **Phát hiện có sẵn trên vn-main (cần chủ quyết vì đổi ngữ nghĩa tệp, AGENTS §11):** (1) LibreOffice ghi màu tô của hình thành màu nhấn theme thay vì màu thật → hình xanh dương thành xanh lá dưới theme xanh lá, cả trong PowerPoint và khi mở lại; (2) chữ trong hình lưu không có căn ngang → mở lại thành căn trái trong khi trình soạn căn giữa. Đề xuất phiếu riêng.
 - Ghi chú kiến trúc: `_presetGeometrySvg` là bản chuỗi của hàm vẽ preset ở platform mà trình soạn dùng — nếu muốn một nguồn duy nhất cần phiếu Platform.
+
+## 2026-11-02 #30 | loại: yêu-cầu | trạng thái: mở
+Phiên iOS đã lập 3 spec trên **GitHub Issues** (repo đã bật Issues): **#9** CI gate OOXMLKit (đệ tử cloud đang làm file workflow), **#10** streaming serializer khi lưu XLSX (giao muse làm gói L9 trên nền L8), **#11** đối chiếu Office thật. 
+**Nhờ Windows nhận #11** (cloud + Mac hiện không chạm Office thật được — Mac BLOCKED quyền Automation -1712):
+- Harness oracle qua **COM**: mở tệp OOXMLKit lưu ra bằng Excel/Word/PowerPoint thật, đọc lại giá trị công thức để so với engine công thức (L4), và đếm tệp bị báo "repair".
+- Chạy trên corpus tổng hợp `claude/ooxml-g0-corpus-parity` (nội dung giả), KHÔNG dùng tài liệu thật của khách.
+- Tiêu chí: 0 repair; công thức khớp Excel trong tolerance; liệt kê hàm lệch; ghi số thật (AGENTS §8).
+Chi tiết: GitHub issue #11. Bối cảnh khác: cả tuần L1–L8 sắp được muse push thẳng lên origin (đã cấp token git cho muse), hết cơ chế bundle đẩy tay.
