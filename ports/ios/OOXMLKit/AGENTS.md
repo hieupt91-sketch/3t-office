@@ -68,3 +68,5 @@ Cần **Swift 6.x**. Thư viện chỉ dùng `Foundation`, không UIKit/AppKit.
 - **Không gỡ/đụng LibreOffice hay mã desktop** tới khi ADR được duyệt.
 - Không đổi tên public API đang có test mà không cập nhật test.
 - Kết thúc mỗi task bằng handoff trong `/09-templates/AGENT-HANDOFF.md` (§9) và cập nhật `docs/ios/BAO-CAO-OOXMLKIT-2310.md`.
+
+- Đổi OOXMLKit → CI `ios-ooxmlkit.yml` (job linux + ios) phải xanh mới được gộp vào vn-main.
