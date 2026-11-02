@@ -893,6 +893,14 @@ def _legacy_find_soffice() -> str | None:
 
 SOFFICE_PATH = find_soffice()
 
+
+def _libreoffice_child_environment() -> dict[str, str]:
+    """Avoid printer discovery during document processing without changing Windows settings."""
+    env = os.environ.copy()
+    env["SAL_DISABLE_DEFAULTPRINTER"] = "1"
+    env["SAL_DISABLE_PRINTERLIST"] = "1"
+    return env
+
 # Filter LibreOffice chính thức tương ứng định dạng Microsoft Office / ODF
 FORMAT_FILTERS = {
     "docx": "MS Word 2007 XML",
@@ -981,7 +989,7 @@ class _SofficeUnoWorker:
 
         pipe_name = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
         profile_uri = _profile_uri(self.app_kind)
-        env = os.environ.copy()
+        env = _libreoffice_child_environment()
         env["PYTHONUNBUFFERED"] = "1"
         command = [python_path, "-u", str(worker_path), SOFFICE_PATH, profile_uri, pipe_name, self.app_kind]
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -1738,7 +1746,7 @@ def _run_soffice_convert(
                     if target_ext == "docx" and os.environ.get("VNO_PRINT_VERIFY") == "1" and src_path.lower().endswith(".html"):
                         _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
                         with tempfile.TemporaryDirectory() as cli_dir:
-                            subprocess.run(cmd[:-3] + ["--outdir", cli_dir, src_path], capture_output=True, timeout=120, check=False)
+                            subprocess.run(cmd[:-3] + ["--outdir", cli_dir, src_path], capture_output=True, timeout=120, check=False, env=_libreoffice_child_environment())
                             cli_docx = Path(cli_dir) / out_path.name
 
                             def _parts(path):
@@ -1752,7 +1760,7 @@ def _run_soffice_convert(
                         _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
                         with tempfile.TemporaryDirectory() as cli_dir:
                             cli_cmd = cmd[:-3] + ["--outdir", cli_dir, src_path]
-                            subprocess.run(cli_cmd, capture_output=True, timeout=120, check=False)
+                            subprocess.run(cli_cmd, capture_output=True, timeout=120, check=False, env=_libreoffice_child_environment())
                             cli_pdf = Path(cli_dir) / out_path.name
                             pm = _get_print_pipeline_module()
                             a, b = pm.fast_pdf_page_count(persistent_path), pm.fast_pdf_page_count(str(cli_pdf))
@@ -1773,7 +1781,8 @@ def _run_soffice_convert(
         # times out, or rejects a filter/document.
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=120, check=False
+                cmd, capture_output=True, text=True, timeout=120, check=False,
+                env=_libreoffice_child_environment(),
             )
         except subprocess.TimeoutExpired as exc:
             error = DocumentEngineError("Hết thời gian chờ khi chuyển đổi tài liệu.")
