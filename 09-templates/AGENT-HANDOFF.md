@@ -1852,7 +1852,6 @@ GIAO DIỆN ĐÃ XEM: NOT APPLICABLE — test backoff không có UI và không k
 NEXT ACTION: Commit riêng Q72; sau đó tạo `E:\VNOffice-briefs\logs\Q72.DONE`.
 
 
-<<<<<<< HEAD
 ## CODEX LIBPLAN — Kế hoạch hoàn thiện OOXMLKit (01/11/2026)
 TASK: LIBPLAN — Kiểm tra trạng thái OOXMLKit và giao việc hoàn thiện thư viện.
 AGENT/ROLE: Codex / OOXMLKit library planning.
@@ -1892,7 +1891,7 @@ DEPENDENCIES/BLOCKERS: Máy Windows có PowerPoint để tạo lại; ffmpeg/enc
 CORE PATCH ID (if any): None.
 GIAO DIEN DA XEM: VN Slides editor 1366×706 — ảnh `E:\VNOffice-briefs\logs\Q76-slides.png`; ribbon hiển thị, không thấy thông báo lỗi, nhưng overlay “Đang mở tài liệu...” che canvas suốt 15 giây; ghi nhận lỗi mở tệp, không sửa theo phạm vi Q76.
 NEXT ACTION: Muse dùng audio fixture/XML evidence hiện có và bổ sung video từ máy có encoder; giao lỗi VN Slides import sang phiếu riêng.
-=======
+
 ## CODEX Q73 — Sửa ba lỗi hiển thị Writer đã tái hiện (01/11/2026)
 
 TASK: Q73 — Khắc phục tương phản tối trên tài liệu nhập, cuộn ngang legacy07.doc và tiêu đề bìa d24.docx; kiểm tra d03.docx, số trang và round-trip.
@@ -1914,4 +1913,3 @@ DEPENDENCIES/BLOCKERS: Cần ảnh/fixture hoặc cách tái hiện hiện hành
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: 1366×768, Sáng/Tối: legacy07 trước/sau (trước: chữ chìm + cuộn ngang; sau: chữ đọc được, trang vừa khung); d03 trước/sau (không thấy range chồng nhau, canvas vẫn 3 trang); d24 trước/sau (tiêu đề tách khỏi logo; hai hình chữ nhật xanh còn bị cắt mép phải); legacy06/13/14/20 sau (đếm trang đúng, không thấy lỗi che/cắt mới); d07/d13 sau (nội dung tải đủ, bố cục đọc được); dialog timeout d06/d20/d24 (nằm gọn, nút Đồng ý thấy rõ). Ảnh nằm dưới `E:\VNOffice-briefs\runs\Q73\ui-shots` và `E:\VNOffice-briefs\runs\Q73\q57-regression\q57-screenshots`.
 NEXT ACTION: Tạo `E:\VNOffice-briefs\logs\Q73.DONE` ghi trạng thái PARTIAL/BLOCKED; không chuyển phiếu kế tiếp trước khi xử lý quyết định d03, chạy lại DOCX bị timeout và xác nhận corpus legacy20 sau CSS.
->>>>>>> codex/q73
