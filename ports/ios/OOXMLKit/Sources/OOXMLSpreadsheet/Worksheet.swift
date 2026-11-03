@@ -227,6 +227,14 @@ public final class Worksheet {
     private var sharedMasters: [String: (ref: CellReference, formula: String)] = [:]
     private var arrayRanges: [(range: CellRange, master: CellReference)] = []
 
+    /// Các công thức mảng (CSE) đọc được từ tệp: vùng + ô chủ + văn bản công thức của ô chủ.
+    public var arrayFormulas: [(range: CellRange, master: CellReference, formula: String)] {
+        arrayRanges.compactMap { (range, master) in
+            guard let f = cell(master)?.formula else { return nil }
+            return (range, master, f)
+        }
+    }
+
     static let worksheetOrder = ["sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData", "sheetCalcPr",
                                  "sheetProtection", "protectedRanges", "scenarios", "autoFilter", "sortState", "dataConsolidate",
                                  "customSheetViews", "mergeCells", "phoneticPr", "conditionalFormatting", "dataValidations",

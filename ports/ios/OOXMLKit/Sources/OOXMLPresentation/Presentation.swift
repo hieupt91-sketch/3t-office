@@ -26,9 +26,10 @@ public struct SlideSection: Equatable, Sendable {
     public let slideIds: [UInt32]
 }
 
-/// Cài đặt trình chiếu (p:showSettings trong p:presentationPr). Giá trị mặc
-/// định theo PowerPoint khi chưa có phần tử: loop tắt, animation/narration/
- /// timings bật.
+/// Cài đặt trình chiếu: phần tử `p:showPr` trong part Presentation Properties
+/// (`ppt/presProps.xml`, root `p:presentationPr`, nối bằng relationship loại
+/// `presProps` từ presentation). Giá trị mặc định theo PowerPoint khi chưa có
+/// phần tử: loop tắt, animation/narration/timings bật.
 public struct ShowSettings: Equatable, Sendable {
     public var loop: Bool
     public var showAnimation: Bool
@@ -44,43 +45,80 @@ public struct ShowSettings: Equatable, Sendable {
 }
 
 extension Presentation {
-    /// Đọc cài đặt trình chiếu; chưa có phần tử thì trả về mặc định.
-    public var showSettings: ShowSettings {
-        guard let ss = document.root.firstChild(NS.p, "presentationPr")?.firstChild(NS.p, "showSettings") else {
-            return ShowSettings()
-        }
+    /// Part Presentation Properties lần theo relationship `presProps` từ
+    /// presentation; không giả định part luôn tồn tại hay luôn có tên cố định.
+    private func presPropsPart() throws -> PartName? {
+        try package.relatedPart(from: mainPart, .presProps)
+    }
+
+    private func decodeShowSettings(_ element: XElement) -> ShowSettings {
         func b(_ name: String, _ def: Bool) -> Bool {
-            guard let v = ss.attribute(name) else { return def }
+            guard let v = element.attribute(name) else { return def }
             return v == "1" || v.lowercased() == "true"
         }
         return ShowSettings(loop: b("loop", false), showAnimation: b("showAnimation", true),
                             showNarration: b("showNarration", true), useTimings: b("useTimings", true))
     }
 
-    /// Ghi cài đặt trình chiếu, tự tạo p:presentationPr (đứng trước extLst)
-    /// và p:showSettings (đứng trước extLst của presentationPr) khi chưa có.
-    /// Các thuộc tính khác của presentationPr/showSettings giữ nguyên.
-    public func setShowSettings(_ s: ShowSettings) {
-        let pr: XElement
-        if let existing = document.root.firstChild(NS.p, "presentationPr") {
-            pr = existing
-        } else {
-            pr = XElement(name: "p:presentationPr")
-            if let ext = document.root.firstChild(NS.p, "extLst") { document.root.insert(pr, before: ext) }
-            else { document.root.append(pr) }
+    /// Đọc cài đặt trình chiếu từ `presProps.xml`/`showPr`; chưa có part hoặc
+    /// chưa có `showPr` thì trả mặc định đã công bố. Nếu gói chỉ còn cấu trúc cũ
+    /// do bản thư viện trước ghi nhầm vào `presentation.xml`, getter đọc nốt
+    /// cấu trúc đó để không mất cài đặt của người dùng.
+    public var showSettings: ShowSettings {
+        if let part = (try? presPropsPart()) ?? nil, let doc = try? package.xml(part) {
+            guard let showPr = doc.root.firstChild(NS.p, "showPr") else { return ShowSettings() }
+            return decodeShowSettings(showPr)
         }
-        let ss: XElement
-        if let existing = pr.firstChild(NS.p, "showSettings") {
-            ss = existing
-        } else {
-            ss = XElement(name: "p:showSettings")
-            if let ext = pr.firstChild(NS.p, "extLst") { pr.insert(ss, before: ext) } else { pr.append(ss) }
+        if let legacy = document.root.firstChild(NS.p, "presentationPr")?.firstChild(NS.p, "showSettings") {
+            return decodeShowSettings(legacy)
         }
-        ss.setAttribute("loop", s.loop ? "1" : "0")
-        ss.setAttribute("showAnimation", s.showAnimation ? "1" : "0")
-        ss.setAttribute("showNarration", s.showNarration ? "1" : "0")
-        ss.setAttribute("useTimings", s.useTimings ? "1" : "0")
-        package.markModified(mainPart)
+        return ShowSettings()
+    }
+
+    /// Ghi cài đặt trình chiếu vào `p:showPr` của part Presentation Properties.
+    /// Nếu gói chưa có part, tạo `ppt/presProps.xml` bằng OPC content-type và
+    /// relationship APIs; nếu part đã có thì đi theo relationship hiện hữu.
+    /// Nội dung khác trong part (kể cả `extLst` và các con lạ của `showPr`) được
+    /// giữ nguyên. Cấu trúc cũ ghi nhầm trong `presentation.xml` được dọn đi.
+    public func setShowSettings(_ s: ShowSettings) throws {
+        let contentType = "application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"
+        let part: PartName
+        let doc: XDocument
+        if let existing = try presPropsPart() {
+            part = existing
+            if package.hasPart(existing) {
+                doc = try package.xml(existing)
+            } else {
+                let root = XElement(name: "p:presentationPr",
+                                    attributes: [XAttribute(name: "xmlns:p", value: "http://schemas.openxmlformats.org/presentationml/2006/main")])
+                doc = XDocument(root: root)
+                package.setXML(doc, for: part, contentType: contentType)
+            }
+        } else {
+            part = PartName("/ppt/presProps.xml")
+            let root = XElement(name: "p:presentationPr",
+                                attributes: [XAttribute(name: "xmlns:p", value: "http://schemas.openxmlformats.org/presentationml/2006/main")])
+            doc = XDocument(root: root)
+            package.setXML(doc, for: part, contentType: contentType)
+            _ = try package.relationships(of: mainPart).add(.presProps, to: part)
+        }
+        let root = doc.root
+        let showPr: XElement
+        if let existing = root.firstChild(NS.p, "showPr") {
+            showPr = existing
+        } else {
+            showPr = XElement(name: "p:showPr")
+            if let ext = root.firstChild(NS.p, "extLst") { root.insert(showPr, before: ext) } else { root.append(showPr) }
+        }
+        showPr.setAttribute("loop", s.loop ? "1" : "0")
+        showPr.setAttribute("showAnimation", s.showAnimation ? "1" : "0")
+        showPr.setAttribute("showNarration", s.showNarration ? "1" : "0")
+        showPr.setAttribute("useTimings", s.useTimings ? "1" : "0")
+        package.markModified(part)
+        if let legacy = document.root.firstChild(NS.p, "presentationPr") {
+            legacy.removeFromParent()
+            package.markModified(mainPart)
+        }
     }
 }
 

@@ -140,6 +140,30 @@ struct FormulaCriterion {
 enum FormulaTextFormat {
     static let monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     static let dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    static let monthNamesVi = (1...12).map { "tháng \($0)" }
+    static let monthNamesShortVi = (1...12).map { "thg \($0)" }
+    static let dayNamesVi = ["Chủ nhật", "thứ hai", "thứ ba", "thứ tư", "thứ năm", "thứ sáu", "thứ bảy"]
+    static let dayNamesShortVi = ["CN", "Th 2", "Th 3", "Th 4", "Th 5", "Th 6", "Th 7"]
+
+    /// Ngôn ngữ định dạng suy từ thẻ locale `[$-...]` ở đầu section; mặc định tiếng Anh như hành vi cũ.
+    enum FmtLocale { case en, vi }
+
+    /// Tách thẻ `[$...]` ở đầu section: `[$-vi-VN]`, `[$-042A]` (LCID hex), `[$₫-vi-VN]` (kèm ký hiệu tiền tệ).
+    /// Trả (locale, ký hiệu tiền tệ cần in tại vị trí thẻ, phần định dạng còn lại).
+    static func splitLocaleTag(_ section: String) -> (FmtLocale, String, String) {
+        guard section.hasPrefix("[$"), let close = section.firstIndex(of: "]") else { return (.en, "", section) }
+        let inner = String(section[section.index(section.startIndex, offsetBy: 2)..<close])
+        let rest = String(section[section.index(after: close)...])
+        var symbol = "", spec = inner
+        if inner.hasPrefix("-") { spec = String(inner.dropFirst()) }
+        else if let dash = inner.firstIndex(of: "-") {
+            symbol = String(inner[..<dash])
+            spec = String(inner[inner.index(after: dash)...])
+        }
+        let l = spec.lowercased()
+        let isVi = l == "vi" || l.hasPrefix("vi-") || l.hasSuffix("042a")
+        return (isVi ? .vi : .en, symbol, rest)
+    }
 
     /// nil nếu định dạng không hỗ trợ (hàm gọi trả #VALUE!).
     static func format(_ x: Double, _ fmt: String) -> String? {
@@ -153,12 +177,13 @@ enum FormulaTextFormat {
         } else if x == 0, sections.count >= 3 {
             section = sections[2]
         }
-        if isDateFormat(section) {
+        let (locale, symbol, cleaned) = splitLocaleTag(section)
+        if isDateFormat(cleaned) {
             guard x >= 0 else { return nil }
-            return formatDate(x, section)
+            return symbol + (formatDate(x, cleaned, locale: locale) ?? "")
         }
-        guard let body = formatNumber(value, section) else { return nil }
-        return autoMinus ? "-" + body : body
+        guard let body = formatNumber(value, cleaned, locale: locale) else { return nil }
+        return autoMinus ? "-" + symbol + body : symbol + body
     }
 
     private static func splitSections(_ f: String) -> [String] {
@@ -186,7 +211,9 @@ enum FormulaTextFormat {
 
     // MARK: Số
 
-    private static func formatNumber(_ v: Double, _ f: String) -> String? {
+    private static func formatNumber(_ v: Double, _ f: String, locale: FmtLocale = .en) -> String? {
+        let groupSep: Character = locale == .vi ? "." : ","
+        let decSep: Character = locale == .vi ? "," : "."
         // Tách phần tử: literal (đã xử lý) và các ký tự mẫu.
         enum P { case lit(String), digit(Character), point, comma, percent }
         var parts: [P] = []
@@ -227,8 +254,8 @@ enum FormulaTextFormat {
             case .percent:
                 percents += 1
                 if k < first { prefix += "%" } else if k > last { suffix += "%" }
-            case .comma: if k < first { prefix += "," } else if k > last { /* dấu phẩy chia nghìn ở cuối: bỏ qua */ }
-            case .point: if k < first { prefix += "." } else if k > last { suffix += "." }
+            case .comma: if k < first { prefix.append(groupSep) } else if k > last { /* dấu phẩy chia nghìn ở cuối: bỏ qua */ }
+            case .point: if k < first { prefix.append(decSep) } else if k > last { suffix.append(decSep) }
             default: break
             }
         }
@@ -255,14 +282,14 @@ enum FormulaTextFormat {
         if thousands, intStr.count > 3 {
             var g = "", n = 0
             for ch in intStr.reversed() {
-                if n > 0 && n % 3 == 0 { g.append(",") }
+                if n > 0 && n % 3 == 0 { g.append(groupSep) }
                 g.append(ch); n += 1
             }
             intStr = String(g.reversed())
         }
         let minFrac = (fracPat.lastIndex(of: "0") ?? -1) + 1
         while fracStr.count > minFrac, fracStr.hasSuffix("0") { fracStr.removeLast() }
-        str = intStr + (seenPoint ? "." : "") + fracStr
+        str = intStr + (seenPoint ? String(decSep) : "") + fracStr
         // Âm làm tròn về 0 vẫn mang dấu - nếu giá trị gốc âm: Excel in "-0"; ở đây người gọi chỉ truyền |x| cho phần âm.
         return prefix + str + suffix
     }
@@ -327,7 +354,7 @@ enum FormulaTextFormat {
         return false
     }
 
-    private static func formatDate(_ x: Double, _ f: String) -> String? {
+    private static func formatDate(_ x: Double, _ f: String, locale: FmtLocale = .en) -> String? {
         var day = Int(x.rounded(.down))
         var secs = Int(((x - Double(day)) * 86400).rounded())
         if secs >= 86400 { secs -= 86400; day += 1 }
@@ -341,12 +368,12 @@ enum FormulaTextFormat {
             switch t {
             case .y4: out += String(format: "%04d", c.year)
             case .y2: out += p2(c.year % 100)
-            case .mmmm: out += monthNames[c.month - 1]
-            case .mmm: out += String(monthNames[c.month - 1].prefix(3))
+            case .mmmm: out += locale == .vi ? monthNamesVi[c.month - 1] : monthNames[c.month - 1]
+            case .mmm: out += locale == .vi ? monthNamesShortVi[c.month - 1] : String(monthNames[c.month - 1].prefix(3))
             case .mm: out += p2(c.month)
             case .m: out += String(c.month)
-            case .dddd: out += dayNames[ExcelDate.weekday(day) - 1]
-            case .ddd: out += String(dayNames[ExcelDate.weekday(day) - 1].prefix(3))
+            case .dddd: out += locale == .vi ? dayNamesVi[ExcelDate.weekday(day) - 1] : dayNames[ExcelDate.weekday(day) - 1]
+            case .ddd: out += locale == .vi ? dayNamesShortVi[ExcelDate.weekday(day) - 1] : String(dayNames[ExcelDate.weekday(day) - 1].prefix(3))
             case .dd: out += p2(c.day)
             case .d: out += String(c.day)
             case .hh: out += p2(hasAmPm ? ((hour + 11) % 12 + 1) : hour)
@@ -355,7 +382,7 @@ enum FormulaTextFormat {
             case .n: out += String(minute)
             case .ss: out += p2(second)
             case .s: out += String(second)
-            case .ampm: out += hour < 12 ? "AM" : "PM"
+            case .ampm: out += locale == .vi ? (hour < 12 ? "SA" : "CH") : (hour < 12 ? "AM" : "PM")
             case .lit(let s): out += s
             }
         }

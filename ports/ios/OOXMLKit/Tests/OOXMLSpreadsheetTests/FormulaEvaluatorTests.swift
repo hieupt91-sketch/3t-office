@@ -31,6 +31,99 @@ final class FormulaEvaluatorTests: XCTestCase {
         XCTAssertEqual(calc("A6+1", data), .number(1), "ô rỗng = 0")
     }
 
+    func testSumproduct() {
+        let d: [String: CellValue] = [
+            "A1": .number(1), "A2": .number(2), "A3": .number(3),
+            "B1": .number(10), "B2": .number(20), "B3": .number(30),
+            "C1": .number(5), "C2": .string("chữ"), "C3": .empty,
+        ]
+        XCTAssertEqual(calc("SUMPRODUCT(A1:A3,B1:B3)", d), .number(140), "1*10+2*20+3*30")
+        XCTAssertEqual(calc("SUMPRODUCT(A1:A3)", d), .number(6), "một mảng = tổng tích đơn")
+        XCTAssertEqual(calc("SUMPRODUCT(A1:A3,C1:C3)", d), .number(5), "chữ/rỗng trong mảng tính 0")
+        XCTAssertEqual(calc("SUMPRODUCT(A1:A3,B1:B2)", d), err("#VALUE!"), "lệch kích thước")
+        XCTAssertEqual(calc("SUMPRODUCT(2,3)"), .number(6), "toàn scalar")
+        XCTAssertEqual(calc("SUMPRODUCT(A1:B1)", d), .number(11), "một mảng ngang: cộng từng ô 1 + 10")
+    }
+
+    func testXlookup() {
+        let d: [String: CellValue] = [
+            "A1": .number(1), "A2": .number(2), "A3": .number(3),
+            "B1": .number(10), "B2": .number(20), "B3": .number(30),
+            "E1": .string("táo"), "E2": .string("cam"), "E3": .string("xoài"),
+            "F1": .number(7), "F2": .number(7), "F3": .number(9),
+            "G1": .number(100), "G2": .number(200), "G3": .number(300),
+        ]
+        XCTAssertEqual(calc("XLOOKUP(2,A1:A3,B1:B3)", d), .number(20), "khớp đúng")
+        XCTAssertEqual(calc("XLOOKUP(4,A1:A3,B1:B3)", d), err("#N/A"), "không thấy, không có if_not_found")
+        XCTAssertEqual(calc("XLOOKUP(4,A1:A3,B1:B3,\"không có\")", d), .string("không có"), "if_not_found")
+        XCTAssertEqual(calc("XLOOKUP(2.5,A1:A3,B1:B3,,-1)", d), .number(20), "match -1: nhỏ hơn gần nhất (tham số trống ở giữa)")
+        XCTAssertEqual(calc("XLOOKUP(2.5,A1:A3,B1:B3,,1)", d), .number(30), "match 1: lớn hơn gần nhất")
+        XCTAssertEqual(calc("XLOOKUP(7,F1:F3,G1:G3,,0,-1)", d), .number(200), "search -1: lấy khớp cuối")
+        XCTAssertEqual(calc("XLOOKUP(\"c*\",E1:E3,B1:B3,,2)", d), .number(20), "match 2: ký tự đại diện")
+        XCTAssertEqual(calc("XLOOKUP(10,A1:B1,A2:B2)", d), .number(20), "mảng ngang")
+        XCTAssertEqual(calc("XLOOKUP(1,A1:A3,B1:B3)", d), .number(10), "đầu mảng")
+    }
+
+    func testEmptyArguments() {
+        XCTAssertEqual(calc("SUM(1,,2)"), .number(3), "tham số trống ở giữa bị bỏ qua như Excel")
+        XCTAssertEqual(calc("SUM(,1,2)"), .number(3), "tham số trống ở đầu")
+        XCTAssertEqual(calc("IF(FALSE,,7)"), .number(7), "nhánh không chọn không bị ảnh hưởng")
+        let d: [String: CellValue] = ["A1": .number(1), "B1": .number(10)]
+        XCTAssertEqual(calc("XLOOKUP(9,A1:A1,B1:B1,,0)", d), .number(0), "if_not_found trống -> 0 khi không khớp")
+    }
+
+    func testLet() {
+        XCTAssertEqual(calc("LET(x,5,x*2)"), .number(10), "gán một biến")
+        XCTAssertEqual(calc("LET(x,5,y,x+3,y*2)"), .number(16), "biến sau dùng biến trước")
+        XCTAssertEqual(calc("LET(X,5,x+1)"), .number(6), "tên không phân biệt hoa thường")
+        XCTAssertEqual(calc("LET(x,2,LET(x,3,x))"), .number(3), "LET lồng: biến trong che biến ngoài")
+        XCTAssertEqual(calc("LET(a,A1,a+B1)", data), .number(11), "giá trị từ ô")
+        XCTAssertEqual(calc("LET(x,1/0,x)"), err("#DIV/0!"), "lỗi trong giá trị lan ra")
+        XCTAssertEqual(calc("LET(x,5)"), err("#VALUE!"), "thiếu biểu thức cuối")
+        XCTAssertEqual(calc("LET(1,2,3)"), err("#VALUE!"), "tên biến không phải định danh")
+        XCTAssertEqual(calc("LET(x,5,y)"), err("#NAME?"), "dùng biến chưa gán")
+    }
+
+    func testWholeColumnAndRowRefs() {
+        XCTAssertEqual(calc("SUM(A:A)", data), .number(6), "cả cột A: 1+2+3, chữ/bool trong vùng bị bỏ qua")
+        XCTAssertEqual(calc("SUM(1:1)", data), .number(11), "cả hàng 1: A1 + B1")
+        XCTAssertEqual(calc("SUM(A:B)", data), .number(16), "hai cột A:B")
+        XCTAssertEqual(calc("AVERAGE(A:A)", data), .number(2), "trung bình cả cột")
+        XCTAssertEqual(calc("COUNT(A:A)", data), .number(3), "đếm số trong cả cột")
+        XCTAssertEqual(calc("SUM('Dữ liệu'!B:B)", [:], other: ["B1": .number(5), "B2": .number(7)]), .number(12), "cả cột ở sheet khác")
+        XCTAssertEqual(calc("SUM($A:$A)", data), .number(6), "cột tuyệt đối")
+    }
+
+    func testArrayConstants() {
+        XCTAssertEqual(calc("SUM({1,2,3})"), .number(6), "tổng hằng mảng ngang")
+        XCTAssertEqual(calc("SUM({1;2;3})"), .number(6), "tổng hằng mảng dọc")
+        XCTAssertEqual(calc("SUMPRODUCT({1,2,3},{4,5,6})"), .number(32), "SUMPRODUCT trên hằng: 4+10+18")
+        XCTAssertEqual(calc("SUMPRODUCT({1,2},{3,4})"), .number(11), "1*3+2*4")
+        XCTAssertEqual(calc("{1,2;3,4}"), err("#VALUE!"), "hằng 2D ở ngữ cảnh đơn vô vị trí")
+        XCTAssertEqual(calc("{5}"), .number(5), "hằng 1x1 tự mở")
+    }
+
+    func testArrayFormulaCSE() {
+        let e = FormulaEngine()
+        e.addSheet("Sheet1")
+        for (k, v) in data { e.setValue(v, sheet: "Sheet1", at: k) }
+        e.setValue(.number(20), sheet: "Sheet1", at: "B2")
+        e.setValue(.number(30), sheet: "Sheet1", at: "B3")
+        e.setArrayFormula("A1:A3*B1:B3", sheet: "Sheet1", range: CellRange("C1:C3")!)
+        e.setFormula("C2+1", sheet: "Sheet1", at: "D1")
+        e.setArrayFormula("SUM(A1:A3)*B1:B2", sheet: "Sheet1", range: CellRange("E1:E2")!)
+        e.setArrayFormula("{1;2;3}*10", sheet: "Sheet1", range: CellRange("F1:F3")!)
+        e.recalculate()
+        XCTAssertEqual(e.value(sheet: "Sheet1", at: "C1"), .number(10), "CSE từng ô: A1*B1")
+        XCTAssertEqual(e.value(sheet: "Sheet1", at: "C2"), .number(40), "CSE từng ô: A2*B2")
+        XCTAssertEqual(e.value(sheet: "Sheet1", at: "C3"), .number(90), "CSE từng ô: A3*B3")
+        XCTAssertEqual(e.value(sheet: "Sheet1", at: "D1"), .number(41), "ô thường đọc được ô mảng")
+        XCTAssertEqual(e.value(sheet: "Sheet1", at: "E1"), .number(60), "hàm tổng hợp trong CSE không bị giao: SUM=6 * B1")
+        XCTAssertEqual(e.value(sheet: "Sheet1", at: "E2"), .number(120), "SUM=6 * B2")
+        XCTAssertEqual(e.value(sheet: "Sheet1", at: "F1"), .number(10), "hằng dọc trong CSE: phần tử 1")
+        XCTAssertEqual(e.value(sheet: "Sheet1", at: "F3"), .number(30), "hằng dọc trong CSE: phần tử 3")
+    }
+
     func testArithmeticErrors() {
         XCTAssertEqual(calc("1/0"), err("#DIV/0!"))
         XCTAssertEqual(calc("A1/A6", data), err("#DIV/0!"))

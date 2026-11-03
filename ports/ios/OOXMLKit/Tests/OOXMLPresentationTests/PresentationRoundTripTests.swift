@@ -2,29 +2,154 @@ import XCTest
 @testable import OOXMLPresentation
 import OOXMLPackage
 import OOXMLTestSupport
+import OOXMLZip
 
 final class PresentationRoundTripTests: XCTestCase {
     let rich = "pptx/rich-deck.pptx"
 
+    /// Lần theo relationship presProps từ presentation.xml.rels để tìm part
+    /// (không đoán đường dẫn), khẳng định có đúng một relationship như vậy.
+    private func presPropsPart(in data: Data) throws -> String {
+        let rels = try RoundTrip.partString(data, "ppt/_rels/presentation.xml.rels")
+        let chunks = rels.components(separatedBy: "relationships/presProps")
+        XCTAssertEqual(chunks.count - 1, 1, "phải có đúng 1 relationship presProps: \(rels)")
+        let tail = try XCTUnwrap(chunks.count == 2 ? chunks[1] : nil)
+        let start = try XCTUnwrap(tail.range(of: "Target=\"")).upperBound
+        let end = try XCTUnwrap(tail[start...].firstIndex(of: "\""))
+        let target = String(tail[start..<end])
+        return target.hasPrefix("/") ? String(target.dropFirst()) : "ppt/\(target)"
+    }
+
+    /// Xóa phần tử tự đóng chứa `needle` (dùng để dựng gói tổng hợp trong test).
+    private static func removingSelfClosingElement(_ xml: String, containing needle: String) -> String {
+        guard let hit = xml.range(of: needle),
+              let start = xml[..<hit.lowerBound].range(of: "<", options: .backwards)?.lowerBound,
+              let end = xml.range(of: "/>", range: hit.upperBound..<xml.endIndex)?.upperBound
+        else { return xml }
+        return String(xml[..<start]) + String(xml[end...])
+    }
+
+    private static func removingShowPr(_ xml: String) -> String {
+        guard let s = xml.range(of: "<p:showPr"), let e = xml.range(of: "</p:showPr>") else { return xml }
+        return String(xml[..<s.lowerBound]) + String(xml[e.upperBound...])
+    }
+
+    /// Dựng biến thể tổng hợp của rich-deck bằng phẫu thuật ZIP (bỏ/sửa part
+    /// presProps) để kiểm các ca biên mà fixture thật không có.
+    private func syntheticDeck(mutatePresProps: (String) -> String?) throws -> Data {
+        let src = try ZipArchive(data: try Fixtures.data(rich))
+        let out = ZipArchive()
+        for name in src.entryNames {
+            var data = try src.contents(of: name)
+            if name == "ppt/presProps.xml" {
+                guard let mutated = mutatePresProps(String(decoding: data, as: UTF8.self)) else { continue }
+                data = Data(mutated.utf8)
+            }
+            if name == "ppt/_rels/presentation.xml.rels" {
+                data = Data(Self.removingSelfClosingElement(String(decoding: data, as: UTF8.self),
+                                                            containing: "relationships/presProps").utf8)
+            }
+            if name == "[Content_Types].xml" {
+                data = Data(Self.removingSelfClosingElement(String(decoding: data, as: UTF8.self),
+                                                            containing: "/ppt/presProps.xml").utf8)
+            }
+            out.setContents(data, for: name)
+        }
+        return out.serialize()
+    }
+
     func testShowSettingsRoundTrip() throws {
         let original = try Fixtures.data(rich)
         let deck = try Presentation(data: original)
+        // rich-deck có sẵn presProps (showPr chỉ đặt showNarration=1), còn lại mặc định.
         XCTAssertEqual(deck.showSettings, ShowSettings())
-        deck.setShowSettings(ShowSettings(loop: true, showAnimation: true, showNarration: false, useTimings: false))
+        try deck.setShowSettings(ShowSettings(loop: true, showAnimation: true, showNarration: false, useTimings: false))
+        // Setter gọi lần 2: cập nhật tại chỗ, không tạo thêm part/relationship.
+        try deck.setShowSettings(ShowSettings(loop: true, showAnimation: false, showNarration: false, useTimings: false))
         let saved = try deck.save()
-        let xml = try RoundTrip.partString(saved, "ppt/presentation.xml")
-        XCTAssertTrue(xml.contains("<p:showSettings"), xml)
-        XCTAssertTrue(xml.contains("loop=\"1\""), xml)
-        XCTAssertTrue(xml.contains("showNarration=\"0\""), xml)
-        XCTAssertTrue(xml.contains("useTimings=\"0\""), xml)
-        // presentationPr đứng trước extLst (đúng thứ tự schema CT_Presentation).
-        XCTAssertLessThan(xml.range(of: "<p:presentationPr")!.lowerBound, xml.range(of: "<p:extLst")!.lowerBound)
+        // presentation.xml không chứa cấu trúc sai vị trí.
+        let pres = try RoundTrip.partString(saved, "ppt/presentation.xml")
+        XCTAssertFalse(pres.contains("showSettings"), pres)
+        XCTAssertFalse(pres.contains("presentationPr"), pres)
+        // Part đích tìm qua relationship: root presentationPr, con showPr, đúng thuộc tính.
+        let part = try presPropsPart(in: saved)
+        XCTAssertEqual(part, "ppt/presProps.xml")
+        let props = try RoundTrip.partString(saved, part)
+        XCTAssertTrue(props.contains("<p:presentationPr"), props)
+        XCTAssertTrue(props.contains("<p:showPr"), props)
+        XCTAssertTrue(props.contains("loop=\"1\""), props)
+        XCTAssertTrue(props.contains("showAnimation=\"0\""), props)
+        XCTAssertTrue(props.contains("showNarration=\"0\""), props)
+        XCTAssertTrue(props.contains("useTimings=\"0\""), props)
+        XCTAssertFalse(props.contains("showSettings"), props)
+        // Nội dung chưa biết trong showPr của fixture (present/sldAll/penClr) được giữ nguyên.
+        XCTAssertTrue(props.contains("penClr"), props)
+        XCTAssertTrue(props.contains("sldAll"), props)
+        // Content type chuẩn của part presProps.
+        let ct = try RoundTrip.partString(saved, "[Content_Types].xml")
+        XCTAssertTrue(ct.contains("presentationml.presProps+xml"), ct)
+        // Getter đọc lại là kiểm bổ sung.
         let reopened = try Presentation(data: saved)
-        XCTAssertEqual(reopened.showSettings, ShowSettings(loop: true, showAnimation: true, showNarration: false, useTimings: false))
+        XCTAssertEqual(reopened.showSettings, ShowSettings(loop: true, showAnimation: false, showNarration: false, useTimings: false))
         try RoundTrip.verify(original: original, saved: saved,
-                             allowedChanges: ["ppt/presentation.xml"],
-                             requireChanged: ["ppt/presentation.xml"],
+                             allowedChanges: ["ppt/presProps.xml"],
+                             requireChanged: ["ppt/presProps.xml"],
                              name: "pptx-show-settings.pptx")
+    }
+
+    func testShowSettingsCreatesPresPropsWhenMissing() throws {
+        let synthetic = try syntheticDeck { _ in nil }  // bỏ hẳn part presProps + rel + override
+        let deck = try Presentation(data: synthetic)
+        XCTAssertEqual(deck.showSettings, ShowSettings())
+        try deck.setShowSettings(ShowSettings(loop: true, showAnimation: true, showNarration: true, useTimings: true))
+        let saved = try deck.save()
+        let part = try presPropsPart(in: saved)
+        let props = try RoundTrip.partString(saved, part)
+        XCTAssertTrue(props.contains("<p:presentationPr"), props)
+        XCTAssertTrue(props.contains("<p:showPr"), props)
+        XCTAssertTrue(props.contains("loop=\"1\""), props)
+        XCTAssertTrue(props.contains("useTimings=\"1\""), props)
+        XCTAssertFalse(props.contains("showSettings"), props)
+        let ct = try RoundTrip.partString(saved, "[Content_Types].xml")
+        XCTAssertTrue(ct.contains("PartName=\"/ppt/presProps.xml\""), ct)
+        XCTAssertTrue(ct.contains("presentationml.presProps+xml"), ct)
+        let pres = try RoundTrip.partString(saved, "ppt/presentation.xml")
+        XCTAssertFalse(pres.contains("showSettings"), pres)
+        try RoundTrip.verify(original: synthetic, saved: saved,
+                             allowedChanges: ["ppt/presProps.xml", "ppt/_rels/presentation.xml.rels", "[Content_Types].xml"],
+                             requireChanged: ["ppt/presProps.xml", "ppt/_rels/presentation.xml.rels"],
+                             name: "pptx-show-settings-create.pptx")
+    }
+
+    func testShowSettingsCreatesShowPrWhenPresPropsHasNone() throws {
+        let synthetic = try syntheticDeckWithPresPropsNoShowPr()
+        let deck = try Presentation(data: synthetic)
+        XCTAssertEqual(deck.showSettings, ShowSettings())
+        try deck.setShowSettings(ShowSettings(loop: false, showAnimation: true, showNarration: false, useTimings: true))
+        let saved = try deck.save()
+        let part = try presPropsPart(in: saved)
+        let props = try RoundTrip.partString(saved, part)
+        XCTAssertTrue(props.contains("<p:showPr"), props)
+        XCTAssertTrue(props.contains("showNarration=\"0\""), props)
+        XCTAssertTrue(props.contains("useTimings=\"1\""), props)
+        try RoundTrip.verify(original: synthetic, saved: saved,
+                             allowedChanges: ["ppt/presProps.xml"],
+                             requireChanged: ["ppt/presProps.xml"],
+                             name: "pptx-show-settings-noshowpr.pptx")
+    }
+
+    /// Biến thể: presProps còn part + relationship + override, chỉ thiếu showPr.
+    private func syntheticDeckWithPresPropsNoShowPr() throws -> Data {
+        let src = try ZipArchive(data: try Fixtures.data(rich))
+        let out = ZipArchive()
+        for name in src.entryNames {
+            var data = try src.contents(of: name)
+            if name == "ppt/presProps.xml" {
+                data = Data(Self.removingShowPr(String(decoding: data, as: UTF8.self)).utf8)
+            }
+            out.setContents(data, for: name)
+        }
+        return out.serialize()
     }
 
     func testThemeExtraction() throws {

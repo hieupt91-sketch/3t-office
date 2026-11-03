@@ -591,6 +591,56 @@ final class OOXMLBridgeTests: XCTestCase {
         // Section đầu tiên không liên kết được + index ngoài phạm vi đều báo lỗi.
         _ = try callExpectingError("doc.setSectionLinked", ["handle": h, "index": 0, "kind": "header", "linked": true])
         _ = try callExpectingError("doc.setSectionLinked", ["handle": h, "index": 5, "kind": "header", "linked": true])
+        // Thuộc tính section qua bridge: đọc giá trị fixture + ghi/đọc lại.
+        XCTAssertEqual(sections.first!["pageWidth"] as? Int, 11906)
+        XCTAssertEqual(sections.first!["marginLeft"] as? Int, 1701)
+        try call("doc.setSectionProperties", ["handle": h, "index": 0, "pageWidth": 11906, "pageHeight": 8391,
+                                              "orientation": "landscape", "marginTop": 1440, "marginRight": 1440,
+                                              "marginBottom": 1440, "marginLeft": 1440,
+                                              "breakType": "continuous", "titlePage": true, "columns": 2])
+        let after = try call("doc.sections", ["handle": h])["sections"] as! [[String: Any]]
+        XCTAssertEqual(after.first!["orientation"] as? String, "landscape")
+        XCTAssertEqual(after.first!["marginTop"] as? Int, 1440)
+        XCTAssertEqual(after.first!["breakType"] as? String, "continuous")
+        XCTAssertEqual(after.first!["titlePage"] as? Bool, true)
+        XCTAssertEqual(after.first!["columns"] as? Int, 2)
+        _ = try callExpectingError("doc.setSectionProperties", ["handle": h, "index": 9, "columns": 2])
+    }
+
+    func testDocInsertFootnoteBridge() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        let r = try call("doc.insertFootnote", ["handle": h, "index": 0, "text": "Chú thích qua bridge"])
+        XCTAssertEqual(r["id"] as? Int, 2)
+        let r2 = try call("doc.insertEndnote", ["handle": h, "index": 0, "text": "Endnote qua bridge"])
+        XCTAssertEqual(r2["id"] as? Int, 2)
+        let saved = try call("exportBytes", ["handle": h])["base64"] as? String
+        XCTAssertNotNil(saved)
+    }
+
+    func testDocWatermarkBridge() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        XCTAssertTrue(try call("doc.watermark", ["handle": h]).isEmpty)
+        try call("doc.setWatermark", ["handle": h, "text": "BẢN NHÁP"])
+        XCTAssertEqual(try call("doc.watermark", ["handle": h])["text"] as? String, "BẢN NHÁP")
+        try call("doc.removeWatermark", ["handle": h])
+        XCTAssertTrue(try call("doc.watermark", ["handle": h]).isEmpty)
+    }
+
+    func testDocRunTextEffectsBridge() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        try call("doc.setRunTextEffects", ["handle": h, "index": 0, "run": 0,
+                                           "glow": ["color": "FF0000", "alpha": 60, "radiusPt": 8],
+                                           "reflection": ["preset": "standard"],
+                                           "softEdgePt": 2.5,
+                                           "textFill": ["color": "00B050", "alpha": 100]])
+        try call("doc.setRunTextEffects", ["handle": h, "index": 0, "run": 0,
+                                           "textFill": ["stops": [["pos": 0, "color": "FF0000"], ["pos": 100, "color": "0000FF", "alpha": 80]],
+                                                        "angle": 90]])
+        _ = try callExpectingError("doc.setRunTextEffects", ["handle": h, "index": 0, "run": 0,
+                                                             "glow": ["color": "ZZZ", "radiusPt": 1]])
+        _ = try callExpectingError("doc.setRunTextEffects", ["handle": h, "index": 0, "run": 99, "softEdgePt": 1])
+        try call("doc.setRunTextEffects", ["handle": h, "index": 0, "run": 0,
+                                           "glow": [String: Any](), "reflection": [String: Any](), "textFill": [String: Any]()])
     }
 
     func testSlideShowSettingsBridgeRoundTrip() throws {

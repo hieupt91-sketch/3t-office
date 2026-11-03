@@ -1730,3 +1730,74 @@ RISKS: Lich su nhanh VM (4 commit Bridge) da lech voi remote (1 commit gop 85930
 DEPENDENCIES/BLOCKERS: Day nhanh numbering qua Mac (patch + script da chuan bi); kiem chung C2 Mac (script ~/Developer/verify-c2.command) truoc khi merge C2 vao vn-main.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Chay script day nhanh numbering tren Mac; sau do tiep tuc chuong trinh 1-4 (muc 3 parity, muc 4 cat LibreOffice khi du 4 cong + quyet dinh cua chu).
+
+## CLAUDE L1-OOXMLKIT - 01/11/2026
+OBJECTIVE: Dung lai nhanh muse/ooxmlkit-directive-3110 theo ke hoach hoan thien 01/11 muc L1: 5 loi directive 31/10 thanh 5 commit rieng, moi commit kem tai hien FAIL->PASS, ENGINE-PROTOCOL va changelog di cung commit; them 1 commit sua canh bao Bridge va 1 commit tai lieu; day origin, khong tu gop vn-main.
+FINDINGS: Tai hien tuoi tren nen 1354d7ec bang bo test cuoi: 12/12 test FAIL (showSettings 3/3, section unlink 3/3, numbering da cap 2/2, appendField 1/1, ZipLimits mac dinh 3/3); rieng test ZIP64 khai 2^63 lam chet tien trinh test voi signal 4 (Fatal error: Not enough bits to represent the passed value). Canh bao OOXMLBridge.swift:110 co san tu nen 1354d7ec (try thua truoc args.optBool o sheet.setColumnHidden).
+IMPLEMENTATION SUMMARY: 7 commit: 5532e28 L1.1 setShowSettings ghi p:showPr vao part presProps theo relationship (tao part/rel/content type presProps+xml khi thieu); 7d5b918 L1.2 setLinkedToPrevious(false) sao chep reference header/footer hieu luc gan nhat cung .rels; 2338378 L1.3 setNumbering level>0 sinh abstractNum da cap that, tai dung abstract chi khi khop dung hinh dang bo sinh tao; 39469f2 L1.4 appendField allowlist 10 field / blocklist 6 field ngoai ngoac kep, nem WordError.invalidField truoc khi sua XML; 46c614e L1.5 ZipLimits mac dinh 20.000 muc / 256 MiB moi muc / 512 MiB tong cho moi duong mo goi + parser ZIP64 dung Int(exactly:) chong tran; 426a3a7 bo try thua Bridge (1 token, khong doi hanh vi); commit docs bo sung ENGINE-PROTOCOL (trang thai v1.1, §4.8, §5.3, §6.3, ghi chu §9, phu luc §11), INBOX-WIN #31 va handoff nay. Chi sua ports/ios/OOXMLKit + docs/ooxml + docs/sync + 09-templates; khong dung main.py/apps/platform/adapters.
+FILES CHANGED: ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift; Sources/OOXMLPresentation/Presentation.swift; Sources/OOXMLWord/WordDocument.swift; Sources/OOXMLWord/WordDocumentModel.swift; Sources/OOXMLZip/ZipArchive.swift; Tests/OOXMLPresentationTests/PresentationRoundTripTests.swift; Tests/OOXMLWordTests/WordRoundTripTests.swift; Tests/OOXMLZipTests/ZipArchiveTests.swift; docs/ooxml/ENGINE-PROTOCOL.md; docs/sync/LIBRARY-CHANGELOG.md; docs/sync/INBOX-WIN.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: swift test bang Swift 6.0.3 (Linux) tren ban sao package rieng cho tung commit (chay co lap, log day du luu tai workspace phia Muse); kiem cau truc XML doc lap bang Python zipfile/ElementTree o dot soan dau (25/25); git bundle + script de day nhanh qua may Mac.
+BUILD RESULT: NOT RUN - khong doi build system.
+TEST RESULTS: PASS - suite sau tung commit sua: 234/234, 237/237, 239/239, 240/240, 244/244; tai HEAD: 244/244 PASS, 0 failure, 0 canh bao compiler (dem tu log build day du, khong qua runner loc). OfflineGuaranteeTests xanh trong moi lan chay.
+KNOWN FAILURES: Doi chieu Office COM that: NOT RUN phia Muse (Windows kiem doc lap). Nhanh chua gop vn-main.
+RISKS: Lich su cu cua nhanh (chua tung len origin) giu o tag archive/directive-3110-pre-restructure-9f9f061 de doi chieu. Hai test gioi han ZIP moi chay cham (khoang 3-7 phut moi test) vi dung entry 270 MB that.
+DEPENDENCIES/BLOCKERS: Day nhanh qua may Mac cua chu (VM khong co quyen push); Windows duyet truoc khi gop vn-main.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Windows kiem doc lap tren git (gom COM that). Muse lam tiep muc 3 (doi chieu bang mapping) tren nhanh rieng, roi L4 cong thuc -> L5 DOCX -> L6 PPTX theo ke hoach 01/11, moi goi bao INBOX truoc khi xin gop.
+
+## CLAUDE L4-FORMULAS - 02/11/2026
+OBJECTIVE: Goi L4 ke hoach hoan thien OOXMLKit 01/11: bo sung engine cong thuc XLSX - SUMPRODUCT, XLOOKUP, LET, tham so trong, tham chieu ca cot/hang A:A va 1:1, hang mang + cong thuc mang CSE, TEXT locale tieng Viet. Nhanh rieng, bao INBOX truoc khi xin gop.
+FINDINGS: Truoc L4 engine thieu ca 7 muc: SUMPRODUCT/XLOOKUP/LET chua ton tai (#NAME?), parser khong nhan tham so trong va A:A, khong co hang mang, scalar() tra #VALUE! cho vung nhieu o (chua giao ngam), TEXT in nguyen van the locale va dung ten thang/thu tieng Anh + ngan cach My. Mo hinh Worksheet da doc/gi duoc t="array" nhung engine khong tinh duoc.
+IMPLEMENTATION SUMMARY: 6 commit tinh nang: (1) SUMPRODUCT tren grid dung chung (chu/logic/rong = 0, loi lan truyen, lech kich thuoc #VALUE!). (2) XLOOKUP match_mode 0/-1/1/2 + search_mode 1/-1 + if_not_found luoi; kem tham so trong o parser (AST .empty) - hai viec lien quan chat che. (3) LET bang env sao chep theo pham vi trong evaluator. (4) Parser nhan A:A/$A:$A/1:1 ke ca tien to sheet, bieu dien bang bien maxRow/maxColumn. (5) TEXT tach the locale [$...] (vi-VN, LCID 042A, ky hieu tien te) -> ngan cach va ten tieng Viet. (6) Hang mang {1,2;3,4} o tokenizer/parser/AST + EvalValue.array tich hop grid/flatten/INDEX; CSE qua FormulaEngine.setArrayFormula + evaluator.position/arrayOrigin de scalar() giao ngam chi trong cong thuc mang; Worksheet.arrayFormulas (API doc cong khai) + bridge nap tu dong; tran 100.000 o/vung.
+FILES CHANGED: Sources/OOXMLSpreadsheet/Formula/{FormulaTokenizer,FormulaParser,FormulaEvaluator,FormulaFunctionsSlice2,FormulaTextSupport,FormulaEngine,FormulaWorkbookBridge}.swift; Sources/OOXMLSpreadsheet/Worksheet.swift (arrayFormulas); Tests: FormulaEvaluatorTests (+6), FormulaFunctionsSlice2Tests (+1, sua 1 placeholder), FormulaSyntaxTests (+1); ENGINE-PROTOCOL.md (phu luc §11), LIBRARY-CHANGELOG.md, INBOX-WIN.md (#33), handoff nay.
+COMMANDS RUN: swift test theo lop trong qua trinh lam (Formula*: 75/75 tai buoc mang); toan suite tai HEAD chay co lap hai luot tuan tu (swift test --skip ZipArchiveTests: 235/235; --filter ZipArchiveTests: 18/18) - tong 253/253, 0 canh bao compiler o log build day du; logs ~/workspace/l4-full-a.log, l4-full-b.log.
+BUILD RESULT: PASS - swift build trong cac luot test tren, 0 warning.
+TEST RESULTS: 253/253 PASS (nen d127e65 la 244; +9 test moi). FAIL truoc tung muc da ghi nhan trong qua trinh lam (tat ca #NAME? hoac in sai the locale).
+KNOWN FAILURES: Chua day nhanh len origin (VM khong co quyen push; cho duong Mac). Chua doi chieu Excel that (COM phia Windows).
+RISKS: XLOOKUP chua spill 2 chieu; search nhi phan tinh tuyen tinh; TEXT chua dinh dang so mu khoa hoc (co tu truoc); vung CSE qua 100.000 o chi dang ky o chu.
+DEPENDENCIES/BLOCKERS: Day nhanh qua may Mac; quyet dinh allowlist field (Windows/chu repo) truoc phan field cua L5.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Windows doc #33; Muse lam tiep L5 DOCX tren nhanh muse/l5-<ngay> (tru phan field cho quyet dinh allowlist), bao INBOX truoc khi xin gop.
+
+## CLAUDE L5-DOCX - 02/11/2026
+OBJECTIVE: Goi L5 ke hoach hoan thien OOXMLKit 01/11: cac chu de DOCX con thieu tu doi chieu mapping #32 - thuoc tinh section (181/184/185), chen footnote/endnote (189), watermark (198), hieu ung chu w14 (202/209), markup thay doi dinh dang (199). Phan field (170/173/174/192/193) cho quyet dinh allowlist, khong tu mo.
+FINDINGS: Truoc L5: Section chi co link-to-previous; notes chi doc/sua duoc part co san, khong chen moi; khong co watermark API; Run chi co hieu ung co dien (w14 doc duoc nhu XML la nhung khong co API); Revisions doc/ghi ins/del nhung rPrChange/pPrChange bi bo qua hoan toan o ca ghi dau lan accept/reject.
+IMPLEMENTATION SUMMARY: 5 commit tinh nang: (1) Section pageSize/margins/breakType/titlePage/columnCount + upsert con dung thu tu CT_SectPr + bridge doc.setSectionProperties va payload doc.sections mo rong. (2) Paragraph.appendFootnote/appendEndnote: ensureNotesStory tao part + separator 0/1 + rel + content type, addNote cap id max+1, run tham chieu rStyle chuan; bridge doc.insertFootnote/doc.insertEndnote. (3) Watermark VML textpath mau Word vao header mac dinh hieu luc phan biet (effectiveHeaderPart di qua chuoi ke thua), tao header qua co che unlink khi chua co; removeWatermark/watermarkText; bridge 3 op. (4) Run w14: GlowEffect/ReflectionEffect (+.standard)/softEdge/TextFill solid+gradient, quy doi EMU/do/phan-nghin, tu khai bao xmlns:w14, chen truoc rPrChange; bridge doc.setRunTextEffects; WordError.invalidTextEffect moi. (5) Revisions: markFormattingChange cho Run va Paragraph (chup ban dau tien), resolveRevisions xu ly rPrChange/pPrChange (accept bo ban chup, reject khoi phuc) va dem vao count. Them 1 commit test bo try thua de suite 0 canh bao.
+FILES CHANGED: Sources/OOXMLWord/{WordDocumentModel,WordDocument,Revisions}.swift; Sources/OOXMLBridge/OOXMLBridge.swift; Tests: WordRoundTripTests (+4 test), Phase5RevisionTests (+1), OOXMLBridgeTests (+3); ENGINE-PROTOCOL.md (§5.3 + phu luc §11), LIBRARY-CHANGELOG.md, INBOX-WIN.md (#34), handoff nay.
+COMMANDS RUN: swift test theo lop trong qua trinh lam (Word 24-26, Bridge 41, Phase5 4 - deu xanh); toan suite tai HEAD chay co lap hai luot tuan tu: --skip ZipArchiveTests 242/242 + --filter ZipArchiveTests 18/18 = 260/260, 0 canh bao; logs ~/workspace/l5-full-a.log, l5-full-b.log.
+BUILD RESULT: PASS - 0 warning o log build day du.
+TEST RESULTS: 260/260 PASS (nen L4 la 253; +7 test moi). FAIL truoc tung muc da ghi nhan (API chua ton tai).
+KNOWN FAILURES: Chua day nhanh len origin (VM khong co quyen push; cho duong Mac). Chua doi chieu Word that (COM phia Windows). Mot test w14 lot vao commit watermark do loi dong bo moi truong ghi tep - da ghi chu trong commit trien khai API va trong INBOX #34.
+RISKS: Watermark chi ap cho header mac dinh (khong first/even); reflection ghi de phan tu (thuoc tinh la ngoai tap mo hinh bi mat khi set lai); pPrChange chup ca sectPr - reject khoi phuc ca sectPr (dung ngu nghia nhung can luu y khi section dang duoc tham chieu boi API khac).
+DEPENDENCIES/BLOCKERS: Day nhanh qua may Mac; quyet dinh allowlist field (Windows/chu repo) cho phan field con lai.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Windows doc #34 va chot allowlist; Muse lam tiep L6 PPTX tren nhanh muse/l6-<ngay>, bao INBOX truoc khi xin gop.
+
+## FIELD ALLOWLIST EXTENSION (L5 ADDENDUM) - 02/11/2026
+
+OBJECTIVE
+Execute the Windows 02/11 decision: extend the DOCX field allowlist with SEQ, TOC, TOF, REF, IF, MERGEFIELD on branch muse/l5-docx-0211, tests for both the allowed and the blocked groups.
+
+IMPLEMENTATION SUMMARY
+Paragraph.appendField / validateFieldInstruction (WordDocument.swift): allowedFieldNames 10 -> 16 (adds SEQ, TOC, TOF, REF, IF, MERGEFIELD); blockedFieldNames unchanged (DDE, DDEAUTO, INCLUDETEXT, INCLUDEPICTURE, LINK, DATABASE); token-based quote-aware validation unchanged, error thrown before any XML mutation, rejected inserts leave the document byte-identical. Doc comments on the allowlist and appendField updated to state the 02/11 policy. Per the allowlist-first design, external-link fields outside the list (e.g. HYPERLINK) stay rejected; STT mapping 170/173/174/192/193 are now creatable.
+
+FILES CHANGED
+Feature da8ccf1: ports/ios/OOXMLKit/Sources/OOXMLWord/WordDocument.swift, ports/ios/OOXMLKit/Tests/OOXMLWordTests/WordRoundTripTests.swift. Docs commit: docs/ooxml/ENGINE-PROTOCOL.md (5.3 insertField row, 11 addendum), docs/sync/LIBRARY-CHANGELOG.md, docs/sync/INBOX-WIN.md (#36), 09-templates/AGENT-HANDOFF.md.
+
+COMMANDS RUN
+swift test --filter WordRoundTripTests.testAppendFieldSafety (FAIL before: SEQ/TOC/TOF/... "field khong duoc ho tro"; PASS after, class 25/25); full suite isolated in two sequential chunks: --skip ZipArchiveTests 242/242 (log l5f-full-a.log), --filter ZipArchiveTests 18/18 (log l5f-full-b.log); git bundle create/verify for the regenerated L5 bundle.
+
+TEST RESULTS
+260/260 PASS, 0 failures, 0 compiler warnings (Linux, Swift 6.0.3). Test count unchanged because the existing safety test was extended rather than duplicated.
+
+KNOWN FAILURES
+None in scope.
+
+RISKS
+Word updates SEQ/TOC/REF/IF/MERGEFIELD results on open/update-fields as before (library never sets w:updateFields); real Word COM comparison pending on Windows.
+
+DEPENDENCIES-BLOCKERS
+Branch push still goes through the user's Mac (VM push blocked, 403). STT 84 media timing waits for Codex's Q76 fixture path in INBOX-MAC.
+
+NEXT ACTION
+User runs the five Mac push scripts (L1 -> L4 -> mapping -> L5 -> L6) with the REGENERATED L5 bundle; Muse verifies ls-remote + Mac result files; Windows verifies independently (incl. real Office COM) before merge decisions.
