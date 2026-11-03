@@ -894,9 +894,17 @@ def _legacy_find_soffice() -> str | None:
 SOFFICE_PATH = find_soffice()
 
 
-def _libreoffice_child_environment() -> dict[str, str]:
-    """Avoid printer discovery during document processing without changing Windows settings."""
+def _libreoffice_child_environment(printer_access: bool = False) -> dict[str, str]:
+    """Avoid printer discovery during document processing without changing Windows settings.
+
+    A physical print job needs LibreOffice's printer list to resolve the printer by
+    name, so that helper is started with printer_access=True (no SAL_* overrides).
+    """
     env = os.environ.copy()
+    if printer_access:
+        env.pop("SAL_DISABLE_DEFAULTPRINTER", None)
+        env.pop("SAL_DISABLE_PRINTERLIST", None)
+        return env
     env["SAL_DISABLE_DEFAULTPRINTER"] = "1"
     env["SAL_DISABLE_PRINTERLIST"] = "1"
     return env
@@ -964,8 +972,9 @@ class _PersistentSofficeConversionError(_PersistentSofficeError):
 
 
 class _SofficeUnoWorker:
-    def __init__(self, app_kind: str):
+    def __init__(self, app_kind: str, printer_access: bool = False):
         self.app_kind = app_kind
+        self.printer_access = printer_access
         self.process: subprocess.Popen[str] | None = None
         self.responses: queue.Queue[dict | None] = queue.Queue()
         self._write_lock = threading.Lock()
@@ -989,7 +998,7 @@ class _SofficeUnoWorker:
 
         pipe_name = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
         profile_uri = _profile_uri(self.app_kind)
-        env = _libreoffice_child_environment()
+        env = _libreoffice_child_environment(printer_access=self.printer_access)
         env["PYTHONUNBUFFERED"] = "1"
         command = [python_path, "-u", str(worker_path), SOFFICE_PATH, profile_uri, pipe_name, self.app_kind]
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -1197,10 +1206,14 @@ class _PersistentSofficeManager:
         if worker:
             worker.stop()
 
-    def _ensure_locked(self, app_kind: str) -> _SofficeUnoWorker:
+    def _ensure_locked(self, app_kind: str, printer_access: bool = False) -> _SofficeUnoWorker:
         if self._shutdown_requested.is_set():
             raise _PersistentSofficeTransportError("3T Office đang đóng.")
-        if self._worker and self._worker.app_kind == app_kind:
+        if (
+            self._worker
+            and self._worker.app_kind == app_kind
+            and getattr(self._worker, "printer_access", False) == printer_access
+        ):
             if self._worker.process and self._worker.process.poll() is None:
                 return self._worker
             self._stop_locked()
@@ -1211,7 +1224,7 @@ class _PersistentSofficeManager:
         for _ in range(2):
             if self._shutdown_requested.is_set():
                 break
-            worker = _SofficeUnoWorker(app_kind)
+            worker = _SofficeUnoWorker(app_kind, printer_access=printer_access)
             self._worker = worker
             try:
                 worker.start()
@@ -1316,8 +1329,9 @@ class _PersistentSofficeManager:
 
     def operation(self, app_kind: str | None, operation: str, **payload) -> dict:
         kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
+        printer_access = operation == "print_pdf"
         with self._lock:
-            worker = self._ensure_locked(kind)
+            worker = self._ensure_locked(kind, printer_access=printer_access)
             try:
                 timeout = 300 if operation == "print_pdf" else 180
                 return worker.operation(operation, payload, timeout=timeout)
