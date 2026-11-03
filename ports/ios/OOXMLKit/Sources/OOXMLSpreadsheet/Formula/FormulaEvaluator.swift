@@ -9,6 +9,9 @@ protocol FormulaContext {
     func nonEmptyValues(sheet: String, range: CellRange) -> [CellValue]
     /// Số serial ngày giờ Excel của "bây giờ" (đã quy về múi giờ của engine) — cho TODAY/NOW.
     var nowSerial: Double { get }
+    /// Đích của tên vùng (M7): (tên sheet như đã đăng ký, vùng). Sheet cục bộ của sheet hiện
+    /// tại ưu tiên hơn phạm vi workbook. nil nếu tên không tồn tại.
+    func definedNameTarget(_ name: String) -> (sheet: String, range: CellRange)?
 }
 
 enum FormulaErrors {
@@ -48,6 +51,11 @@ struct FormulaEvaluator {
         case .array(let rows): return .array(rows)
         case .name(let n):
             if let v = env[n.uppercased()] { return v }
+            // M7: tên vùng — cục bộ sheet rồi workbook; sheet đích không còn → #REF!.
+            if let (sh, r) = context.definedNameTarget(n) {
+                guard let s = context.resolveSheet(sh) else { return .scalar(.error(FormulaErrors.ref)) }
+                return .ref(sheet: s, range: r)
+            }
             return .scalar(.error(FormulaErrors.name))
         case .cell(let sh, let r):
             guard let s = context.resolveSheet(sh) else { return .scalar(.error(FormulaErrors.ref)) }

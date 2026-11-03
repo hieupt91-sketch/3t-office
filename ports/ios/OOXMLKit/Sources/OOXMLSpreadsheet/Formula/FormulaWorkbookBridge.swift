@@ -20,5 +20,19 @@ extension FormulaEngine {
                 setArrayFormula(af.formula, sheet: name, range: af.range)
             }
         }
+        // M7 lát 1: nạp tên vùng của workbook (chỉ đích là ô/vùng; tên hệ thống _xlnm.* bỏ qua).
+        for dn in workbook.definedNames where !dn.name.hasPrefix("_xlnm") {
+            guard let expr = try? FormulaParser.parse(dn.formula) else { continue }
+            let local = dn.localSheetIndex.flatMap {
+                workbook.sheetNames.indices.contains($0) ? workbook.sheetNames[$0] : nil
+            }
+            switch expr {
+            case .range(let sh, let r):
+                if let s = sh { defineName(dn.name, localSheet: local, sheet: s, range: r) }
+            case .cell(let sh, let r):
+                if let s = sh { defineName(dn.name, localSheet: local, sheet: s, range: CellRange(r, r)) }
+            default: continue
+            }
+        }
     }
 }
