@@ -53,6 +53,23 @@ public enum PackageValidator {
     }
 
     public static func validate(_ pkg: OPCPackage) -> [String] {
+        validate(pkg, domParseLimit: nil)
+    }
+
+    /// Kiểm chứng NHẸ cho đường lưu truyền phát (gói L9 — issue #10): cùng
+    /// các kiểm tra cấu trúc như `validate` (kiểu nội dung, đích quan hệ,
+    /// Override mồ côi, quan hệ officeDocument), và mọi phần vẫn được giải
+    /// nén + kiểm CRC qua tầng ZIP; CHỈ khác ở chỗ phần XML có kích thước
+    /// giải nén vượt `domParseLimit` thì không parse DOM để kiểm tra
+    /// well-formed. Parse lại DOM của một sheet 100k dòng lúc lưu chính là
+    /// một trong hai đỉnh bộ nhớ mà đường truyền phát phải tránh; tính
+    /// well-formed của các phần lớn đó được canh bởi bộ test round-trip
+    /// (serializer xuất phát từ DOM đã hợp lệ trong bộ nhớ).
+    public static func validateLight(_ pkg: OPCPackage, domParseLimit: Int = 4 << 20) -> [String] {
+        validate(pkg, domParseLimit: domParseLimit)
+    }
+
+    static func validate(_ pkg: OPCPackage, domParseLimit: Int?) -> [String] {
         var issues: [String] = []
         let parts = pkg.partNames
         let partSet = Set(parts)
@@ -65,7 +82,8 @@ public enum PackageValidator {
             do {
                 let d = try pkg.data(of: p)
                 if isXML && p.fileExtension != "vml" {
-                    _ = try XDocument(data: d)
+                    let skipDOM = domParseLimit.map { (pkg.archive.entry(p.zipName)?.uncompressedSize ?? d.count) > $0 } ?? false
+                    if !skipDOM { _ = try XDocument(data: d) }
                 }
             } catch {
                 issues.append("\(p): \(error)")

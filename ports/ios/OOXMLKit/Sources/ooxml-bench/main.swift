@@ -90,6 +90,27 @@ func run(mode: String, path: String) throws {
         try wb.save(to: out)
         try? FileManager.default.removeItem(at: out)
         detail = String(format: "open=%.3fs edit+save=%.3fs", tOpen - t0, now() - tOpen)
+    case "save-stream":
+        let wb = try Workbook(contentsOf: url, deferValidation: true)
+        let tOpen = now()
+        try wb.worksheet(at: 0).setValue("bench", at: "A1")
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("bench-out-stream-\(getpid()).xlsx")
+        try wb.saveStreaming(to: out)
+        try? FileManager.default.removeItem(at: out)
+        detail = String(format: "open=%.3fs edit+saveStream=%.3fs", tOpen - t0, now() - tOpen)
+    case "sheet-lazy":
+        let wb = try Workbook(contentsOf: url, deferValidation: true)
+        let tOpen = now()
+        let v = try wb.worksheet(at: 0).value("A1")
+        detail = String(format: "open=%.3fs sheetAccess=%.3fs A1=%@", tOpen - t0, now() - tOpen, "\(v)")
+    case "parse-part":
+        // Đối số phụ: tên part cần parse DOM riêng (đo trọng lượng DOM từng part).
+        let part = CommandLine.arguments.count > 4 ? CommandLine.arguments[4] : "xl/worksheets/sheet1.xml"
+        let z = try ZipArchive(contentsOf: url)
+        let d = try z.contents(of: part)
+        let tParse = now()
+        let doc = try XDocument(data: d)
+        detail = String(format: "part=%@ raw=%.1fMB parse=%.3fs root=%@", part, Double(d.count) / 1e6, now() - tParse, doc.root.name)
     case "word-open":
         let doc = try WordDocument(data: try Data(contentsOf: url))
         detail = "paragraphs=\(doc.paragraphs.count)"
@@ -117,6 +138,6 @@ func run(mode: String, path: String) throws {
 let a = CommandLine.arguments
 do {
     if a.count == 4, a[1] == "gen", let n = Int(a[2]) { try generate(targetBytes: n, to: a[3]) }
-    else if a.count == 4, a[1] == "run" { try run(mode: a[2], path: a[3]) }
+    else if a.count >= 4, a[1] == "run" { try run(mode: a[2], path: a[3]) }
     else { print("dùng: ooxml-bench gen <bytes> <out.xlsx> | run <mode> <file.xlsx>"); exit(2) }
 } catch { print("LỖI: \(error)"); exit(1) }

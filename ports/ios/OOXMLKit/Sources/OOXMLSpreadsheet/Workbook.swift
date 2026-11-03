@@ -559,6 +559,16 @@ public final class Workbook {
         try package.save(to: url)
     }
 
+    /// Lưu TRUYỀN PHÁT (opt-in, gói L9 — issue #10): như `save(to:)` nhưng
+    /// ghi từng mục ZIP thẳng xuống đĩa và kiểm chứng nhẹ, nên đỉnh RAM khi
+    /// lưu bảng tính lớn thấp hơn hẳn. Nội dung tệp ra khớp từng byte với
+    /// `save(to:)` ở cùng trạng thái. Mặc định không đổi — chỉ khi caller
+    /// gọi tường minh hàm này mới đi đường truyền phát.
+    public func saveStreaming(to url: URL) throws {
+        try applyCalculationState()
+        try package.saveStreaming(to: url)
+    }
+
     // MARK: Ngày tháng
 
     /// Số sê-ri ngày của Excel → Date (UTC). Tính cả lỗi năm nhuận 1900 của Excel.

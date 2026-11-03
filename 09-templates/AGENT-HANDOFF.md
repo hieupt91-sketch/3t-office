@@ -1856,3 +1856,32 @@ Push via the user's Mac (VM push blocked, 403). STT 84 waits for the Q76 fixture
 
 NEXT ACTION
 User runs the Mac push scripts (seven bundles incl. L7 + L8); Muse verifies ls-remote + Mac result files; Windows verifies independently (incl. real Office COM) before merge decisions.
+
+## CLAUDE-L9-STREAMING-SAVE - 03/11/2026
+
+SUMMARY
+M2 (issue #10, roadmap #14): opt-in streaming save path for OOXMLKit. New ZipStreamingWriter (per-entry FileHandle writes, byte-identical output to ZipArchive.serialize() at the same archive state), OPCPackage.saveStreaming(to:verify:) sharing the change-flush with save() and keeping the temp-file -> validate -> atomic-replace contract, PackageValidator.validateLight (full structural checks + inflate/CRC for every part; DOM well-formedness parse skipped only for XML parts > 4 MiB), Workbook.saveStreaming(to:). Defaults unchanged; no bridge ops added; no public API removed or altered.
+
+FILES CHANGED
+Feature commit: ports/ios/OOXMLKit/Sources/OOXMLZip/ZipStreamingWriter.swift (new), Sources/OOXMLPackage/OPCPackage.swift (flushChanges extraction + saveStreaming + light baseline), Sources/OOXMLPackage/PackageTools.swift (validateLight), Sources/OOXMLSpreadsheet/Workbook.swift (saveStreaming), Sources/ooxml-bench/main.swift (save-stream, sheet-lazy, parse-part modes), Tests/OOXMLPackageTests/StreamingSaveTests.swift (7 tests), Tests/OOXMLSpreadsheetTests/StreamingSaveWorkbookTests.swift (2 tests). Docs commit: docs/ooxml/ENGINE-PROTOCOL.md (S11 addendum), docs/sync/LIBRARY-CHANGELOG.md, 09-templates/AGENT-HANDOFF.md.
+
+COMMANDS RUN
+ooxml-bench release runs on the L8 fixture (100k rows x 6 cols, 3.42 MB) before/after; filtered StreamingSave test run; full suite isolated in two sequential chunks (logs l9-full-a.log / l9-full-b.log on the VM).
+
+TEST RESULTS
+284/284 PASS, 0 failures, 0 compiler warnings (Linux, Swift 6.0.3): 275 (L8) + 9 new streaming tests, incl. byte-identity of streaming vs classic save across all fixtures and raw-byte preservation of untouched parts.
+
+BENCHMARK (release, VM x86, reference marks only)
+Classic save path (lazy open + 1-cell edit + save(to:)): peak 793-805 MB, edit+save 8.7-19.8 s. Streaming path: peak 538 MB, edit+saveStream 5.0-5.3 s. Model floor with NO save (open + sheet access): 513 MB (sheet DOM ~330 MB, sharedStrings DOM ~160 MB).
+
+KNOWN FAILURES
+None in scope. One implementation fix during the package: destination replacement now uses same-directory rename swap (FileManager.replaceItemAt proved unreliable on Linux corelibs, NSCocoaErrorDomain 4).
+
+RISKS
+validateLight trades away DOM well-formedness re-parse for XML parts > 4 MiB on the streaming path only; integrity (inflate + CRC), content types, relationships and overrides are still fully checked, and byte-identity tests pin serializer output. The issue #10 "< 300 MB total process" criterion is NOT met (538 MB): the remaining peak is the resident DOM model, which no save path can change; a lazy row-window sheet model + offset-indexed shared strings (proposed M2b) is required and awaits a Windows ruling in issue #10.
+
+DEPENDENCIES-BLOCKERS
+PR to vn-main references #10 + #14; CI ios-ooxmlkit.yml must go green; DO NOT self-merge - Windows verifies on Linux, owner approves. M3-M6 stay gated on the M1 parity gate (#11).
+
+NEXT ACTION
+Windows verifies the PR (CI + Linux run), rules on the #10 memory criterion / M2b proposal; Muse proceeds with M7 formula work in parallel per #14.
