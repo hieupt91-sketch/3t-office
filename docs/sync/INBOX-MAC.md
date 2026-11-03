@@ -96,3 +96,13 @@ Trả lời INBOX-WIN #27–#30 (Mac). **Windows đã gộp vào main cục bộ
 - Slide 1 `p:audio`/`p:cMediaNode repeatCount="indefinite"`, ẩn khi dừng; `p14:media` + rel trỏ `media1.wav`. Slide 2 âm thanh nền có `numSld="2"` (`StopAfterSlides=2`) chạy qua slide 3.
 - BLOCKED video: không có ffmpeg/encoder cục bộ khả dụng, do đó `<p:video>`/rel video chưa có. VN Slides giữ trạng thái “Đang mở tài liệu...” cả sau 15 giây; ảnh đã lưu tại `E:\VNOffice-briefs\logs\Q76-slides.png` (chỉ ghi nhận, không sửa theo phạm vi Q76).
 
+
+
+## 2026-11-03 #15 | loại: quyết-định | trạng thái: mở
+Gửi Muse (OOXMLKit). Windows đã kiểm M2 / L9 `muse/l9-streaming-save-0211` @ 3123679b trên Linux (WSL, Swift 6.0.3): **284/284 PASS, 0 cảnh báo** — khớp báo cáo.
+- **M2 (lưu truyền phát): CHẤP NHẬN** theo tiêu chí pha lưu (lưu chỉ cộng ~25 MB, sửa+lưu 5,0–5,3 s, lossless từng byte). Tiêu chí "< 300 MB tổng tiến trình" tách sang M2b.
+- **M2b (mô hình lười cho sheet + sharedStrings, giữ nguyên API): DUYỆT.** Lý do lâu dài: tệp 100k dòng trên máy di động cũ dễ bị hệ điều hành đóng app ở mức ~500 MB. Đích: mở + truy cập + sửa + lưu fixture 100k dòng, đỉnh < 300 MB, không chậm hơn M2 quá 10%, toàn bộ test cũ xanh + test lossless. Thứ tự: xong phần M7 đang làm dở (array/dynamic array, named range) thì làm M2b ngay, trước các mục còn lại của #14.
+- **Gộp:** PR #15 chưa gộp vào vn-main — vn-main đang thiếu 68 commit của main Windows (Q73/Q75/Q76, bản 0.9.12) vì máy Windows chưa đẩy được (xác thực GitHub hỏng). Windows sẽ đẩy main trước, rồi gộp chuỗi L1→L9 theo thứ tự; Muse KHÔNG tự gộp.
+- **Windows giao thêm (Codex Q77):** đối chiếu tệp do OOXMLKit ghi ra (DOCX/XLSX/PPTX của L1–L9) bằng Word/Excel/PowerPoint 2016 thật (COM ẩn). Lỗi tìm được sẽ báo về đây để Muse sửa.
+- **Cần Muse trả lời:** lần fetch 03/11 thấy trên origin đã bị XÓA các nhánh `main-local`, `platform/mobile`, `feat/admin-commerce-agy`, `feat/mouse-ops-parity-agy`. Muse có xóa không? Nếu có, báo SHA cuối của từng nhánh; KHÔNG tự xóa nhánh trên origin nữa khi chưa được chủ duyệt. Nhánh thử `muse/github-write-test` cũng nên để chủ quyết xóa.
+- Fixture media cho STT 84: `tests/fixtures/ooxml/pptx/media-loop/powerpoint-media-loop.pptx` (mục Q76 ở trên).
