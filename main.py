@@ -893,6 +893,22 @@ def _legacy_find_soffice() -> str | None:
 
 SOFFICE_PATH = find_soffice()
 
+
+def _libreoffice_child_environment(printer_access: bool = False) -> dict[str, str]:
+    """Avoid printer discovery during document processing without changing Windows settings.
+
+    A physical print job needs LibreOffice's printer list to resolve the printer by
+    name, so that helper is started with printer_access=True (no SAL_* overrides).
+    """
+    env = os.environ.copy()
+    if printer_access:
+        env.pop("SAL_DISABLE_DEFAULTPRINTER", None)
+        env.pop("SAL_DISABLE_PRINTERLIST", None)
+        return env
+    env["SAL_DISABLE_DEFAULTPRINTER"] = "1"
+    env["SAL_DISABLE_PRINTERLIST"] = "1"
+    return env
+
 # Filter LibreOffice chính thức tương ứng định dạng Microsoft Office / ODF
 FORMAT_FILTERS = {
     "docx": "MS Word 2007 XML",
@@ -956,8 +972,9 @@ class _PersistentSofficeConversionError(_PersistentSofficeError):
 
 
 class _SofficeUnoWorker:
-    def __init__(self, app_kind: str):
+    def __init__(self, app_kind: str, printer_access: bool = False):
         self.app_kind = app_kind
+        self.printer_access = printer_access
         self.process: subprocess.Popen[str] | None = None
         self.responses: queue.Queue[dict | None] = queue.Queue()
         self._write_lock = threading.Lock()
@@ -981,7 +998,7 @@ class _SofficeUnoWorker:
 
         pipe_name = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
         profile_uri = _profile_uri(self.app_kind)
-        env = os.environ.copy()
+        env = _libreoffice_child_environment(printer_access=self.printer_access)
         env["PYTHONUNBUFFERED"] = "1"
         command = [python_path, "-u", str(worker_path), SOFFICE_PATH, profile_uri, pipe_name, self.app_kind]
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -1189,10 +1206,14 @@ class _PersistentSofficeManager:
         if worker:
             worker.stop()
 
-    def _ensure_locked(self, app_kind: str) -> _SofficeUnoWorker:
+    def _ensure_locked(self, app_kind: str, printer_access: bool = False) -> _SofficeUnoWorker:
         if self._shutdown_requested.is_set():
             raise _PersistentSofficeTransportError("3T Office đang đóng.")
-        if self._worker and self._worker.app_kind == app_kind:
+        if (
+            self._worker
+            and self._worker.app_kind == app_kind
+            and getattr(self._worker, "printer_access", False) == printer_access
+        ):
             if self._worker.process and self._worker.process.poll() is None:
                 return self._worker
             self._stop_locked()
@@ -1203,7 +1224,7 @@ class _PersistentSofficeManager:
         for _ in range(2):
             if self._shutdown_requested.is_set():
                 break
-            worker = _SofficeUnoWorker(app_kind)
+            worker = _SofficeUnoWorker(app_kind, printer_access=printer_access)
             self._worker = worker
             try:
                 worker.start()
@@ -1308,8 +1329,9 @@ class _PersistentSofficeManager:
 
     def operation(self, app_kind: str | None, operation: str, **payload) -> dict:
         kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
+        printer_access = operation == "print_pdf"
         with self._lock:
-            worker = self._ensure_locked(kind)
+            worker = self._ensure_locked(kind, printer_access=printer_access)
             try:
                 timeout = 300 if operation == "print_pdf" else 180
                 return worker.operation(operation, payload, timeout=timeout)
@@ -1738,7 +1760,7 @@ def _run_soffice_convert(
                     if target_ext == "docx" and os.environ.get("VNO_PRINT_VERIFY") == "1" and src_path.lower().endswith(".html"):
                         _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
                         with tempfile.TemporaryDirectory() as cli_dir:
-                            subprocess.run(cmd[:-3] + ["--outdir", cli_dir, src_path], capture_output=True, timeout=120, check=False)
+                            subprocess.run(cmd[:-3] + ["--outdir", cli_dir, src_path], capture_output=True, timeout=120, check=False, env=_libreoffice_child_environment())
                             cli_docx = Path(cli_dir) / out_path.name
 
                             def _parts(path):
@@ -1752,7 +1774,7 @@ def _run_soffice_convert(
                         _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
                         with tempfile.TemporaryDirectory() as cli_dir:
                             cli_cmd = cmd[:-3] + ["--outdir", cli_dir, src_path]
-                            subprocess.run(cli_cmd, capture_output=True, timeout=120, check=False)
+                            subprocess.run(cli_cmd, capture_output=True, timeout=120, check=False, env=_libreoffice_child_environment())
                             cli_pdf = Path(cli_dir) / out_path.name
                             pm = _get_print_pipeline_module()
                             a, b = pm.fast_pdf_page_count(persistent_path), pm.fast_pdf_page_count(str(cli_pdf))
@@ -1773,7 +1795,8 @@ def _run_soffice_convert(
         # times out, or rejects a filter/document.
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=120, check=False
+                cmd, capture_output=True, text=True, timeout=120, check=False,
+                env=_libreoffice_child_environment(),
             )
         except subprocess.TimeoutExpired as exc:
             error = DocumentEngineError("Hết thời gian chờ khi chuyển đổi tài liệu.")
