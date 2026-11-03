@@ -63,9 +63,9 @@ export async function run3tWebTests() {
     );
 
     assert(
-      "Dung lượng bộ cài 0.9.11 đúng 401718681 byte và mã băm SHA256 chính xác",
-      releasesData.download?.file_size_bytes === 401718681 &&
-      releasesData.download?.sha256?.toLowerCase() === "41cc7db664203d8a15a2e9f030f50a6f28e09f17b6de139c194b9114d7a274be"
+      "Dung lượng bộ cài 0.9.12 đúng 410768148 byte và mã băm SHA256 chính xác",
+      releasesData.download?.file_size_bytes === 410768148 &&
+      releasesData.download?.sha256?.toLowerCase() === "05cee8963c2e542561e4f427735649785f7d847a25f3362c4ab78564eb7853a6"
     );
 
     // 1b. Kiểm tra release-macos.json cho bản macOS nội bộ
