@@ -187,6 +187,10 @@ public final class Paragraph {
     /// Gắn đoạn vào một danh sách đánh số (tìm định nghĩa num có sẵn cùng format/cấp,
     /// nếu không có thì tạo abstractNum + num mới trong `word/numbering.xml`).
     /// level phải trong 0...8; format không hợp lệ hoặc level ngoài khoảng bị từ chối.
+    /// Khi tạo mới với level > 0, abstractNum là danh sách đa cấp thật
+    /// (`multiLevelType=multilevel`) gồm đủ `w:lvl` cho 0...level: cấp đích dùng
+    /// đúng format được yêu cầu, các cấp cha dùng decimal/lowerLetter/lowerRoman
+    /// và `lvlText` tích lũy `%1.`, `%1.%2.`, ... (bullet: mọi cấp là bullet).
     public func setNumbering(_ format: NumberingFormat, level: Int = 0) throws {
         guard (0...8).contains(level) else { throw WordError.invalidNumbering("cấp danh sách phải trong 0...8") }
         let numId = try story.document.numberingId(for: format, level: level)
@@ -224,15 +228,85 @@ public final class Paragraph {
     public func setBold(_ on: Bool) { for r in runs where !r.text.isEmpty { r.setBold(on) } }
     public func setItalic(_ on: Bool) { for r in runs where !r.text.isEmpty { r.setItalic(on) } }
 
+    /// Field nội bộ được phép chèn qua API công khai: không field nào trong
+    /// danh sách này lấy nội dung/nguồn ngoài. Mọi field ngoài allowlist bị từ
+    /// chối theo mặc định, kể cả khi đứng sau một prefix hợp lệ.
+    private static let allowedFieldNames: Set<String> = [
+        "PAGE", "NUMPAGES", "SECTION", "SECTIONPAGES", "DATE", "TIME",
+        "AUTHOR", "TITLE", "SUBJECT", "FILENAME",
+    ]
+
+    /// Field có thể truy cập nội dung/nguồn ngoài hoặc kích hoạt liên kết động;
+    /// luôn bị chặn ở mọi vị trí không nằm trong ngoặc kép.
+    private static let blockedFieldNames: Set<String> = [
+        "DDE", "DDEAUTO", "INCLUDETEXT", "INCLUDEPICTURE", "LINK", "DATABASE",
+    ]
+
+    /// Parse cú pháp field ở mức token (không dò substring): token đầu tiên
+    /// phải là tên field toàn chữ cái thuộc allowlist; các token sau có thể là
+    /// switch (`\x`, có thể kèm đối số) hoặc đối số, nhưng không token nào
+    /// ngoài ngoặc kép được là field bị cấm. Lỗi được trả trước khi cây XML
+    /// bị sửa; thông điệp chỉ chứa tên field bị từ chối, không chứa đối số.
+    private static func validateFieldInstruction(_ code: String) throws {
+        struct Token { let text: String; let quoted: Bool }
+        var tokens: [Token] = []
+        var current = ""
+        var tokenQuoted = false
+        var inQuotes = false
+        var hasToken = false
+        func flush() {
+            if hasToken {
+                tokens.append(Token(text: current, quoted: tokenQuoted))
+                current = ""; tokenQuoted = false; hasToken = false
+            }
+        }
+        for ch in code {
+            if ch == "\"" {
+                if !hasToken { tokenQuoted = true; hasToken = true }
+                inQuotes.toggle()
+                current.append(ch)
+                continue
+            }
+            if !inQuotes && ch.isWhitespace { flush(); continue }
+            hasToken = true
+            current.append(ch)
+        }
+        flush()
+        guard let first = tokens.first, !first.quoted,
+              first.text.allSatisfy({ $0.isLetter }) else {
+            throw WordError.invalidField("lệnh field không hợp lệ")
+        }
+        let keyword = first.text.uppercased()
+        if blockedFieldNames.contains(keyword) {
+            throw WordError.invalidField("field bị cấm: \(keyword)")
+        }
+        guard allowedFieldNames.contains(keyword) else {
+            throw WordError.invalidField("field không được hỗ trợ: \(keyword)")
+        }
+        for token in tokens.dropFirst() where !token.quoted {
+            var candidates = [token.text]
+            if token.text.hasPrefix("\\") {
+                candidates.append(String(token.text.dropFirst()))
+                candidates.append(String(token.text.dropFirst(2)))
+            }
+            if let bad = candidates.first(where: { blockedFieldNames.contains($0.uppercased()) }) {
+                throw WordError.invalidField("field bị cấm: \(bad.uppercased())")
+            }
+        }
+    }
+
     /// Chèn một field phức hợp ở cuối đoạn: begin → instrText → separate →
-    /// kết quả (nếu có) → end. Lệnh field (ví dụ `PAGE`, `NUMPAGES`, `DATE`)
-    /// được lưu dạng ` PAGE `; chữ kết quả đọc được như chữ thường của đoạn
-    /// (instrText bị bỏ qua khi đọc), Word sẽ tự cập nhật lại khi mở.
-    /// Lệnh rỗng bị từ chối.
+    /// kết quả (nếu có) → end. Chỉ field nội bộ trong allowlist mới được chèn
+    /// (ví dụ `PAGE`, `NUMPAGES`, `DATE` kèm switch/đối số an toàn); field có
+    /// thể lấy nội dung ngoài như `DDE`, `INCLUDETEXT`, `LINK` bị từ chối.
+    /// Lệnh field được lưu dạng ` PAGE `; chữ kết quả đọc được như chữ thường
+    /// của đoạn (instrText bị bỏ qua khi đọc), Word sẽ tự cập nhật lại khi mở.
+    /// Lệnh rỗng hoặc không nhận diện bị từ chối trước khi tài liệu bị sửa.
     @discardableResult
     public func appendField(instruction: String, result: String? = nil) throws -> [Run] {
         let code = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !code.isEmpty else { throw WordError.invalidField("lệnh field không được rỗng") }
+        try Self.validateFieldInstruction(code)
         func fieldRun(_ type: String) -> XElement {
             let r = XElement(name: WordText.qn(element, "r"))
             r.append(XElement(name: WordText.qn(element, "fldChar"),

@@ -181,4 +181,77 @@ final class ZipArchiveTests: XCTestCase {
             }
         }
     }
+
+    func testZipDefaultLimitsAreMobileProfile() {
+        let d = ZipLimits()
+        XCTAssertEqual(d.maxEntries, 20_000)
+        XCTAssertEqual(d.maxEntrySize, 256 * 1024 * 1024)
+        XCTAssertEqual(d.maxTotalUncompressedSize, 512 * 1024 * 1024)
+    }
+
+    func testZipDefaultLimitsRejectOversizedEntry() throws {
+        let a = ZipArchive()
+        a.setContents(Data(count: 270_000_000), for: "zeros.bin")  // 270MB số 0 nén còn rất nhỏ
+        let data = a.serialize()
+        XCTAssertLessThan(data.count, 2_000_000)
+        // Mặc định: tổng 270MB < 512MB nên mở được, nhưng đọc entry bị chặn theo hạn mức mỗi entry.
+        let z = try ZipArchive(data: data)
+        XCTAssertThrowsError(try z.contents(of: "zeros.bin")) {
+            XCTAssertEqual($0 as? ZipError, .entryTooLarge("zeros.bin", limit: 256 * 1024 * 1024))
+        }
+        // Caller truyền hạn mức tường minh cao hơn thì đọc được bình thường.
+        let big = try ZipArchive(data: data, limits: ZipLimits(maxEntrySize: 300_000_000,
+                                                               maxTotalUncompressedSize: 600_000_000))
+        XCTAssertEqual(try big.contents(of: "zeros.bin").count, 270_000_000)
+    }
+
+    func testZipDefaultLimitsRejectTotalSize() throws {
+        // 2 × 270.000.000 = 540.000.000 byte > hạn mức tổng 512 MiB (536.870.912 byte).
+        // (Chú ý đơn vị: 260 MB thập phân × 2 = 520.000.000 < 512 MiB nên sẽ KHÔNG chạm hạn mức.)
+        let a = ZipArchive()
+        a.setContents(Data(count: 270_000_000), for: "a.bin")
+        a.setContents(Data(count: 270_000_000), for: "b.bin")
+        let data = a.serialize()
+        XCTAssertThrowsError(try ZipArchive(data: data)) {
+            XCTAssertEqual($0 as? ZipError, .totalSizeExceeded(limit: 512 * 1024 * 1024))
+        }
+    }
+
+    /// ZIP64 extra khai uncompressed size = 2^63 (vượt Int): initializer phải trả
+    /// lỗi ZipError ổn định, không crash vì tràn số khi ép kiểu.
+    func testZip64DeclaredSizeBeyondIntThrows() throws {
+        let a = ZipArchive()
+        a.setContents(Data("hello".utf8), for: "a.txt")
+        var bytes = [UInt8](a.serialize())
+        // Tìm central directory record đầu tiên (PK\x01\x02).
+        var cd = -1
+        for i in 0..<(bytes.count - 3) where bytes[i] == 0x50 && bytes[i + 1] == 0x4B && bytes[i + 2] == 0x01 && bytes[i + 3] == 0x02 {
+            cd = i; break
+        }
+        let cdOffset = try XCTUnwrap(cd >= 0 ? cd : nil)
+        func u16(_ o: Int) -> Int { Int(bytes[o]) | Int(bytes[o + 1]) << 8 }
+        func setU16(_ o: Int, _ v: Int) { bytes[o] = UInt8(v & 0xFF); bytes[o + 1] = UInt8((v >> 8) & 0xFF) }
+        func setU32(_ o: Int, _ v: UInt32) { for k in 0..<4 { bytes[o + k] = UInt8((v >> UInt32(8 * k)) & 0xFF) } }
+        let nameLen = u16(cdOffset + 28)
+        let extraLen = u16(cdOffset + 30)
+        // uncompressed size = 0xFFFFFFFF + ZIP64 extra (tag 0x0001) chứa 2^63.
+        setU32(cdOffset + 24, 0xFFFF_FFFF)
+        var extra: [UInt8] = [0x01, 0x00, 0x08, 0x00]
+        extra.append(contentsOf: [0, 0, 0, 0, 0, 0, 0, 0x80])  // 2^63 dạng little-endian
+        bytes.insert(contentsOf: extra, at: cdOffset + 46 + nameLen + extraLen)
+        setU16(cdOffset + 30, extraLen + extra.count)
+        // EOCD: cộng thêm kích thước central directory.
+        var eocd = -1
+        for i in stride(from: bytes.count - 4, through: 0, by: -1)
+            where bytes[i] == 0x50 && bytes[i + 1] == 0x4B && bytes[i + 2] == 0x05 && bytes[i + 3] == 0x06 {
+            eocd = i; break
+        }
+        let eocdOffset = try XCTUnwrap(eocd >= 0 ? eocd : nil)
+        let cdSize = Int(bytes[eocdOffset + 12]) | Int(bytes[eocdOffset + 13]) << 8
+            | Int(bytes[eocdOffset + 14]) << 16 | Int(bytes[eocdOffset + 15]) << 24
+        setU32(eocdOffset + 12, UInt32(cdSize + extra.count))
+        XCTAssertThrowsError(try ZipArchive(data: Data(bytes))) { error in
+            XCTAssertTrue(error is ZipError, "\(error)")
+        }
+    }
 }
