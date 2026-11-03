@@ -344,6 +344,248 @@ final class WordRoundTripTests: XCTestCase {
                              name: "docx-section-link.docx")
     }
 
+    /// Part đích của reference của section thứ `index` trong gói đã lưu, lần theo
+    /// sectPr -> r:id -> relationship bằng DOM thô (không qua model Section).
+    private func referencedPart(in package: OPCPackage, section index: Int,
+                                elementName: String, type: String = "default") throws -> PartName? {
+        let doc = try package.xml(try package.mainDocumentPart())
+        guard let body = doc.root.firstChild(NS.w, "body") else { return nil }
+        var sectPrs: [XElement] = []
+        for p in body.children(NS.w, "p") {
+            if let s = p.firstChild(NS.w, "pPr")?.firstChild(NS.w, "sectPr") { sectPrs.append(s) }
+        }
+        if let last = body.elements.last, last.is(NS.w, "sectPr") { sectPrs.append(last) }
+        guard sectPrs.indices.contains(index) else { return nil }
+        guard let ref = sectPrs[index].children(NS.w, elementName).first(where: {
+            ($0.attribute("w:type") ?? "default") == type
+        }), let rid = ref.attribute("r:id") else { return nil }
+        return try package.relationships(of: try package.mainDocumentPart()).targetPart(id: rid)
+    }
+
+    /// Dựng chuỗi 3 section bằng cách chép sectPr cuối thân vào pPr đoạn 0 và 1.
+    private func makeThreeSections(_ doc: WordDocument) throws {
+        let bodySectPr = try XCTUnwrap(doc.body.container.elements.last)
+        for i in [0, 1] {
+            WordText.ensurePPr(doc.paragraphs[i].element).append(bodySectPr.deepCopy())
+        }
+        doc.body.markModified()
+        XCTAssertEqual(doc.sections.count, 3)
+    }
+
+    func testSectionUnlinkUsesNearestEffectiveReference() throws {
+        let original = try Fixtures.data(rich)
+        let headerSource = try RoundTrip.partString(original, "word/header1.xml")
+        let headerRelsSource = try RoundTrip.partString(original, "word/_rels/header1.xml.rels")
+        let doc = try WordDocument(data: original)
+        try makeThreeSections(doc)
+        try doc.sections[1].setLinkedToPrevious(true, kind: .header)
+        try doc.sections[2].setLinkedToPrevious(true, kind: .header)
+        XCTAssertTrue(doc.sections[2].isLinkedToPrevious(kind: .header))
+        // Ngắt ở section 2: phải sao chép header hiệu lực của section 0, không tạo part rỗng.
+        try doc.sections[2].setLinkedToPrevious(false, kind: .header)
+        XCTAssertFalse(doc.sections[2].isLinkedToPrevious(kind: .header))
+        let saved = try doc.save()
+        let pkg = try OPCPackage(data: saved)
+        let newPart = try XCTUnwrap(try referencedPart(in: pkg, section: 2, elementName: "headerReference"))
+        XCTAssertNotEqual(newPart, PartName("/word/header1.xml"))
+        XCTAssertEqual(try RoundTrip.partString(saved, newPart.value), headerSource)
+        // Part nguồn không đổi; quan hệ phụ thuộc của header (ảnh) được mang theo.
+        XCTAssertEqual(try RoundTrip.partString(saved, "word/header1.xml"), headerSource)
+        let newRels = "/word/_rels/\(newPart.value.split(separator: "/").last!).rels"
+        XCTAssertEqual(try RoundTrip.partString(saved, newRels), headerRelsSource)
+        // Section 1 vẫn liên kết; tổng số headerReference = 2 (section 0 và 2).
+        XCTAssertNil(try referencedPart(in: pkg, section: 1, elementName: "headerReference"))
+        let docXML = try RoundTrip.partString(saved, "word/document.xml")
+        XCTAssertEqual(docXML.components(separatedBy: "<w:headerReference").count - 1, 2, docXML)
+        let reopened = try WordDocument(data: saved)
+        XCTAssertTrue(reopened.sections[1].isLinkedToPrevious(kind: .header))
+        XCTAssertFalse(reopened.sections[2].isLinkedToPrevious(kind: .header))
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["word/document.xml", "word/_rels/document.xml.rels",
+                                              "[Content_Types].xml", "word/header*", "word/_rels/header*"],
+                             requireChanged: ["word/document.xml"],
+                             name: "docx-section-unlink-chain.docx")
+    }
+
+    func testSectionUnlinkFooterUsesNearestEffectiveReference() throws {
+        let original = try Fixtures.data(rich)
+        let footerSource = try RoundTrip.partString(original, "word/footer1.xml")
+        let doc = try WordDocument(data: original)
+        try makeThreeSections(doc)
+        try doc.sections[1].setLinkedToPrevious(true, kind: .footer)
+        try doc.sections[2].setLinkedToPrevious(true, kind: .footer)
+        try doc.sections[2].setLinkedToPrevious(false, kind: .footer)
+        let saved = try doc.save()
+        let pkg = try OPCPackage(data: saved)
+        let newPart = try XCTUnwrap(try referencedPart(in: pkg, section: 2, elementName: "footerReference"))
+        XCTAssertNotEqual(newPart, PartName("/word/footer1.xml"))
+        XCTAssertEqual(try RoundTrip.partString(saved, newPart.value), footerSource)
+        XCTAssertEqual(try RoundTrip.partString(saved, "word/footer1.xml"), footerSource)
+        XCTAssertNil(try referencedPart(in: pkg, section: 1, elementName: "footerReference"))
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["word/document.xml", "word/_rels/document.xml.rels",
+                                              "[Content_Types].xml", "word/footer*"],
+                             requireChanged: ["word/document.xml"],
+                             name: "docx-section-unlink-footer.docx")
+    }
+
+    func testSectionUnlinkFirstAndEvenUseNearestTypedReference() throws {
+        let original = try Fixtures.data(rich)
+        let headerSource = try RoundTrip.partString(original, "word/header1.xml")
+        let footerSource = try RoundTrip.partString(original, "word/footer1.xml")
+        let doc = try WordDocument(data: original)
+        try makeThreeSections(doc)
+        // Section 0 có thêm reference first (header) và even (footer) trỏ cùng part gốc.
+        let sect0 = doc.sections[0].element
+        let firstRef = XElement(name: "w:headerReference", attributes: [
+            XAttribute(name: "w:type", value: "first"), XAttribute(name: "r:id", value: "rId8")])
+        sect0.insert(firstRef, at: 0)
+        let evenRef = XElement(name: "w:footerReference", attributes: [
+            XAttribute(name: "w:type", value: "even"), XAttribute(name: "r:id", value: "rId9")])
+        if let lastHeader = sect0.children(NS.w, "headerReference").last {
+            sect0.insert(evenRef, after: lastHeader)
+        } else {
+            sect0.insert(evenRef, at: 0)
+        }
+        doc.body.markModified()
+        // Section 1 và 2 không có reference hai loại này nên đang kế thừa từ section 0.
+        XCTAssertTrue(doc.sections[2].isLinkedToPrevious(kind: .header, type: .first))
+        XCTAssertTrue(doc.sections[2].isLinkedToPrevious(kind: .footer, type: .even))
+        try doc.sections[2].setLinkedToPrevious(false, kind: .header, type: .first)
+        try doc.sections[2].setLinkedToPrevious(false, kind: .footer, type: .even)
+        let saved = try doc.save()
+        let pkg = try OPCPackage(data: saved)
+        let newHeader = try XCTUnwrap(try referencedPart(in: pkg, section: 2, elementName: "headerReference", type: "first"))
+        XCTAssertEqual(try RoundTrip.partString(saved, newHeader.value), headerSource)
+        let newFooter = try XCTUnwrap(try referencedPart(in: pkg, section: 2, elementName: "footerReference", type: "even"))
+        XCTAssertEqual(try RoundTrip.partString(saved, newFooter.value), footerSource)
+        // Reference default của section 2 vẫn trỏ part gốc, không bị đụng.
+        let defHeader = try XCTUnwrap(try referencedPart(in: pkg, section: 2, elementName: "headerReference"))
+        XCTAssertEqual(defHeader, PartName("/word/header1.xml"))
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["word/document.xml", "word/_rels/document.xml.rels",
+                                              "[Content_Types].xml", "word/header*", "word/_rels/header*", "word/footer*"],
+                             requireChanged: ["word/document.xml"],
+                             name: "docx-section-unlink-typed.docx")
+    }
+
+    func testNumberingMultiLevelStructure() throws {
+        let original = try Fixtures.data(rich)
+        let doc = try WordDocument(data: original)
+        try doc.paragraphs[0].setNumbering(.decimal, level: 2)
+        let numId2 = try XCTUnwrap(doc.paragraphs[0].numbering?.numId)
+        XCTAssertEqual(doc.paragraphs[0].numbering?.level, 2)
+        try doc.paragraphs[1].setNumbering(.decimal, level: 2)
+        XCTAssertEqual(doc.paragraphs[1].numbering?.numId, numId2, "cùng format + cấp dùng lại một danh sách")
+        try doc.paragraphs[2].setNumbering(.lowerLetter, level: 1)
+        let numId1 = try XCTUnwrap(doc.paragraphs[2].numbering?.numId)
+        XCTAssertNotEqual(numId1, numId2)
+        XCTAssertThrowsError(try doc.paragraphs[3].setNumbering(.decimal, level: -1))
+        let saved = try doc.save()
+        // Kiểm cấu trúc XML bằng DOM thô của part, không qua model API.
+        let pkg = try OPCPackage(data: saved)
+        let ndoc = try pkg.xml(PartName("/word/numbering.xml"))
+        func abstract(forNum numId: Int) -> XElement? {
+            guard let num = ndoc.root.children(NS.w, "num").first(where: { $0.attribute("w:numId") == String(numId) }),
+                  let absId = num.firstChild(NS.w, "abstractNumId")?.attribute("w:val") else { return nil }
+            return ndoc.root.children(NS.w, "abstractNum").first { $0.attribute("w:abstractNumId") == absId }
+        }
+        func lvlInfo(_ ab: XElement) -> [(ilvl: String, fmt: String?, text: String?, order: [String])] {
+            ab.children(NS.w, "lvl").map { lvl in
+                (lvl.attribute("w:ilvl") ?? "?",
+                 lvl.firstChild(NS.w, "numFmt")?.attribute("w:val"),
+                 lvl.firstChild(NS.w, "lvlText")?.attribute("w:val"),
+                 lvl.elements.map(\.name))
+            }
+        }
+        let ab2 = try XCTUnwrap(abstract(forNum: numId2))
+        XCTAssertEqual(ab2.firstChild(NS.w, "multiLevelType")?.attribute("w:val"), "multilevel")
+        let lv2 = lvlInfo(ab2)
+        XCTAssertEqual(lv2.map(\.ilvl), ["0", "1", "2"])
+        XCTAssertEqual(lv2.map(\.fmt), ["decimal", "lowerLetter", "decimal"])
+        XCTAssertEqual(lv2.map(\.text), ["%1.", "%1.%2.", "%1.%2.%3."])
+        for l in lv2 {
+            XCTAssertEqual(l.order, ["w:start", "w:numFmt", "w:lvlText", "w:lvlJc", "w:pPr"], "thứ tự con của w:lvl")
+        }
+        let ab1 = try XCTUnwrap(abstract(forNum: numId1))
+        XCTAssertEqual(ab1.firstChild(NS.w, "multiLevelType")?.attribute("w:val"), "multilevel")
+        let lv1 = lvlInfo(ab1)
+        XCTAssertEqual(lv1.map(\.ilvl), ["0", "1"])
+        XCTAssertEqual(lv1.map(\.fmt), ["decimal", "lowerLetter"])
+        XCTAssertEqual(lv1.map(\.text), ["%1.", "%1.%2."])
+        // Định nghĩa sẵn của fixture (abstract 0) còn nguyên.
+        XCTAssertNotNil(ndoc.root.children(NS.w, "abstractNum").first { $0.attribute("w:abstractNumId") == "0" })
+        let docXML = try RoundTrip.partString(saved, "word/document.xml")
+        XCTAssertTrue(docXML.contains("<w:ilvl w:val=\"2\"/>"), docXML)
+        let reopened = try WordDocument(data: saved)
+        XCTAssertEqual(reopened.numberingFormat(numId: numId2, level: 2), "decimal")
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["word/document.xml", "word/numbering.xml"],
+                             requireChanged: ["word/document.xml", "word/numbering.xml"],
+                             name: "docx-numbering-multilevel.docx")
+    }
+
+    func testNumberingMultiLevelBulletAndDeepest() throws {
+        let original = try Fixtures.data(rich)
+        let doc = try WordDocument(data: original)
+        try doc.paragraphs[0].setNumbering(.bullet, level: 2)
+        let bulletNum = try XCTUnwrap(doc.paragraphs[0].numbering?.numId)
+        try doc.paragraphs[1].setNumbering(.decimal, level: 8)
+        let deepNum = try XCTUnwrap(doc.paragraphs[1].numbering?.numId)
+        let saved = try doc.save()
+        let pkg = try OPCPackage(data: saved)
+        let ndoc = try pkg.xml(PartName("/word/numbering.xml"))
+        func abstract(forNum numId: Int) -> XElement? {
+            guard let num = ndoc.root.children(NS.w, "num").first(where: { $0.attribute("w:numId") == String(numId) }),
+                  let absId = num.firstChild(NS.w, "abstractNumId")?.attribute("w:val") else { return nil }
+            return ndoc.root.children(NS.w, "abstractNum").first { $0.attribute("w:abstractNumId") == absId }
+        }
+        let abB = try XCTUnwrap(abstract(forNum: bulletNum))
+        let lvB = abB.children(NS.w, "lvl")
+        XCTAssertEqual(lvB.count, 3)
+        XCTAssertTrue(lvB.allSatisfy { $0.firstChild(NS.w, "numFmt")?.attribute("w:val") == "bullet" })
+        XCTAssertTrue(lvB.allSatisfy { $0.firstChild(NS.w, "lvlText")?.attribute("w:val") == "•" })
+        XCTAssertTrue(lvB.allSatisfy { $0.firstChild(NS.w, "start") == nil })
+        let abD = try XCTUnwrap(abstract(forNum: deepNum))
+        let lvD = abD.children(NS.w, "lvl")
+        XCTAssertEqual(lvD.count, 9)
+        XCTAssertEqual(lvD.map { $0.attribute("w:ilvl") }, (0...8).map { String($0) })
+        XCTAssertEqual(lvD.last?.firstChild(NS.w, "lvlText")?.attribute("w:val"), "%1.%2.%3.%4.%5.%6.%7.%8.%9.")
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["word/document.xml", "word/numbering.xml"],
+                             requireChanged: ["word/document.xml", "word/numbering.xml"],
+                             name: "docx-numbering-deep.docx")
+    }
+
+    func testAppendFieldSafety() throws {
+        let original = try Fixtures.data(rich)
+        // Field nội bộ trong allowlist (kèm switch/đối số hợp lệ) vẫn chèn được.
+        let doc = try WordDocument(data: original)
+        let p0 = doc.paragraphs[0]
+        for f in ["PAGE", "NUMPAGES", "SECTION", "SECTIONPAGES", "DATE", "TIME",
+                  "AUTHOR", "TITLE", "SUBJECT", "FILENAME",
+                  "page", "Date \\@ \"dd/MM/yyyy\"", "TIME \\@ \"HH:mm\"", "DATE \\* MERGEFORMAT"] {
+            XCTAssertNoThrow(try p0.appendField(instruction: f), f)
+        }
+        let docXML = try RoundTrip.partString(try doc.save(), "word/document.xml")
+        XCTAssertTrue(docXML.contains("> DATE "), docXML)
+        // Mọi field nguy hiểm/không nhận diện bị chặn và tài liệu không đổi một byte.
+        let doc2 = try WordDocument(data: original)
+        let q0 = doc2.paragraphs[0]
+        for f in ["DDE", "dde", "DDEAUTO Excel.Sheet", "INCLUDETEXT \"C:\\bi-mat.docx\"",
+                  "includetext x", "INCLUDEPICTURE \"http://evil.example/x.png\"",
+                  "LINK Excel.Sheet.12 \"C:\\x.xls\"", "DATABASE \"DSN=x\"",
+                  "HYPERLINK \"http://evil.example\"", "TRUONGKHONGCO", "PAGE INCLUDETEXT",
+                  "123PAGE", "PAGE1", "  INCLUDETEXT\t\"x\""] {
+            XCTAssertThrowsError(try q0.appendField(instruction: f), f) { error in
+                XCTAssertTrue(error is WordError, "\(f): \(error)")
+            }
+        }
+        let savedXML = try RoundTrip.partString(try doc2.save(), "word/document.xml")
+        XCTAssertEqual(savedXML, try RoundTrip.partString(original, "word/document.xml"),
+                       "field bị chặn không được để lại thay đổi nào trong document.xml")
+    }
+
     func testImageInfo() {
         XCTAssertNil(ImageInfo(Data([1, 2, 3])))
         let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00, 0xFF, 0xC0, 0x00, 0x11, 0x08, 0x01, 0x2C, 0x02, 0x58, 0x03])

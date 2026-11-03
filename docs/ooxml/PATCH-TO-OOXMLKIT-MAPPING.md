@@ -617,4 +617,76 @@ flowchart TD
 - LibreOffice chỉ còn đóng vai trò phụ trợ thu hẹp tối đa: xuất PDF và nhập định dạng nhị phân cổ xưa (`.doc`, `.xls`, `.ppt`).
 
 ---
-*Tài liệu được khởi tạo bằng công cụ AST và đã hoàn tất kiểm chứng chất lượng độc lập theo phiếu việc AGY-W0b (đã kiểm 25/179 mẫu, sai 10 và hiệu chỉnh thành công).* 
+*Tài liệu được khởi tạo bằng công cụ AST và đã hoàn tất kiểm chứng chất lượng độc lập theo phiếu việc AGY-W0b (đã kiểm 25/179 mẫu, sai 10 và hiệu chỉnh thành công).*
+
+---
+
+## 6. ĐỐI CHIẾU LẠI 47 HÀNG "CẦN API MỚI" THEO MÃ HIỆN TẠI — 02/11/2026 (Muse)
+
+> **Cơ sở:** nhánh `muse/mapping-recheck-0211` từ `d127e65` (tức `1354d7ec` + L1 directive 31/10 đã tách 5 commit). Phương pháp: từng hàng đối chiếu trực tiếp với mã nguồn `ports/ios/OOXMLKit/Sources/**` (bề mặt API public + các op của OOXMLBridge) và bằng chứng test trong `Tests/**`. Mục 6 này KHÔNG sửa số liệu lịch sử ở mục 2–5; nó là lớp đối chiếu mới, ghi trạng thái hiện tại của đúng 47 hàng từng bị đánh dấu `Cần API mới`.
+>
+> **Kết quả tổng:** 47 hàng = **26 ĐÃ CÓ** (API + test) · **6 MỘT PHẦN** · **15 CHƯA CÓ** (chỉ giữ nguyên byte, hoặc bị allowlist field chặn theo chủ đích). Cộng với 169 hàng "Hết cần" và 1 hàng "Vẫn cần" không đổi: 217 = 169 + 26 + 6 + 15 + 1.
+
+### 6.1. Bảng đối chiếu từng hàng
+
+| STT | Hàm vá (Python) | Trạng thái 02/11 | Bằng chứng / ghi chú |
+|:---:|---|:---:|---|
+| 8 | `apply_calculation_options_to_workbook` | ĐÃ CÓ | `Workbook.setCalculationOptions(calcMode:iterate:date1904:)` đúng đặc tả §4.2.9; test ở OOXMLSpreadsheetTests + OOXMLBridgeTests |
+| 9 | `_set_local_print_area` | ĐÃ CÓ | `Worksheet.setPrintArea(range:)` + op `sheet.setPrintArea`; test 2 nơi |
+| 10 | `make_print_scope_xlsx` | ĐÃ CÓ | Cùng cơ chế definedName `_xlnm.Print_Area` localSheetId qua setPrintArea; test 2 nơi |
+| 11 | `parse_tab_colors_from_fods` | ĐÃ CÓ | `Worksheet.setTabColor(rgbHex:)` + op `sheet.setTabColor`; test 2 nơi |
+| 14 | `_cf_rule_xml` | ĐÃ CÓ | `Worksheet.addConditionalFormatting` với `CFRule` gồm cellIs/expression/colorScale/dataBar/iconSet…; test 2 nơi |
+| 15 | `apply_conditional_formatting_from_fods` | ĐÃ CÓ | Như STT 14 + `clearConditionalFormatting`; test 2 nơi |
+| 17 | `parse_autofilter_filter_columns_from_worksheet` | MỘT PHẦN | Đặt/gỡ vùng lọc: `setAutoFilter(range:)`/`removeAutoFilter` ĐÃ CÓ (test 2 nơi). Sửa tiêu chí từng cột (filters/customFilters): CHƯA CÓ — hiện chỉ giữ nguyên; đã có nhánh chưa gộp `muse/ooxmlkit-xlsxfilter-2510` làm phần này |
+| 19 | `apply_data_validations_to_worksheet` | ĐÃ CÓ | `Worksheet.addDataValidation(range:validation:)` + op `sheet.addDataValidation`; test 2 nơi |
+| 21 | `apply_autofilter_to_worksheet` | ĐÃ CÓ | `setAutoFilter(range:)`; test 2 nơi |
+| 25 | `_restore_column_widths` | ĐÃ CÓ | `Worksheet.setColumnWidth(col:width:hidden:)`; test 2 nơi |
+| 33 | `_restore_missing_hyperlinks_step` | ĐÃ CÓ | `Worksheet.setHyperlink/removeHyperlink` + `hyperlinks`; test 2 nơi |
+| 34 | `_restore_hidden_columns_and_rows_from_source` | ĐÃ CÓ | `setRowHidden/setColumnHidden` + `setRowHeight/setColumnWidth(hidden:)`; test 2 nơi |
+| 38 | `_rewrite_scalar_concat_for_legacy_excel` | ĐÃ CÓ | `Worksheet/Workbook.rewriteLegacyConcat` (vào từ `1354d7ec`); test 2 nơi |
+| 39 | `_apply_sheet_view_state_from_fods` | ĐÃ CÓ | `Worksheet.setViewOptions` + op `sheet.setViewOptions`; test 2 nơi |
+| 40 | `_restore_view_attributes_from_source_step` | ĐÃ CÓ | `Worksheet.setFreezePanes/removeFreezePanes`; test OOXMLSpreadsheetTests |
+| 46 | `_apply_sheet_print_options_from_fods` | ĐÃ CÓ | `Worksheet.setPrintOptions` + op; test 2 nơi |
+| 48 | `parse_page_setup_metadata_from_sheet_xml` | ĐÃ CÓ | `Worksheet.setPageSetup` + op; test 2 nơi |
+| 54 | `_apply_sheet_document_properties_to_xlsx` | ĐÃ CÓ | `PackageTools.setProperties(package:title:creator:description:contentStatus:)` + op chung `setProperties` cho cả 3 định dạng; test 2 nơi. Phạm vi: 4 trường core, chưa gồm thuộc tính mở rộng tùy ý |
+| 56 | `resolve_sheet_theme` | ĐÃ CÓ | `Workbook.setTheme(preset: SheetThemePreset)` (ghi theo preset) + đọc theme; test 2 nơi |
+| 57 | `parse_sheet_theme_xml` | ĐÃ CÓ | Như STT 56 — phân giải/đọc theme1.xml qua mô hình theme hiện có |
+| 58 | `generate_sheet_theme_xml` | ĐÃ CÓ | Như STT 56 — sinh theme qua preset; chưa có sửa từng màu theme tự do |
+| 70 | `apply_fodp_show_settings_attrs` | ĐÃ CÓ | `Presentation.setShowSettings` + op `slide.setShowSettings`; L1 (directive 31/10 §2.1) đã sửa đúng đích ghi presProps; test PresentationRoundTripTests |
+| 77 | `overlay_fodp_native_slides_theme` | ĐÃ CÓ | `Presentation.theme` (ThemeInfo: bảng màu + font) + op `slide.theme` — đọc để đưa lên UI, đúng nhu cầu overlay; test 2 nơi |
+| 80 | `_normalize_slides_animation_timing` | CHƯA CÓ | `p:timing` được giữ nguyên 100% theo nguyên tắc byte-preservation; API sửa animation CHƯA CÓ. Đã có nhánh chưa gộp `muse/ooxmlkit-anim-2510` + `muse/ooxmlkit-timing-2510` |
+| 83 | `_slides_animation_specs_from_fodp` | CHƯA CÓ | Như STT 80 |
+| 84 | `_apply_slides_media_loops` | CHƯA CÓ | Như STT 80; riêng hàng này còn thiếu fixture media-timing để nghiệm thu (điểm mở đã ghi nhận từ đợt rà soát trước) |
+| 85 | `_apply_slides_native_animation_timing` | CHƯA CÓ | Như STT 80 |
+| 90 | `overlay_fodp_source_transitions` | CHƯA CÓ | Transition giữ nguyên byte; `Slide.setTransition` CHƯA CÓ (không tồn tại trong Sources/Bridge) |
+| 91 | `_apply_slides_source_transitions` | CHƯA CÓ | Như STT 90 |
+| 166 | `_writer_normalize_simple_list_numbering` | ĐÃ CÓ | `Paragraph.setNumbering` (vào từ `1354d7ec`; L1 §2.3 bổ sung đa cấp thật); test WordRoundTripTests |
+| 170 | `_writer_restore_caption_sequence_fields` | CHƯA CÓ | Field SEQ không nằm trong allowlist của `Paragraph.appendField` (directive 31/10 §2.4 chỉ cho 10 field) → tạo mới bị chặn theo chủ đích; field SEQ sẵn có trong tệp được giữ nguyên. Mở rộng allowlist cần quyết định của Windows/chủ repo |
+| 171 | `patch_paragraph` | MỘT PHẦN | `Paragraph.appendField` + op `doc.insertField` chèn field ở cuối đoạn ĐÃ CÓ; chèn tại vị trí chỉ định (before:) CHƯA CÓ |
+| 173 | `_writer_restore_toc_field` | CHƯA CÓ | TOC không thuộc allowlist (như STT 170); giữ nguyên field sẵn có |
+| 174 | `_writer_restore_tof_field` | CHƯA CÓ | TOF không thuộc allowlist (như STT 170); giữ nguyên field sẵn có |
+| 175 | `_writer_insert_page_field` | ĐÃ CÓ | PAGE thuộc allowlist `appendField`; test WordRoundTripTests (testAppendFieldSafety) |
+| 181 | `_restore_created_writer_section_metadata` | CHƯA CÓ | sectPr giữ nguyên byte + đọc qua `WordDocument.sections`; API đặt thuộc tính section (lề/hướng/kích thước/loại section) CHƯA CÓ — Section hiện chỉ có link-to-previous. Ứng viên gói L5 |
+| 183 | `_apply_writer_link_to_previous` | ĐÃ CÓ | `Section.setLinkedToPrevious` + op `doc.setSectionLinked`; L1 §2.2 đã sửa sao chép reference hiệu lực gần nhất; test WordRoundTripTests |
+| 184 | `_restore_created_writer_header_footer_refs` | CHƯA CÓ | Như STT 181 (phần refs nằm trong cùng nhu cầu setSectionProperties) |
+| 185 | `postprocess_writer_section_metadata` | CHƯA CÓ | Như STT 181 |
+| 188 | `postprocess_writer_document_properties` | ĐÃ CÓ | `PackageTools.setProperties` + op `setProperties` (như STT 54) |
+| 189 | `postprocess_writer_notes` | MỘT PHẦN | `WordDocument.footnotes/endnotes` (WordStory) đọc + sửa nội dung part chú thích ĐÃ CÓ; API chèn footnote mới (tạo part + chèn reference vào đoạn) CHƯA CÓ. Đã có nhánh chưa gộp của đợt bổ sung trước (`793ac24`) |
+| 192 | `postprocess_writer_merge_fields` | CHƯA CÓ | MERGEFIELD không thuộc allowlist (như STT 170); field sẵn có giữ nguyên |
+| 193 | `postprocess_writer_if_ref_fields` | CHƯA CÓ | IF/REF không thuộc allowlist (như STT 170); field sẵn có giữ nguyên |
+| 198 | `postprocess_writer_native_watermark` | CHƯA CÓ | Không có API watermark nào trong Sources; watermark sẵn có trong header part được giữ nguyên byte |
+| 199 | `postprocess_writer_review_markup` | MỘT PHẦN | Đọc revisions + `acceptAllRevisions/rejectAllRevisions` + tạo sửa đổi có theo dõi ở mức văn bản (`setText(_:revision:)`, `appendParagraph(_:style:revision:)`) ĐÃ CÓ (test OOXMLWordTests + OOXMLBridgeTests). Markup thay đổi định dạng (rPrChange/pPrChange) CHƯA CÓ; đã có nhánh chưa gộp trackfmt/pprchange |
+| 202 | `_writer_restore_text_effects` | MỘT PHẦN | Hiệu ứng run cổ điển (caps/smallCaps/strike/doubleStrike/outline/shadow/emboss/imprint…) ĐÃ CÓ qua `Run.set…` + op `doc.setRunEffect`. Hiệu ứng w14 (glow/reflection/soft edge/gradient text) CHƯA CÓ |
+| 209 | `postprocess_writer_run_effects` | MỘT PHẦN | Khoảng cách đoạn/dòng qua `Paragraph` spacing + op `doc.setSpacing` ĐÃ CÓ; phần text effects như STT 202 |
+
+### 6.2. Hệ quả cho các gói tiếp theo (theo kế hoạch hoàn thiện 01/11)
+
+- **L4 (công thức XLSX):** không hàng nào trong 47 hàng chặn L4; STT 17 (tiêu chí lọc) là phần XLSX còn thiếu rõ nhất ngoài công thức — đề xuất gộp vào phạm vi XLSX sau L4 hoặc một gói nhỏ riêng, tận dụng nhánh xlsxfilter chưa gộp.
+- **L5 (DOCX):** các hàng CHƯA CÓ/MỘT PHẦN của Writer gom thành 4 chủ đề: (1) thuộc tính section (181/184/185); (2) chèn footnote (189) + watermark (198); (3) hiệu ứng w14 (202/209) + markup định dạng (199); (4) **quyết định allowlist field** (170/173/174/192/193): allowlist hiện tại là yêu cầu bảo mật của directive 31/10 §2.4, Muse không tự mở rộng — cần Windows/chủ repo quyết: giữ nguyên (chỉ giữ field sẵn có) hay cho phép thêm SEQ/TOC/TOF/MERGEFIELD/IF/REF với cùng cơ chế kiểm token.
+- **L6 (PPTX):** animation/timing (80/83/84/85) và transition (90/91) là toàn bộ phần PPTX còn thiếu; hai nhánh anim/timing chưa gộp là điểm xuất phát, riêng STT 84 cần fixture media-timing.
+
+### 6.3. Phạm vi lần đối chiếu này
+
+- Chỉ đối chiếu 47 hàng `Cần API mới`; 169 hàng "Hết cần" dựa trên nguyên tắc giữ nguyên byte + API sẵn có, không đổi kết luận (ngoài các hàng được mục 6 này xác nhận lại ở phía trên).
+- Không thay đổi mã nguồn hay test trong lần đối chiếu này (tài liệu thuần túy); mọi API được tuyên bố ĐÃ CÓ đều có test tương ứng trong suite 244 test đang xanh tại `d127e65`.
+

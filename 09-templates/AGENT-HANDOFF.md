@@ -1730,3 +1730,31 @@ RISKS: Lich su nhanh VM (4 commit Bridge) da lech voi remote (1 commit gop 85930
 DEPENDENCIES/BLOCKERS: Day nhanh numbering qua Mac (patch + script da chuan bi); kiem chung C2 Mac (script ~/Developer/verify-c2.command) truoc khi merge C2 vao vn-main.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Chay script day nhanh numbering tren Mac; sau do tiep tuc chuong trinh 1-4 (muc 3 parity, muc 4 cat LibreOffice khi du 4 cong + quyet dinh cua chu).
+
+## CLAUDE L1-OOXMLKIT - 01/11/2026
+OBJECTIVE: Dung lai nhanh muse/ooxmlkit-directive-3110 theo ke hoach hoan thien 01/11 muc L1: 5 loi directive 31/10 thanh 5 commit rieng, moi commit kem tai hien FAIL->PASS, ENGINE-PROTOCOL va changelog di cung commit; them 1 commit sua canh bao Bridge va 1 commit tai lieu; day origin, khong tu gop vn-main.
+FINDINGS: Tai hien tuoi tren nen 1354d7ec bang bo test cuoi: 12/12 test FAIL (showSettings 3/3, section unlink 3/3, numbering da cap 2/2, appendField 1/1, ZipLimits mac dinh 3/3); rieng test ZIP64 khai 2^63 lam chet tien trinh test voi signal 4 (Fatal error: Not enough bits to represent the passed value). Canh bao OOXMLBridge.swift:110 co san tu nen 1354d7ec (try thua truoc args.optBool o sheet.setColumnHidden).
+IMPLEMENTATION SUMMARY: 7 commit: 5532e28 L1.1 setShowSettings ghi p:showPr vao part presProps theo relationship (tao part/rel/content type presProps+xml khi thieu); 7d5b918 L1.2 setLinkedToPrevious(false) sao chep reference header/footer hieu luc gan nhat cung .rels; 2338378 L1.3 setNumbering level>0 sinh abstractNum da cap that, tai dung abstract chi khi khop dung hinh dang bo sinh tao; 39469f2 L1.4 appendField allowlist 10 field / blocklist 6 field ngoai ngoac kep, nem WordError.invalidField truoc khi sua XML; 46c614e L1.5 ZipLimits mac dinh 20.000 muc / 256 MiB moi muc / 512 MiB tong cho moi duong mo goi + parser ZIP64 dung Int(exactly:) chong tran; 426a3a7 bo try thua Bridge (1 token, khong doi hanh vi); commit docs bo sung ENGINE-PROTOCOL (trang thai v1.1, §4.8, §5.3, §6.3, ghi chu §9, phu luc §11), INBOX-WIN #31 va handoff nay. Chi sua ports/ios/OOXMLKit + docs/ooxml + docs/sync + 09-templates; khong dung main.py/apps/platform/adapters.
+FILES CHANGED: ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift; Sources/OOXMLPresentation/Presentation.swift; Sources/OOXMLWord/WordDocument.swift; Sources/OOXMLWord/WordDocumentModel.swift; Sources/OOXMLZip/ZipArchive.swift; Tests/OOXMLPresentationTests/PresentationRoundTripTests.swift; Tests/OOXMLWordTests/WordRoundTripTests.swift; Tests/OOXMLZipTests/ZipArchiveTests.swift; docs/ooxml/ENGINE-PROTOCOL.md; docs/sync/LIBRARY-CHANGELOG.md; docs/sync/INBOX-WIN.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: swift test bang Swift 6.0.3 (Linux) tren ban sao package rieng cho tung commit (chay co lap, log day du luu tai workspace phia Muse); kiem cau truc XML doc lap bang Python zipfile/ElementTree o dot soan dau (25/25); git bundle + script de day nhanh qua may Mac.
+BUILD RESULT: NOT RUN - khong doi build system.
+TEST RESULTS: PASS - suite sau tung commit sua: 234/234, 237/237, 239/239, 240/240, 244/244; tai HEAD: 244/244 PASS, 0 failure, 0 canh bao compiler (dem tu log build day du, khong qua runner loc). OfflineGuaranteeTests xanh trong moi lan chay.
+KNOWN FAILURES: Doi chieu Office COM that: NOT RUN phia Muse (Windows kiem doc lap). Nhanh chua gop vn-main.
+RISKS: Lich su cu cua nhanh (chua tung len origin) giu o tag archive/directive-3110-pre-restructure-9f9f061 de doi chieu. Hai test gioi han ZIP moi chay cham (khoang 3-7 phut moi test) vi dung entry 270 MB that.
+DEPENDENCIES/BLOCKERS: Day nhanh qua may Mac cua chu (VM khong co quyen push); Windows duyet truoc khi gop vn-main.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Windows kiem doc lap tren git (gom COM that). Muse lam tiep muc 3 (doi chieu bang mapping) tren nhanh rieng, roi L4 cong thuc -> L5 DOCX -> L6 PPTX theo ke hoach 01/11, moi goi bao INBOX truoc khi xin gop.
+
+## CLAUDE MAPPING-RECHECK - 02/11/2026
+OBJECTIVE: Muc 3 ke hoach hoan thien OOXMLKit 01/11: doi chieu bang PATCH-TO-OOXMLKIT-MAPPING (217 ham, 47 hang "Can API moi") theo ma hien tai - tung hang ghi ro doc/sua/ghi/giu nguyen + test; nhanh rieng, bao INBOX truoc khi xin gop.
+FINDINGS: 47 hang = 26 DA CO (API + test) / 6 MOT PHAN / 15 CHUA CO. Sheet: 20/1/0 - chi STT 17 (tieu chi loc tung cot) thieu phan sua. Slides: 2/0/6 - animation/timing + transition chua co API sua (giu nguyen byte). Writer: 4/4/6 - thieu thuoc tinh section, chen footnote, watermark, hieu ung w14, markup dinh dang; 5 hang field (SEQ/TOC/TOF/MERGEFIELD/IF-REF) bi allowlist directive §2.4 chan theo chu dich - can quyet dinh cua Windows/chu repo, Muse khong tu mo rong.
+IMPLEMENTATION SUMMARY: Chi tai lieu: them muc 6 vao docs/ooxml/PATCH-TO-OOXMLKIT-MAPPING.md (bang 47 hang kem bang chung API + test, tong 217 = 169 + 26 + 6 + 15 + 1), INBOX-WIN #32, handoff nay. Khong doi ma nguon, khong doi test.
+FILES CHANGED: docs/ooxml/PATCH-TO-OOXMLKIT-MAPPING.md; docs/sync/INBOX-WIN.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: Trich 47 hang bang script tu muc 3 cua mapping; grep doi chieu be mat API public (259 muc) + 65 op OOXMLBridge + bao phu test theo tung API trong Tests/** tren worktree muse/mapping-recheck-0211 tu d127e65.
+BUILD RESULT: NOT RUN - khong doi build system, khong doi ma.
+TEST RESULTS: NOT RUN - thay doi tai lieu thuan tuy; suite 244/244 xanh tai d127e65 la co so bang chung cho cac API duoc tuyen bo DA CO.
+KNOWN FAILURES: Nhanh chua day len origin (VM khong co quyen push; cho cung duong Mac voi nhanh L1).
+RISKS: Ket luan dua tren be mat API + test hien co; chua chay lai toan suite trong nhanh nay vi khong doi ma.
+DEPENDENCIES/BLOCKERS: Day nhanh qua may Mac cua chu; quyet dinh allowlist field (Windows/chu repo) truoc goi L5.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Windows doc muc 6 + quyet dinh allowlist. Muse lam tiep L4 cong thuc tren nhanh muse/l4-<ngay>, bao INBOX truoc khi xin gop.

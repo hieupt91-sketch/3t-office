@@ -40,16 +40,19 @@ public enum ZipError: Error, Equatable, CustomStringConvertible {
     }
 }
 
-/// Giới hạn chống "ZIP bomb" và gói độc hại.
+/// Giới hạn chống "ZIP bomb" và gói độc hại. Mặc định là hồ sơ an toàn cho
+/// cả thiết bị di động (20.000 entry, 256 MiB mỗi entry, 512 MiB tổng);
+/// caller có use case hợp lệ trên nền tảng của mình truyền `ZipLimits`
+/// tường minh cao hơn — thư viện không tự nâng ngưỡng khi gặp tệp lớn.
 public struct ZipLimits: Sendable {
     public var maxEntries: Int
     public var maxEntrySize: Int
     public var maxTotalUncompressedSize: Int
     public var rejectUnsafeNames: Bool
 
-    public init(maxEntries: Int = 50_000,
-                maxEntrySize: Int = 1 << 30,
-                maxTotalUncompressedSize: Int = 4 << 30,
+    public init(maxEntries: Int = 20_000,
+                maxEntrySize: Int = 256 << 20,
+                maxTotalUncompressedSize: Int = 512 << 20,
                 rejectUnsafeNames: Bool = true) {
         self.maxEntries = maxEntries
         self.maxEntrySize = maxEntrySize
@@ -407,16 +410,23 @@ public final class ZipArchive {
 
             if total == 0xFFFF || cdSize == 0xFFFF_FFFF || cdOffset == 0xFFFF_FFFF,
                eocd >= 20, r.u32(eocd - 20) == 0x0706_4B50 {
-                let z64 = Int(r.u64(eocd - 20 + 8))
-                guard z64 >= 0, z64 + 56 <= n, r.u32(z64) == 0x0606_4B50 else { throw ZipError.corruptCentralDirectory }
-                total = Int(r.u64(z64 + 32))
-                cdSize = Int(r.u64(z64 + 40))
-                cdOffset = Int(r.u64(z64 + 48))
+                // Ép kiểu UInt64 -> Int phải qua Int(exactly:): giá trị khai báo
+                // vượt Int là gói hỏng, không được crash tiến trình.
+                guard let z64 = Int(exactly: r.u64(eocd - 20 + 8)),
+                      z64 >= 0, z64 <= n - 56, r.u32(z64) == 0x0606_4B50,
+                      let total64 = Int(exactly: r.u64(z64 + 32)),
+                      let cdSize64 = Int(exactly: r.u64(z64 + 40)),
+                      let cdOffset64 = Int(exactly: r.u64(z64 + 48)) else {
+                    throw ZipError.corruptCentralDirectory
+                }
+                total = total64
+                cdSize = cdSize64
+                cdOffset = cdOffset64
             } else if diskNo != 0 || cdDisk != 0 {
                 throw ZipError.multiDiskUnsupported
             }
             guard total <= limits.maxEntries else { throw ZipError.tooManyEntries(limit: limits.maxEntries) }
-            guard cdOffset >= 0, cdSize >= 0, cdOffset + cdSize <= n else { throw ZipError.truncatedArchive }
+            guard cdOffset >= 0, cdSize >= 0, cdOffset <= n, cdSize <= n - cdOffset else { throw ZipError.truncatedArchive }
 
             var q = cdOffset
             var totalUncompressed = 0
@@ -452,11 +462,13 @@ public final class ZipArchive {
                         var v: UInt64 = 0
                         for b in 0..<8 { v |= UInt64(z[k + b]) << UInt64(8 * b) }
                         k += 8
-                        return Int(v)
+                        return Int(exactly: v)
                     }
-                    if usize == 0xFFFF_FFFF { usize = next() ?? usize }
-                    if csize == 0xFFFF_FFFF { csize = next() ?? csize }
-                    if lho == 0xFFFF_FFFF { lho = next() ?? lho }
+                    // Trường có sentinel 0xFFFFFFFF bắt buộc phải có giá trị
+                    // ZIP64 hợp lệ; thiếu/tràn số là gói hỏng, không đoán.
+                    if usize == 0xFFFF_FFFF { guard let v = next() else { throw ZipError.corruptCentralDirectory }; usize = v }
+                    if csize == 0xFFFF_FFFF { guard let v = next() else { throw ZipError.corruptCentralDirectory }; csize = v }
+                    if lho == 0xFFFF_FFFF { guard let v = next() else { throw ZipError.corruptCentralDirectory }; lho = v }
                 }
                 z64 = nil
                 let name = ZipArchive.decodeName(rawName, utf8Flag: flags & 0x0800 != 0)
@@ -465,16 +477,19 @@ public final class ZipArchive {
                 }
                 guard index[name] == nil else { throw ZipError.duplicateEntry(name) }
                 guard usize >= 0, csize >= 0 else { throw ZipError.corruptCentralDirectory }
-                totalUncompressed += usize
-                if totalUncompressed > limits.maxTotalUncompressedSize {
+                // Cộng dồn có kiểm tra tràn: tổng khai báo vượt hạn mức (hoặc
+                // vượt cả Int) bị từ chối trước khi giải nén/cấp phát.
+                let (newTotal, totalOverflow) = totalUncompressed.addingReportingOverflow(usize)
+                if totalOverflow || newTotal > limits.maxTotalUncompressedSize {
                     throw ZipError.totalSizeExceeded(limit: limits.maxTotalUncompressedSize)
                 }
+                totalUncompressed = newTotal
                 // Local header
-                guard lho >= 0, lho + 30 <= n, r.u32(lho) == 0x0403_4B50 else { throw ZipError.corruptLocalHeader(name) }
+                guard lho >= 0, lho <= n - 30, r.u32(lho) == 0x0403_4B50 else { throw ZipError.corruptLocalHeader(name) }
                 let lNameLen = Int(r.u16(lho + 26))
                 let lExtraLen = Int(r.u16(lho + 28))
                 let dataStart = lho + 30 + lNameLen + lExtraLen
-                guard dataStart + csize <= n else { throw ZipError.truncatedArchive }
+                guard dataStart <= n, csize <= n - dataStart else { throw ZipError.truncatedArchive }
                 let localExtraRaw = Array(UnsafeRawBufferPointer(rebasing: raw[(lho + 30 + lNameLen)..<dataStart]))
                 let localExtra = ZipArchive.splitExtra(localExtraRaw).1
 
