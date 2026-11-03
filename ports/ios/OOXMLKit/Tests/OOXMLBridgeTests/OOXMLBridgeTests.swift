@@ -582,6 +582,48 @@ final class OOXMLBridgeTests: XCTestCase {
         XCTAssertTrue((read.first!["text"] as! String).hasSuffix("3"))
     }
 
+    func testSlideTransitionAnimationBridge() throws {
+        let h = try openFixture("pptx/rich-deck.pptx")
+        let tr = try call("slide.transition", ["handle": h, "index": 0])
+        XCTAssertEqual(tr["found"] as? Bool, true)
+        XCTAssertEqual(tr["type"] as? String, "prism")
+        try call("slide.setTransition", ["handle": h, "index": 0, "type": "fade", "speed": "fast", "durationMs": 1000])
+        let tr2 = try call("slide.transition", ["handle": h, "index": 0])
+        XCTAssertEqual(tr2["type"] as? String, "fade")
+        XCTAssertEqual(tr2["speed"] as? String, "fast")
+        XCTAssertEqual(tr2["durationMs"] as? Int, 1000)
+        try call("slide.addFadeEntrance", ["handle": h, "index": 0, "shapeId": 3, "delayMs": 100, "durationMs": 600])
+        let anims = try call("slide.animations", ["handle": h, "index": 0])["animations"] as! [[String: Any]]
+        XCTAssertEqual(anims.count, 1)
+        XCTAssertEqual(anims[0]["presetID"] as? Int, 10)
+        XCTAssertEqual(anims[0]["shapeId"] as? Int, 3)
+        let removed = try call("slide.removeTransition", ["handle": h, "index": 0])["removed"] as? Bool
+        XCTAssertEqual(removed, true)
+        try call("slide.removeAnimations", ["handle": h, "index": 0])
+        let anims2 = try call("slide.animations", ["handle": h, "index": 0])["animations"] as! [[String: Any]]
+        XCTAssertTrue(anims2.isEmpty)
+    }
+
+    func testSlideAnimationStepsTimingBridge() throws {
+        let h = try openFixture("pptx/rich-deck.pptx")
+        var steps = try call("slide.animationSteps", ["handle": h, "index": 0])["steps"] as! [[String: Any]]
+        XCTAssertTrue(steps.isEmpty)
+        try call("slide.addFadeEntrance", ["handle": h, "index": 0, "shapeId": 3, "delayMs": 100, "durationMs": 600])
+        steps = try call("slide.animationSteps", ["handle": h, "index": 0])["steps"] as! [[String: Any]]
+        XCTAssertEqual(steps.count, 1)
+        XCTAssertEqual(steps[0]["presetID"] as? Int, 10)
+        XCTAssertEqual(steps[0]["shapeId"] as? Int, 3)
+        XCTAssertEqual(steps[0]["durationMs"] as? Int, 600)
+        XCTAssertEqual(steps[0]["delayMs"] as? Int, 100)
+        let changed = try call("slide.setAnimationTiming", ["handle": h, "index": 0, "shapeId": 3, "durationMs": 1200, "delayMs": 250])["changed"] as? Int
+        XCTAssertEqual(changed, 1)
+        steps = try call("slide.animationSteps", ["handle": h, "index": 0])["steps"] as! [[String: Any]]
+        XCTAssertEqual(steps[0]["durationMs"] as? Int, 1200)
+        XCTAssertEqual(steps[0]["delayMs"] as? Int, 250)
+        let none = try call("slide.setAnimationTiming", ["handle": h, "index": 0, "shapeId": 999, "durationMs": 1000])["changed"] as? Int
+        XCTAssertEqual(none, 0)
+    }
+
     func testDocSectionsBridge() throws {
         let h = try openFixture("docx/rich-word.docx")
         let sections = try call("doc.sections", ["handle": h])["sections"] as! [[String: Any]]
@@ -591,6 +633,67 @@ final class OOXMLBridgeTests: XCTestCase {
         // Section đầu tiên không liên kết được + index ngoài phạm vi đều báo lỗi.
         _ = try callExpectingError("doc.setSectionLinked", ["handle": h, "index": 0, "kind": "header", "linked": true])
         _ = try callExpectingError("doc.setSectionLinked", ["handle": h, "index": 5, "kind": "header", "linked": true])
+        // Thuộc tính section qua bridge: đọc giá trị fixture + ghi/đọc lại.
+        XCTAssertEqual(sections.first!["pageWidth"] as? Int, 11906)
+        XCTAssertEqual(sections.first!["marginLeft"] as? Int, 1701)
+        try call("doc.setSectionProperties", ["handle": h, "index": 0, "pageWidth": 11906, "pageHeight": 8391,
+                                              "orientation": "landscape", "marginTop": 1440, "marginRight": 1440,
+                                              "marginBottom": 1440, "marginLeft": 1440,
+                                              "breakType": "continuous", "titlePage": true, "columns": 2])
+        let after = try call("doc.sections", ["handle": h])["sections"] as! [[String: Any]]
+        XCTAssertEqual(after.first!["orientation"] as? String, "landscape")
+        XCTAssertEqual(after.first!["marginTop"] as? Int, 1440)
+        XCTAssertEqual(after.first!["breakType"] as? String, "continuous")
+        XCTAssertEqual(after.first!["titlePage"] as? Bool, true)
+        XCTAssertEqual(after.first!["columns"] as? Int, 2)
+        _ = try callExpectingError("doc.setSectionProperties", ["handle": h, "index": 9, "columns": 2])
+    }
+
+    func testDocInsertFootnoteBridge() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        let r = try call("doc.insertFootnote", ["handle": h, "index": 0, "text": "Chú thích qua bridge"])
+        XCTAssertEqual(r["id"] as? Int, 2)
+        let r2 = try call("doc.insertEndnote", ["handle": h, "index": 0, "text": "Endnote qua bridge"])
+        XCTAssertEqual(r2["id"] as? Int, 2)
+        let saved = try call("exportBytes", ["handle": h])["base64"] as? String
+        XCTAssertNotNil(saved)
+    }
+
+    func testDocWatermarkBridge() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        XCTAssertTrue(try call("doc.watermark", ["handle": h]).isEmpty)
+        try call("doc.setWatermark", ["handle": h, "text": "BẢN NHÁP"])
+        XCTAssertEqual(try call("doc.watermark", ["handle": h])["text"] as? String, "BẢN NHÁP")
+        try call("doc.removeWatermark", ["handle": h])
+        XCTAssertTrue(try call("doc.watermark", ["handle": h]).isEmpty)
+    }
+
+    func testDocRunTextEffectsBridge() throws {
+        let h = try openFixture("docx/rich-word.docx")
+        try call("doc.setRunTextEffects", ["handle": h, "index": 0, "run": 0,
+                                           "glow": ["color": "FF0000", "alpha": 60, "radiusPt": 8],
+                                           "reflection": ["preset": "standard"],
+                                           "softEdgePt": 2.5,
+                                           "textFill": ["color": "00B050", "alpha": 100]])
+        try call("doc.setRunTextEffects", ["handle": h, "index": 0, "run": 0,
+                                           "textFill": ["stops": [["pos": 0, "color": "FF0000"], ["pos": 100, "color": "0000FF", "alpha": 80]],
+                                                        "angle": 90]])
+        _ = try callExpectingError("doc.setRunTextEffects", ["handle": h, "index": 0, "run": 0,
+                                                             "glow": ["color": "ZZZ", "radiusPt": 1]])
+        _ = try callExpectingError("doc.setRunTextEffects", ["handle": h, "index": 0, "run": 99, "softEdgePt": 1])
+        try call("doc.setRunTextEffects", ["handle": h, "index": 0, "run": 0,
+                                           "glow": [String: Any](), "reflection": [String: Any](), "textFill": [String: Any]()])
+    }
+
+    func testSlideEntranceBridge() throws {
+        let h = try openFixture("pptx/rich-deck.pptx")
+        try call("slide.addFadeEntrance", ["handle": h, "index": 0, "shapeId": 3, "durationMs": 700])
+        try call("slide.addEntranceEffect", ["handle": h, "index": 0, "shapeId": 4, "presetID": 3, "filter": "blinds", "durationMs": 800])
+        try call("slide.addAppearEntrance", ["handle": h, "index": 0, "shapeId": 2])
+        let steps = try call("slide.animationSteps", ["handle": h, "index": 0])["steps"] as! [[String: Any]]
+        XCTAssertEqual(steps.count, 3)
+        _ = try callExpectingError("slide.addEntranceEffect", ["handle": h, "index": 0, "shapeId": 4, "presetID": 0, "filter": "blinds"])
+        _ = try callExpectingError("slide.addFadeEntrance", ["handle": h, "index": 0, "shapeId": 999])
     }
 
     func testSlideShowSettingsBridgeRoundTrip() throws {

@@ -4,6 +4,45 @@ import OOXMLPackage
 import OOXMLTestSupport
 
 final class P0WorksheetAPITests: XCTestCase {
+    func testAutoFilterCriteriaRoundTrip() throws {
+        let original = try Fixtures.data("xlsx/rich-excel.xlsx")
+        let wb = try Workbook(data: original)
+        let ws = try wb.worksheet(named: "Dữ liệu")
+        // Chưa có vùng lọc: đặt tiêu chí phải lỗi.
+        XCTAssertThrowsError(try ws.setAutoFilterCriterion(column: 0, .values(["A"])))
+        try ws.setAutoFilter(range: CellRange("A1:E11")!)
+        try ws.setAutoFilterCriterion(column: 0, .values(["Hà Nội", "Huế"]))
+        try ws.setAutoFilterCriterion(column: 2, .custom([FilterCondition(op: "greaterThanOrEqual", value: "100"),
+                                                          FilterCondition(op: "lessThan", value: "500")], and: true))
+        try ws.setAutoFilterCriterion(column: 4, .top10(top: true, percent: false, value: 5))
+        // Lỗi: cột ngoài vùng, toán tử sai, danh sách rỗng, top10 <= 0.
+        XCTAssertThrowsError(try ws.setAutoFilterCriterion(column: 5, .values(["A"])))
+        XCTAssertThrowsError(try ws.setAutoFilterCriterion(column: 1, .custom([FilterCondition(op: "contains", value: "x")], and: false)))
+        XCTAssertThrowsError(try ws.setAutoFilterCriterion(column: 1, .values([])))
+        XCTAssertThrowsError(try ws.setAutoFilterCriterion(column: 1, .top10(top: true, percent: true, value: 0)))
+        let saved = try wb.save()
+        let xml = try RoundTrip.partString(saved, "xl/worksheets/sheet1.xml")
+        XCTAssertTrue(xml.contains("<filterColumn colId=\"0\"><filters><filter val=\"Hà Nội\"/><filter val=\"Huế\"/></filters></filterColumn>"), xml)
+        XCTAssertTrue(xml.contains("customFilters and=\"1\""), xml)
+        XCTAssertTrue(xml.contains("<top10 top=\"1\" percent=\"0\" val=\"5\" filterVal=\"5\"/>") || xml.contains("<top10"), xml)
+        let reopened = try Workbook(data: saved)
+        let rws = try reopened.worksheet(named: "Dữ liệu")
+        XCTAssertEqual(rws.autoFilterRange?.description, "A1:E11")
+        let cols = Dictionary(uniqueKeysWithValues: rws.autoFilterColumns.map { ($0.column, $0.criterion) })
+        XCTAssertEqual(cols[0], .values(["Hà Nội", "Huế"]))
+        XCTAssertEqual(cols[2], .custom([FilterCondition(op: "greaterThanOrEqual", value: "100"),
+                                         FilterCondition(op: "lessThan", value: "500")], and: true))
+        XCTAssertEqual(cols[4], .top10(top: true, percent: false, value: 5))
+        // Gỡ tiêu chí một cột: cột khác giữ nguyên.
+        try rws.setAutoFilterCriterion(column: 0, nil)
+        let saved2 = try reopened.save()
+        let cols2 = try Workbook(data: saved2).worksheet(named: "Dữ liệu").autoFilterColumns
+        XCTAssertEqual(Set(cols2.map { $0.column }), Set([2, 4]))
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["xl/worksheets/sheet1.xml"], requireChanged: ["xl/worksheets/sheet1.xml"],
+                             name: "xlsx-autofilter-criteria.xlsx")
+    }
+
     func testP0WorksheetSettingsRoundTripAndPreserveOtherPackageParts() throws {
         let original = try Fixtures.data("xlsx/rich-excel.xlsx")
         let wb = try Workbook(data: original)

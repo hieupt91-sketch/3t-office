@@ -25,6 +25,7 @@ public final class FormulaEngine {
     private var canonical: [String: String] = [:]         // lowercase → tên chuẩn
     private var inputs: [String: [CellReference: FormulaCellInput]] = [:]
     private var computed: [CellAddress: CellValue] = [:]  // giá trị của ô công thức
+    private var arrayMembership: [CellAddress: CellRange] = [:] // ô -> vùng công thức mảng của nó
 
     /// Đồng hồ cho TODAY()/NOW(); test có thể thay bằng giờ cố định.
     public var clock: () -> Date = { Date() }
@@ -64,10 +65,29 @@ public final class FormulaEngine {
         mutate(sheet: sheet, a1: a1) { $0 = FormulaCellInput(value: .empty, formula: text) }
     }
 
+    /// Đăng ký công thức mảng (CSE) cho cả vùng: mọi ô trong vùng mang cùng công thức,
+    /// evaluator giao ngầm theo vị trí từng ô. Vùng quá lớn (> 100.000 ô) chỉ đăng ký ô chủ.
+    public func setArrayFormula(_ f: String, sheet: String, range: CellRange) {
+        guard let s = canonicalName(sheet) else { return }
+        let text = f.hasPrefix("=") ? String(f.dropFirst()) : f
+        let count = (range.end.row - range.start.row + 1) * (range.end.column - range.start.column + 1)
+        guard count <= 100_000 else { setFormula(text, sheet: s, at: range.start.a1); return }
+        for row in range.start.row...range.end.row {
+            for col in range.start.column...range.end.column {
+                let ref = CellReference(column: col, row: row)
+                inputs[s]?[ref] = FormulaCellInput(value: .empty, formula: text)
+                let addr = CellAddress(sheet: s, ref: ref)
+                arrayMembership[addr] = range
+                computed[addr] = nil
+            }
+        }
+    }
+
     public func clear(sheet: String, at a1: String) {
         guard let s = canonicalName(sheet), let r = CellReference(a1) else { return }
         inputs[s]?[r] = nil
         computed[CellAddress(sheet: s, ref: r)] = nil
+        arrayMembership[CellAddress(sheet: s, ref: r)] = nil
     }
 
     private func mutate(sheet: String, a1: String, _ body: (inout FormulaCellInput) -> Void) {
@@ -76,6 +96,7 @@ public final class FormulaEngine {
         body(&cell)
         inputs[s]?[r] = cell
         computed[CellAddress(sheet: s, ref: r)] = nil
+        arrayMembership[CellAddress(sheet: s, ref: r)] = nil
     }
 
     // MARK: Đọc kết quả
@@ -183,7 +204,9 @@ public final class FormulaEngine {
 
     private func evaluate(_ addr: CellAddress, node: Node) -> CellValue {
         guard let expr = node.expr else { return .error(FormulaErrors.name) }
-        return FormulaEvaluator(context: Context(engine: self, current: addr.sheet)).evaluate(expr)
+        var ev = FormulaEvaluator(context: Context(engine: self, current: addr.sheet))
+        if let arr = arrayMembership[addr] { ev.position = addr.ref; ev.arrayOrigin = arr.start }
+        return ev.evaluate(expr)
     }
 
     // MARK: Ngữ cảnh cho evaluator

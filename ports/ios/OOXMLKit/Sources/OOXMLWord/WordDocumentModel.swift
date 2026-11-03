@@ -258,6 +258,39 @@ public enum NumberingFormat: String, Sendable {
     }
 }
 
+extension Paragraph {
+    /// Chèn footnote ở cuối đoạn: thêm entry vào part footnotes (tạo part nếu
+    /// chưa có) và một run tham chiếu `w:footnoteReference` ở cuối đoạn này.
+    @discardableResult
+    public func appendFootnote(_ text: String) throws -> Int {
+        let id = try story.document.addNote(footnotes: true, text: text)
+        appendNoteReference(id: id, footnotes: true)
+        return id
+    }
+
+    /// Chèn endnote ở cuối đoạn; đối tác của `appendFootnote` cho part endnotes.
+    @discardableResult
+    public func appendEndnote(_ text: String) throws -> Int {
+        let id = try story.document.addNote(footnotes: false, text: text)
+        appendNoteReference(id: id, footnotes: false)
+        return id
+    }
+
+    private func appendNoteReference(id: Int, footnotes isFoot: Bool) {
+        let r = XElement(name: WordText.qn(element, "r"))
+        let rPr = XElement(name: WordText.qn(element, "rPr"))
+        let style = XElement(name: WordText.qn(element, "rStyle"))
+        style.setAttribute(WordText.qn(element, "val"), isFoot ? "FootnoteReference" : "EndnoteReference")
+        rPr.append(style)
+        r.append(rPr)
+        let ref = XElement(name: WordText.qn(element, isFoot ? "footnoteReference" : "endnoteReference"))
+        ref.setAttribute(WordText.qn(element, "id"), String(id))
+        r.append(ref)
+        element.append(r)
+        story.markModified()
+    }
+}
+
 extension WordDocument {
     /// Phần numbering của tài liệu (tìm qua quan hệ `numbering`, nếu chưa có thì
     /// tạo `word/numbering.xml` mới kèm quan hệ và kiểu nội dung chuẩn).
@@ -285,15 +318,46 @@ extension WordDocument {
         }
         let abstracts = root.children(NS.w, "abstractNum")
         let nums = root.children(NS.w, "num")
+        // Hình dạng định nghĩa mà bộ sinh dưới đây tạo cho (format, level):
+        // cấp đích dùng đúng format được yêu cầu; các cấp cha dùng tiến trình
+        // chuẩn decimal -> lowerLetter -> lowerRoman để placeholder %1...%n
+        // có định nghĩa. Bullet thì mọi cấp đều là bullet.
+        func levelFormat(_ i: Int) -> NumberingFormat {
+            if format == .bullet { return .bullet }
+            if i == level { return format }
+            switch i % 3 {
+            case 0: return .decimal
+            case 1: return .lowerLetter
+            default: return .lowerRoman
+            }
+        }
+        func levelText(_ i: Int) -> String {
+            if format == .bullet { return "•" }
+            if level == 0 { return format.levelText }
+            return (0...i).map { "%\($0 + 1)" }.joined(separator: ".") + "."
+        }
+        // Dùng lại CHỈ khi đã có định nghĩa đúng hình dạng của (format, level):
+        // đúng số cấp 0...level và từng cấp khớp format + lvlText mà bộ sinh
+        // sẽ tạo. Một abstractNum nhiều cấp hơn — dù chứa format này ở một
+        // cấp trong — là định nghĩa của một danh sách khác, không dùng chung
+        // numId (hai danh sách độc lập không vô tình dùng cùng numId).
         for num in nums {
             guard let numId = intAttr(num, "numId") ?? intAttr(num.firstChild(NS.w, "numId"), "val"),
                   let abstractId = num.firstChild(NS.w, "abstractNumId")?.attribute(WordText.qn(root, "val")).flatMap(Int.init),
-                  let ab = abstracts.first(where: { intAttr($0, "abstractNumId") == abstractId }),
-                  let lvl = ab.children(NS.w, "lvl").first(where: { intAttr($0, "ilvl") == level }),
-                  lvl.firstChild(NS.w, "numFmt")?.attribute(WordText.qn(root, "val")) == format.rawValue else { continue }
-            return numId
+                  let ab = abstracts.first(where: { intAttr($0, "abstractNumId") == abstractId }) else { continue }
+            let lvls = ab.children(NS.w, "lvl")
+            guard lvls.count == level + 1 else { continue }
+            var matches = true
+            for i in 0...level {
+                guard let lvl = lvls.first(where: { intAttr($0, "ilvl") == i }),
+                      lvl.firstChild(NS.w, "numFmt")?.attribute(WordText.qn(root, "val")) == levelFormat(i).rawValue,
+                      lvl.firstChild(NS.w, "lvlText")?.attribute(WordText.qn(root, "val")) == levelText(i)
+                else { matches = false; break }
+            }
+            if matches { return numId }
         }
-        // Tạo mới: abstractNum (singleLevel, 1 cấp) rồi num trỏ tới nó.
+        // Tạo mới: abstractNum gồm đủ các cấp 0...level (đa cấp thật khi
+        // level > 0) rồi num trỏ tới nó.
         let newAbstractId = (abstracts.compactMap { intAttr($0, "abstractNumId") }.max() ?? -1) + 1
         let newNumId = (nums.compactMap { n in
             n.attribute(WordText.qn(root, "numId")).flatMap(Int.init)
@@ -302,25 +366,28 @@ extension WordDocument {
         let ab = XElement(name: WordText.qn(root, "abstractNum"),
                           attributes: [XAttribute(name: WordText.qn(root, "abstractNumId"), value: String(newAbstractId))])
         ab.append(XElement(name: WordText.qn(root, "multiLevelType"),
-                           attributes: [XAttribute(name: WordText.qn(root, "val"), value: "singleLevel")]))
-        let lvl = XElement(name: WordText.qn(root, "lvl"),
-                           attributes: [XAttribute(name: WordText.qn(root, "ilvl"), value: String(level))])
-        if format != .bullet {
-            lvl.append(XElement(name: WordText.qn(root, "start"),
-                                attributes: [XAttribute(name: WordText.qn(root, "val"), value: "1")]))
+                           attributes: [XAttribute(name: WordText.qn(root, "val"), value: level == 0 ? "singleLevel" : "multilevel")]))
+        for i in 0...level {
+            let f = levelFormat(i)
+            let lvl = XElement(name: WordText.qn(root, "lvl"),
+                               attributes: [XAttribute(name: WordText.qn(root, "ilvl"), value: String(i))])
+            if f != .bullet {
+                lvl.append(XElement(name: WordText.qn(root, "start"),
+                                    attributes: [XAttribute(name: WordText.qn(root, "val"), value: "1")]))
+            }
+            lvl.append(XElement(name: WordText.qn(root, "numFmt"),
+                                attributes: [XAttribute(name: WordText.qn(root, "val"), value: f.rawValue)]))
+            lvl.append(XElement(name: WordText.qn(root, "lvlText"),
+                                attributes: [XAttribute(name: WordText.qn(root, "val"), value: levelText(i))]))
+            lvl.append(XElement(name: WordText.qn(root, "lvlJc"),
+                                attributes: [XAttribute(name: WordText.qn(root, "val"), value: "left")]))
+            let pPr = XElement(name: WordText.qn(root, "pPr"))
+            pPr.append(XElement(name: WordText.qn(root, "ind"),
+                                attributes: [XAttribute(name: WordText.qn(root, "left"), value: "720"),
+                                             XAttribute(name: WordText.qn(root, "hanging"), value: "360")]))
+            lvl.append(pPr)
+            ab.append(lvl)
         }
-        lvl.append(XElement(name: WordText.qn(root, "numFmt"),
-                            attributes: [XAttribute(name: WordText.qn(root, "val"), value: format.rawValue)]))
-        lvl.append(XElement(name: WordText.qn(root, "lvlText"),
-                            attributes: [XAttribute(name: WordText.qn(root, "val"), value: format.levelText)]))
-        lvl.append(XElement(name: WordText.qn(root, "lvlJc"),
-                            attributes: [XAttribute(name: WordText.qn(root, "val"), value: "left")]))
-        let pPr = XElement(name: WordText.qn(root, "pPr"))
-        pPr.append(XElement(name: WordText.qn(root, "ind"),
-                            attributes: [XAttribute(name: WordText.qn(root, "left"), value: "720"),
-                                         XAttribute(name: WordText.qn(root, "hanging"), value: "360")]))
-        lvl.append(pPr)
-        ab.append(lvl)
         if let firstNum = nums.first { root.insert(ab, before: firstNum) } else { root.append(ab) }
         let num = XElement(name: WordText.qn(root, "num"),
                            attributes: [XAttribute(name: WordText.qn(root, "numId"), value: String(newNumId))])
@@ -353,6 +420,42 @@ public enum SectionHeaderFooterType: String, Sendable { case `default`, first, e
 
 public enum SectionHeaderFooterKind: String, Sendable { case header, footer }
 
+/// Hướng giấy của section (thuộc tính `orient` của `w:pgSz`; vắng = portrait).
+public enum SectionOrientation: String, Equatable, Sendable {
+    case portrait, landscape
+}
+
+/// Kiểu ngắt section (`w:type` trong sectPr; vắng = nextPage).
+public enum SectionBreakType: String, Equatable, Sendable {
+    case nextPage, continuous, evenPage, oddPage, nextColumn
+}
+
+/// Kích thước giấy của section, đơn vị twips (1/1440 inch) như lưu trong `w:pgSz`.
+/// `width`/`height` là kích thước vật lý của trang; `orientation` là cờ hướng đi kèm.
+public struct SectionPageSize: Equatable, Sendable {
+    public var width: Int
+    public var height: Int
+    public var orientation: SectionOrientation
+    public init(width: Int, height: Int, orientation: SectionOrientation = .portrait) {
+        self.width = width; self.height = height; self.orientation = orientation
+    }
+}
+
+/// Lề trang của section, đơn vị twips như lưu trong `w:pgMar`.
+public struct SectionMargins: Equatable, Sendable {
+    public var top: Int
+    public var right: Int
+    public var bottom: Int
+    public var left: Int
+    public var header: Int
+    public var footer: Int
+    public var gutter: Int
+    public init(top: Int, right: Int, bottom: Int, left: Int, header: Int, footer: Int, gutter: Int) {
+        self.top = top; self.right = right; self.bottom = bottom; self.left = left
+        self.header = header; self.footer = footer; self.gutter = gutter
+    }
+}
+
 /// Một section của tài liệu DOCX: sectPr trong pPr của đoạn ngắt section, hoặc
 /// sectPr cuối thân văn bản. Header/footer "liên kết tới section trước" trong
 /// Word chính là việc sectPr KHÔNG có headerReference/footerReference loại đó
@@ -369,7 +472,7 @@ public final class Section {
         self.element = element
     }
 
-    private func reference(kind: SectionHeaderFooterKind, type: SectionHeaderFooterType) -> XElement? {
+    func reference(kind: SectionHeaderFooterKind, type: SectionHeaderFooterType) -> XElement? {
         let name = kind == .header ? "headerReference" : "footerReference"
         return element.children(NS.w, name).first { ref in
             (ref.attribute(WordText.qn(element, "type")) ?? "default") == type.rawValue
@@ -382,9 +485,10 @@ public final class Section {
     }
 
     /// Bật/tắt liên kết tới section trước. Bật = xóa tham chiếu riêng của section
-    /// (kế thừa section trước). Tắt = sao chép header/footer của section trước
-    /// thành part mới (ảnh và tài nguyên khác dùng chung) rồi tham chiếu tới nó;
-    /// nếu section trước cũng không có header/footer loại đó thì tạo part rỗng.
+    /// (kế thừa section trước). Tắt = sao chép header/footer hiệu lực gần nhất
+    /// của đúng kind + type (tìm ngược qua các section đang kế thừa) thành part
+    /// mới (ảnh và tài nguyên khác dùng chung) rồi tham chiếu tới nó; nếu không
+    /// có reference hiệu lực nào trước đó thì tạo part rỗng.
     public func setLinkedToPrevious(_ linked: Bool, kind: SectionHeaderFooterKind, type: SectionHeaderFooterType = .default) throws {
         if linked {
             guard index > 0 else { throw WordError.invalidSection("section đầu tiên không liên kết tới section trước") }
@@ -396,9 +500,20 @@ public final class Section {
             if reference(kind: kind, type: type) != nil { return }
             let stem = kind == .header ? "header" : "footer"
             let newPart = document.package.uniquePartName(prefix: "/word/\(stem)", ext: "xml")
-            let prevRef = document.sections[index > 0 ? index - 1 : 0].reference(kind: kind, type: type)
-            if index > 0, let prevRef,
-               let rid = prevRef.attribute("\(element.prefix(for: NS.r) ?? "r"):id"),
+            // Tìm ngược reference hiệu lực gần nhất của đúng kind + type. Section
+            // ngay trước có thể cũng đang kế thừa, nên không được chỉ nhìn nó:
+            // phải đi tiếp về các section trước nữa cho tới section đầu tiên.
+            var effectiveRef: XElement?
+            if index > 0 {
+                for section in document.sections[..<index].reversed() {
+                    if let ref = section.reference(kind: kind, type: type) {
+                        effectiveRef = ref
+                        break
+                    }
+                }
+            }
+            if let effectiveRef,
+               let rid = effectiveRef.attribute("\(element.prefix(for: NS.r) ?? "r"):id"),
                let prevPart = try? document.package.relationships(of: document.mainPart).targetPart(id: rid) {
                 var copied: [PartName: PartName] = [:]
                 try document.package.duplicatePart(prevPart, as: newPart, shareable: { _ in true }, copied: &copied)
@@ -422,6 +537,128 @@ public final class Section {
         document.body.markModified()
     }
 
+    // MARK: Thuộc tính trang của section (pgSz / pgMar / type / cols / titlePg)
+
+    /// Thứ tự con chuẩn của CT_SectPr (ECMA-376) — khi tạo phần tử con mới phải
+    /// chèn đúng vị trí này, phần tử lạ (không có trong danh sách) giữ nguyên chỗ.
+    private static let childOrder = ["headerReference", "footerReference", "footnotePr", "endnotePr",
+                                     "type", "pgSz", "pgMar", "paperSrc", "pgBorders", "lnNumType",
+                                     "pgNumType", "cols", "formProt", "vAlign", "noEndnote", "titlePg",
+                                     "textDirection", "bidi", "rtlGutter", "docGrid", "printerSettings", "sectPrChange"]
+
+    private func upsertChild(_ name: String) -> XElement {
+        if let e = element.firstChild(NS.w, name) { return e }
+        let e = XElement(name: WordText.qn(element, name))
+        let my = Section.childOrder.firstIndex(of: name) ?? Section.childOrder.count
+        for child in element.elements {
+            if let ci = Section.childOrder.firstIndex(of: child.localName), ci > my {
+                element.insert(e, before: child)
+                return e
+            }
+        }
+        element.append(e)
+        return e
+    }
+
+    private func intAttr(_ e: XElement?, _ name: String) -> Int? {
+        guard let v = e?.attribute(WordText.qn(element, name)) else { return nil }
+        return Int(v)
+    }
+
+    /// Kích thước giấy; nil nếu sectPr chưa có `w:pgSz`.
+    public var pageSize: SectionPageSize? {
+        guard let pgSz = element.firstChild(NS.w, "pgSz"),
+              let w = intAttr(pgSz, "w"), let h = intAttr(pgSz, "h") else { return nil }
+        let orient = pgSz.attribute(WordText.qn(element, "orient")) == "landscape"
+            ? SectionOrientation.landscape : .portrait
+        return SectionPageSize(width: w, height: h, orientation: orient)
+    }
+
+    public func setPageSize(_ size: SectionPageSize) throws {
+        guard size.width > 0, size.height > 0 else {
+            throw WordError.invalidSection("kích thước giấy phải > 0 twips (nhận \(size.width)x\(size.height))")
+        }
+        let pgSz = upsertChild("pgSz")
+        pgSz.setAttribute(WordText.qn(element, "w"), String(size.width))
+        pgSz.setAttribute(WordText.qn(element, "h"), String(size.height))
+        if size.orientation == .landscape {
+            pgSz.setAttribute(WordText.qn(element, "orient"), "landscape")
+        } else {
+            pgSz.removeAttribute(WordText.qn(element, "orient"))
+        }
+        document.body.markModified()
+    }
+
+    /// Lề trang; nil nếu sectPr chưa có `w:pgMar` (thuộc tính vắng trong pgMar đọc là 0).
+    public var margins: SectionMargins? {
+        guard let pgMar = element.firstChild(NS.w, "pgMar") else { return nil }
+        return SectionMargins(top: intAttr(pgMar, "top") ?? 0, right: intAttr(pgMar, "right") ?? 0,
+                              bottom: intAttr(pgMar, "bottom") ?? 0, left: intAttr(pgMar, "left") ?? 0,
+                              header: intAttr(pgMar, "header") ?? 0, footer: intAttr(pgMar, "footer") ?? 0,
+                              gutter: intAttr(pgMar, "gutter") ?? 0)
+    }
+
+    public func setMargins(_ m: SectionMargins) throws {
+        guard [m.top, m.right, m.bottom, m.left, m.header, m.footer, m.gutter].allSatisfy({ $0 >= 0 }) else {
+            throw WordError.invalidSection("lề trang không được âm")
+        }
+        let pgMar = upsertChild("pgMar")
+        for (name, value) in [("top", m.top), ("right", m.right), ("bottom", m.bottom), ("left", m.left),
+                              ("header", m.header), ("footer", m.footer), ("gutter", m.gutter)] {
+            pgMar.setAttribute(WordText.qn(element, name), String(value))
+        }
+        document.body.markModified()
+    }
+
+    /// Kiểu ngắt section; `.nextPage` khi không có phần tử `w:type`.
+    public var breakType: SectionBreakType {
+        guard let v = element.firstChild(NS.w, "type")?.attribute(WordText.qn(element, "val")) else { return .nextPage }
+        return SectionBreakType(rawValue: v) ?? .nextPage
+    }
+
+    public func setBreakType(_ type: SectionBreakType) {
+        if type == .nextPage {
+            element.firstChild(NS.w, "type")?.removeFromParent()
+        } else {
+            upsertChild("type").setAttribute(WordText.qn(element, "val"), type.rawValue)
+        }
+        document.body.markModified()
+    }
+
+    /// Section có trang đầu riêng (header/footer "first") hay không (`w:titlePg`).
+    public var titlePage: Bool { element.firstChild(NS.w, "titlePg") != nil }
+
+    public func setTitlePage(_ on: Bool) {
+        if on {
+            if element.firstChild(NS.w, "titlePg") == nil { _ = upsertChild("titlePg") }
+        } else {
+            element.firstChild(NS.w, "titlePg")?.removeFromParent()
+        }
+        document.body.markModified()
+    }
+
+    /// Số cột báo của section (`w:cols/@num`; 1 khi không khai).
+    public var columnCount: Int {
+        guard let cols = element.firstChild(NS.w, "cols") else { return 1 }
+        return intAttr(cols, "num") ?? 1
+    }
+
+    public func setColumnCount(_ count: Int) throws {
+        guard (1...45).contains(count) else {
+            throw WordError.invalidSection("số cột phải trong 1...45 (nhận \(count))")
+        }
+        if count == 1, element.firstChild(NS.w, "cols") == nil { return }
+        let cols = upsertChild("cols")
+        if count == 1 {
+            cols.removeAttribute(WordText.qn(element, "num"))
+            // cols rỗng hoàn toàn (không còn thuộc tính nào khác) thì bỏ cả phần tử.
+            if cols.attributes.isEmpty, cols.children.isEmpty { cols.removeFromParent() }
+        } else {
+            cols.setAttribute(WordText.qn(element, "num"), String(count))
+        }
+        document.body.markModified()
+    }
+
     private func packageSetXML(_ part: PartName, root: XElement, kind: SectionHeaderFooterKind) {
         document.package.setXML(XDocument(root: root), for: part,
                                 contentType: kind == .header
@@ -431,6 +668,188 @@ public final class Section {
 }
 
 extension WordDocument {
+    // MARK: Chèn footnote / endnote
+
+    /// Story chú thích theo loại; tạo part mới (kèm hai entry separator chuẩn
+    /// id 0/1 như Word/LibreOffice ghi, quan hệ và content type) nếu chưa có.
+    func ensureNotesStory(footnotes isFoot: Bool) throws -> WordStory {
+        if let s = isFoot ? footnotes : endnotes { return s }
+        let stem = isFoot ? "footnotes" : "endnotes"
+        let entryName = isFoot ? "footnote" : "endnote"
+        let part = PartName("/word/\(stem).xml")
+        let root = XElement(name: "w:\(stem)",
+                            attributes: [XAttribute(name: "xmlns:w", value: NS.w.primaryURI)])
+        func separatorEntry(_ id: Int, _ type: String, _ child: String) -> XElement {
+            let f = XElement(name: "w:\(entryName)", attributes: [
+                XAttribute(name: "w:type", value: type), XAttribute(name: "w:id", value: String(id))])
+            let p = XElement(name: "w:p")
+            let r = XElement(name: "w:r")
+            r.append(XElement(name: "w:\(child)"))
+            p.append(r)
+            f.append(p)
+            return f
+        }
+        root.append(separatorEntry(0, "separator", "separator"))
+        root.append(separatorEntry(1, "continuationSeparator", "continuationSeparator"))
+        package.setXML(XDocument(root: root), for: part,
+                       contentType: isFoot
+                           ? "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"
+                           : "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml")
+        _ = try package.relationships(of: mainPart).add(isFoot ? .footnotes : .endnotes, to: part)
+        return try story(part, isFoot ? .footnotes : .endnotes)
+    }
+
+    /// Thêm entry chú thích mới vào part tương ứng, trả id mới (max id hiện có + 1).
+    func addNote(footnotes isFoot: Bool, text: String) throws -> Int {
+        let story = try ensureNotesStory(footnotes: isFoot)
+        let entryName = isFoot ? "footnote" : "endnote"
+        let root = story.container
+        var maxId = 1
+        for e in root.children(NS.w, entryName) {
+            if let v = e.attribute(WordText.qn(e, "id")), let n = Int(v) { maxId = max(maxId, n) }
+        }
+        let id = maxId + 1
+        let entry = XElement(name: WordText.qn(root, entryName),
+                             attributes: [XAttribute(name: WordText.qn(root, "id"), value: String(id))])
+        let p = XElement(name: WordText.qn(root, "p"))
+        for r in WordText.makeRuns(text, rPr: nil, context: root) { p.append(r) }
+        entry.append(p)
+        root.append(entry)
+        story.markModified()
+        return id
+    }
+
+    // MARK: Watermark (hình mờ trong header)
+
+    /// Part header mặc định hiệu lực của section `sectionIndex`: reference của
+    /// chính nó, hoặc của section trước gần nhất có reference (kế thừa).
+    func effectiveHeaderPart(sectionIndex: Int) -> PartName? {
+        guard sections.indices.contains(sectionIndex) else { return nil }
+        for s in sections[...sectionIndex].reversed() {
+            if let ref = s.reference(kind: .header, type: .default),
+               let rid = ref.attribute("\(ref.prefix(for: NS.r) ?? "r"):id"),
+               let part = try? package.relationships(of: mainPart).targetPart(id: rid) {
+                return part
+            }
+        }
+        return nil
+    }
+
+    private static let vmlURI = "urn:schemas-microsoft-com:vml"
+
+    /// Shape watermark trong một đoạn (id do thư viện đặt hoặc id Word đặt), nếu có.
+    private func watermarkShape(in paragraph: XElement) -> XElement? {
+        var found: XElement?
+        paragraph.forEachDescendant { e in
+            guard found == nil, e.localName == "shape", e.namespaceURI == WordDocument.vmlURI else { return }
+            let id = e.attribute("id") ?? ""
+            if id == "VNOfficeWatermark" || id.hasPrefix("PowerPlusWaterMarkObject") { found = e }
+        }
+        return found
+    }
+
+    /// Chữ watermark hiện tại (đọc từ header đầu tiên có watermark); nil nếu không có.
+    public var watermarkText: String? {
+        for story in headers {
+            for p in story.paragraphs {
+                if let shape = watermarkShape(in: p.element) {
+                    var text: String?
+                    shape.forEachDescendant { e in
+                        if e.localName == "textpath", let s = e.attribute("string") { text = s }
+                    }
+                    if let text { return text }
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Đặt watermark chữ cho toàn tài liệu: chèn shape VML textpath (mẫu Word)
+    /// vào từng part header mặc định hiệu lực phân biệt của các section; section
+    /// chưa có header hiệu lực nào thì tạo header riêng cho section đầu (mọi
+    /// section đang liên kết sẽ kế thừa). Watermark cũ trong cùng part bị thay.
+    public func setWatermark(_ text: String) throws {
+        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw WordError.invalidSection("chữ watermark không được rỗng")
+        }
+        var parts: [PartName] = []
+        for i in sections.indices {
+            if let part = effectiveHeaderPart(sectionIndex: i), !parts.contains(part) { parts.append(part) }
+        }
+        if parts.isEmpty {
+            try sections[0].setLinkedToPrevious(false, kind: .header, type: .default)
+            if let part = effectiveHeaderPart(sectionIndex: 0) { parts = [part] }
+        }
+        for part in parts {
+            guard let story = headers.first(where: { $0.part == part }) else { continue }
+            removeWatermarkShapes(in: story)
+            appendWatermarkParagraph(in: story, text: text)
+            story.markModified()
+        }
+    }
+
+    /// Gỡ watermark khỏi mọi part header của tài liệu.
+    public func removeWatermark() {
+        for story in headers where removeWatermarkShapes(in: story) {
+            story.markModified()
+        }
+    }
+
+    @discardableResult
+    private func removeWatermarkShapes(in story: WordStory) -> Bool {
+        var removed = false
+        for p in story.paragraphs where watermarkShape(in: p.element) != nil {
+            p.element.removeFromParent()
+            removed = true
+        }
+        return removed
+    }
+
+    private func appendWatermarkParagraph(in story: WordStory, text: String) {
+        let root = story.container
+        if root.namespaceURI(forPrefix: "v") == nil {
+            root.setAttribute("xmlns:v", WordDocument.vmlURI)
+        }
+        if root.namespaceURI(forPrefix: "o") == nil {
+            root.setAttribute("xmlns:o", "urn:schemas-microsoft-com:office:office")
+        }
+        func el(_ name: String, _ attrs: [(String, String)] = []) -> XElement {
+            XElement(name: name, attributes: attrs.map { XAttribute(name: $0.0, value: $0.1) })
+        }
+        let shapetype = el("v:shapetype", [("id", "_x0000_t136"), ("coordsize", "21600,21600"),
+                                           ("o:spt", "136"), ("adj", "10800"),
+                                           ("path", "m@7,l@8,m@5,21600l@6,21600e")])
+        let formulas = el("v:formulas")
+        for eqn in ["sum #0 0 10800", "prod #0 2 1", "sum 21600 0 @1", "sum 0 0 @2",
+                    "prod @2 2 1", "prod @3 21600 pixelWidth", "sum @5 0 @4",
+                    "prod @3 21600 pixelHeight", "sum @7 0 @6", "prod @2 21600 pixelHeight",
+                    "prod @9 2 1", "sum @10 21600 0", "prod @8 21600 pixelWidth", "sum @12 21600 0"] {
+            formulas.append(el("v:f", [("eqn", eqn)]))
+        }
+        shapetype.append(formulas)
+        shapetype.append(el("v:path", [("textpathok", "t"), ("o:connecttype", "custom"),
+                                       ("o:connectlocs", "@8,@0;@10,@0;@8,@11;@10,@0"),
+                                       ("o:connectangles", "270,180,90,0")]))
+        shapetype.append(el("v:textpath", [("on", "t"), ("fitshape", "t")]))
+        let handles = el("v:handles")
+        handles.append(el("v:h", [("position", "#0,bottomRight"), ("xrang", "6629,14971")]))
+        shapetype.append(handles)
+        shapetype.append(el("o:lock", [("v:ext", "edit"), ("text", "t"), ("shapetype", "t")]))
+        let shape = el("v:shape", [("id", "VNOfficeWatermark"), ("type", "#_x0000_t136"),
+                                   ("style", "position:absolute;margin-left:0;margin-top:0;width:468pt;height:120pt;rotation:315;z-index:-251657216;mso-position-horizontal:center;mso-position-horizontal-relative:margin;mso-position-vertical:center;mso-position-vertical-relative:margin"),
+                                   ("o:allowincell", "f"), ("fillcolor", "#bfbfbf"), ("stroked", "f")])
+        shape.append(el("v:fill", [("opacity", "0.5")]))
+        shape.append(el("v:textpath", [("style", "font-family:\"Calibri\";font-size:1pt"), ("string", text)]))
+        let pict = el("w:pict")
+        pict.append(shapetype)
+        pict.append(shape)
+        let r = el("w:r")
+        r.append(pict)
+        let p = el("w:p")
+        p.append(r)
+        root.append(p)
+    }
+
     /// Các section theo thứ tự: đoạn mang sectPr trong pPr trước, sectPr cuối
     /// thân văn bản cuối cùng.
     public var sections: [Section] {

@@ -57,6 +57,7 @@ extension WordDocument {
             var ins: [XElement] = []
             var del: [XElement] = []
             var marks: [XElement] = []
+            var formatChanges: [XElement] = []
             story.xml.root.forEachDescendant { e in
                 guard WordText.isW(e) else { return }
                 switch e.localName {
@@ -64,15 +65,31 @@ extension WordDocument {
                     if e.parent?.localName == "rPr" { marks.append(e) } else { ins.append(e) }
                 case "del", "moveFrom":
                     if e.parent?.localName == "rPr" { marks.append(e) } else { del.append(e) }
+                case "rPrChange", "pPrChange":
+                    formatChanges.append(e)
                 default: break
                 }
             }
-            guard !(ins.isEmpty && del.isEmpty && marks.isEmpty) else { continue }
-            count += ins.count + del.count
+            guard !(ins.isEmpty && del.isEmpty && marks.isEmpty && formatChanges.isEmpty) else { continue }
+            count += ins.count + del.count + formatChanges.count
             for e in accept ? ins : del { unwrap(e, restoreDeleted: !accept) }
             for e in accept ? del : ins { e.removeFromParent() }
             // Dấu đoạn được chèn/xóa (w:rPr/w:ins|del trong w:pPr): chấp nhận = bỏ dấu.
             for m in marks { m.removeFromParent() }
+            // Thay đổi định dạng (rPrChange/pPrChange): chấp nhận = bỏ phần tử chụp
+            // (định dạng mới giữ nguyên); từ chối = khôi phục bản chụp cũ vào rPr/pPr.
+            for change in formatChanges {
+                guard let props = change.parent else { change.removeFromParent(); continue }
+                if accept { change.removeFromParent(); continue }
+                let snapshotName = change.localName == "rPrChange" ? "rPr" : "pPr"
+                guard let snapshot = change.firstChild(NS.w, snapshotName) else {
+                    change.removeFromParent(); continue
+                }
+                let restored = snapshot.elements.map { $0.deepCopy() }
+                for node in props.children { node.element?.removeFromParent() }
+                change.removeFromParent()
+                for el in restored { props.append(el) }
+            }
             story.markModified()
         }
         return count
@@ -174,5 +191,47 @@ extension WordDocument {
         for r in WordText.makeRuns(text, rPr: nil, context: p.element) { ins.append(r) }
         p.story.markModified()
         return p
+    }
+}
+
+extension Run {
+    /// Ghi dấu thay đổi định dạng run: chụp rPr HIỆN TẠI vào `w:rPrChange`
+    /// (id/author/date) — gọi TRƯỚC khi áp thay đổi định dạng thật (setBold,
+    /// setColor, setGlow…). Đã có rPrChange thì giữ bản chụp đầu tiên (như Word
+    /// gộp các thay đổi liên tiếp cùng phiên). Chấp nhận = giữ định dạng mới;
+    /// từ chối = khôi phục bản chụp (xem acceptAllRevisions/rejectAllRevisions).
+    public func markFormattingChange(revision: Revision) {
+        let rPr = WordText.ensureRPr(element)
+        guard rPr.firstChild(NS.w, "rPrChange") == nil else { return }
+        let q = { (l: String) in WordText.qn(self.element, l) }
+        let snapshot = XElement(name: q("rPr"))
+        for child in rPr.elements { snapshot.append(child.deepCopy()) }
+        let change = XElement(name: q("rPrChange"), attributes: [
+            XAttribute(name: q("id"), value: String(paragraph.story.document.nextRevisionId())),
+            XAttribute(name: q("author"), value: revision.author),
+            XAttribute(name: q("date"), value: revision.dateString)])
+        change.append(snapshot)
+        rPr.append(change)
+        paragraph.story.markModified()
+    }
+}
+
+extension Paragraph {
+    /// Ghi dấu thay đổi định dạng đoạn: chụp pPr HIỆN TẠI vào `w:pPrChange` —
+    /// gọi TRƯỚC khi đổi giãn đoạn/căn lề/kiểu đoạn. Quy tắc bản chụp đầu tiên
+    /// và chấp nhận/từ chối như `Run.markFormattingChange`.
+    public func markFormattingChange(revision: Revision) {
+        let pPr = WordText.ensurePPr(element)
+        guard pPr.firstChild(NS.w, "pPrChange") == nil else { return }
+        let q = { (l: String) in WordText.qn(self.element, l) }
+        let snapshot = XElement(name: q("pPr"))
+        for child in pPr.elements { snapshot.append(child.deepCopy()) }
+        let change = XElement(name: q("pPrChange"), attributes: [
+            XAttribute(name: q("id"), value: String(story.document.nextRevisionId())),
+            XAttribute(name: q("author"), value: revision.author),
+            XAttribute(name: q("date"), value: revision.dateString)])
+        change.append(snapshot)
+        pPr.append(change)
+        story.markModified()
     }
 }
