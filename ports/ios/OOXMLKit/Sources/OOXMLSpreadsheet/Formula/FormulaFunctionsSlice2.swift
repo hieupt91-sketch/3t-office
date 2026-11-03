@@ -52,6 +52,7 @@ extension FormulaEvaluator {
         case "VLOOKUP": return try vhlookup(a, vertical: true)
         case "HLOOKUP": return try vhlookup(a, vertical: false)
         case "MATCH": return try match(a)
+        case "XLOOKUP": return try xlookup(a)
         // Văn bản
         case "LEFT", "RIGHT": return try leftRight(name == "LEFT", a)
         case "MID": return try mid(a)
@@ -87,6 +88,7 @@ extension FormulaEvaluator {
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
+        case "SUMPRODUCT": return try sumproduct(a)
         case "SUMIFS": return try sumifs(a)
         case "COUNTIFS": return try countifs(a)
         // Logic
@@ -135,6 +137,8 @@ extension FormulaEvaluator {
         case .scalar(let v):
             if case .error = v { throw Abort(value: v) }
             return Grid(sheet: nil, origin: nil, rows: [[v]])
+        case .array(let rows):
+            return Grid(sheet: nil, origin: nil, rows: rows)
         case .ref(let sh, let r):
             let nr = r.end.row - r.start.row + 1, nc = r.end.column - r.start.column + 1
             guard nr * nc <= maxGridCells else { throw fail(FormulaErrors.value) }
@@ -193,6 +197,62 @@ extension FormulaEvaluator {
         }
     }
 
+    /// XLOOKUP(lookup_value, lookup_array, return_array, [if_not_found], [match_mode], [search_mode]).
+    /// match_mode: 0 khớp đúng (mặc định), -1 đúng hoặc nhỏ hơn gần nhất, 1 đúng hoặc lớn hơn gần nhất, 2 ký tự đại diện.
+    /// search_mode: 1 từ đầu (mặc định), -1 từ cuối; 2/-2 (nhị phân) tính như 1/-1 — cùng kết quả trên dữ liệu đã sắp.
+    /// return_array phải là vector cùng hướng và cùng độ dài với lookup_array (trả cả hàng/cột kiểu dynamic array: chưa hỗ trợ).
+    private func xlookup(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 3...6)
+        let key = try sc(a[0])
+        let lg = try grid(a[1])
+        let rg = try grid(a[2])
+        guard lg.nRows == 1 || lg.nCols == 1 else { throw fail(FormulaErrors.value) }
+        let horizontal = lg.nRows == 1 && lg.nCols > 1
+        let rvec: [CellValue]
+        if horizontal {
+            guard rg.nRows == 1, rg.nCols == lg.nCols else { throw fail(FormulaErrors.value) }
+            rvec = rg.flat
+        } else {
+            guard rg.nCols == 1, rg.nRows == lg.nRows else { throw fail(FormulaErrors.value) }
+            rvec = rg.flat
+        }
+        var lvec = lg.flat, rvecW = rvec
+        let matchMode = a.count >= 5 ? Int(try nm(a[4]).rounded(.towardZero)) : 0
+        let searchMode = a.count >= 6 ? Int(try nm(a[5]).rounded(.towardZero)) : 1
+        if searchMode < 0 { lvec.reverse(); rvecW.reverse() }
+        // Khớp gần đúng của XLOOKUP không giả định thứ tự sắp xếp như MATCH cổ điển:
+        // quét tuyến tính lấy giá trị nhỏ/lớn hơn gần nhất (khớp đúng thắng ngay, xuất hiện đầu tiên theo chiều tìm).
+        let hit: Int?
+        switch matchMode {
+        case -1: hit = approxIndex(key, in: lvec, larger: false)
+        case 1: hit = approxIndex(key, in: lvec, larger: true)
+        default: hit = lookupIndex(key, in: lvec, mode: 0)
+        }
+        guard let hit = hit else {
+            if a.count >= 4 {
+                let v = try sc(a[3])
+                return v == .empty ? .number(0) : v
+            }
+            throw fail(FormulaErrors.na)
+        }
+        let out = rvecW[hit]
+        return out == .empty ? .number(0) : out
+    }
+
+    /// Chỉ số cho XLOOKUP match_mode ±1: khớp đúng (đầu tiên) thắng ngay; không thì phần tử
+    /// lớn nhất ≤ key (larger == false) hoặc nhỏ nhất ≥ key (larger == true), đầu tiên đạt cực trị đó.
+    private func approxIndex(_ key: CellValue, in vec: [CellValue], larger: Bool) -> Int? {
+        var best: Int? = nil
+        for (i, v) in vec.enumerated() {
+            guard let c = FormulaEvaluator.cmpSame(v, key) else { continue }
+            if c == 0 { return i }
+            guard larger ? c > 0 : c < 0 else { continue }
+            if let b = best, let bc = FormulaEvaluator.cmpSame(v, vec[b]), larger ? bc >= 0 : bc <= 0 { continue }
+            best = i
+        }
+        return best
+    }
+
     private func vhlookup(_ a: [FormulaExpr], vertical: Bool) throws -> CellValue {
         try need(a, 3...4)
         let key = try sc(a[0])
@@ -232,6 +292,14 @@ extension FormulaEvaluator {
             if case .error = v { throw Abort(value: v) }
             guard r <= 1, (c ?? 1) <= 1 else { throw fail(FormulaErrors.ref) }
             return .scalar(v)
+        case .array(let rows):
+            let nr = rows.count, nc = rows.first?.count ?? 0
+            var row = Int(r), col = c.map { Int($0) }
+            if col == nil {
+                if nr == 1 && nc > 1 { col = row; row = 1 } else if nc == 1 { col = 1 } else { throw fail(FormulaErrors.value) }
+            }
+            guard row >= 1, row <= nr, let cc = col, cc >= 1, cc <= nc else { throw fail(FormulaErrors.ref) }
+            return .scalar(rows[row - 1][cc - 1])
         case .ref(let sh, let range):
             let nr = range.end.row - range.start.row + 1, nc = range.end.column - range.start.column + 1
             var row = Int(r), col = c.map { Int($0) }
@@ -579,6 +647,30 @@ extension FormulaEvaluator {
         try need(a, 2...Int.max)
         let m = try mask(a, from: 0, shape: nil)
         return .number(Double(m.mask.flatMap { $0 }.filter { $0 }.count))
+    }
+
+    /// SUMPRODUCT: nhân từng cặp phần tử của các mảng cùng kích thước rồi cộng.
+    /// Ô chữ/logic/rỗng trong mảng tính là 0 (kể cả chuỗi số); lỗi lan truyền; lệch kích thước -> #VALUE!.
+    private func sumproduct(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...255)
+        let grids = try a.map { try grid($0) }
+        let rows = grids[0].nRows, cols = grids[0].nCols
+        for g in grids where g.nRows != rows || g.nCols != cols { throw fail(FormulaErrors.value) }
+        var sum = 0.0
+        for i in 0..<rows {
+            for j in 0..<cols {
+                var prod = 1.0
+                for g in grids {
+                    switch g.rows[i][j] {
+                    case .number(let d): prod *= d
+                    case .error(let e): throw fail(e)
+                    default: prod = 0
+                    }
+                }
+                sum += prod
+            }
+        }
+        return .number(sum)
     }
 
     private func sumifs(_ a: [FormulaExpr]) throws -> CellValue {
