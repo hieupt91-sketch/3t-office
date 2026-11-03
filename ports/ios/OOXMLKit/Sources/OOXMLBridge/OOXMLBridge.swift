@@ -107,7 +107,7 @@ public final class OOXMLBridge {
         case "sheet.setAutoFilter": let rangeText = try args.string("range"); guard let range = CellRange(rangeText) else { throw SpreadsheetError.invalidReference(rangeText) }; try worksheet(args).setAutoFilter(range: range); return [:]
         case "sheet.removeAutoFilter": try worksheet(args).removeAutoFilter(); return [:]
         case "sheet.setColumnWidth": try worksheet(args).setColumnWidth(col: try args.int("col"), width: try args.double("width"), hidden: args.optBool("hidden") ?? false); return [:]
-        case "sheet.setColumnHidden": try worksheet(args).setColumnHidden(col: try args.int("col"), hidden: try args.optBool("hidden") ?? true); return [:]
+        case "sheet.setColumnHidden": try worksheet(args).setColumnHidden(col: try args.int("col"), hidden: args.optBool("hidden") ?? true); return [:]
         case "sheet.setRowHeight": try worksheet(args).setRowHeight(row: try args.int("row"), height: try args.double("height"), hidden: args.optBool("hidden") ?? false); return [:]
         case "sheet.setRowHidden": try worksheet(args).setRowHidden(row: try args.int("row"), hidden: args.optBool("hidden") ?? true); return [:]
         case "sheet.setPageSetup": try sheetSetPageSetup(args); return [:]
@@ -167,7 +167,7 @@ public final class OOXMLBridge {
             if let v = args.optBool("showAnimation") { s.showAnimation = v }
             if let v = args.optBool("showNarration") { s.showNarration = v }
             if let v = args.optBool("useTimings") { s.useTimings = v }
-            deck.setShowSettings(s); return [:]
+            try deck.setShowSettings(s); return [:]
         case "slide.move": try presentation(args).moveSlide(from: try args.int("from"), to: try args.int("to")); return [:]
 
         default: throw BridgeError("op", "thao tác '\(op)' không hỗ trợ")

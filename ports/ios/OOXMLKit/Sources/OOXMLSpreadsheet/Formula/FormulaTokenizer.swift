@@ -18,7 +18,7 @@ public enum FormulaToken: Equatable {
     case function(String)     // tên hàm (viết hoa), đứng trước "("
     case op(String)           // + - * / ^ & = <> < > <= >=
     case percent
-    case lparen, rparen, comma, colon
+    case lparen, rparen, comma, colon, lbrace, rbrace, semicolon
 }
 
 /// Cắt chuỗi công thức (không gồm "=" đầu) thành token.
@@ -122,6 +122,9 @@ public enum FormulaTokenizer {
             case ")": out.append(.rparen)
             case ",": out.append(.comma)
             case ":": out.append(.colon)
+            case "{": out.append(.lbrace)
+            case "}": out.append(.rbrace)
+            case ";": out.append(.semicolon)
             case "%": out.append(.percent)
             case "+", "-", "*", "/", "^", "&", "=":
                 out.append(.op(String(c)))

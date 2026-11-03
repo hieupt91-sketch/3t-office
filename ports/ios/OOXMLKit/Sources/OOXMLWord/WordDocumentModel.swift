@@ -285,15 +285,46 @@ extension WordDocument {
         }
         let abstracts = root.children(NS.w, "abstractNum")
         let nums = root.children(NS.w, "num")
+        // Hình dạng định nghĩa mà bộ sinh dưới đây tạo cho (format, level):
+        // cấp đích dùng đúng format được yêu cầu; các cấp cha dùng tiến trình
+        // chuẩn decimal -> lowerLetter -> lowerRoman để placeholder %1...%n
+        // có định nghĩa. Bullet thì mọi cấp đều là bullet.
+        func levelFormat(_ i: Int) -> NumberingFormat {
+            if format == .bullet { return .bullet }
+            if i == level { return format }
+            switch i % 3 {
+            case 0: return .decimal
+            case 1: return .lowerLetter
+            default: return .lowerRoman
+            }
+        }
+        func levelText(_ i: Int) -> String {
+            if format == .bullet { return "•" }
+            if level == 0 { return format.levelText }
+            return (0...i).map { "%\($0 + 1)" }.joined(separator: ".") + "."
+        }
+        // Dùng lại CHỈ khi đã có định nghĩa đúng hình dạng của (format, level):
+        // đúng số cấp 0...level và từng cấp khớp format + lvlText mà bộ sinh
+        // sẽ tạo. Một abstractNum nhiều cấp hơn — dù chứa format này ở một
+        // cấp trong — là định nghĩa của một danh sách khác, không dùng chung
+        // numId (hai danh sách độc lập không vô tình dùng cùng numId).
         for num in nums {
             guard let numId = intAttr(num, "numId") ?? intAttr(num.firstChild(NS.w, "numId"), "val"),
                   let abstractId = num.firstChild(NS.w, "abstractNumId")?.attribute(WordText.qn(root, "val")).flatMap(Int.init),
-                  let ab = abstracts.first(where: { intAttr($0, "abstractNumId") == abstractId }),
-                  let lvl = ab.children(NS.w, "lvl").first(where: { intAttr($0, "ilvl") == level }),
-                  lvl.firstChild(NS.w, "numFmt")?.attribute(WordText.qn(root, "val")) == format.rawValue else { continue }
-            return numId
+                  let ab = abstracts.first(where: { intAttr($0, "abstractNumId") == abstractId }) else { continue }
+            let lvls = ab.children(NS.w, "lvl")
+            guard lvls.count == level + 1 else { continue }
+            var matches = true
+            for i in 0...level {
+                guard let lvl = lvls.first(where: { intAttr($0, "ilvl") == i }),
+                      lvl.firstChild(NS.w, "numFmt")?.attribute(WordText.qn(root, "val")) == levelFormat(i).rawValue,
+                      lvl.firstChild(NS.w, "lvlText")?.attribute(WordText.qn(root, "val")) == levelText(i)
+                else { matches = false; break }
+            }
+            if matches { return numId }
         }
-        // Tạo mới: abstractNum (singleLevel, 1 cấp) rồi num trỏ tới nó.
+        // Tạo mới: abstractNum gồm đủ các cấp 0...level (đa cấp thật khi
+        // level > 0) rồi num trỏ tới nó.
         let newAbstractId = (abstracts.compactMap { intAttr($0, "abstractNumId") }.max() ?? -1) + 1
         let newNumId = (nums.compactMap { n in
             n.attribute(WordText.qn(root, "numId")).flatMap(Int.init)
@@ -302,25 +333,28 @@ extension WordDocument {
         let ab = XElement(name: WordText.qn(root, "abstractNum"),
                           attributes: [XAttribute(name: WordText.qn(root, "abstractNumId"), value: String(newAbstractId))])
         ab.append(XElement(name: WordText.qn(root, "multiLevelType"),
-                           attributes: [XAttribute(name: WordText.qn(root, "val"), value: "singleLevel")]))
-        let lvl = XElement(name: WordText.qn(root, "lvl"),
-                           attributes: [XAttribute(name: WordText.qn(root, "ilvl"), value: String(level))])
-        if format != .bullet {
-            lvl.append(XElement(name: WordText.qn(root, "start"),
-                                attributes: [XAttribute(name: WordText.qn(root, "val"), value: "1")]))
+                           attributes: [XAttribute(name: WordText.qn(root, "val"), value: level == 0 ? "singleLevel" : "multilevel")]))
+        for i in 0...level {
+            let f = levelFormat(i)
+            let lvl = XElement(name: WordText.qn(root, "lvl"),
+                               attributes: [XAttribute(name: WordText.qn(root, "ilvl"), value: String(i))])
+            if f != .bullet {
+                lvl.append(XElement(name: WordText.qn(root, "start"),
+                                    attributes: [XAttribute(name: WordText.qn(root, "val"), value: "1")]))
+            }
+            lvl.append(XElement(name: WordText.qn(root, "numFmt"),
+                                attributes: [XAttribute(name: WordText.qn(root, "val"), value: f.rawValue)]))
+            lvl.append(XElement(name: WordText.qn(root, "lvlText"),
+                                attributes: [XAttribute(name: WordText.qn(root, "val"), value: levelText(i))]))
+            lvl.append(XElement(name: WordText.qn(root, "lvlJc"),
+                                attributes: [XAttribute(name: WordText.qn(root, "val"), value: "left")]))
+            let pPr = XElement(name: WordText.qn(root, "pPr"))
+            pPr.append(XElement(name: WordText.qn(root, "ind"),
+                                attributes: [XAttribute(name: WordText.qn(root, "left"), value: "720"),
+                                             XAttribute(name: WordText.qn(root, "hanging"), value: "360")]))
+            lvl.append(pPr)
+            ab.append(lvl)
         }
-        lvl.append(XElement(name: WordText.qn(root, "numFmt"),
-                            attributes: [XAttribute(name: WordText.qn(root, "val"), value: format.rawValue)]))
-        lvl.append(XElement(name: WordText.qn(root, "lvlText"),
-                            attributes: [XAttribute(name: WordText.qn(root, "val"), value: format.levelText)]))
-        lvl.append(XElement(name: WordText.qn(root, "lvlJc"),
-                            attributes: [XAttribute(name: WordText.qn(root, "val"), value: "left")]))
-        let pPr = XElement(name: WordText.qn(root, "pPr"))
-        pPr.append(XElement(name: WordText.qn(root, "ind"),
-                            attributes: [XAttribute(name: WordText.qn(root, "left"), value: "720"),
-                                         XAttribute(name: WordText.qn(root, "hanging"), value: "360")]))
-        lvl.append(pPr)
-        ab.append(lvl)
         if let firstNum = nums.first { root.insert(ab, before: firstNum) } else { root.append(ab) }
         let num = XElement(name: WordText.qn(root, "num"),
                            attributes: [XAttribute(name: WordText.qn(root, "numId"), value: String(newNumId))])
@@ -382,9 +416,10 @@ public final class Section {
     }
 
     /// Bật/tắt liên kết tới section trước. Bật = xóa tham chiếu riêng của section
-    /// (kế thừa section trước). Tắt = sao chép header/footer của section trước
-    /// thành part mới (ảnh và tài nguyên khác dùng chung) rồi tham chiếu tới nó;
-    /// nếu section trước cũng không có header/footer loại đó thì tạo part rỗng.
+    /// (kế thừa section trước). Tắt = sao chép header/footer hiệu lực gần nhất
+    /// của đúng kind + type (tìm ngược qua các section đang kế thừa) thành part
+    /// mới (ảnh và tài nguyên khác dùng chung) rồi tham chiếu tới nó; nếu không
+    /// có reference hiệu lực nào trước đó thì tạo part rỗng.
     public func setLinkedToPrevious(_ linked: Bool, kind: SectionHeaderFooterKind, type: SectionHeaderFooterType = .default) throws {
         if linked {
             guard index > 0 else { throw WordError.invalidSection("section đầu tiên không liên kết tới section trước") }
@@ -396,9 +431,20 @@ public final class Section {
             if reference(kind: kind, type: type) != nil { return }
             let stem = kind == .header ? "header" : "footer"
             let newPart = document.package.uniquePartName(prefix: "/word/\(stem)", ext: "xml")
-            let prevRef = document.sections[index > 0 ? index - 1 : 0].reference(kind: kind, type: type)
-            if index > 0, let prevRef,
-               let rid = prevRef.attribute("\(element.prefix(for: NS.r) ?? "r"):id"),
+            // Tìm ngược reference hiệu lực gần nhất của đúng kind + type. Section
+            // ngay trước có thể cũng đang kế thừa, nên không được chỉ nhìn nó:
+            // phải đi tiếp về các section trước nữa cho tới section đầu tiên.
+            var effectiveRef: XElement?
+            if index > 0 {
+                for section in document.sections[..<index].reversed() {
+                    if let ref = section.reference(kind: kind, type: type) {
+                        effectiveRef = ref
+                        break
+                    }
+                }
+            }
+            if let effectiveRef,
+               let rid = effectiveRef.attribute("\(element.prefix(for: NS.r) ?? "r"):id"),
                let prevPart = try? document.package.relationships(of: document.mainPart).targetPart(id: rid) {
                 var copied: [PartName: PartName] = [:]
                 try document.package.duplicatePart(prevPart, as: newPart, shareable: { _ in true }, copied: &copied)

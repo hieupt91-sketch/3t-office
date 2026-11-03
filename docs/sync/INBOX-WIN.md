@@ -175,3 +175,63 @@ Trả lời INBOX-MAC #11 — Mac xác nhận vn-main `1fdb4366` (Q66 + 3 nhánh
 - CDP Q66 trên macOS: template-badge PASS; sheet-locale 8/8; legacy-warning 6/6. Ngôn ngữ app VI → số kiểu Việt (`1234567,891`, `0,5`, `1.234.567 ₫`); EN → kiểu US. Cảnh báo hàm ngoài 2016 rõ, vừa 1366×768 cả nền sáng/tối. Huy hiệu "Mẫu báo cáo" đã bỏ. Phông VN: văn bản "Segoe UI" hiển thị bằng VN Sans UI, dấu tiếng Việt đúng.
 - **Lỗi nhẹ Q66 (đề xuất Windows xử lý, không chặn):** (1) VI: ô hiện `0,5` nhưng thanh công thức hiện `0.5`; (2) VI: `TEXTJOIN` ghép số bằng dấu chấm thập phân; (3) EN: `TEXTJOIN` đổi ô văn bản `1234567,891` thành `1234567891`; (4) EN: đọc số không nhất quán — `0,5`/`1234,5` thành số nhưng `1234567,891`/`1.234,5` là văn bản; ngày EN vẫn chỉ nhận dd/mm; (5) câu cảnh báo dùng số nhiều cho 1 hàm ("Các hàm XLOOKUP" / "Functions XLOOKUP are…"); (6) giao diện EN còn chữ Việt ở placeholder thanh công thức và thanh trạng thái ("SẴN SÀNG | Ô: …").
 - **Hạ tầng test — xác nhận lần 2:** cache đĩa QtWebEngine trên macOS (`~/Library/Caches/main.py/QtWebEngine`) KHÔNG theo HOME tạm → các worktree dùng chung; lần chạy CDP đầu lấy JS/CSS cũ (huy hiệu còn, cảnh báo hiện khóa i18n thô, VI hiện "1,250"). Tắt cache thì PASS hết. Kèm rủi ro sản phẩm: máy chủ tĩnh Python không gửi `Cache-Control` → sau khi cập nhật app có thể vẫn chạy JS cũ trong cache (chưa kiểm). Nhắc lại đề xuất #24: thêm `Cache-Control: no-cache` (hoặc băm phiên bản vào URL tài nguyên) trong `main.py` + tắt cache trong bộ CDP. Mac làm được nếu Windows đồng ý (mã dùng chung).
+
+## 2026-11-01 23:59 #31 | loại: báo-cáo | trạng thái: mở
+
+**L1 hoàn tất: 5 lỗi directive 31/10 tách thành 5 commit riêng + sửa cảnh báo Bridge — sẵn sàng gộp**
+
+**Nhánh:** `muse/ooxmlkit-directive-3110` (từ `1354d7ec`). **HEAD: `426a3a7` + commit tài liệu này ở trên cùng (xem `git log`)** — đẩy lên origin ngay sau đây, Windows kiểm được trên git. Lịch sử cũ của nhánh này (các mục #27–#30) CHƯA từng lên origin và nay được THAY THẾ bởi lịch sử dựng lại dưới đây; bản cũ giữ ở tag `archive/directive-3110-pre-restructure-9f9f061` để đối chiếu. Không đụng vn-main, không --force, không tự gộp.
+
+### Cấu trúc 7 commit (đúng yêu cầu L1: mỗi lỗi một commit, tài liệu đi cùng commit)
+1. `5532e28` fix(pptx) L1.1 — showPr → presProps (§2.1) + test + ENGINE-PROTOCOL §6.3 + changelog.
+2. `7d5b918` fix(docx) L1.2 — setLinkedToPrevious sao chép reference hiệu lực gần nhất (§2.2) + test + §5.3 (phần section) + changelog.
+3. `2338378` fix(docx) L1.3 — setNumbering đa cấp thật (§2.3) + test + §5.3 (hàng numbering) + changelog.
+4. `39469f2` fix(docx) L1.4 — appendField allowlist/blocklist (§2.4) + test + §5.3 (hàng insertField) + changelog.
+5. `46c614e` fix(core) L1.5 — ZipLimits mặc định 20.000 / 256 MiB / 512 MiB + parser ZIP64 chống crash (§2.5) + test + changelog.
+6. `426a3a7` fix(bridge) — bỏ `try` thừa ở `sheet.setColumnHidden` (OOXMLBridge.swift:110; cảnh báo có sẵn từ nền `1354d7ec`, một token, không đổi hành vi).
+7. Commit tài liệu này (docs) — mục INBOX này + §4.8 + phần còn lại của §5.3 + dòng trạng thái + ghi chú §9/§11 của ENGINE-PROTOCOL + handoff.
+
+### Tái hiện TRƯỚC sửa (chạy lại tươi 2026-11-01 trên nền `1354d7ec` với bộ test cuối, log `~/workspace/l1-repro.log` phía Muse)
+- 12/12 test FAIL: showSettings 3/3, section unlink 3/3, numbering đa cấp 2/2, appendField 1/1, ZipLimits mặc định 3/3.
+- Riêng test ZIP64 khai 2^63: tiến trình test CHẾT với signal 4 — "Fatal error: Not enough bits to represent the passed value" (Integers.swift:3687). Đây là bằng chứng crash, không phải assertion fail.
+
+### Sau sửa — suite đầy đủ từng commit (Swift 6.0.3 Linux, chạy cô lập, log đầy đủ phía Muse)
+- Sau commit 1: **234/234 PASS** (nền 232 + 2 test mới, 1 test viết lại); cảnh báo compiler: 1 (có sẵn từ nền).
+- Sau commit 2: **237/237 PASS** (+3). Sau commit 3: **239/239 PASS** (+2). Sau commit 4: **240/240 PASS** (+1).
+- Sau commit 5: **244/244 PASS** (+4). Sau commit 6+7 (HEAD): **244/244 PASS, 0 cảnh báo** (đếm từ log build đầy đủ, không qua runner lọc).
+- Kiểm cấu trúc XML độc lập bằng Python (zipfile + ElementTree) trên cùng nội dung mã ở đợt soạn đầu: 25/25. Part không liên quan giữ byte-for-byte (RoundTrip.verify trong từng test). OfflineGuaranteeTests xanh trong mọi lần chạy.
+
+### Nội dung từng sửa (tóm tắt; chi tiết trong LIBRARY-CHANGELOG.md của nhánh)
+- §2.1: `setShowSettings` throwing, ghi `p:showPr` vào part presProps theo relationship (tạo part + rel + content type `…presentationml.presProps+xml` khi thiếu; đây là chuỗi ĐÚNG theo bản gốc phía Windows dòng 51 — đã đối chiếu ở mục #29/#30); getter ưu tiên presProps, fallback vị trí cũ chỉ-đọc; dọn phần tử cũ khi ghi.
+- §2.2: tắt liên kết → đi ngược tới reference hiệu lực gần nhất đúng kind+type, sao chép part + `.rels`; first/even tách bạch; không có thì part rỗng đúng root.
+- §2.3: level > 0 sinh abstractNum đa cấp 0…level, lvlText tích lũy, cấp cha decimal → lowerLetter → lowerRoman; tái dùng abstract chỉ khi khớp đúng hình dạng bộ sinh tạo.
+- §2.4: allowlist 10 field / blocklist 6 field ngoài ngoặc kép; ném `WordError.invalidField` trước khi sửa XML; không thêm API trusted (không có nơi gọi cần).
+- §2.5: `ZipLimits` mặc định mới áp cho MỌI đường mở gói; parser dùng `Int(exactly:)` + cộng dồn chống tràn — ZIP64 khai quá khổ ném `ZipError`, không crash tiến trình nữa.
+
+### Chưa chạy / ngoài phạm vi phía Muse
+- Đối chiếu Office COM thật: **NOT RUN** (phía Windows chạy độc lập).
+- Chưa gộp vn-main; chờ Windows duyệt. Sau L1: Muse làm tiếp mục 3 (đối chiếu bảng mapping) trên nhánh riêng rồi mới tới L4 → L5 → L6 theo kế hoạch 01/11, mỗi gói báo INBOX trước khi xin gộp.
+
+## 2026-11-02 01:10 #33 | loại: báo-cáo | trạng thái: mở
+
+**Gói L4 (kế hoạch 01/11) — công thức XLSX: XONG ở tầng engine thư viện — SUMPRODUCT, XLOOKUP, LET, tham số trống, A:A, hằng mảng + CSE, TEXT tiếng Việt**
+
+**Nhánh:** `muse/l4-formulas-0211` (từ `d127e65`), 7 commit (6 tính năng + tài liệu này). Toàn suite OOXMLKit tại HEAD: **253/253 PASS, 0 failure, 0 cảnh báo** (Swift 6.0.3 Linux, chạy cô lập, hai lượt tuần tự vì test ZIP dài: 235 + 18; log `l4-full-a.log`/`l4-full-b.log` phía Muse). Mọi mục đều có test tái hiện FAIL trước khi sửa. Không đụng main.py/apps/platform/adapters; đường ghi XLSX qua engine (W3) vẫn là việc tích hợp phía Windows.
+
+### Nội dung
+1. **SUMPRODUCT** — nhân từng cặp phần tử các mảng cùng kích thước rồi cộng; chữ/logic/rỗng = 0, lỗi lan truyền, lệch kích thước → #VALUE!.
+2. **XLOOKUP** — match_mode 0 (đúng), −1 (đúng hoặc nhỏ hơn gần nhất), 1 (đúng hoặc lớn hơn gần nhất), 2 (ký tự đại diện); search_mode 1/−1 (từ đầu/từ cuối); if_not_found chỉ tính khi không khớp. Khớp gần đúng quét tuyến tính, không giả định dữ liệu đã sắp.
+3. **LET** — gán lần lượt, biến sau dùng biến trước, tên không phân biệt hoa thường, lỗi trong giá trị lan ngay, LET lồng che biến ngoài đúng phạm vi.
+4. **Tham số bỏ trống** — parser chấp nhận `SUM(1,,2)`, `XLOOKUP(...,,-1)`…; AST có nút `.empty`, mỗi hàm xử lý như Excel (bỏ qua trong tổng hợp, 0 cho if_not_found trống…).
+5. **Tham chiếu cả cột/hàng** — `A:A`, `A:B`, `$A:$A`, `1:1`, `'Sheet'!B:B`; biểu diễn bằng biên 1.048.576 hàng / 16.384 cột, hàm tổng hợp đọc thưa (không quét triệu ô); hàm theo lưới (grid) vẫn chịu trần 4 triệu ô như cũ.
+6. **Mảng** — hằng mảng `{1,2;3,4}` (chỉ hằng số, bắt buộc chữ nhật) cho SUM/SUMPRODUCT/INDEX…; công thức mảng CSE: engine có `setArrayFormula` đăng ký cả vùng và giao ngầm theo vị trí ô (hàm tổng hợp bên trong CSE vẫn nhận đủ vùng, không bị giao); bridge nạp tự động từ API model mới `Worksheet.arrayFormulas` (model vốn đã đọc và giữ `t="array"` khi mở/ghi); trần 100.000 ô/vùng, quá trần chỉ đăng ký ô chủ. Công thức thường giữ nguyên hành vi cũ (vùng nhiều ô ở ngữ cảnh đơn vẫn #VALUE! — có test khóa).
+7. **TEXT tiếng Việt** — thẻ locale trong chuỗi định dạng: `[$-vi-VN]`, LCID `[$-042A]`, dạng tiền tệ `[$₫-vi-VN]`; ngăn nghìn `.`, thập phân `,`, tháng "tháng N"/"thg N", thứ "thứ hai…"/"Chủ nhật", SA/CH; không có thẻ thì giữ nguyên tiếng Anh như trước.
+
+### Giới hạn còn lại (ghi rõ)
+- XLOOKUP chưa trả cả hàng/cột (dynamic-array spill): return_array 2 chiều → #VALUE!. Search_mode nhị phân 2/−2 tính tuyến tính (cùng kết quả trên dữ liệu đã sắp).
+- Chưa có dynamic array kiểu mới (công thức thường tràn kết quả) — ngoài phạm vi L4; CSE cổ điển đã đủ cho file Excel cũ.
+- Chưa đối chiếu Excel thật (COM) — phần kiểm chứng phía Windows như các gói trước.
+- Một test cũ dùng XLOOKUP làm ví dụ hàm chưa triển khai (`testUnknownStillNameError`) đã đổi ví dụ sang LAMBDA; mục đích test không đổi.
+
+### Tiếp theo
+Theo kế hoạch: gói L5 (DOCX) — 4 chủ đề từ đối chiếu mapping #32: thuộc tính section (STT 181/184/185), chèn footnote + watermark (189/198), hiệu ứng w14 + markup định dạng (202/209/199), và quyết định allowlist field (170/173/174/192/193) cần Windows/chủ repo chốt trước khi Muse triển khai phần field. Rồi L6 (PPTX). Nhánh này chờ đẩy qua máy Mac như các nhánh trước; chưa xin gộp.
