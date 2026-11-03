@@ -1870,3 +1870,46 @@ DEPENDENCIES/BLOCKERS: W1 Windows build; Excel COM oracle; owner chốt ngưỡn
 CORE PATCH ID (if any): None.
 GIAO DIEN DA XEM: NOT APPLICABLE — không chạy app hoặc sửa UI.
 NEXT ACTION: Review kế hoạch, sau đó giao Q-LIBPLAN-01 cho Codex Windows khi L1/L2 có snapshot ổn định; Muse làm L1 trên branch/worktree riêng.
+
+---
+
+# Agent Handoff
+TASK: CODEX Q76 — fixture PPTX media lặp cho Muse L6 / STT 84
+AGENT/ROLE: Codex / OOXML fixture
+BRANCH: codex/q76
+WORKTREE: E:\VNOffice-codex-q76
+OBJECTIVE: Tạo fixture PowerPoint-authored có media timing đọc lại được qua PowerPoint COM; bàn giao XML evidence cho Muse.
+FINDINGS: PowerPoint 16.0 COM lưu/mở lại được audio `LoopUntilStopped` và `StopAfterSlides=2`; máy không có ffmpeg hay thư viện encoder video khả dụng nên chưa thể tạo video. VN Slides giữ overlay “Đang mở tài liệu...” khi mở PPTX này.
+IMPLEMENTATION SUMMARY: Thêm script tái tạo WAV sin 2 giây, ba slide, audio lặp ở slide 1 và audio chạy qua slide 2–3; PowerPoint COM mở lại và đọc thuộc tính. README trích timing/relationships. Ghi handoff ngắn cho Muse trong INBOX-MAC.
+FILES CHANGED: `scripts/fixtures/make_pptx_media_loop.py`; `tests/fixtures/ooxml/pptx/media-loop/powerpoint-media-loop.pptx`; `tests/fixtures/ooxml/pptx/media-loop/tone-2s.wav`; `tests/fixtures/ooxml/pptx/media-loop/README.md`; `docs/sync/INBOX-MAC.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; `python scripts/fixtures/make_pptx_media_loop.py`; `python -m pytest tests -q -k media_loop`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; VN Slides CDP open/screenshot.
+BUILD RESULT: NOT RUN — chỉ thêm fixture, script và tài liệu.
+TEST RESULTS: PASS — PowerPoint COM 16.0 reopen, 3 slides, 54,759-byte PPTX; audio readback `LoopUntilStopped=-1`, `HideWhileNotPlaying=-1`, `StopAfterSlides=2`; pytest 4/4; npm 3886/3886; i18n VI/EN missing 0; checklist rows downgraded 0.
+KNOWN FAILURES: Video BLOCKED (không có ffmpeg/encoder, chưa có `<p:video>`). CDP mở fixture không xong sau 15 giây; overlay loading và slide canvas trống.
+RISKS: Fixture hiện chỉ có audio, chưa đáp ứng phần video của Muse L6; khi có ffmpeg, chạy script để tạo MP4 và PPTX đầy đủ.
+DEPENDENCIES/BLOCKERS: Máy Windows có PowerPoint để tạo lại; ffmpeg/encoder để bổ sung video. VN Slides import hang cần phiếu sửa riêng.
+CORE PATCH ID (if any): None.
+GIAO DIEN DA XEM: VN Slides editor 1366×706 — ảnh `E:\VNOffice-briefs\logs\Q76-slides.png`; ribbon hiển thị, không thấy thông báo lỗi, nhưng overlay “Đang mở tài liệu...” che canvas suốt 15 giây; ghi nhận lỗi mở tệp, không sửa theo phạm vi Q76.
+NEXT ACTION: Muse dùng audio fixture/XML evidence hiện có và bổ sung video từ máy có encoder; giao lỗi VN Slides import sang phiếu riêng.
+
+## CODEX Q73 — Sửa ba lỗi hiển thị Writer đã tái hiện (01/11/2026)
+
+TASK: Q73 — Khắc phục tương phản tối trên tài liệu nhập, cuộn ngang legacy07.doc và tiêu đề bìa d24.docx; kiểm tra d03.docx, số trang và round-trip.
+AGENT/ROLE: Codex / Windows Writer UI.
+BRANCH: codex/q73; `git merge main` — Already up to date.
+WORKTREE: E:\VNOffice-codex-q73.
+OBJECTIVE: Tái hiện bằng CDP app thật ở 1366×768, chụp/xem Sáng và Tối, sửa ở CSS/adapter, giữ nguyên dữ liệu nguồn và kết quả DOCX.
+FINDINGS: legacy07 tối có chữ đen/nền #1e1e1e, contrast 1.26:1 (min sample 1.10:1); nội dung FONT dài làm trang scrollWidth=4497px/794px. d24 bìa có hai tiêu đề trắng trong dải logo: y=228–313px theo trang. d03: CDP đo các range chữ trang đầu không có cặp giao nhau; Word COM nguồn=1 trang, app canvas=3 trang. Ảnh hiện tại không tái hiện chồng chữ.
+IMPLEMENTATION SUMMARY: (1) CSS tài liệu nhập giữ giấy trắng ở giao diện tối, chữ legacy07 min contrast sau sửa 8.59:1. (2) `overflow-wrap:anywhere` cho font runs nhập loại bỏ cuộn ngang trang legacy07. (3) Hai tiêu đề bìa trắng 24pt được dịch lên 150px, ra khỏi dải logo mà không đổi luồng lưu. Không sửa d03 vì lỗi chồng chữ không tái hiện; không đổi fixture.
+FILES CHANGED: `apps/writer/writer.css`; `tests/live/cdp/q73-writer-display-regressions.desktop.mjs`; handoff này.
+COMMITS: `9d2537ab` tương phản trang nhập; `bf93e9ea` ngắt chuỗi legacy; `153e31da` đặt lại tiêu đề bìa. Handoff commit riêng sau ba commit lỗi.
+COMMANDS RUN: CDP regression mỗi lỗi trước/sau; CDP pagination legacy06/13/14/20; Word COM ẩn đọc số trang và hình d24; `node tests/run-tests.js`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; ba `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer and (import or page or layout or legacy)"`; `git diff --check`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS Node 3886/3886 qua cả hai lệnh; PASS i18n VI=3229, EN=3229, missing=0; PASS verifier 0 dòng hạ; PASS pytest 65 passed, 1154 deselected. CDP dark baseline FAIL contrast 1.10:1 → PASS 8.59:1; legacy07 baseline FAIL page scrollWidth 4497/794 → PASS 794/794; d24 baseline FAIL tiêu đề giao dải logo y=228–313 → PASS y=78–163. CDP d03 baseline và sau đều PASS kiểm tra giao nhau (0 cặp), không sửa.
+ROUND-TRIP: PASS 5/5 bản sao DOCX lưu ra thư mục ngoài repo, Word COM khớp: d01 19/19, d02 11/11, d03 1/1, d07 23/23, d13 10/10. Word COM đọc nguồn đủ 8/8 trang đúng kỳ vọng, gồm d06=3, d20=3, d24=16; các lượt lưu thử d06/d20/d24 không hoàn tất vì app báo “Hết thời gian chờ khi chuyển đổi tài liệu”, nên không tính là lưu PASS. Nguồn không bị ghi đè. CDP legacy06/13/14/20 sau CSS PASS 4/4 trang: 3/3, 1/1, 15/15, 1/1. Q70 trước task đã đo 20/20 legacy; toàn bộ corpus 20 tệp chưa chạy lại sau CSS.
+KNOWN FAILURES: d03 issue “nội dung chồng lấn” không tái hiện ở ảnh/CDP hiện tại; chênh lệch app canvas 3 trang và Word 1 trang vẫn còn. Không tuyên bố đã sửa chồng chữ. d06/d20/d24 round-trip mới BLOCKED do timeout chuyển đổi; d24 đã mở được trong phiên app_session_server dùng để sửa bìa. Full legacy01–20 canvas regression sau thay đổi NOT RUN.
+RISKS: CSS nền trắng áp dụng cho mọi trang nhập khi ở giao diện tối; đây là lựa chọn được brief cho phép để giữ màu chữ tự động dễ đọc. Ngắt wrap ảnh hưởng trường FONT dài không có khoảng trắng; legacy07 vẫn 4 trang app trong ảnh trước/sau. Hình chữ nhật xanh bị cắt ở mép phải trong ảnh d24 sau sửa là nội dung nguồn/đối tượng khác, ghi nhận ngoài scope.
+DEPENDENCIES/BLOCKERS: Cần ảnh/fixture hoặc cách tái hiện hiện hành nếu d03 còn chồng chữ ở môi trường người dùng; cần lượt app chuyển đổi DOCX ổn định để lưu lại d06/d20/d24; cần chạy lại corpus legacy20 trước khi xác nhận gate 20/20 sau thay đổi.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: 1366×768, Sáng/Tối: legacy07 trước/sau (trước: chữ chìm + cuộn ngang; sau: chữ đọc được, trang vừa khung); d03 trước/sau (không thấy range chồng nhau, canvas vẫn 3 trang); d24 trước/sau (tiêu đề tách khỏi logo; hai hình chữ nhật xanh còn bị cắt mép phải); legacy06/13/14/20 sau (đếm trang đúng, không thấy lỗi che/cắt mới); d07/d13 sau (nội dung tải đủ, bố cục đọc được); dialog timeout d06/d20/d24 (nằm gọn, nút Đồng ý thấy rõ). Ảnh nằm dưới `E:\VNOffice-briefs\runs\Q73\ui-shots` và `E:\VNOffice-briefs\runs\Q73\q57-regression\q57-screenshots`.
+NEXT ACTION: Tạo `E:\VNOffice-briefs\logs\Q73.DONE` ghi trạng thái PARTIAL/BLOCKED; không chuyển phiếu kế tiếp trước khi xử lý quyết định d03, chạy lại DOCX bị timeout và xác nhận corpus legacy20 sau CSS.
