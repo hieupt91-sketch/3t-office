@@ -65,4 +65,15 @@ final class FormulaSyntaxTests: XCTestCase {
             XCTAssertThrowsError(try FormulaParser.parse(bad), bad)
         }
     }
+
+    func testArrayConstantSyntax() throws {
+        XCTAssertEqual(try FormulaParser.parse("{1,2;3,4}"),
+                       .array([[.number(1), .number(2)], [.number(3), .number(4)]]), "hằng mảng 2x2")
+        XCTAssertEqual(try FormulaParser.parse("{1;2;3}"),
+                       .array([[.number(1)], [.number(2)], [.number(3)]]), "cột hằng")
+        XCTAssertEqual(try FormulaParser.parse("{-1,\"a\",TRUE,#N/A}"),
+                       .array([[.number(-1), .string("a"), .bool(true), .error("#N/A")]]), "hằng hỗn hợp")
+        XCTAssertThrowsError(try FormulaParser.parse("{1,2;3}"), "mảng không chữ nhật phải lỗi")
+        XCTAssertThrowsError(try FormulaParser.parse("{1,A1}"), "tham chiếu trong hằng mảng phải lỗi")
+    }
 }

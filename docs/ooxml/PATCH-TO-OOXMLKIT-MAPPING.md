@@ -618,3 +618,34 @@ flowchart TD
 
 ---
 *Tài liệu được khởi tạo bằng công cụ AST và đã hoàn tất kiểm chứng chất lượng độc lập theo phiếu việc AGY-W0b (đã kiểm 25/179 mẫu, sai 10 và hiệu chỉnh thành công).* 
+## 7. Đối chiếu lần hai — 2026-11-02 (gói L7, nhánh `muse/l7-mapping-gaps-0211`)
+
+Mục này chốt trạng thái 21 hàng "MỘT PHẦN/CHƯA CÓ" của §6 sau các gói L4/L5/L6 và phần bổ sung field 02/11. Kết quả: **20/21 hàng ĐÃ CÓ**, còn đúng 1 hàng chờ điều kiện ngoài (STT 84 — fixture).
+
+### 7.1. Sáu hàng "MỘT PHẦN" của §6
+
+| STT | Trạng thái chốt | Bằng chứng |
+|---|---|---|
+| 17 | **ĐÃ CÓ (gói L7)** | `Worksheet.autoFilterRange`/`autoFilterColumns` đọc tiêu chí theo cột (values/customFilters/top10; dateGroupItem/colorFilter/dynamicFilter/iconFilter đọc là `.unsupported`); `setAutoFilterCriterion(column:_:)` ghi/gỡ từng cột, giữ nguyên các cột khác và cấu trúc gốc; bridge `sheet.autoFilter` + `sheet.setAutoFilterCriterion`. Test `testAutoFilterCriteriaRoundTrip` (đọc–ghi–mở lại + các ca lỗi). Trước L7 chỉ có đặt vùng (`setAutoFilter(range:)`, STT 21). |
+| 171 | **ĐÃ CÓ (gói L7)** | `Paragraph.insertField(instruction:result:beforeRunIndex:)` chèn field phức hợp ngay trước run chỉ định (0-based theo thứ tự run của API); bridge `doc.insertField` nhận thêm `before`. Cùng allowlist/kiểm tra như `appendField`, lỗi trước khi sửa tài liệu. Test `testInsertFieldAtPosition`. |
+| 189 | ĐÃ CÓ (gói L5) | Chèn footnote/endnote — xem §6 và INBOX-WIN #34. |
+| 199 | ĐÃ CÓ (gói L5) | rPrChange/pPrChange + accept/reject khôi phục — xem INBOX-WIN #34. |
+| 202 | ĐÃ CÓ (gói L5) | Hiệu ứng chữ w14 — xem INBOX-WIN #34. |
+| 209 | ĐÃ CÓ (gói L5) | `doc.setSpacing` (có từ trước) + hiệu ứng w14 như STT 202. |
+
+### 7.2. Mười lăm hàng "CHƯA CÓ" của §6
+
+| STT | Trạng thái chốt | Bằng chứng |
+|---|---|---|
+| 80 | **ĐÃ CÓ (gói L6)** | p:timing của slide gốc được giữ nguyên byte-khi-không-sửa theo thiết kế OPC của thư viện; API sửa hiệu ứng: `animationSteps`/`setAnimationTiming` + dựng entrance. Chưa xây builder cho emphasis/exit/motion-path (không hàng nào yêu cầu cụ thể; đọc + sửa timing cho các họ đó vẫn hoạt động). |
+| 83 | ĐÃ CÓ (gói L6) | `Slide.animationSteps` đọc spec hiệu ứng (preset, shape, thời lượng, độ trễ). |
+| 84 | **CHƯA CÓ — chờ fixture Q76** | Media timing (lặp audio/video) cần tệp mẫu PowerPoint thật; Codex đang tạo (Q76), đường dẫn sẽ báo trong INBOX-MAC. Có fixture sẽ làm ngay, không suy đoán cấu trúc từ trí nhớ spec. |
+| 85 | ĐÃ CÓ (gói L6) | `Slide.setAnimationTiming(shapeId:durationMs:delayMs:)` áp thời lượng/độ trễ cho hiệu ứng có sẵn. |
+| 90, 91 | ĐÃ CÓ (gói L6) | `Slide.transition`/`setTransition`/`removeTransition` gồm dạng AlternateContent p14. |
+| 170, 173, 174, 192, 193 | ĐÃ CÓ (bổ sung L5, 02/11) | Allowlist field mở rộng (SEQ/TOC/TOF/MERGEFIELD/IF/REF — 16 field) theo chốt Windows 02/11; xem INBOX-WIN #36. |
+| 181, 184, 185 | ĐÃ CÓ (gói L5) | Thuộc tính section đầy đủ. |
+| 198 | ĐÃ CÓ (gói L5) | Watermark. |
+
+### 7.3. Tổng kết toàn bảng
+
+217 hàng: **169 Hết cần · 46 Cần API mới nay ĐÃ CÓ (26 chốt ở §6 + 20 chốt ở §7) · 1 Cần API mới còn chờ fixture (STT 84) · 1 Vẫn cần (patch giữ nguyên, theo thiết kế)** — tổng 217. Nói cách khác, ngoài STT 84 đang chờ tệp mẫu Q76, toàn bộ nhu cầu API của lớp vá đã được thư viện đáp ứng ở tầng model + bridge.

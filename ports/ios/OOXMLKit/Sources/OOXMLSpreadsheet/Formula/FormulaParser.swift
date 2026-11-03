@@ -13,6 +13,8 @@ public indirect enum FormulaExpr: Equatable {
     case percent(FormulaExpr)
     case binary(String, FormulaExpr, FormulaExpr)
     case call(String, [FormulaExpr])
+    case empty // tham số bị bỏ trống trong lời gọi hàm, ví dụ SUM(1,,2)
+    case array([[CellValue]]) // hằng mảng {1,2;3,4}
 
     /// Mọi tham chiếu ô/vùng xuất hiện trong biểu thức (sheet nil = sheet chứa công thức).
     public var references: [(sheet: String?, range: CellRange)] {
@@ -21,6 +23,7 @@ public indirect enum FormulaExpr: Equatable {
         case .range(let s, let r): return [(s, r)]
         case .unary(_, let e), .percent(let e): return e.references
         case .binary(_, let a, let b): return a.references + b.references
+        case .empty, .array: return []
         case .call(_, let args): return args.flatMap { $0.references }
         default: return []
         }
@@ -48,6 +51,39 @@ public enum FormulaParser {
         init(tokens: [FormulaToken]) { self.tokens = tokens }
 
         var peek: FormulaToken? { pos < tokens.count ? tokens[pos] : nil }
+
+        /// Nhãn cột trần kiểu "A" / "$A" / "XFD" -> số cột; nil nếu không phải nhãn cột.
+        func columnLabel(_ word: String) -> Int? {
+            let w = word.replacingOccurrences(of: "$", with: "")
+            guard !w.isEmpty, w.allSatisfy({ $0.isLetter }) else { return nil }
+            return CellReference.columnNumber(w.uppercased())
+        }
+
+        /// Tại vị trí hiện tại (đang trỏ vào .name) có mẫu "<cột>:<cột>" hay không; nếu có trả hai số cột.
+        func wholeColumnPair() -> (Int, Int)? {
+            guard pos + 2 < tokens.count,
+                  case .name(let a) = tokens[pos], let c1 = columnLabel(a),
+                  case .colon = tokens[pos + 1],
+                  case .name(let b) = tokens[pos + 2], let c2 = columnLabel(b) else { return nil }
+            return (c1, c2)
+        }
+
+        /// Tại vị trí hiện tại (đang trỏ vào .number) có mẫu "<hàng>:<hàng>" hay không; nếu có trả hai số hàng.
+        func wholeRowPair() -> (Int, Int)? {
+            guard pos + 2 < tokens.count,
+                  case .number(let a) = tokens[pos], a == a.rounded(), (1...Double(CellReference.maxRow)).contains(a),
+                  case .colon = tokens[pos + 1],
+                  case .number(let b) = tokens[pos + 2], b == b.rounded(), (1...Double(CellReference.maxRow)).contains(b) else { return nil }
+            return (Int(a), Int(b))
+        }
+
+        static func columnRange(_ c1: Int, _ c2: Int) -> CellRange {
+            CellRange(CellReference(column: c1, row: 1), CellReference(column: c2, row: CellReference.maxRow))
+        }
+
+        static func rowRange(_ r1: Int, _ r2: Int) -> CellRange {
+            CellRange(CellReference(column: 1, row: r1), CellReference(column: CellReference.maxColumn, row: r2))
+        }
 
         mutating func matchOp(_ ops: [String]) -> String? {
             if case .op(let o)? = peek, ops.contains(o) { pos += 1; return o }
@@ -92,11 +128,33 @@ public enum FormulaParser {
         mutating func parsePrimary() throws -> FormulaExpr {
             guard let t = peek else { throw FormulaSyntaxError(message: "thiếu toán hạng", position: pos) }
             switch t {
-            case .number(let d): pos += 1; return .number(d)
+            case .number:
+                if let (r1, r2) = wholeRowPair() { pos += 3; return .range(sheet: nil, range: Parser.rowRange(r1, r2)) }
+                if case .number(let d)? = peek { pos += 1; return .number(d) }
+                throw FormulaSyntaxError(message: "token số không hợp lệ", position: pos)
             case .string(let s): pos += 1; return .string(s)
             case .bool(let b): pos += 1; return .bool(b)
             case .error(let e): pos += 1; return .error(e)
-            case .name(let n): pos += 1; return .name(n)
+            case .name(let n):
+                if let (c1, c2) = wholeColumnPair() { pos += 3; return .range(sheet: nil, range: Parser.columnRange(c1, c2)) }
+                pos += 1; return .name(n)
+            case .lbrace:
+                pos += 1
+                var rows: [[CellValue]] = []
+                var row: [CellValue] = []
+                while true {
+                    row.append(try parseConstant())
+                    if case .comma? = peek { pos += 1; continue }
+                    if case .semicolon? = peek { pos += 1; rows.append(row); row = []; continue }
+                    if case .rbrace? = peek {
+                        pos += 1; rows.append(row)
+                        guard rows.allSatisfy({ $0.count == rows[0].count }) else {
+                            throw FormulaSyntaxError(message: "hằng mảng không chữ nhật", position: pos)
+                        }
+                        return .array(rows)
+                    }
+                    throw FormulaSyntaxError(message: "thiếu '}' trong hằng mảng", position: pos)
+                }
             case .lparen:
                 pos += 1
                 let e = try parseComparison()
@@ -109,6 +167,8 @@ public enum FormulaParser {
                 var args: [FormulaExpr] = []
                 if case .rparen? = peek { pos += 1; return .call(name, args) }
                 while true {
+                    if case .comma? = peek { args.append(.empty); pos += 1; continue }
+                    if case .rparen? = peek { args.append(.empty); pos += 1; break }
                     args.append(try parseComparison())
                     if case .comma? = peek { pos += 1; continue }
                     if case .rparen? = peek { pos += 1; break }
@@ -117,6 +177,8 @@ public enum FormulaParser {
                 return .call(name, args)
             case .sheet(let sh):
                 pos += 1
+                if let (c1, c2) = wholeColumnPair() { pos += 3; return .range(sheet: sh, range: Parser.columnRange(c1, c2)) }
+                if let (r1, r2) = wholeRowPair() { pos += 3; return .range(sheet: sh, range: Parser.rowRange(r1, r2)) }
                 guard case .cell(let text)? = peek, let a = CellReference(text) else {
                     throw FormulaSyntaxError(message: "thiếu ô sau tên sheet", position: pos)
                 }
@@ -128,6 +190,26 @@ public enum FormulaParser {
                 return try finishRef(sheet: nil, first: a)
             default:
                 throw FormulaSyntaxError(message: "token không mong đợi \(t)", position: pos)
+            }
+        }
+
+        /// Một phần tử của hằng mảng: chỉ hằng số (số có dấu, chuỗi, logic, lỗi).
+        mutating func parseConstant() throws -> CellValue {
+            if case .op(let o)? = peek, o == "-" || o == "+" {
+                pos += 1
+                guard case .number(let d)? = peek else {
+                    throw FormulaSyntaxError(message: "sau dấu trong hằng mảng phải là số", position: pos)
+                }
+                pos += 1
+                return .number(o == "-" ? -d : d)
+            }
+            guard let tk = peek else { throw FormulaSyntaxError(message: "hằng mảng cụt", position: pos) }
+            switch tk {
+            case .number(let d): pos += 1; return .number(d)
+            case .string(let s): pos += 1; return .string(s)
+            case .bool(let b): pos += 1; return .bool(b)
+            case .error(let e): pos += 1; return .error(e)
+            default: throw FormulaSyntaxError(message: "hằng mảng chỉ chứa hằng số", position: pos)
             }
         }
 

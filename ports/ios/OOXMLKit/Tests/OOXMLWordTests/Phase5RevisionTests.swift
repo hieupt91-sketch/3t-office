@@ -58,4 +58,43 @@ final class Phase5RevisionTests: XCTestCase {
         XCTAssertEqual(re.paragraphs.count, n + 1, "đoạn rỗng còn lại (dấu đoạn đã bỏ đánh dấu)")
         XCTAssertEqual(re.paragraphs.last?.text, "")
     }
+
+    func testFormattingChangeMarkupRoundTrip() throws {
+        let doc = try WordDocument(data: try Fixtures.data(rich))
+        let rev = Revision(author: "Muse", date: Date(timeIntervalSince1970: 1_761_955_200))
+        let run = doc.paragraphs[0].runs[0]
+        let wasBold = run.isBold
+        run.markFormattingChange(revision: rev)
+        run.setBold(!wasBold)
+        // Đánh dấu lần hai không ghi đè bản chụp đầu tiên.
+        run.markFormattingChange(revision: Revision(author: "Khác", date: Date()))
+        let saved = try doc.save()
+        var xml = try RoundTrip.partString(saved, "word/document.xml")
+        XCTAssertEqual(xml.components(separatedBy: "<w:rPrChange").count - 1, 1, xml)
+        XCTAssertTrue(xml.contains("w:author=\"Muse\""), xml)
+        // Từ chối: định dạng quay về như trước khi sửa, markup biến mất.
+        let doc2 = try WordDocument(data: saved)
+        XCTAssertGreaterThanOrEqual(doc2.rejectAllRevisions(), 1)
+        XCTAssertEqual(doc2.paragraphs[0].runs[0].isBold, wasBold)
+        xml = try RoundTrip.partString(try doc2.save(), "word/document.xml")
+        XCTAssertFalse(xml.contains("<w:rPrChange"), xml)
+        // Chấp nhận: giữ định dạng mới, markup biến mất.
+        let doc3 = try WordDocument(data: saved)
+        XCTAssertGreaterThanOrEqual(doc3.acceptAllRevisions(), 1)
+        XCTAssertEqual(doc3.paragraphs[0].runs[0].isBold, !wasBold)
+        xml = try RoundTrip.partString(try doc3.save(), "word/document.xml")
+        XCTAssertFalse(xml.contains("<w:rPrChange"), xml)
+        // Cấp đoạn: pPrChange chụp pPr trước khi đổi giãn đoạn.
+        let p = doc3.paragraphs[0]
+        p.markFormattingChange(revision: rev)
+        try p.setSpacing(before: 240)
+        let savedP = try doc3.save()
+        let xmlP = try RoundTrip.partString(savedP, "word/document.xml")
+        XCTAssertTrue(xmlP.contains("<w:pPrChange"), xmlP)
+        let doc4 = try WordDocument(data: savedP)
+        _ = doc4.rejectAllRevisions()
+        let xmlP2 = try RoundTrip.partString(try doc4.save(), "word/document.xml")
+        XCTAssertFalse(xmlP2.contains("<w:pPrChange"), xmlP2)
+        XCTAssertFalse(xmlP2.contains("w:before=\"240\""), xmlP2)
+    }
 }

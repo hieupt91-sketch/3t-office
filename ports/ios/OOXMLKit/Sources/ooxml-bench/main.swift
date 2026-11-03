@@ -2,6 +2,8 @@ import Foundation
 import OOXMLZip
 import OOXMLPackage
 import OOXMLSpreadsheet
+import OOXMLWord
+import OOXMLPresentation
 
 // Dùng: ooxml-bench gen <bytes-xấp-xỉ> <đường-dẫn.xlsx>
 //       ooxml-bench run <chế-độ> <đường-dẫn.xlsx>
@@ -88,6 +90,23 @@ func run(mode: String, path: String) throws {
         try wb.save(to: out)
         try? FileManager.default.removeItem(at: out)
         detail = String(format: "open=%.3fs edit+save=%.3fs", tOpen - t0, now() - tOpen)
+    case "word-open":
+        let doc = try WordDocument(data: try Data(contentsOf: url))
+        detail = "paragraphs=\(doc.paragraphs.count)"
+    case "word-save":
+        let doc = try WordDocument(data: try Data(contentsOf: url))
+        let tOpen = now()
+        doc.appendParagraph("bench")
+        let data = try doc.save()
+        detail = String(format: "open=%.3fs edit+save=%.3fs out=%.2fMB", tOpen - t0, now() - tOpen, Double(data.count) / 1e6)
+    case "slides-open":
+        let pres = try Presentation(data: try Data(contentsOf: url))
+        detail = "slides=\(pres.slides.count)"
+    case "slides-save":
+        let pres = try Presentation(data: try Data(contentsOf: url))
+        let tOpen = now()
+        let data = try pres.save()
+        detail = String(format: "open=%.3fs save=%.3fs out=%.2fMB", tOpen - t0, now() - tOpen, Double(data.count) / 1e6)
     default:
         FileHandle.standardError.write(Data("chế độ không hợp lệ: \(mode)\n".utf8)); exit(2)
     }

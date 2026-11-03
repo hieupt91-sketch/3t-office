@@ -100,6 +100,34 @@ public struct CFRule: Equatable, Sendable {
     }
 }
 
+/// Một điều kiện lọc tùy chỉnh (toán tử + giá trị so sánh dạng chuỗi).
+public struct FilterCondition: Equatable, Sendable {
+    public let op: String
+    public let value: String
+    public init(op: String, value: String) { self.op = op; self.value = value }
+}
+
+/// Tiêu chí lọc của một cột trong vùng AutoFilter (SpreadsheetML `filterColumn`).
+/// `unsupported` là dạng chỉ-đọc cho các cột dùng cơ chế thư viện chưa mô hình
+/// hoá (nhóm ngày `dateGroupItem`, `colorFilter`, `dynamicFilter`, `iconFilter`):
+/// đặt một tiêu chí khác lên cột đó sẽ thay toàn bộ `filterColumn` của cột.
+public enum AutoFilterCriterion: Equatable, Sendable {
+    case values([String])
+    case custom([FilterCondition], and: Bool)
+    case top10(top: Bool, percent: Bool, value: Double)
+    case unsupported
+}
+
+/// Một cột có tiêu chí lọc: `column` là colId 0-based tính từ cột đầu vùng lọc.
+public struct AutoFilterColumn: Equatable, Sendable {
+    public let column: Int
+    public let criterion: AutoFilterCriterion
+    public init(column: Int, criterion: AutoFilterCriterion) {
+        self.column = column
+        self.criterion = criterion
+    }
+}
+
 /// Quy tắc nhập liệu theo chuẩn SpreadsheetML.
 public struct DataValidationRule: Equatable, Sendable {
     public let type: String
@@ -226,6 +254,14 @@ public final class Worksheet {
     private var maxRowNumber = 0
     private var sharedMasters: [String: (ref: CellReference, formula: String)] = [:]
     private var arrayRanges: [(range: CellRange, master: CellReference)] = []
+
+    /// Các công thức mảng (CSE) đọc được từ tệp: vùng + ô chủ + văn bản công thức của ô chủ.
+    public var arrayFormulas: [(range: CellRange, master: CellReference, formula: String)] {
+        arrayRanges.compactMap { (range, master) in
+            guard let f = cell(master)?.formula else { return nil }
+            return (range, master, f)
+        }
+    }
 
     static let worksheetOrder = ["sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData", "sheetCalcPr",
                                  "sheetProtection", "protectedRanges", "scenarios", "autoFilter", "sortState", "dataConsolidate",
@@ -488,6 +524,122 @@ public final class Worksheet {
         guard let filter = document.root.firstChild(NS.s, "autoFilter") else { return }
         filter.removeFromParent()
         workbook.package.markModified(part)
+    }
+
+    /// Vùng AutoFilter hiện tại của trang tính (nil nếu chưa đặt).
+    public var autoFilterRange: CellRange? {
+        guard let filter = document.root.firstChild(NS.s, "autoFilter"),
+              let ref = filter.attribute("ref") else { return nil }
+        return CellRange(ref)
+    }
+
+    /// Các tiêu chí lọc theo cột đang có trong vùng AutoFilter, xếp theo colId.
+    /// Cột dùng cơ chế chưa mô hình hoá trả về `.unsupported` (xem AutoFilterCriterion).
+    public var autoFilterColumns: [AutoFilterColumn] {
+        guard let filter = document.root.firstChild(NS.s, "autoFilter") else { return [] }
+        return filter.children(NS.s, "filterColumn").compactMap { fc -> AutoFilterColumn? in
+            guard let colId = fc.attribute("colId").flatMap(Int.init) else { return nil }
+            return AutoFilterColumn(column: colId, criterion: Self.readFilterCriterion(fc))
+        }.sorted { $0.column < $1.column }
+    }
+
+    private static func readFilterCriterion(_ fc: XElement) -> AutoFilterCriterion {
+        if let filters = fc.firstChild(NS.s, "filters") {
+            if filters.children(NS.s, "dateGroupItem").isEmpty {
+                return .values(filters.children(NS.s, "filter").compactMap { $0.attribute("val") })
+            }
+            return .unsupported
+        }
+        if let custom = fc.firstChild(NS.s, "customFilters") {
+            let conditions = custom.children(NS.s, "customFilter").map {
+                FilterCondition(op: $0.attribute("operator") ?? "equal", value: $0.attribute("val") ?? "")
+            }
+            return .custom(conditions, and: custom.attribute("and") == "1")
+        }
+        if let top = fc.firstChild(NS.s, "top10"), let val = top.attribute("val").flatMap(Double.init) {
+            return .top10(top: top.attribute("top") != "0", percent: top.attribute("percent") == "1", value: val)
+        }
+        return .unsupported
+    }
+
+    /// Đặt (hoặc gỡ, khi `criterion` là nil) tiêu chí lọc cho một cột của vùng
+    /// AutoFilter — phần còn thiếu của STT mapping 17. `column` là colId 0-based
+    /// tính từ cột đầu của vùng; trang tính phải đã có vùng lọc (đặt trước bằng
+    /// `setAutoFilter(range:)`). Ghi đè toàn bộ `filterColumn` của cột đó; các
+    /// cột khác giữ nguyên. Thư viện chỉ ghi tiêu chí vào tệp — Excel/LibreOffice
+    /// tự áp dụng (ẩn dòng) khi mở, giống hành vi ghi của mọi API cấu trúc khác.
+    public func setAutoFilterCriterion(column: Int, _ criterion: AutoFilterCriterion?) throws {
+        guard let filter = document.root.firstChild(NS.s, "autoFilter"),
+              let range = autoFilterRange else {
+            throw SpreadsheetError.invalidSetting("chưa có vùng AutoFilter để đặt tiêu chí lọc")
+        }
+        let width = range.end.column - range.start.column + 1
+        guard column >= 0, column < width else {
+            throw SpreadsheetError.invalidSetting("cột lọc \(column) ngoài vùng \(range)")
+        }
+        let existing = filter.children(NS.s, "filterColumn")
+        let target = existing.first { $0.attribute("colId") == String(column) }
+        if let criterion {
+            try Self.validateFilterCriterion(criterion)
+            let fc = XElement(name: q("filterColumn"), attributes: [XAttribute(name: "colId", value: String(column))])
+            Self.writeFilterCriterion(criterion, into: fc, qualify: { q($0) })
+            if let target {
+                filter.insert(fc, before: target)
+                target.removeFromParent()
+            } else if let after = existing.first(where: { ($0.attribute("colId").flatMap(Int.init) ?? -1) > column }) {
+                filter.insert(fc, before: after)
+            } else {
+                filter.append(fc)
+            }
+        } else {
+            target?.removeFromParent()
+        }
+        workbook.package.markModified(part)
+    }
+
+    private static func validateFilterCriterion(_ criterion: AutoFilterCriterion) throws {
+        let operators: Set<String> = ["equal", "notEqual", "greaterThan", "greaterThanOrEqual", "lessThan", "lessThanOrEqual"]
+        switch criterion {
+        case .values(let values):
+            guard !values.isEmpty, values.allSatisfy({ !$0.isEmpty }) else {
+                throw SpreadsheetError.invalidSetting("danh sách giá trị lọc phải khác rỗng")
+            }
+        case .custom(let conditions, _):
+            guard (1...2).contains(conditions.count),
+                  conditions.allSatisfy({ operators.contains($0.op) }) else {
+                throw SpreadsheetError.invalidSetting("điều kiện lọc tùy chỉnh không hợp lệ (1-2 điều kiện, toán tử equal/notEqual/greaterThan/greaterThanOrEqual/lessThan/lessThanOrEqual)")
+            }
+        case .top10(_, _, let value):
+            guard value > 0 else { throw SpreadsheetError.invalidSetting("giá trị top10 phải lớn hơn 0") }
+        case .unsupported:
+            throw SpreadsheetError.invalidSetting("không ghi được tiêu chí dạng unsupported")
+        }
+    }
+
+    private static func writeFilterCriterion(_ criterion: AutoFilterCriterion, into fc: XElement, qualify: (String) -> String) {
+        func fmt(_ d: Double) -> String { d == d.rounded() && abs(d) < 1e15 ? String(Int(d)) : String(d) }
+        switch criterion {
+        case .values(let values):
+            let filters = XElement(name: qualify("filters"))
+            for v in values { filters.append(XElement(name: qualify("filter"), attributes: [XAttribute(name: "val", value: v)])) }
+            fc.append(filters)
+        case .custom(let conditions, let and):
+            var attrs: [XAttribute] = []
+            if and { attrs.append(XAttribute(name: "and", value: "1")) }
+            let custom = XElement(name: qualify("customFilters"), attributes: attrs)
+            for c in conditions {
+                custom.append(XElement(name: qualify("customFilter"), attributes: [
+                    XAttribute(name: "operator", value: c.op), XAttribute(name: "val", value: c.value)]))
+            }
+            fc.append(custom)
+        case .top10(let top, let percent, let value):
+            fc.append(XElement(name: qualify("top10"), attributes: [
+                XAttribute(name: "top", value: top ? "1" : "0"),
+                XAttribute(name: "percent", value: percent ? "1" : "0"),
+                XAttribute(name: "val", value: fmt(value))]))
+        case .unsupported:
+            break
+        }
     }
 
     /// Thêm một quy tắc định dạng có điều kiện cho vùng ô.
