@@ -40,7 +40,13 @@ try {
     enterTimes.push({ from, to, ms: +(to - from).toFixed(1) });
   }
   await sleep(1200);
+  await evaluate("window.__q82LongTasks=[]");
+  const undoFrom = await evaluate("performance.now()");
+  await press(session.cdp, "z", { ctrl: true }, 0);
+  await frame();
+  const undoTo = await evaluate("performance.now()");
   const observed = JSON.parse(await evaluate(`JSON.stringify((()=>{const a=window.__vnoAppInstance.adapter;const s=[...${JSON.stringify(latency)}].sort((x,y)=>x-y);return {latency:{n:s.length,p50:s[Math.floor(.5*s.length)],p95:s[Math.floor(.95*s.length)],max:s.at(-1)},letters:${JSON.stringify(letters)},enterTimes:${JSON.stringify(enterTimes)},snapshotCalls:a.__q82SnapshotCalls,snapshotCallers:a.__q82SnapshotCallers,longTasks:window.__q82LongTasks||[]}})())`));
+  observed.undoMs = +(undoTo - undoFrom).toFixed(1);
   const failures = [];
   if (observed.latency.p95 > 50) failures.push(`p95 ${observed.latency.p95}ms > 50ms`);
   if (observed.latency.max > 100) failures.push(`max ${observed.latency.max}ms > 100ms`);

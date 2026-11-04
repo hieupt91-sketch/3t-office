@@ -19921,6 +19921,7 @@ export class WriterAdapter {
    * Cam kết các ký tự đang gõ dở dang vào snapshot trước khi thực hiện thao tác rời rạc hoặc Undo
    */
   flushTyping() {
+    if (!this._typingHasUncommittedChanges && !this._typingDebounceTimer) return;
     if (this._typingDebounceTimer) {
       clearTimeout(this._typingDebounceTimer);
       this._typingDebounceTimer = null;
@@ -19940,6 +19941,7 @@ export class WriterAdapter {
       this.recordSnapshot("Typing Commit");
     } else {
       this._typingHasUncommittedChanges = false;
+      if (current.selection) this._lastSnapshot.selection = current.selection;
     }
   }
 
@@ -20001,7 +20003,9 @@ export class WriterAdapter {
       return false;
     }
 
-    const currentSnapshot = this._createSnapshot("Current for Redo");
+    // flushTyping has already committed the current DOM and caret bookmark. Reuse
+    // that snapshot instead of serializing the same large document a second time.
+    const currentSnapshot = this._lastSnapshot || this._createSnapshot("Current for Redo");
     this.redoStack.push(currentSnapshot);
     if (this.redoStack.length > this.maxUndoStack) {
       this.redoStack.shift();
@@ -20032,7 +20036,7 @@ export class WriterAdapter {
       return false;
     }
 
-    const currentSnapshot = this._createSnapshot("Current for Undo");
+    const currentSnapshot = this._lastSnapshot || this._createSnapshot("Current for Undo");
     this.undoStack.push(currentSnapshot);
     if (this.undoStack.length > this.maxUndoStack) {
       this.undoStack.shift();
