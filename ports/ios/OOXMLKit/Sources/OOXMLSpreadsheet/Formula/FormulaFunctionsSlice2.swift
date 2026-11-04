@@ -90,6 +90,8 @@ extension FormulaEvaluator {
         case "MEDIAN": return try median(a)
         case "LARGE", "SMALL": return try largeSmall(name == "LARGE", a)
         case "RANK": return try rank(a)
+        case "PERCENTILE", "PERCENTILE.INC": return try percentileInc(a)
+        case "QUARTILE", "QUARTILE.INC": return try quartileInc(a)
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
@@ -663,6 +665,35 @@ extension FormulaEvaluator {
         let ascending = a.count == 3 ? try nm(a[2]).rounded(.towardZero) != 0 : false
         let beaten = ascending ? nums.filter { $0 < x }.count : nums.filter { $0 > x }.count
         return .number(Double(beaten + 1))
+    }
+
+    /// Nội suy tuyến tính trên dãy đã sắp: rank = k * (n - 1), k ∈ [0, 1].
+    private func percentileValue(_ nums: [Double], _ k: Double) -> Double {
+        let rank = k * Double(nums.count - 1)
+        let lo = Int(rank.rounded(.down))
+        let frac = rank - Double(lo)
+        guard lo + 1 < nums.count else { return nums[lo] }
+        return nums[lo] * (1 - frac) + nums[lo + 1] * frac
+    }
+
+    /// M7: PERCENTILE.INC — phân vị nội suy tuyến tính (k ∈ [0, 1]).
+    /// Dữ liệu rỗng hoặc k ngoài [0, 1] → #NUM!; PERCENTILE (không hậu tố) là bí danh cũ, cùng nghĩa.
+    private func percentileInc(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let nums = try orderStatsNumbers([a[0]]).sorted()
+        let k = try nm(a[1])
+        guard !nums.isEmpty, k >= 0, k <= 1 else { throw fail(FormulaErrors.num) }
+        return .number(percentileValue(nums, k))
+    }
+
+    /// M7: QUARTILE.INC — tứ phân vị qua PERCENTILE.INC với k = quart / 4.
+    /// quart cắt về nguyên, ngoài 0...4 → #NUM!; QUARTILE (không hậu tố) là bí danh cũ, cùng nghĩa.
+    private func quartileInc(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let nums = try orderStatsNumbers([a[0]]).sorted()
+        let quart = try nm(a[1]).rounded(.towardZero)
+        guard !nums.isEmpty, quart >= 0, quart <= 4 else { throw fail(FormulaErrors.num) }
+        return .number(percentileValue(nums, quart / 4))
     }
 
     // MARK: Điều kiện / thống kê
