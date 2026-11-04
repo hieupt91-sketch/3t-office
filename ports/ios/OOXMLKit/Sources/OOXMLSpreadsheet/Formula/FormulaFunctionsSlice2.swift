@@ -101,6 +101,12 @@ extension FormulaEvaluator {
         case "MODE", "MODE.SNGL": return try mode(a)
         case "AVEDEV": return try avedev(a)
         case "DEVSQ": return try devsq(a)
+        case "GEOMEAN": return try geomean(a)
+        case "HARMEAN": return try harmean(a)
+        case "TRIMMEAN": return try trimmean(a)
+        case "SKEW": return try skew(population: false, a)
+        case "SKEW.P": return try skew(population: true, a)
+        case "KURT": return try kurt(a)
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
@@ -805,6 +811,88 @@ extension FormulaEvaluator {
         let mean = nums.reduce(0, +) / Double(nums.count)
         let ss = nums.reduce(0) { $0 + ($1 - mean) * ($1 - mean) }
         return .number(ss)
+    }
+
+    /// M7: GEOMEAN — trung bình nhân; bất kỳ giá trị nào ≤ 0 hoặc
+    /// không có số nào → #NUM! (Excel).
+    private func geomean(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...255)
+        let nums = try orderStatsNumbers(a)
+        guard !nums.isEmpty, nums.allSatisfy({ $0 > 0 }) else { throw fail(FormulaErrors.num) }
+        let logSum = nums.reduce(0) { $0 + log($1) }
+        return .number(exp(logSum / Double(nums.count)))
+    }
+
+    /// M7: HARMEAN — trung bình điều hòa; bất kỳ giá trị nào ≤ 0 hoặc
+    /// không có số nào → #NUM! (Excel).
+    private func harmean(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...255)
+        let nums = try orderStatsNumbers(a)
+        guard !nums.isEmpty, nums.allSatisfy({ $0 > 0 }) else { throw fail(FormulaErrors.num) }
+        let invSum = nums.reduce(0) { $0 + 1 / $1 }
+        return .number(Double(nums.count) / invSum)
+    }
+
+    /// M7: TRIMMEAN — trung bình sau khi cắt đối xứng hai đầu.
+    /// percent ∉ [0, 1] → #NUM!; số lượng cắt = percent × n, làm tròn
+    /// xuống bội số chẵn gần nhất, chia đều hai đầu (Excel). Không có
+    /// số nào, hoặc cắt hết → #DIV/0!.
+    private func trimmean(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let nums = try orderStatsNumbers([a[0]]).sorted()
+        let percent = try nm(a[1])
+        guard percent >= 0, percent <= 1 else { throw fail(FormulaErrors.num) }
+        guard !nums.isEmpty else { throw fail(FormulaErrors.div0) }
+        let excluded = Int((percent * Double(nums.count)).rounded(.down)) / 2 * 2
+        let eachEnd = excluded / 2
+        let kept = Array(nums[eachEnd..<(nums.count - eachEnd)])
+        guard !kept.isEmpty else { throw fail(FormulaErrors.div0) }
+        return .number(kept.reduce(0, +) / Double(kept.count))
+    }
+
+    /// M7: SKEW — độ lệch mẫu: n / ((n − 1)(n − 2)) × Σ((x − mean) / s)³,
+    /// s là độ lệch chuẩn mẫu. Cần n ≥ 3; s = 0 → #DIV/0! (Excel).
+    /// SKEW.P — độ lệch tổng thể: (1/n) × Σ((x − mean) / σ)³, σ là độ
+    /// lệch chuẩn tổng thể; σ = 0 (kể cả n = 1) → #DIV/0!.
+    private func skew(population: Bool, _ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...255)
+        let nums = try orderStatsNumbers(a)
+        let n = nums.count
+        guard !nums.isEmpty else { throw fail(FormulaErrors.div0) }
+        let mean = nums.reduce(0, +) / Double(n)
+        if population {
+            let m2 = nums.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(n)
+            guard m2 > 0 else { throw fail(FormulaErrors.div0) }
+            let sigma = m2.squareRoot()
+            let m3 = nums.reduce(0) { $0 + pow(($1 - mean) / sigma, 3) } / Double(n)
+            return .number(m3)
+        }
+        guard n >= 3 else { throw fail(FormulaErrors.div0) }
+        let s2 = nums.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(n - 1)
+        guard s2 > 0 else { throw fail(FormulaErrors.div0) }
+        let s = s2.squareRoot()
+        let sum = nums.reduce(0) { $0 + pow(($1 - mean) / s, 3) }
+        return .number(Double(n) / Double((n - 1) * (n - 2)) * sum)
+    }
+
+    /// M7: KURT — độ nhọn thừa mẫu (excess kurtosis):
+    /// n(n + 1) / ((n − 1)(n − 2)(n − 3)) × Σ((x − mean) / s)⁴
+    /// − 3(n − 1)² / ((n − 2)(n − 3)), s là độ lệch chuẩn mẫu.
+    /// Cần n ≥ 4; s = 0 → #DIV/0! (Excel).
+    private func kurt(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...255)
+        let nums = try orderStatsNumbers(a)
+        let n = nums.count
+        guard n >= 4 else { throw fail(FormulaErrors.div0) }
+        let mean = nums.reduce(0, +) / Double(n)
+        let s2 = nums.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(n - 1)
+        guard s2 > 0 else { throw fail(FormulaErrors.div0) }
+        let s = s2.squareRoot()
+        let m4 = nums.reduce(0) { $0 + pow(($1 - mean) / s, 4) }
+        let nn = Double(n)
+        let term1 = nn * (nn + 1) / Double((n - 1) * (n - 2) * (n - 3)) * m4
+        let term2 = 3 * pow(nn - 1, 2) / Double((n - 2) * (n - 3))
+        return .number(term1 - term2)
     }
 
     // MARK: Điều kiện / thống kê
