@@ -20803,8 +20803,11 @@ export class WriterAdapter {
       this.isDirty = true;
       this._syncNotesFromDom();
       if (event?.inputType === "insertParagraph") {
-        this.flushTyping();
-        this.recordSnapshot("writer.text.newParagraph");
+        // The DOM already contains the paragraph break when `input` fires. Commit
+        // it with the current typing group after the user pauses, so a large
+        // document is not serialized synchronously for every Enter key.
+        this._typingHasUncommittedChanges = true;
+        this._scheduleTypingSnapshot();
       } else {
         // The pre-edit selection has already been captured by beforeinput. Avoid
         // serializing the whole document to refresh that same undo bookmark after
