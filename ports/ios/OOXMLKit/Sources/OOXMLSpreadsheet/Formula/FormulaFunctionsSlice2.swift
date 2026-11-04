@@ -92,6 +92,8 @@ extension FormulaEvaluator {
         case "RANK": return try rank(a)
         case "PERCENTILE", "PERCENTILE.INC": return try percentileInc(a)
         case "QUARTILE", "QUARTILE.INC": return try quartileInc(a)
+        case "PERCENTILE.EXC": return try percentileExc(a)
+        case "QUARTILE.EXC": return try quartileExc(a)
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
@@ -694,6 +696,40 @@ extension FormulaEvaluator {
         let quart = try nm(a[1]).rounded(.towardZero)
         guard !nums.isEmpty, quart >= 0, quart <= 4 else { throw fail(FormulaErrors.num) }
         return .number(percentileValue(nums, quart / 4))
+    }
+
+    /// Nội suy loại trừ trên dãy đã sắp: rank = k * (n + 1), k ∈ (0, 1) — khác
+    /// .INC ở chỗ rank tính trên n + 1 nên hai đầu 0% và 100% không tính được.
+    /// rank < 1 hoặc rank > n → #NUM! (Excel).
+    private func percentileExcValue(_ nums: [Double], _ k: Double) throws -> Double {
+        let rank = k * Double(nums.count + 1)
+        guard rank >= 1, rank <= Double(nums.count) else { throw fail(FormulaErrors.num) }
+        let lo = Int(rank.rounded(.down))
+        let frac = rank - Double(lo)
+        guard lo < nums.count else { return nums[lo - 1] }
+        if frac == 0 { return nums[lo - 1] }
+        return nums[lo - 1] * (1 - frac) + nums[lo] * frac
+    }
+
+    /// M7: PERCENTILE.EXC — phân vị loại trừ (k ∈ (0, 1), hai đầu bị loại).
+    /// Dữ liệu rỗng, k ngoài (0, 1), hoặc rank rơi ngoài dãy → #NUM!.
+    private func percentileExc(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let nums = try orderStatsNumbers([a[0]]).sorted()
+        let k = try nm(a[1])
+        guard !nums.isEmpty, k > 0, k < 1 else { throw fail(FormulaErrors.num) }
+        return .number(try percentileExcValue(nums, k))
+    }
+
+    /// M7: QUARTILE.EXC — tứ phân vị qua PERCENTILE.EXC với k = quart / 4.
+    /// quart cắt về nguyên, ngoài 0...4 → #NUM!; quart 0 và 4 → #NUM! vì
+    /// k = 0 và k = 1 bị loại khỏi phương pháp loại trừ (Excel).
+    private func quartileExc(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let nums = try orderStatsNumbers([a[0]]).sorted()
+        let quart = try nm(a[1]).rounded(.towardZero)
+        guard !nums.isEmpty, quart >= 0, quart <= 4 else { throw fail(FormulaErrors.num) }
+        return .number(try percentileExcValue(nums, quart / 4))
     }
 
     // MARK: Điều kiện / thống kê
