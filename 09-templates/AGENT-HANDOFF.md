@@ -1913,3 +1913,22 @@ DEPENDENCIES/BLOCKERS: Cần ảnh/fixture hoặc cách tái hiện hiện hành
 CORE PATCH ID (if any): None.
 GIAO DIỆN ĐÃ XEM: 1366×768, Sáng/Tối: legacy07 trước/sau (trước: chữ chìm + cuộn ngang; sau: chữ đọc được, trang vừa khung); d03 trước/sau (không thấy range chồng nhau, canvas vẫn 3 trang); d24 trước/sau (tiêu đề tách khỏi logo; hai hình chữ nhật xanh còn bị cắt mép phải); legacy06/13/14/20 sau (đếm trang đúng, không thấy lỗi che/cắt mới); d07/d13 sau (nội dung tải đủ, bố cục đọc được); dialog timeout d06/d20/d24 (nằm gọn, nút Đồng ý thấy rõ). Ảnh nằm dưới `E:\VNOffice-briefs\runs\Q73\ui-shots` và `E:\VNOffice-briefs\runs\Q73\q57-regression\q57-screenshots`.
 NEXT ACTION: Tạo `E:\VNOffice-briefs\logs\Q73.DONE` ghi trạng thái PARTIAL/BLOCKED; không chuyển phiếu kế tiếp trước khi xử lý quyết định d03, chạy lại DOCX bị timeout và xác nhận corpus legacy20 sau CSS.
+
+## CODEX Q78 — Kiểm chứng cập nhật 0.9.11 lên 0.9.12 và in thật qua worker riêng.
+TASK: Q78 — Kiểm chứng cập nhật 0.9.11 lên 0.9.12 và in thật qua worker riêng.
+AGENT/ROLE: Codex / Windows package E2E.
+BRANCH: codex/q78; `git merge main` fast-forward từ f1d22bea lên 9ba714a5.
+WORKTREE: E:\VNOffice-codex-Q78.
+OBJECTIVE: Chạy bản 0.9.11 đã sao chép trong E:\VNOffice-e2e-0912, cập nhật từ staging cục bộ, kiểm tra tài liệu sau cập nhật, thời gian mở d03 với profile ấm và lệnh in qua worker có quyền truy cập máy in.
+FINDINGS: Nguồn cập nhật là E:/VNOffice-dist/updates-staging. Manifest có chữ ký hợp lệ; 0.9.12 sẵn sàng với 1.185 tệp thay đổi, 306 tệp gỡ, 46.311.283 byte. Helper cập nhật ghi version-verified và health-check-passed. Lệnh in PDF 2 bản được gửi hàng đợi; WMI tìm PID worker 13436, môi trường đã đọc thành công và không có SAL_DISABLE_PRINTERLIST/SAL_DISABLE_DEFAULTPRINTER.
+IMPLEMENTATION SUMMARY: Không thay mã sản phẩm. Tạo bản sao 0.9.11 cách ly, sửa cấu hình bản sao trỏ staging cục bộ, áp dụng bản cập nhật qua luồng cập nhật của ứng dụng, rồi mở d03.docx, lan05.xlsx và after-update-sample.pptx qua CDP. Lần mở d03 sau lần làm ấm mất 14.153 ms.
+FILES CHANGED: `09-templates/AGENT-HANDOFF.md` (handoff Q78); bằng chứng ngoài repo tại `E:\VNOffice-e2e-0912`.
+COMMANDS RUN: `git merge main`; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "updater or print or desktop_launch"`; cập nhật và in thật qua CDP.
+BUILD RESULT: NOT RUN — không đổi mã hay build.
+TEST RESULTS: PASS Node 3886/3886; PASS i18n VI=3229, EN=3229, missing=0 (21 giá trị giống/để nguyên được báo là nghi ngờ dịch); PASS checklist 0 dòng hạ; PASS pytest 99 passed, 1123 deselected. PASS E2E cập nhật, health-check và mở đủ 3 tài liệu. PASS in 2 bản: trạng thái “Đã gửi tài liệu đến hàng đợi máy in”; worker PID 13436 không có SAL_DISABLE_*.
+KNOWN FAILURES: d03 hiển thị 3 trang trong trình soạn thảo nhưng hộp thoại xem trước In báo 1 trang và co nội dung vào một trang. Ảnh lan05 có nhãn “Tên người nộp” sát/chồng với nội dung ô kế bên. Ghi nhận để phân tích riêng; không sửa trong phiếu kiểm chứng này.
+RISKS: Kết quả in báo đã gửi hàng đợi, không xác nhận hoàn tất lưu ra file vì luồng thử không chọn đích lưu PDF. Không dùng hộp thoại hệ điều hành.
+DEPENDENCIES/BLOCKERS: Không.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: `01-0.9.11-start.png` 1366x705 — ribbon/trang trắng khởi động, không thấy chữ cắt/chồng. `05-d03-after-update.png` 1366x705 — d03 nạp đủ, 303 từ, 3 trang; bố cục mở được. `06-lan05.png` 1366x705 — dữ liệu nạp 100%, thấy nhãn đầu bảng sát/chồng chữ ô bên cạnh. `07-after-update-sample.png` 1366x705 — 17 slide, nội dung hiện đủ; thanh cuộn và ribbon hiển thị. `08-print-dialog.png` 1366x705 — hộp thoại gọn, nút Hủy/In hiện; preview báo 1 trang. `10-print-dialog-1366x768.png` và `11-print-sent-1366x768.png` — hộp thoại cao 722px nằm trong viewport 768px, không tràn; nút In/In lại hiện rõ, không có hộp thoại chọn tệp hệ điều hành. Ảnh ở `E:\VNOffice-e2e-0912`.
+NEXT ACTION: Chuyển chênh lệch phân trang d03 sang phiếu in/render riêng; đánh giá ảnh lan05 theo dữ liệu và cột của nguồn. Q78 hoàn tất kiểm chứng cập nhật và đường gửi lệnh in.
