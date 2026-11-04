@@ -94,6 +94,10 @@ extension FormulaEvaluator {
         case "QUARTILE", "QUARTILE.INC": return try quartileInc(a)
         case "PERCENTILE.EXC": return try percentileExc(a)
         case "QUARTILE.EXC": return try quartileExc(a)
+        case "STDEV", "STDEV.S": return try stdev(sample: true, a)
+        case "STDEVP", "STDEV.P": return try stdev(sample: false, a)
+        case "VAR", "VAR.S": return try variance(sample: true, a)
+        case "VARP", "VAR.P": return try variance(sample: false, a)
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
@@ -730,6 +734,32 @@ extension FormulaEvaluator {
         let quart = try nm(a[1]).rounded(.towardZero)
         guard !nums.isEmpty, quart >= 0, quart <= 4 else { throw fail(FormulaErrors.num) }
         return .number(try percentileExcValue(nums, quart / 4))
+    }
+
+    /// M7: STDEV.S / STDEV.P — độ lệch chuẩn mẫu (mẫu số n − 1) / tổng thể
+    /// (mẫu số n). STDEV là bí danh cũ của STDEV.S, STDEVP của STDEV.P.
+    /// Mẫu cần n ≥ 2, tổng thể cần n ≥ 1; ít hơn → #DIV/0! (Excel).
+    /// Tính hai lượt (trung bình rồi tổng bình phương độ lệch) để tránh
+    /// mất chính xác khi các giá trị lớn và gần nhau.
+    private func stdev(sample: Bool, _ a: [FormulaExpr]) throws -> CellValue {
+        let v = try varianceValue(sample: sample, a)
+        return .number(v.squareRoot())
+    }
+
+    /// M7: VAR.S / VAR.P — phương sai mẫu / tổng thể. VAR là bí danh cũ
+    /// của VAR.S, VARP của VAR.P. Cùng quy ước lỗi như STDEV.
+    private func variance(sample: Bool, _ a: [FormulaExpr]) throws -> CellValue {
+        return .number(try varianceValue(sample: sample, a))
+    }
+
+    private func varianceValue(sample: Bool, _ a: [FormulaExpr]) throws -> Double {
+        try need(a, 1...255)
+        let nums = try orderStatsNumbers(a)
+        let n = nums.count
+        guard n >= (sample ? 2 : 1) else { throw fail(FormulaErrors.div0) }
+        let mean = nums.reduce(0, +) / Double(n)
+        let ss = nums.reduce(0) { $0 + ($1 - mean) * ($1 - mean) }
+        return ss / Double(sample ? n - 1 : n)
     }
 
     // MARK: Điều kiện / thống kê
