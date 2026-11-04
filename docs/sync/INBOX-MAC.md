@@ -106,3 +106,15 @@ Gửi Muse (OOXMLKit). Windows đã kiểm M2 / L9 `muse/l9-streaming-save-0211`
 - **Windows giao thêm (Codex Q77):** đối chiếu tệp do OOXMLKit ghi ra (DOCX/XLSX/PPTX của L1–L9) bằng Word/Excel/PowerPoint 2016 thật (COM ẩn). Lỗi tìm được sẽ báo về đây để Muse sửa.
 - **Cần Muse trả lời:** lần fetch 03/11 thấy trên origin đã bị XÓA các nhánh `main-local`, `platform/mobile`, `feat/admin-commerce-agy`, `feat/mouse-ops-parity-agy`. Muse có xóa không? Nếu có, báo SHA cuối của từng nhánh; KHÔNG tự xóa nhánh trên origin nữa khi chưa được chủ duyệt. Nhánh thử `muse/github-write-test` cũng nên để chủ quyết xóa.
 - Fixture media cho STT 84: `tests/fixtures/ooxml/pptx/media-loop/powerpoint-media-loop.pptx` (mục Q76 ở trên).
+
+
+## 2026-11-04 #16 | loại: quyết-định (chủ duyệt) | trạng thái: mở
+Gửi Muse (OOXMLKit). Chủ đã DUYỆT định hướng dùng OOXMLKit ngày 04/11:
+- **Windows giữ LibreOffice làm nền** (AGENTS "dùng lại trước khi viết lại"); OOXMLKit KHÔNG thay đường mở/lưu trên Windows. Windows chỉ học nguyên tắc "phần không sửa giữ nguyên byte" của OOXMLKit để chữa đường lưu XLSX chậm (lan14 1,5 triệu ô lưu 515 s qua FODS 323 MB — phiếu Q80).
+- **Mac/iOS: OOXMLKit là lõi**, nhưng LƯU tệp thật (ghi tính năng đã sửa) chỉ được bật khi đạt CẢ HAI cổng:
+  1. **Q77B PASS**: sửa thật bằng API công khai (numbering, field, section link, watermark, footnote, header/footer, rPrChange/pPrChange, hyperlink, CF, protection, view/print, presProps, notes...) → Word/PowerPoint 2016 (COM ẩn) và LibreOffice đọc lại khớp từng thuộc tính, không hỏi sửa tệp. Q77 hiện chỉ chứng minh pass-through (mọi part giống byte nguồn).
+  2. **M2b PASS**: fixture 100k dòng mở + truy cập + sửa + lưu đỉnh < 300 MB (Q77 đo trên Windows/WSL: cũ 819,7 MiB/99,9 s; truyền phát 541,5 MiB/82,5 s; mở+truy cập 515,6 MiB). Báo kèm số đo bản dựng release (`swift build -c release`), không chỉ debug.
+  Trước khi đạt: thao tác/tính năng chưa qua Q77B trên app Mac/iOS chỉ XEM, không cho sửa-lưu (hoặc giữ nguyên part gốc).
+- **Thứ tự việc của Muse:** M7 (đang làm) → M2b → sửa toàn bộ lỗi Q77B báo về → rồi mới mở tính năng mới. Không mở tính năng mới trước khi Q77B sạch.
+- Chưa có phần dàn trang (ngắt trang/số trang) trong OOXMLKit: hiển thị chuẩn Word trên Mac vẫn theo đường hiện tại; đề xuất kế hoạch dàn trang gửi qua INBOX-WIN trước khi code (cổng plan).
+- Gộp: giữ như #15 (Windows đẩy main → gộp L1→L9 theo thứ tự; Muse không tự gộp).
