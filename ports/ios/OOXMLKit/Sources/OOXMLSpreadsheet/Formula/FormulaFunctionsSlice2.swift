@@ -107,6 +107,8 @@ extension FormulaEvaluator {
         case "SKEW": return try skew(population: false, a)
         case "SKEW.P": return try skew(population: true, a)
         case "KURT": return try kurt(a)
+        case "PERCENTRANK", "PERCENTRANK.INC": return try percentRank(exclusive: false, a)
+        case "PERCENTRANK.EXC": return try percentRank(exclusive: true, a)
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
@@ -893,6 +895,42 @@ extension FormulaEvaluator {
         let term1 = nn * (nn + 1) / Double((n - 1) * (n - 2) * (n - 3)) * m4
         let term2 = 3 * pow(nn - 1, 2) / Double((n - 2) * (n - 3))
         return .number(term1 - term2)
+    }
+
+    /// M7: PERCENTRANK.INC / PERCENTRANK.EXC — hạng phần trăm của x trong dãy.
+    /// INC: hạng = vị trí (0-based, nội suy giữa hai giá trị kề) / (n − 1);
+    /// EXC: hạng = (vị trí + 1) / (n + 1) nên kết quả không bao giờ chạm 0 hay 1.
+    /// Giá trị trùng: lấy hạng của lần xuất hiện đầu (số giá trị nhỏ hơn x).
+    /// x ngoài [min, max], hoặc dãy rỗng, hoặc n = 1 → #N/A; significance < 1
+    /// → #NUM!; significance mặc định 3 và kết quả bị CẮT (không làm tròn) về
+    /// bấy nhiêu chữ số thập phân (Excel). PERCENTRANK (không hậu tố) là bí
+    /// danh cũ, cùng nghĩa với .INC.
+    private func percentRank(exclusive: Bool, _ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...3)
+        let nums = try orderStatsNumbers([a[0]]).sorted()
+        let x = try nm(a[1])
+        let sig = a.count == 3 ? try nm(a[2]).rounded(.towardZero) : 3
+        guard sig >= 1 else { throw fail(FormulaErrors.num) }
+        let n = nums.count
+        guard n > 1, let lo = nums.first, let hi = nums.last, x >= lo, x <= hi else {
+            throw fail(FormulaErrors.na)
+        }
+        let rank: Double
+        if nums.contains(x) {
+            let less = Double(nums.filter { $0 < x }.count)
+            rank = exclusive ? (less + 1) / Double(n + 1) : less / Double(n - 1)
+        } else {
+            let lower = nums.filter { $0 < x }.max()!
+            let upper = nums.filter { $0 > x }.min()!
+            let lessThanLower = Double(nums.filter { $0 < lower }.count)
+            let frac = (x - lower) / (upper - lower)
+            rank = exclusive
+                ? (lessThanLower + frac + 1) / Double(n + 1)
+                : (lessThanLower + frac) / Double(n - 1)
+        }
+        guard sig <= 15 else { return .number(rank) }
+        let scale = pow(10.0, sig)
+        return .number((rank * scale).rounded(.towardZero) / scale)
     }
 
     // MARK: Điều kiện / thống kê
