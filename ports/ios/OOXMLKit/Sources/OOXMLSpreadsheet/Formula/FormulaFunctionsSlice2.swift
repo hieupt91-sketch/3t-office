@@ -109,6 +109,10 @@ extension FormulaEvaluator {
         case "KURT": return try kurt(a)
         case "PERCENTRANK", "PERCENTRANK.INC": return try percentRank(exclusive: false, a)
         case "PERCENTRANK.EXC": return try percentRank(exclusive: true, a)
+        case "SLOPE": return try slopeIntercept(slope: true, a)
+        case "INTERCEPT": return try slopeIntercept(slope: false, a)
+        case "RSQ": return try rsq(a)
+        case "FORECAST", "FORECAST.LINEAR": return try forecast(a)
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
@@ -931,6 +935,83 @@ extension FormulaEvaluator {
         guard sig <= 15 else { return .number(rank) }
         let scale = pow(10.0, sig)
         return .number((rank * scale).rounded(.towardZero) / scale)
+    }
+
+    // MARK: Hồi quy tuyến tính
+
+    /// Ghép cặp (y, x) theo vị trí cho SLOPE/INTERCEPT/RSQ/FORECAST.
+    /// Hai phía khác số ô → #N/A (Excel); ô chữ/logic/rỗng trong vùng
+    /// bị bỏ cùng với cặp của nó; đối số trực tiếp được ép sang số,
+    /// ép không được → #VALUE!; lỗi lan truyền; không còn cặp nào → #N/A.
+    private func pairedNumbers(_ yExpr: FormulaExpr, _ xExpr: FormulaExpr) throws -> ([Double], [Double]) {
+        let yg = try grid(yExpr), xg = try grid(xExpr)
+        let yv = yg.flat, xv = xg.flat
+        guard yv.count == xv.count else { throw fail(FormulaErrors.na) }
+        func isNum(_ v: CellValue) -> Bool { if case .number = v { return true }; return false }
+        var ys: [Double] = [], xs: [Double] = []
+        for (yv1, xv1) in zip(yv, xv) {
+            if case .error(let e) = yv1 { throw fail(e) }
+            if case .error(let e) = xv1 { throw fail(e) }
+            if case .number(let y) = yv1, case .number(let x) = xv1 {
+                ys.append(y); xs.append(x); continue
+            }
+            // Một phía từ vùng mà không phải số → bỏ cả cặp.
+            if (yg.sheet != nil && !isNum(yv1)) || (xg.sheet != nil && !isNum(xv1)) { continue }
+            guard let y = number(yv1), let x = number(xv1) else { throw fail(FormulaErrors.value) }
+            ys.append(y); xs.append(x)
+        }
+        return (ys, xs)
+    }
+
+    /// Hồi quy hai lượt (trung bình rồi tổng chéo) như STDEV, để tránh
+    /// mất chính xác khi các giá trị lớn và gần nhau.
+    private func regressionValues(_ ys: [Double], _ xs: [Double]) -> (slope: Double, intercept: Double, sxx: Double, sxy: Double, syy: Double) {
+        let n = Double(ys.count)
+        let mx = xs.reduce(0, +) / n, my = ys.reduce(0, +) / n
+        var sxx = 0.0, sxy = 0.0, syy = 0.0
+        for (y, x) in zip(ys, xs) {
+            let dx = x - mx, dy = y - my
+            sxx += dx * dx; sxy += dx * dy; syy += dy * dy
+        }
+        let slope = sxx == 0 ? 0 : sxy / sxx
+        return (slope, my - slope * mx, sxx, sxy, syy)
+    }
+
+    /// M7: SLOPE — hệ số góc của đường hồi quy tuyến tính; INTERCEPT —
+    /// tung độ gốc của đường đó. Không còn cặp nào → #N/A; phương sai
+    /// của x bằng 0 (mọi x bằng nhau, kể cả chỉ 1 cặp) → #DIV/0! (Excel).
+    private func slopeIntercept(slope: Bool, _ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let (ys, xs) = try pairedNumbers(a[0], a[1])
+        guard !ys.isEmpty else { throw fail(FormulaErrors.na) }
+        let r = regressionValues(ys, xs)
+        guard r.sxx != 0 else { throw fail(FormulaErrors.div0) }
+        return .number(slope ? r.slope : r.intercept)
+    }
+
+    /// M7: RSQ — bình phương hệ số tương quan Pearson (sxy² / (sxx·syy)).
+    /// Không còn cặp nào → #N/A; phương sai x hoặc y bằng 0 → #DIV/0! (Excel).
+    private func rsq(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let (ys, xs) = try pairedNumbers(a[0], a[1])
+        guard !ys.isEmpty else { throw fail(FormulaErrors.na) }
+        let r = regressionValues(ys, xs)
+        guard r.sxx != 0, r.syy != 0 else { throw fail(FormulaErrors.div0) }
+        return .number(r.sxy * r.sxy / (r.sxx * r.syy))
+    }
+
+    /// M7: FORECAST.LINEAR — giá trị dự báo tại x trên đường hồi quy
+    /// (intercept + slope·x). FORECAST (không hậu tố) là bí danh cũ, cùng
+    /// nghĩa. Thứ tự đối số: (x, known_y, known_x) — x đứng trước, khác
+    /// SLOPE/INTERCEPT/RSQ. Cùng quy ước lỗi như SLOPE.
+    private func forecast(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 3...3)
+        let x = try nm(a[0])
+        let (ys, xs) = try pairedNumbers(a[1], a[2])
+        guard !ys.isEmpty else { throw fail(FormulaErrors.na) }
+        let r = regressionValues(ys, xs)
+        guard r.sxx != 0 else { throw fail(FormulaErrors.div0) }
+        return .number(r.intercept + r.slope * x)
     }
 
     // MARK: Điều kiện / thống kê
