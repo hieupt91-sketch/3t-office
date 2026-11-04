@@ -108,14 +108,15 @@ final class FormulaNamedRangeTests: XCTestCase {
                        "TongDoanhThu = 'Tổng hợp'!$B$2 = SUM('Dữ liệu'!E2:E6) = 42500000+540000+13200000+600000+3000000")
         XCTAssertEqual(e.value(sheet: "Tổng hợp", at: "B3"), .number(119680000),
                        "công thức sẵn có trong fixture dùng tên vùng phải tính đúng (= TongDoanhThu*2)")
-        // Tách riêng các thành phần của B4: tên vùng đã phân giải đúng; B4 vẫn #NAME?
-        // vì LOG10 chưa được cài (thuộc lát thêm hàm của M7, ngoài phạm vi lát tên vùng).
+        // Tách riêng các thành phần của B4: tên vùng đã phân giải đúng.
+        // M7 lát 2 đã cài LOG10 nên B4 tính đúng: COUNTA(DuLieu)=30 −
+        // COUNTIF('Dữ liệu'!B:B,"Giấy*")=1 + LOG10(100)=2 → 31.
         try ws.setFormula("=COUNTA(DuLieu)", at: "Z2")
         try ws.setFormula("=COUNTIF('Dữ liệu'!B:B,\"Giấy*\")", at: "Z3")
         let e2 = try FormulaEngine(workbook: wb)
         e2.recalculate()
         XCTAssertEqual(e2.value(sheet: "Tổng hợp", at: "Z2"), .number(30))
         XCTAssertEqual(e2.value(sheet: "Tổng hợp", at: "Z3"), .number(1))
-        XCTAssertEqual(e.value(sheet: "Tổng hợp", at: "B4"), .error("#NAME?"), "chỉ còn kẹt ở LOG10 chưa cài")
+        XCTAssertEqual(e.value(sheet: "Tổng hợp", at: "B4"), .number(31), "B4 = 30 − 1 + LOG10(100) = 31")
     }
 }

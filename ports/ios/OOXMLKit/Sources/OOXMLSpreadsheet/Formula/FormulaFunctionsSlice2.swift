@@ -81,6 +81,7 @@ extension FormulaEvaluator {
         case "INT": try need(a, 1...1); return .number((try nm(a[0])).rounded(.down))
         case "MOD": return try mod(a)
         case "POWER": return try power(a)
+        case "EXP", "LN", "LOG10", "LOG": return try logExp(name, a)
         case "SQRT":
             try need(a, 1...1)
             let x = try nm(a[0])
@@ -573,6 +574,36 @@ extension FormulaEvaluator {
         if x == 0 && y < 0 { throw fail(FormulaErrors.div0) }
         let r = pow(x, y)
         return r.isFinite ? .number(r) : .error(FormulaErrors.num)
+    }
+
+    /// M7: logarit/mũ — quy ước Excel: đối số ≤ 0 cho LN/LOG10/LOG,
+    /// cơ số ≤ 0 hoặc = 1 cho LOG → #NUM!; tràn → #NUM!; lỗi đối số lan truyền.
+    private func logExp(_ name: String, _ a: [FormulaExpr]) throws -> CellValue {
+        switch name {
+        case "EXP":
+            try need(a, 1...1)
+            let r = exp(try nm(a[0]))
+            return r.isFinite ? .number(r) : .error(FormulaErrors.num)
+        case "LN":
+            try need(a, 1...1)
+            let x = try nm(a[0])
+            guard x > 0 else { throw fail(FormulaErrors.num) }
+            return .number(log(x))
+        case "LOG10":
+            try need(a, 1...1)
+            let x = try nm(a[0])
+            guard x > 0 else { throw fail(FormulaErrors.num) }
+            return .number(log10(x))
+        case "LOG":
+            try need(a, 1...2)
+            let x = try nm(a[0])
+            let base = a.count == 2 ? try nm(a[1]) : 10
+            guard x > 0, base > 0, base != 1 else { throw fail(FormulaErrors.num) }
+            let r = log(x) / log(base)
+            return r.isFinite ? .number(r) : .error(FormulaErrors.num)
+        default:
+            throw fail(FormulaErrors.value)
+        }
     }
 
     // MARK: Điều kiện / thống kê
