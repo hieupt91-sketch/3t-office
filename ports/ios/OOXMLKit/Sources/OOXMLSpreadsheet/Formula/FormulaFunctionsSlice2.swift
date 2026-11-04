@@ -86,6 +86,10 @@ extension FormulaEvaluator {
             try need(a, 1...1)
             let x = try nm(a[0])
             return x < 0 ? .error(FormulaErrors.num) : .number(x.squareRoot())
+        // Thống kê thứ tự
+        case "MEDIAN": return try median(a)
+        case "LARGE", "SMALL": return try largeSmall(name == "LARGE", a)
+        case "RANK": return try rank(a)
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
@@ -604,6 +608,61 @@ extension FormulaEvaluator {
         default:
             throw fail(FormulaErrors.value)
         }
+    }
+
+    // MARK: Thống kê thứ tự
+
+    /// Số trong các đối số theo quy ước của AGGREGATE: lỗi lan truyền; chữ/logic
+    /// trong vùng bị bỏ qua; đối số trực tiếp (kể cả chuỗi số) được ép sang số,
+    /// ép không được → #VALUE!.
+    private func orderStatsNumbers(_ a: [FormulaExpr]) throws -> [Double] {
+        var nums: [Double] = []
+        for (v, direct) in flatten(a) {
+            switch v {
+            case .error(let e): throw fail(e)
+            case .number(let d): nums.append(d)
+            case .bool, .string:
+                if direct {
+                    guard let n = number(v) else { throw fail(FormulaErrors.value) }
+                    nums.append(n)
+                }
+            case .empty: break
+            }
+        }
+        return nums
+    }
+
+    /// M7: MEDIAN — trung vị; không có số nào → #DIV/0! (như Excel).
+    private func median(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...255)
+        let nums = try orderStatsNumbers(a).sorted()
+        guard !nums.isEmpty else { throw fail(FormulaErrors.div0) }
+        let m = nums.count / 2
+        if nums.count % 2 == 1 { return .number(nums[m]) }
+        return .number((nums[m - 1] + nums[m]) / 2)
+    }
+
+    /// M7: LARGE/SMALL — phần tử lớn/thứ k (k cắt về nguyên, k < 1 hoặc k > số lượng → #NUM!).
+    private func largeSmall(_ large: Bool, _ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let nums = try orderStatsNumbers([a[0]]).sorted()
+        let k = try nm(a[1]).rounded(.towardZero)
+        guard k >= 1, k <= Double(nums.count) else { throw fail(FormulaErrors.num) }
+        let i = Int(k) - 1
+        return .number(large ? nums[nums.count - 1 - i] : nums[i])
+    }
+
+    /// M7: RANK — hạng của một số trong danh sách (bỏ qua chữ/logic trong vùng).
+    /// order = 0 (mặc định): giảm dần (lớn nhất hạng 1); khác 0: tăng dần.
+    /// Số không có trong danh sách, hoặc danh sách rỗng → #N/A; hạng bằng nhau chia sẻ cùng hạng.
+    private func rank(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...3)
+        let x = try nm(a[0])
+        let nums = try orderStatsNumbers([a[1]])
+        guard !nums.isEmpty, nums.contains(x) else { throw fail(FormulaErrors.na) }
+        let ascending = a.count == 3 ? try nm(a[2]).rounded(.towardZero) != 0 : false
+        let beaten = ascending ? nums.filter { $0 < x }.count : nums.filter { $0 > x }.count
+        return .number(Double(beaten + 1))
     }
 
     // MARK: Điều kiện / thống kê
