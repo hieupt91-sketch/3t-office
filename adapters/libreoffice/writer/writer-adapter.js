@@ -454,6 +454,7 @@ export class WriterAdapter {
     this.maxUndoStack = 100;
     this._isUndoingRedoing = false;
     this._typingDebounceTimer = null;
+    this._typingHasUncommittedChanges = false;
     this._typingDebounceMs = 600;
     this._inputHandler = null;
     this._beforeInputSelectionHandler = null;
@@ -19898,7 +19899,7 @@ export class WriterAdapter {
    * @returns {boolean}
    */
   canUndo() {
-    if (this._typingDebounceTimer) return true;
+    if (this._typingDebounceTimer || this._typingHasUncommittedChanges || this.undoStack.length > 0) return true;
     if (this._lastSnapshot) {
       const current = this._createSnapshot("Check Can Undo");
       if (!this._isSnapshotEqual(current, this._lastSnapshot)) {
@@ -19926,6 +19927,7 @@ export class WriterAdapter {
     }
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
+      this._typingHasUncommittedChanges = false;
       return;
     }
     const current = this._createSnapshot("Typing Commit");
@@ -19936,6 +19938,8 @@ export class WriterAdapter {
       || (current.footerHtml !== this._lastSnapshot.footerHtml && comparable(current.footerHtml) !== comparable(this._lastSnapshot.footerHtml));
     if (htmlChanged) {
       this.recordSnapshot("Typing Commit");
+    } else {
+      this._typingHasUncommittedChanges = false;
     }
   }
 
@@ -19947,6 +19951,11 @@ export class WriterAdapter {
   recordSnapshot(description = "") {
     if (this._isUndoingRedoing) return false;
 
+    // Word commits share the regular typing debounce. The input normalizer keeps
+    // its own per-word undo state; serializing every page and embedded image here
+    // would block the caret on each space in a long document.
+    if (description === "Gõ chữ" && this._typingHasUncommittedChanges) return false;
+
     if (this._typingDebounceTimer) {
       clearTimeout(this._typingDebounceTimer);
       this._typingDebounceTimer = null;
@@ -19956,11 +19965,13 @@ export class WriterAdapter {
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = currentSnapshot;
+      this._typingHasUncommittedChanges = false;
       this._updateUndoRedoUI();
       return false;
     }
 
     if (this._isSnapshotEqual(currentSnapshot, this._lastSnapshot)) {
+      this._typingHasUncommittedChanges = false;
       return false;
     }
 
@@ -19972,6 +19983,7 @@ export class WriterAdapter {
     // Một hành động mới làm xóa nhánh redo tương lai (chuẩn Office)
     this.redoStack = [];
     this._lastSnapshot = currentSnapshot;
+    this._typingHasUncommittedChanges = false;
     this.isDirty = true;
     this._updateUndoRedoUI();
     return true;
@@ -20748,7 +20760,7 @@ export class WriterAdapter {
     if (!target || typeof target.addEventListener !== "function") return;
 
     this._beforeInputSelectionHandler = () => {
-      if (this._isUndoingRedoing || !this._lastSnapshot) return;
+      if (this._isUndoingRedoing || this._typingHasUncommittedChanges || !this._lastSnapshot) return;
       const currentHtml = this._snapshotBodyHtml();
       if (currentHtml === this._lastSnapshot.bodyHtml) {
         const bookmark = this._captureSelectionBookmark();
@@ -20758,7 +20770,7 @@ export class WriterAdapter {
     target.addEventListener("beforeinput", this._beforeInputSelectionHandler);
 
     this._selectionChangeHandler = () => {
-      if (this._isUndoingRedoing || !this._lastSnapshot) return;
+      if (this._isUndoingRedoing || this._typingHasUncommittedChanges || !this._lastSnapshot) return;
       // Keep the prior document's bookmark current while the user moves the caret.
       // Once content changes, beforeinput has already preserved the pre-edit position.
       if (this._snapshotBodyHtml() === this._lastSnapshot.bodyHtml) {
@@ -20794,6 +20806,10 @@ export class WriterAdapter {
         this.flushTyping();
         this.recordSnapshot("writer.text.newParagraph");
       } else {
+        // The pre-edit selection has already been captured by beforeinput. Avoid
+        // serializing the whole document to refresh that same undo bookmark after
+        // every character; the typing snapshot will capture the new caret on commit.
+        this._typingHasUncommittedChanges = true;
         this._scheduleTypingSnapshot();
       }
     };
