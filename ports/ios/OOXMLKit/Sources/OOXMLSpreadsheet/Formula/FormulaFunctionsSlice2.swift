@@ -98,6 +98,9 @@ extension FormulaEvaluator {
         case "STDEVP", "STDEV.P": return try stdev(sample: false, a)
         case "VAR", "VAR.S": return try variance(sample: true, a)
         case "VARP", "VAR.P": return try variance(sample: false, a)
+        case "MODE", "MODE.SNGL": return try mode(a)
+        case "AVEDEV": return try avedev(a)
+        case "DEVSQ": return try devsq(a)
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
@@ -760,6 +763,48 @@ extension FormulaEvaluator {
         let mean = nums.reduce(0, +) / Double(n)
         let ss = nums.reduce(0) { $0 + ($1 - mean) * ($1 - mean) }
         return ss / Double(sample ? n - 1 : n)
+    }
+
+    /// M7: MODE.SNGL — giá trị xuất hiện nhiều nhất; MODE là bí danh cũ.
+    /// Không có giá trị nào lặp lại (kể cả không có số nào) → #N/A (Excel).
+    /// Hòa nhau → giá trị gặp đầu tiên theo thứ tự đối số. MODE.MULT
+    /// (trả về mảng) chưa làm — thuộc phần array/dynamic array sau.
+    private func mode(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...255)
+        let nums = try orderStatsNumbers(a)
+        var counts: [Double: Int] = [:]
+        var firstSeen: [Double: Int] = [:]
+        for (i, v) in nums.enumerated() {
+            counts[v, default: 0] += 1
+            if firstSeen[v] == nil { firstSeen[v] = i }
+        }
+        guard let best = counts.max(by: { x, y in
+            if x.value != y.value { return x.value < y.value }
+            return (firstSeen[x.key] ?? 0) > (firstSeen[y.key] ?? 0)
+        }), best.value > 1 else { throw fail(FormulaErrors.na) }
+        return .number(best.key)
+    }
+
+    /// M7: AVEDEV — trung bình độ lệch tuyệt đối khỏi trung bình.
+    /// Không có số nào → #DIV/0! (như MEDIAN).
+    private func avedev(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...255)
+        let nums = try orderStatsNumbers(a)
+        guard !nums.isEmpty else { throw fail(FormulaErrors.div0) }
+        let mean = nums.reduce(0, +) / Double(nums.count)
+        let s = nums.reduce(0) { $0 + abs($1 - mean) }
+        return .number(s / Double(nums.count))
+    }
+
+    /// M7: DEVSQ — tổng bình phương độ lệch khỏi trung bình.
+    /// Không có số nào → #DIV/0! (như MEDIAN).
+    private func devsq(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...255)
+        let nums = try orderStatsNumbers(a)
+        guard !nums.isEmpty else { throw fail(FormulaErrors.div0) }
+        let mean = nums.reduce(0, +) / Double(nums.count)
+        let ss = nums.reduce(0) { $0 + ($1 - mean) * ($1 - mean) }
+        return .number(ss)
     }
 
     // MARK: Điều kiện / thống kê
