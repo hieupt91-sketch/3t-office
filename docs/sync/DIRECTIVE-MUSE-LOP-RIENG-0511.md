@@ -101,7 +101,7 @@ Số "hiện tại" do Lead đo trên Windows. Lead cập nhật sau mỗi lần
 | Unit test | 3886 đạt, 0 FAIL (lần kiểm gần nhất trên main) | Tăng, 0 FAIL | `npm test` |
 | Tệp OOXML ghi ra hợp lệ | Chưa đo | Không có lỗi mới so với mốc | G2 |
 | Độ phủ ribbon Office 2016 | Chưa đo | Có số theo từng tab | G3 |
-| Tệp `.doc/.xls/.ppt` cũ | Chưa đo | Có số lệch so với oracle | L1 (Lead chạy) |
+| Tệp `.doc/.xls/.ppt` cũ | 40/276 tệp đã kiểm (14,5%), theo Q51/Q53 | Tăng độ phủ | Lead |
 | OOXMLKit so với golden | 399/1345 đúng, 876 chưa có hàm, 65 sai | Tỷ lệ đúng tăng, sai giảm | Harness trong `OOXMLKIT-GOLDEN-ORACLE-0511.md` |
 
 ---
@@ -132,7 +132,7 @@ Rủi ro thấp, chỉ thêm kiểm thử. Làm trước tiên.
 Hiện chỉ kiểm tài liệu trông có đúng không, chưa kiểm cấu trúc tệp.
 
 - **Giai đoạn 1 (không dependency mới):** `scripts/ooxml-check/check_package.py`, kiểm: ZIP đọc được; `[Content_Types].xml` phủ mọi part; mọi relationship trỏ đúng; mọi part là XML hợp lệ; `wp:docPr/@id` không trùng; các id tham chiếu tồn tại (numId, styleId, footnote, comment, sheet).
-- **Giai đoạn 2 (kiểm theo schema):** chỉ làm sau khi Lead báo kết quả về nguồn và giấy phép XSD. Lead sẽ ghi vào INBOX. Trước đó ghi BLOCKED.
+- **Giai đoạn 2 (kiểm theo schema, chỉ trong test):** XSD ECMA-376 + `lxml`. Tải XSD lúc chạy, không commit, vì thông báo bản quyền XSD chưa kiểm. XSD thô không dùng được một mình: phải xử lý namespace mở rộng (MCE), có danh sách miễn trừ ghi rõ lý do, và **so với tệp nguồn** để chỉ báo lỗi do mình tạo ra. Kết quả thử trên Windows: 6/8 DOCX lưu ra có vi phạm mà tệp nguồn không có; XLSX 28/28 sạch sau miễn trừ; lỗi PPTX là báo sai. Đọc `docs/research-1105/06-ms-specs-poi-validator.md` trước khi làm.
 - **Đạt:** fixture hỏng có chủ đích bị bắt, mỗi loại lỗi một fixture; không báo sai trên tệp mẫu sạch trong repo. Lỗi cũ có sẵn được ghi thành mốc, chỉ cấm lỗi mới.
 - Lead sẽ chạy trên tệp thật và báo lại.
 
@@ -174,9 +174,9 @@ Quy tắc chung:
 
 **Thứ tự trong nhóm (sửa 05/11, theo INBOX-MAC #19): V4 → V1 → V5a → V3 → V5b → V6. V2 đang tạm dừng.**
 
-#### V2. Bảng mã tiếng Việt cũ (TẠM DỪNG, không làm khi Lead chưa báo mở)
+#### V2. Bảng mã tiếng Việt cũ (HOÃN, không làm khi Lead chưa báo mở)
 
-**Lý do dừng:** chưa có số đo nhu cầu. Trên mẫu cục bộ, không tệp nào trong 53 tệp đọc được có từ 5% chữ trở lên ở font cũ. Khi máy có font trùng tên, Word hiển thị đúng, nhưng tìm bằng chữ Unicode vẫn không thấy. Bảng TCVN3 không đều nên không dựng được theo quy luật, và chưa có nguồn bảng TCVN3/VNI có giấy phép rõ. Lead sẽ quét kho LAN và chủ dự án quyết định có làm không. Phần dưới chỉ là thiết kế dự kiến.
+**Lý do hoãn:** Lead đã quét kho LAN nội bộ (697 tệp): chỉ 2 trong 641 tệp đo được có từ 20% chữ trở lên ở font cũ, cả hai là `.doc` tạo năm 2006. Kho này của một công ty, không đại diện toàn quốc, và cách đo không bắt được chữ mã cũ đã bị đổi sang font Unicode. Khi máy có font trùng tên, Word hiển thị đúng, nhưng tìm bằng chữ Unicode vẫn không thấy. Bảng TCVN3 không đều nên không dựng được theo quy luật, và chưa có nguồn bảng TCVN3/VNI có giấy phép rõ. Lead sẽ quét kho LAN và chủ dự án quyết định có làm không. Phần dưới chỉ là thiết kế dự kiến.
 
 - **Giai đoạn 1, thư viện thuần (không giao diện):**
   - `platform/text/legacy-encodings.js`: TCVN3, VNI-Windows, VISCII, VPS, VIQR → Unicode NFC.
@@ -228,6 +228,12 @@ Quy tắc chung:
 
 Rủi ro cao hơn, chạm mã lõi. **Đi sau G. Mỗi PR một quy tắc.** Giữ nguyên độ trung thực đang có là điều kiện số một.
 
+#### F0. Sửa thứ tự `evenAndOddHeaders` trong `settings.xml` (làm đầu tiên trong nhóm)
+
+- **Lỗi đã xác nhận trong mã:** `adapters/libreoffice/common/ooxml_zip_patch.py` (tìm `<w:evenAndOddHeaders/></w:settings>`) thêm phần tử vào cuối `settings.xml`, sai thứ tự schema. Phiên bản mã mới có thể có nhiều chỗ.
+- **Việc:** chèn đúng vị trí theo schema, thêm unit test. Không đổi logic khác.
+- **Đạt:** test kiểm thứ tự; Lead chạy DOCX 8/8.
+
 **Chưa đụng trong nhóm này** (phiếu riêng, có thể đang có agent khác làm): hoàn tác theo từ trong `writer-adapter.js` (Q82C), ngắt mục liên tục (Q79B), lưu XLSX lan14 (Q80). Lead sẽ báo trong INBOX nếu giao cho Muse. Hỏi trước khi sửa cùng vùng mã.
 
 #### F1. Bộ test hành vi gõ
@@ -241,6 +247,8 @@ Rủi ro cao hơn, chạm mã lõi. **Đi sau G. Mỗi PR một quy tắc.** Gi�
 #### F2. Quy tắc bố cục Word
 
 - **Nguồn được phép đọc:** `storytold/wordcraft/docs/layout-parity.md` (MIT/Apache-2.0, ghi nguồn); `[MS-OI29500]` của Microsoft.
+- **Giới hạn của `[MS-OI29500]`:** tài liệu này nói về ngữ nghĩa XML, không phải bố cục. Đối chiếu 38 hành vi đã đo: 3 có, 4 có một phần, 31 không có. Chiều cao dòng, phân trang, chiều cao hàng Excel và bao chữ quanh hình vẫn phải đo bằng Office thật.
+- **Thứ tự theo tệp thật:** định dạng số Excel → hàm LAN dùng nhiều (VLOOKUP, SUMIFS, SUM, IF, MID, MATCH, INDEX) → đánh số danh sách → bảng Word → chọn font theo ký tự → chuỗi style. Bảng chi tiết ở mục 4 của tệp nghiên cứu 06. Lấy làm giả thuyết, đo bằng Office trước khi khóa.
 - **Ứng viên:** dòng chỉ có dấu cách hoặc tab; Symbol/Wingdings giữ chiều cao font; đoạn chỉ có ngắt trang; nhãn danh sách và chiều cao dòng; hàng bảng chính xác và tối thiểu; chỗ cho viền dưới; keep-with-next; co dấu cách khi căn đều.
 - **Cách làm cho mỗi quy tắc:** viết tài liệu thử tối giản, kiểm code hiện tại đã đúng chưa. Sai thì mở PR nhỏ, kèm tệp thử để Lead đo bằng Word 2016.
 - **Đạt:** Lead đo Word xác nhận quy tắc, DOCX vẫn 8/8. **Lệch một tệp trong 8 thì không gộp.**
@@ -271,7 +279,9 @@ Rủi ro cao hơn, chạm mã lõi. **Đi sau G. Mỗi PR một quy tắc.** Gi�
 
 ### Nhóm L: tệp định dạng cũ
 
-#### L1. Công cụ ý kiến thứ hai
+#### L1. Công cụ ý kiến thứ hai (TẠM DỪNG, chờ chủ dự án quyết về Java trong bộ test)
+
+Thử nghiệm cho thấy giá trị hạn chế: so chữ với LibreOffice, `.xls` 17/20 giống, `.doc` 14/20 giống, và chỉ báo được 4 trong 9 tệp có lỗi đã biết. Nếu mở lại: chỉ dùng phần `.xls`, bỏ `.ppt`, `.doc` chỉ là phụ. Không tự viết bộ đọc nhị phân.
 
 - **Việc:** `scripts/legacy-audit/`: mỗi tệp `.doc/.xls/.ppt` được đọc bằng đường LibreOffice và bằng công cụ độc lập, so chữ và cấu trúc, xuất CSV. Không in nội dung tài liệu ra báo cáo, chỉ số lượng và vị trí.
 - **Công cụ độc lập:** Apache POI cho cả ba định dạng (đọc tệp LICENSE trước; chỉ trong test, không có Java thì skip có thông báo). SheetJS CE là phương án thêm cho `.xls`. Tài liệu POI cho biết phần `.doc` và `.ppt` kém đầy đủ hơn `.xls`, nên lệch chưa chắc là lỗi của mình.
@@ -286,7 +296,7 @@ Chi tiết và lý do trong `docs/research-1105/05-thu-vien.md`.
 | Nguồn | Xử lý |
 |---|---|
 | ONLYOFFICE, CryptPad, `chainpad*`, `netflux` | **Không đọc mã nguồn khi đang viết mã tương ứng, không copy, không port, không lấy bảng dữ liệu, tên hàm** |
-| HyperFormula, `pycel`, `formulas` (Python), `nuspell`, LanguageTool, PyMuPDF | Không dùng |
+| HyperFormula, `pycel`, `formulas` (Python), `nuspell`, LanguageTool, PyMuPDF, NPOI (bản nhị phân kèm EULA thu phí) | Không dùng |
 | Univer: chart, pivot, shape, chuyển đổi Office, Slides, gói `-pro` | Không dùng |
 | `eigenpal/docx-editor`: `packages/pro`, `editor-api`, `docx-to-pdf`, `telemetry` | Không chạm |
 | Từ điển GPL, Wiktionary, font độc quyền | Không nhập |

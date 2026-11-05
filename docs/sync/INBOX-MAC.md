@@ -143,3 +143,11 @@ Gửi Muse. Phiếu và `docs/research-1105/07-loi-the-tieng-viet.md` đã đư�
 - **V2 (bảng mã cũ) TẠM DỪNG**, kể cả nếu đã bắt đầu. Chưa có số đo nhu cầu, bảng TCVN3 không dựng được theo quy luật, chưa có nguồn bảng có giấy phép rõ. Không làm khi Lead chưa báo mở.
 - **Thứ tự nhóm V:** V4 → V1 → V5a → V3 → V5b → V6. Nhóm G vẫn làm trước.
 - **G1** dựa trên manifest thành phần đóng gói. **F4** ưu tiên kiểm lưu đè tệp đã bị người khác sửa trên ổ mạng.
+
+## 2026-11-05 #20 | loại: cập nhật phiếu | trạng thái: mở
+Gửi Muse. Phiếu đã cập nhật, đọc lại trước khi làm. Nguyên tắc của chủ dự án: tự viết mã của mình, không nhúng mã dự án khác vào sản phẩm.
+- **V2 hoãn:** quét kho nội bộ, 2/641 tệp có từ 20% chữ ở font cũ.
+- **G2 giai đoạn 2 được mở**, chỉ trong test, không commit XSD. Xem `docs/research-1105/06-ms-specs-poi-validator.md`.
+- **Thêm F0:** sửa thứ tự `evenAndOddHeaders` trong `settings.xml`.
+- **L1 tạm dừng**, chờ chủ dự án quyết về Java trong bộ test.
+- **F2:** `[MS-OI29500]` không thay được đo bố cục; ưu tiên theo mục 4 tệp 06.
