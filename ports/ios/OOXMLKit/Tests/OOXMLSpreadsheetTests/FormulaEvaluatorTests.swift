@@ -124,6 +124,42 @@ final class FormulaEvaluatorTests: XCTestCase {
         XCTAssertEqual(e.value(sheet: "Sheet1", at: "F3"), .number(30), "hằng dọc trong CSE: phần tử 3")
     }
 
+    func testArrayFormulasInNormalContext() {
+        // M7 lát 16 (INBOX-MAC #17): mảng trong công thức thường, giá trị từ golden Excel 2016.
+        // golden-batch12-typical.json: B1:B4 / C1:C4.
+        let d12: [String: CellValue] = [
+            "B1": .number(1200000), "B2": .number(3500000), "B3": .number(1800000), "B4": .number(50000),
+            "C1": .number(4), "C2": .number(1), "C3": .number(2), "C4": .number(100),
+        ]
+        XCTAssertEqual(calc("SUMPRODUCT((C1:C4>1)*B1:B4)", d12), .number(3050000),
+                       "golden batch12: (C>1) -> 1200000 + 1800000 + 50000")
+        XCTAssertEqual(calc("SUMPRODUCT((C1:C4>1)*1)", d12), .number(3),
+                       "3 trong 4 ô C > 1")
+        XCTAssertEqual(calc("SUM((C1:C4>1)*B1:B4)", d12), .number(3050000),
+                       "SUM trên mảng so sánh cũng ra 3050000")
+        // golden-batch16-array-functions.json: A1=1, B1=2, A2=3, B2=4.
+        let d16: [String: CellValue] = [
+            "A1": .number(1), "B1": .number(2), "A2": .number(3), "B2": .number(4),
+        ]
+        XCTAssertEqual(calc("SUM(IF(A1:B2>1,1,0))", d16), .number(3),
+                       "golden batch16: 3 trong 4 ô > 1")
+        XCTAssertEqual(calc("SUM(IF(A1:B2>1,A1:B2,0))", d16), .number(9),
+                       "IF mảng với nhánh mảng: 2+3+4")
+        XCTAssertEqual(calc("SUM(IF(A1:A2>1,10,0))", d16), .number(10),
+                       "IF mảng dọc, nhánh scalar phát cho mọi ô")
+        XCTAssertEqual(calc("COUNT(IF(A1:B2>1,1,0))", d16), .number(4),
+                       "IF mảng trả 4 ô, COUNT đếm cả 0")
+        XCTAssertEqual(calc("SUM((A1:A3>1)*B1:B3)", [
+            "A1": .number(1), "A2": .number(2), "A3": .number(3),
+            "B1": .number(10), "B2": .number(20), "B3": .number(30),
+        ]), .number(50), "so sánh mảng * vùng: 0*10 + 1*20 + 1*30")
+        XCTAssertEqual(calc("SUMPRODUCT(A1:A3,B1:B2)", [
+            "A1": .number(1), "A2": .number(2), "A3": .number(3),
+            "B1": .number(10), "B2": .number(20),
+        ]), err("#VALUE!"), "lệch hình vẫn #VALUE!")
+        XCTAssertEqual(calc("IF(A1>1,1,0)", d16), .number(0), "IF điều kiện đơn giữ đường cũ")
+    }
+
     func testArithmeticErrors() {
         XCTAssertEqual(calc("1/0"), err("#DIV/0!"))
         XCTAssertEqual(calc("A1/A6", data), err("#DIV/0!"))

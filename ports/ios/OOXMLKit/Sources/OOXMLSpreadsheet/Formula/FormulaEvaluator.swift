@@ -75,7 +75,9 @@ struct FormulaEvaluator {
             guard let n = number(v) else { return .scalar(.error(FormulaErrors.value)) }
             return .scalar(.number(n / 100))
         case .binary(let op, let a, let b):
-            return .scalar(binary(op, scalar(eval(a)), scalar(eval(b))))
+            let l = eval(a), r = eval(b)
+            if let arr = elementwise(op, l, r) { return arr }
+            return .scalar(binary(op, scalar(l), scalar(r)))
         case .call(let name, let args):
             return call(name, args)
         }
@@ -101,6 +103,108 @@ struct FormulaEvaluator {
             guard rows.indices.contains(i), rows[i].indices.contains(j) else { return .error(FormulaErrors.value) }
             return rows[i][j]
         }
+    }
+
+    // MARK: Mảng trong công thức thường (M7 lát 16, INBOX-MAC #17)
+
+    /// Giới hạn ô cho phép tính theo từng phần tử (chống vùng cả cột gây phình lưới).
+    private static let maxElementwiseCells = 1_000_000
+
+    /// true nếu giá trị là mảng/vùng có hơn 1 ô.
+    private func isMulti(_ v: EvalValue) -> Bool {
+        switch v {
+        case .scalar: return false
+        case .array(let rows): return rows.count > 1 || (rows.first?.count ?? 0) > 1
+        case .ref(_, let r): return r.start != r.end
+        }
+    }
+
+    /// Trải một giá trị thành lưới; nil nếu vượt giới hạn.
+    private func materialize(_ v: EvalValue) -> [[CellValue]]? {
+        switch v {
+        case .scalar(let c): return [[c]]
+        case .array(let rows):
+            guard rows.reduce(0, { $0 + $1.count }) <= Self.maxElementwiseCells else { return nil }
+            return rows
+        case .ref(let sh, let r):
+            let nr = r.end.row - r.start.row + 1, nc = r.end.column - r.start.column + 1
+            guard nr * nc <= Self.maxElementwiseCells else { return nil }
+            var rows: [[CellValue]] = []
+            rows.reserveCapacity(nr)
+            for row in r.start.row...r.end.row {
+                var line: [CellValue] = []
+                line.reserveCapacity(nc)
+                for col in r.start.column...r.end.column {
+                    line.append(context.cellValue(sheet: sh, ref: CellReference(column: col, row: row)))
+                }
+                rows.append(line)
+            }
+            return rows
+        }
+    }
+
+    /// Tính toán tử hai ngôi theo từng phần tử khi ít nhất một vế là mảng/vùng nhiều ô.
+    /// nil = cả hai vế đều đơn → dùng đường scalar như cũ. Lệch hình (trừ vế 1x1) → #VALUE!.
+    private func elementwise(_ op: String, _ l: EvalValue, _ r: EvalValue) -> EvalValue? {
+        guard isMulti(l) || isMulti(r) else { return nil }
+        guard let lg = materialize(l), let rg = materialize(r),
+              let ln = lg.first?.count, let rn = rg.first?.count else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        let rows: Int, cols: Int
+        if lg.count == rg.count, ln == rn { rows = lg.count; cols = ln }
+        else if lg.count == 1, ln == 1 { rows = rg.count; cols = rn }
+        else if rg.count == 1, rn == 1 { rows = lg.count; cols = ln }
+        else { return .scalar(.error(FormulaErrors.value)) }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rows)
+        for i in 0..<rows {
+            var line: [CellValue] = []
+            line.reserveCapacity(cols)
+            for j in 0..<cols {
+                let a = (lg.count == 1 && ln == 1) ? lg[0][0] : lg[i][j]
+                let b = (rg.count == 1 && rn == 1) ? rg[0][0] : rg[i][j]
+                line.append(binary(op, a, b))
+            }
+            out.append(line)
+        }
+        return .array(out)
+    }
+
+    /// IF với điều kiện là mảng/vùng nhiều ô: trả về mảng kết quả theo từng phần tử.
+    /// nil = điều kiện đơn → dùng đường scalar như cũ. Nhánh 1x1 được phát cho mọi ô;
+    /// nhánh mảng phải cùng hình với điều kiện, nếu không → #VALUE!.
+    private func ifArray(_ args: [FormulaExpr]) -> EvalValue? {
+        guard (2...3).contains(args.count) else { return nil }
+        let cond = eval(args[0])
+        guard isMulti(cond), let cg = materialize(cond), let cols = cg.first?.count else { return nil }
+        guard let tg = materialize(eval(args[1])),
+              let eg = args.count == 3 ? materialize(eval(args[2])) : [[CellValue.bool(false)]],
+              let tn = tg.first?.count, let en = eg.first?.count else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        let rows = cg.count
+        guard (tg.count == rows && tn == cols) || (tg.count == 1 && tn == 1),
+              (eg.count == rows && en == cols) || (eg.count == 1 && en == 1) else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        func pick(_ g: [[CellValue]], _ n: Int, _ i: Int, _ j: Int) -> CellValue {
+            (g.count == 1 && n == 1) ? g[0][0] : g[i][j]
+        }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rows)
+        for i in 0..<rows {
+            var line: [CellValue] = []
+            line.reserveCapacity(cols)
+            for j in 0..<cols {
+                let c = cg[i][j]
+                if case .error(let e) = c { line.append(.error(e)); continue }
+                guard let b = bool(c) else { line.append(.error(FormulaErrors.value)); continue }
+                line.append(b ? pick(tg, tn, i, j) : pick(eg, en, i, j))
+            }
+            out.append(line)
+        }
+        return .array(out)
     }
 
     // MARK: Ép kiểu
@@ -210,6 +314,7 @@ struct FormulaEvaluator {
 
     func call(_ name: String, _ args: [FormulaExpr]) -> EvalValue {
         if name == "LET" { return letCall(args) }
+        if name == "IF", let v = ifArray(args) { return v }
         if let v = callReference(name, args) { return v }
         return .scalar(callScalar(name, args))
     }
