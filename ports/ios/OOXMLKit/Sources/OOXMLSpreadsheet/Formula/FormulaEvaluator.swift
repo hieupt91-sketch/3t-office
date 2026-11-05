@@ -224,7 +224,7 @@ struct FormulaEvaluator {
 
     // MARK: Hàm mảng động (M7 lát 18, INBOX-MAC #17)
 
-    /// Hàm trả về mảng: TRANSPOSE, SEQUENCE, SORT, FILTER, UNIQUE.
+    /// Hàm trả về mảng: TRANSPOSE, SEQUENCE, SORT, FILTER, UNIQUE, SORTBY.
     /// nil = không phải hàm mảng → đường scalar như cũ.
     private func callArray(_ name: String, _ args: [FormulaExpr]) -> EvalValue? {
         switch name {
@@ -233,6 +233,7 @@ struct FormulaEvaluator {
         case "SORT": return sortArray(args)
         case "FILTER": return filterArray(args)
         case "UNIQUE": return uniqueArray(args)
+        case "SORTBY": return sortByArray(args)
         default: return nil
         }
     }
@@ -487,6 +488,48 @@ struct FormulaEvaluator {
         g = kept
         if byCol { g = Self.transposeGrid(g) }
         return .array(g)
+    }
+
+    /// SORTBY(mảng, theo_mảng1, [thứ_tự1=1], [theo_mảng2], [thứ_tự2], ...):
+    /// sắp hàng của mảng theo một hoặc nhiều cột khóa. Đối số đi theo cặp vị
+    /// trí (theo_mảng, thứ_tự): thứ_tự của cặp cuối có thể bỏ (mặc định 1).
+    /// Mỗi theo_mảng phải là cột đơn có đúng số hàng bằng mảng; thứ_tự chỉ
+    /// nhận ±1. So khóa bằng compareSortKey như SORT (số < chuỗi < logic <
+    /// lỗi < rỗng luôn cuối, ổn định, khóa sau chỉ phá hòa khóa trước).
+    /// Thứ_tự khác ±1, theo_mảng sai hình/không phải cột đơn, thiếu theo_mảng
+    /// → #VALUE!; lỗi scalar trong theo_mảng/thứ_tự lan truyền nguyên vẹn;
+    /// ô lỗi trong cột khóa được sắp như giá trị (sau số), như SORT.
+    private func sortByArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard args.count >= 2 else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        let rows = grid.count
+        var keys: [(col: [CellValue], ascending: Bool)] = []
+        var i = 1
+        while i < args.count {
+            let keyEval = eval(args[i])
+            if case .scalar(.error(let e)) = keyEval { return .scalar(.error(e)) }
+            guard let keyGrid = materialize(keyEval), keyGrid.count == rows,
+                  let keyCols = keyGrid.first?.count, keyCols == 1 else { return bad }
+            var ascending = true
+            if i + 1 < args.count {
+                let v = scalar(eval(args[i + 1]))
+                if case .error = v { return .scalar(v) }
+                guard let n = number(v), n.isFinite, n == 1 || n == -1 else { return bad }
+                ascending = n == 1
+            }
+            keys.append((keyGrid.map { $0[0] }, ascending))
+            i += 2
+        }
+        let sorted = grid.enumerated().sorted { a, b in
+            for (key, ascending) in keys {
+                let c = Self.compareSortKey(key[a.offset], key[b.offset], ascending: ascending)
+                if c != 0 { return c < 0 }
+            }
+            return a.offset < b.offset
+        }.map { $0.element }
+        return .array(sorted)
     }
 
     // MARK: Ép kiểu

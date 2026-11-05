@@ -3,10 +3,12 @@ import XCTest
 
 /// M7 lát 18: hàm mảng động TRANSPOSE + SEQUENCE (INBOX-MAC #17).
 /// M7 lát 19: SORT + FILTER + UNIQUE (INBOX-MAC #17).
+/// M7 lát 20: SORTBY (INBOX-MAC #17).
 /// Giá trị kỳ vọng theo Excel: SEQUENCE cắt phần lẻ hàng/cột về nguyên,
 /// TRANSPOSE đổi hàng ↔ cột, ô lỗi đi qua nguyên vẹn; SORT ổn định, rỗng
 /// luôn cuối; FILTER cần bao_gồm logic đúng hình; UNIQUE so trùng không
-/// phân biệt hoa/thường với chuỗi, theo giá trị với số.
+/// phân biệt hoa/thường với chuỗi, theo giá trị với số; SORTBY sắp hàng
+/// theo một hoặc nhiều cột khóa, thứ_tự chỉ nhận ±1.
 final class FormulaDynamicArrayTests: XCTestCase {
     private func engine() -> FormulaEngine {
         let e = FormulaEngine()
@@ -390,6 +392,145 @@ final class FormulaDynamicArrayTests: XCTestCase {
         let e = gridEngine()
         XCTAssertEqual(calc(e, "=UNIQUE(A1:C4,1,2,3)"), .error("#VALUE!"), "thừa đối số")
         XCTAssertEqual(calc(e, "=UNIQUE(A1:C4,\"x\")"), .error("#VALUE!"), "theo_cột không phải logic")
+    }
+
+    // MARK: SORTBY (lát 20)
+
+    /// A1:C4 như gridEngine; D1:D4 khóa số, E1:E4 khóa chuỗi.
+    private func sortByEngine() -> FormulaEngine {
+        let e = gridEngine()
+        for (i, v) in [20.0, 10.0, 30.0, 40.0].enumerated() {
+            e.setValue(.number(v), sheet: "Data", at: "D\(i + 1)")
+        }
+        for (i, v) in ["b", "a", "d", "c"].enumerated() {
+            e.setValue(.string(v), sheet: "Data", at: "E\(i + 1)")
+        }
+        return e
+    }
+
+    func testSortBySingleKeyAscending() {
+        let e = sortByEngine()
+        XCTAssertEqual(cse(e, "=SORTBY(A1:C4,D1:D4)", "G1:I4"),
+                       [.number(1), .string("a"), .bool(false),
+                        .number(3), .string("b"), .bool(true),
+                        .number(3), .string("b"), .bool(true),
+                        .number(2), .string("c"), .bool(true)],
+                       "khóa D tăng: 10,20,30,40 → hàng 2,1,3,4")
+    }
+
+    func testSortBySingleKeyDescending() {
+        let e = sortByEngine()
+        XCTAssertEqual(cse(e, "=SORTBY(A1:C4,D1:D4,-1)", "G1:I4"),
+                       [.number(2), .string("c"), .bool(true),
+                        .number(3), .string("b"), .bool(true),
+                        .number(3), .string("b"), .bool(true),
+                        .number(1), .string("a"), .bool(false)],
+                       "khóa D giảm: 40,30,20,10 → hàng 4,3,1,2")
+    }
+
+    func testSortByTwoKeys() {
+        let e = sortByEngine()
+        // Khóa 1: D theo cặp bằng nhau (20,20 / 10,10...) — dùng khóa mới:
+        // ghi đè D thành 2,2,1,1 để khóa 1 có hòa, khóa 2 (E) phá hòa.
+        for (i, v) in [2.0, 2.0, 1.0, 1.0].enumerated() {
+            e.setValue(.number(v), sheet: "Data", at: "D\(i + 1)")
+        }
+        XCTAssertEqual(cse(e, "=SORTBY(A1:C4,D1:D4,1,E1:E4,1)", "G1:I4"),
+                       [.number(2), .string("c"), .bool(true),
+                        .number(3), .string("b"), .bool(true),
+                        .number(1), .string("a"), .bool(false),
+                        .number(3), .string("b"), .bool(true)],
+                       "D tăng rồi E tăng: nhóm D=1 (c<d) → hàng 4,3; nhóm D=2 (a<b) → hàng 2,1")
+    }
+
+    func testSortByMixedOrders() {
+        let e = sortByEngine()
+        for (i, v) in [2.0, 2.0, 1.0, 1.0].enumerated() {
+            e.setValue(.number(v), sheet: "Data", at: "D\(i + 1)")
+        }
+        XCTAssertEqual(cse(e, "=SORTBY(A1:C4,D1:D4,1,E1:E4,-1)", "G1:I4"),
+                       [.number(3), .string("b"), .bool(true),
+                        .number(2), .string("c"), .bool(true),
+                        .number(3), .string("b"), .bool(true),
+                        .number(1), .string("a"), .bool(false)],
+                       "D tăng, E giảm: nhóm D=1 (d>c) → hàng 3,4; nhóm D=2 (b>a) → hàng 1,2")
+    }
+
+    func testSortBySecondKeyDefaultOrder() {
+        let e = sortByEngine()
+        for (i, v) in [2.0, 2.0, 1.0, 1.0].enumerated() {
+            e.setValue(.number(v), sheet: "Data", at: "D\(i + 1)")
+        }
+        XCTAssertEqual(cse(e, "=SORTBY(A1:C4,D1:D4,1,E1:E4)", "G1:I4"),
+                       [.number(2), .string("c"), .bool(true),
+                        .number(3), .string("b"), .bool(true),
+                        .number(1), .string("a"), .bool(false),
+                        .number(3), .string("b"), .bool(true)],
+                       "thứ_tự cặp cuối bỏ được, mặc định tăng")
+    }
+
+    func testSortByStableOnEqualKeys() {
+        let e = sortByEngine()
+        for i in 1...4 { e.setValue(.number(5), sheet: "Data", at: "D\(i)") }
+        XCTAssertEqual(cse(e, "=SORTBY(A1:C4,D1:D4)", "G1:I4"),
+                       [.number(3), .string("b"), .bool(true),
+                        .number(1), .string("a"), .bool(false),
+                        .number(3), .string("b"), .bool(true),
+                        .number(2), .string("c"), .bool(true)],
+                       "khóa bằng nhau hết → giữ nguyên thứ tự hàng")
+    }
+
+    func testSortByBlanksAlwaysLast() {
+        let e = gridEngine()
+        e.setValue(.number(2), sheet: "Data", at: "D2")
+        e.setValue(.number(1), sheet: "Data", at: "D3")
+        XCTAssertEqual(cse(e, "=SORTBY(A1:C4,D1:D4)", "G1:I4"),
+                       [.number(3), .string("b"), .bool(true),
+                        .number(1), .string("a"), .bool(false),
+                        .number(3), .string("b"), .bool(true),
+                        .number(2), .string("c"), .bool(true)],
+                       "khóa tăng: 1,2 rồi rỗng (hàng 1,4 giữ thứ tự)")
+        XCTAssertEqual(cse(e, "=SORTBY(A1:C4,D1:D4,-1)", "G1:I4"),
+                       [.number(1), .string("a"), .bool(false),
+                        .number(3), .string("b"), .bool(true),
+                        .number(3), .string("b"), .bool(true),
+                        .number(2), .string("c"), .bool(true)],
+                       "khóa giảm: 2,1 rồi rỗng vẫn cuối")
+    }
+
+    func testSortByBadArgsAreValueError() {
+        let e = sortByEngine()
+        XCTAssertEqual(calc(e, "=SORTBY(A1:C4)"), .error("#VALUE!"), "thiếu theo_mảng")
+        XCTAssertEqual(calc(e, "=SORTBY(A1:C4,D1:D3)"), .error("#VALUE!"), "khóa 3 hàng, mảng 4 hàng")
+        XCTAssertEqual(calc(e, "=SORTBY(A1:C4,D1:E4)"), .error("#VALUE!"), "khóa 2 cột, không phải cột đơn")
+        XCTAssertEqual(calc(e, "=SORTBY(A1:C4,D1:G1)"), .error("#VALUE!"), "khóa là hàng ngang 1x4")
+        XCTAssertEqual(calc(e, "=SORTBY(A1:C4,D1:D4,2)"), .error("#VALUE!"), "thứ_tự khác ±1")
+        XCTAssertEqual(calc(e, "=SORTBY(A1:C4,D1:D4,\"x\")"), .error("#VALUE!"), "thứ_tự không phải số")
+        XCTAssertEqual(calc(e, "=SORTBY(A1:C4,D1:D4,1,E1:E4,0)"), .error("#VALUE!"), "thứ_tự cặp 2 bằng 0")
+    }
+
+    func testSortByErrorKeySortsAsValue() {
+        let e = sortByEngine()
+        e.setFormula("=1/0", sheet: "Data", at: "D1")
+        XCTAssertEqual(cse(e, "=SORTBY(A1:C4,D1:D4)", "G1:I4"),
+                       [.number(1), .string("a"), .bool(false),
+                        .number(3), .string("b"), .bool(true),
+                        .number(2), .string("c"), .bool(true),
+                        .number(3), .string("b"), .bool(true)],
+                       "ô lỗi trong cột khóa được sắp như giá trị (sau số), như SORT")
+    }
+
+    func testSortByErrorArgPropagates() {
+        let e = sortByEngine()
+        XCTAssertEqual(calc(e, "=SORTBY(A1:C4,1/0)"), .error("#DIV/0!"),
+                       "theo_mảng là biểu thức lỗi → lan truyền")
+    }
+
+    func testSortByInsideSum() {
+        let e = engine()
+        e.setValue(.number(20), sheet: "Data", at: "D1")
+        e.setValue(.number(10), sheet: "Data", at: "D2")
+        XCTAssertEqual(calc(e, "=SUM(SORTBY(A1:B2,D1:D2))"), .number(10), "1+2+3+4")
     }
 
     // MARK: Kết hợp (lát 19)
