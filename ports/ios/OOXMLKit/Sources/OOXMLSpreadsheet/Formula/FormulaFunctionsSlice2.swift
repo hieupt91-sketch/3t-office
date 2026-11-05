@@ -115,6 +115,10 @@ extension FormulaEvaluator {
         case "FORECAST", "FORECAST.LINEAR": return try forecast(a)
         case "CORREL", "PEARSON": return try correl(a)
         case "STEYX": return try steyx(a)
+        case "COVARIANCE.S": return try covariance(sample: true, a)
+        case "COVARIANCE.P": return try covariance(sample: false, a)
+        case "FISHER": return try fisher(a)
+        case "FISHERINV": return try fisherinv(a)
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
@@ -1042,6 +1046,39 @@ extension FormulaEvaluator {
         guard ys.count > 2 else { throw fail(FormulaErrors.div0) }
         let sse = max(0, r.syy - r.slope * r.sxy)
         return .number((sse / Double(ys.count - 2)).squareRoot())
+    }
+
+    /// M7: COVARIANCE.S / COVARIANCE.P — hiệp phương sai mẫu / tổng thể:
+    /// Σ((x − mx)(y − my)) / (n − 1) hoặc / n, tính hai lượt qua trung bình.
+    /// Không còn cặp nào → #N/A; mẫu (n − 1) với dưới 2 cặp → #DIV/0!
+    /// (Excel); tổng thể với 1 cặp cho 0. Cùng quy ước cặp như CORREL.
+    private func covariance(sample: Bool, _ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let (ys, xs) = try pairedNumbers(a[0], a[1])
+        guard !ys.isEmpty else { throw fail(FormulaErrors.na) }
+        if sample { guard ys.count > 1 else { throw fail(FormulaErrors.div0) } }
+        let n = Double(ys.count)
+        let mx = xs.reduce(0, +) / n, my = ys.reduce(0, +) / n
+        var sxy = 0.0
+        for (y, x) in zip(ys, xs) { sxy += (x - mx) * (y - my) }
+        return .number(sxy / (sample ? n - 1 : n))
+    }
+
+    /// M7: FISHER — biến đổi Fisher: 0.5 · ln((1 + x) / (1 − x)).
+    /// |x| ≥ 1 → #NUM! (Excel); đối số không phải số → #VALUE!.
+    private func fisher(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...1)
+        let x = try nm(a[0])
+        guard x > -1, x < 1 else { throw fail(FormulaErrors.num) }
+        return .number(0.5 * log((1 + x) / (1 - x)))
+    }
+
+    /// M7: FISHERINV — biến đổi Fisher ngược: tanh(y), tức
+    /// (e^(2y) − 1) / (e^(2y) + 1). Dùng tanh để ổn định với |y| lớn
+    /// (không tràn như dạng e^(2y) trực tiếp); mọi y thực đều hợp lệ.
+    private func fisherinv(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...1)
+        return .number(tanh(try nm(a[0])))
     }
 
     // MARK: Điều kiện / thống kê
