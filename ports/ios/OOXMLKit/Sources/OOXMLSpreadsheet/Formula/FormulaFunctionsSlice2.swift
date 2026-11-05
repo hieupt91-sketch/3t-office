@@ -113,6 +113,8 @@ extension FormulaEvaluator {
         case "INTERCEPT": return try slopeIntercept(slope: false, a)
         case "RSQ": return try rsq(a)
         case "FORECAST", "FORECAST.LINEAR": return try forecast(a)
+        case "CORREL", "PEARSON": return try correl(a)
+        case "STEYX": return try steyx(a)
         // Điều kiện / thống kê
         case "SUMIF", "AVERAGEIF": return try sumifSingle(name == "AVERAGEIF", a)
         case "COUNTIF": return try countif(a)
@@ -1012,6 +1014,34 @@ extension FormulaEvaluator {
         let r = regressionValues(ys, xs)
         guard r.sxx != 0 else { throw fail(FormulaErrors.div0) }
         return .number(r.intercept + r.slope * x)
+    }
+
+    /// M7: CORREL / PEARSON — hệ số tương quan Pearson (sxy / √(sxx·syy)).
+    /// Hai hàm đồng nghĩa trong Excel. Không còn cặp nào → #N/A;
+    /// phương sai x hoặc y bằng 0 → #DIV/0! (cùng quy ước lát 11).
+    private func correl(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let (ys, xs) = try pairedNumbers(a[0], a[1])
+        guard !ys.isEmpty else { throw fail(FormulaErrors.na) }
+        let r = regressionValues(ys, xs)
+        guard r.sxx != 0, r.syy != 0 else { throw fail(FormulaErrors.div0) }
+        return .number(r.sxy / (r.sxx * r.syy).squareRoot())
+    }
+
+    /// M7: STEYX — sai số chuẩn của y dự báo trên đường hồi quy:
+    /// √(Σ(y − ŷ)² / (n − 2)), với ŷ = intercept + slope·x.
+    /// Σ(y − ŷ)² tính qua syy − slope·sxy (dạng hai lượt, kẹp sai số
+    /// làm tròn âm nhỏ về 0). Dưới 3 cặp → #DIV/0! (mẫu số n−2 ≤ 0);
+    /// x hằng số → #DIV/0!; không còn cặp nào → #N/A.
+    private func steyx(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let (ys, xs) = try pairedNumbers(a[0], a[1])
+        guard !ys.isEmpty else { throw fail(FormulaErrors.na) }
+        let r = regressionValues(ys, xs)
+        guard r.sxx != 0 else { throw fail(FormulaErrors.div0) }
+        guard ys.count > 2 else { throw fail(FormulaErrors.div0) }
+        let sse = max(0, r.syy - r.slope * r.sxy)
+        return .number((sse / Double(ys.count - 2)).squareRoot())
     }
 
     // MARK: Điều kiện / thống kê
