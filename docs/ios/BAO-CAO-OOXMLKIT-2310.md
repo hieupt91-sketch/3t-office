@@ -238,3 +238,20 @@ Kiểm thử: bài bridge mới **FAIL trước sửa** do `pptx.save` chưa t�
 `Slide.setNotesText` nay dựng notes master, theme relationship, content type, presentation relationship và `notesMasterIdLst` đúng schema khi deck chưa có master; khi notes slide hiện hữu dùng shape chữ ghi chú dù nguồn không đánh dấu placeholder `body`; `OPCPackage.save(to:)` giữ được lỗi validation có sẵn và vẫn từ chối lỗi mới. `ContentType.notesMaster` là hằng API bổ sung. Đã bỏ biến `index` không dùng trong vòng lặp bridge.
 
 Tái hiện trước/sau: thiếu notes master **FAIL** (`noNotesMaster`) → **PASS 1/1**; validator lỗi nguồn **FAIL** (`validationFailed`) → **PASS 1/1**, lỗi mới vẫn chặn lưu; read-back ghi chú **FAIL 2 assertion (nil)** → **PASS 1/1**. `swift test` và `scripts/run-tests.sh` debug/release: **140/140 PASS** mỗi cấu hình; kiểm chéo độc lập **88/88 PASS** ZIP/CRC/XML (bộ đọc Office Python tùy chọn **NOT RUN**, thiếu package). Gate chung: `node tests/run-tests.js` **3798/3798 PASS**; i18n **0 missing**; checklist evidence **0 lowered**. Pytest lần đầu **FAIL 2** do Windows không truy cập được Linux engine trong `.build`; đặt `OOXML_ENGINE_PATH` tới đường dẫn Windows không tồn tại rồi chạy lại: **5 PASS, 2 SKIPPED** vì chưa dựng Windows `.exe`. Không đổi UI nên không có màn hình cần xem; không chạy COM.
+
+## 8.15. Bridge + 6 API model mới (26/10/2026, nhánh muse/ooxmlkit-numbering-2510)
+
+Bridge từ model API sẵn có (hyperlink, properties, autoFilter, view/print,
+protection, data validation, insertImage, conditional formatting, setTableCell,
+Paragraph.spacing, Run text effects) đã đẩy lên GitHub qua Mac ở `85930ee2`.
+Tiếp theo, 6 API model còn thiếu theo PATCH-TO-OOXMLKIT-MAPPING, mỗi API kèm
+Bridge op + test mở–sửa–lưu–mở lại + dòng `docs/sync/LIBRARY-CHANGELOG.md`:
+numbering đoạn (`numPr`, dùng lại num, tự tạo part numbering), field phức hợp
+(`appendField`), Section link-to-previous (header/footer), `showSettings` trình
+chiếu, trích theme (`Presentation.theme`, chỉ đọc), và `rewriteLegacyConcat`
+cho công thức thường của sheet/sổ (công thức chia sẻ/mảng giữ nguyên).
+
+Kiểm thử: Swift 6.0.3 trên VM **232/232 PASS, 0 failure** (từ 220 lên 232);
+Xcode trên Mac **220/220 PASS, coverage 92%** cho nhánh Bridge trước khi thêm
+6 API mới. Nhánh numbering chưa đẩy lên GitHub; kiểm chứng C2 trên Mac đang
+BLOCKED (xem tiến trình 26/10) nên C2 chưa merge vào `vn-main`.

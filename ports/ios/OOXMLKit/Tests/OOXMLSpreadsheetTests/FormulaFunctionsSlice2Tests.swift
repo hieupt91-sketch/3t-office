@@ -128,6 +128,19 @@ final class FormulaFunctionsSlice2Tests: XCTestCase {
         XCTAssertEqual(calc("UPPER(A1)", data), s("10"))
     }
 
+    func testTextVietnameseLocale() {
+        // 45658 = 01/01/2025 (thứ tư).
+        XCTAssertEqual(calc("TEXT(45658,\"[$-vi-VN]dd/mm/yyyy\")"), s("01/01/2025"), "ngày kiểu Việt")
+        XCTAssertEqual(calc("TEXT(45658,\"[$-vi-VN]dddd\")"), s("thứ tư"), "tên thứ tiếng Việt")
+        XCTAssertEqual(calc("TEXT(45658,\"[$-vi-VN]dd mmmm yyyy\")"), s("01 tháng 1 2025"), "tháng tiếng Việt")
+        XCTAssertEqual(calc("TEXT(45658,\"[$-042A]dd/mm/yyyy\")"), s("01/01/2025"), "thẻ LCID 042A = vi")
+        XCTAssertEqual(calc("TEXT(1234567.891,\"[$-vi-VN]#,##0.00\")"), s("1.234.567,89"), "nghìn chấm, thập phân phẩy")
+        XCTAssertEqual(calc("TEXT(0.5,\"[$-vi-VN]0.0%\")"), s("50,0%"), "phần trăm kiểu Việt")
+        XCTAssertEqual(calc("TEXT(1234.5,\"[$₫-vi-VN]#,##0\")"), s("₫1.235"), "ký hiệu tiền tệ trong thẻ locale")
+        XCTAssertEqual(calc("TEXT(45658,\"mmmm\")"), s("January"), "không thẻ locale: giữ mặc định tiếng Anh")
+        XCTAssertEqual(calc("TEXT(1234567.891,\"#,##0.00\")"), s("1,234,567.89"), "không thẻ locale: giữ ngăn cách Mỹ")
+    }
+
     func testTextErrors() {
         XCTAssertEqual(calc("LEFT(\"abc\",-1)"), err("#VALUE!"))
         XCTAssertEqual(calc("RIGHT(\"abc\",-1)"), err("#VALUE!"))
@@ -472,7 +485,8 @@ final class FormulaFunctionsSlice2Tests: XCTestCase {
 
     func testUnknownStillNameError() {
         XCTAssertEqual(calc("FOO(1)"), err("#NAME?"))
-        XCTAssertEqual(calc("XLOOKUP(1,A1:A2,B1:B2)", data), err("#NAME?"))
+        // XLOOKUP đã có từ gói L4 (xem testXlookup); LAMBDA là ví dụ hàm chưa triển khai.
+        XCTAssertEqual(calc("LAMBDA(1)", data), err("#NAME?"))
     }
 
     // MARK: Engine: phụ thuộc, lan lỗi, chéo sheet

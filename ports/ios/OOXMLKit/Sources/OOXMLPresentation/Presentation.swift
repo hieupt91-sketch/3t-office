@@ -8,6 +8,9 @@ public enum PresentationError: Error, Equatable, CustomStringConvertible {
     case shapeHasNoText
     case shapeHasNoName
     case unsupportedImage
+    case invalidTransition(String)
+    case shapeNotFound(String)
+    case invalidTiming(String)
 
     public var description: String {
         switch self {
@@ -17,6 +20,9 @@ public enum PresentationError: Error, Equatable, CustomStringConvertible {
         case .shapeHasNoText: return "Hình này không chứa khung chữ"
         case .shapeHasNoName: return "Hình này không có thuộc tính tên"
         case .unsupportedImage: return "Chỉ hỗ trợ ảnh PNG, JPEG, GIF"
+        case .invalidTransition(let message): return message
+        case .shapeNotFound(let message): return message
+        case .invalidTiming(let message): return message
         }
     }
 }
@@ -24,6 +30,144 @@ public enum PresentationError: Error, Equatable, CustomStringConvertible {
 public struct SlideSection: Equatable, Sendable {
     public let name: String
     public let slideIds: [UInt32]
+}
+
+/// Cài đặt trình chiếu: phần tử `p:showPr` trong part Presentation Properties
+/// (`ppt/presProps.xml`, root `p:presentationPr`, nối bằng relationship loại
+/// `presProps` từ presentation). Giá trị mặc định theo PowerPoint khi chưa có
+/// phần tử: loop tắt, animation/narration/timings bật.
+public struct ShowSettings: Equatable, Sendable {
+    public var loop: Bool
+    public var showAnimation: Bool
+    public var showNarration: Bool
+    public var useTimings: Bool
+
+    public init(loop: Bool = false, showAnimation: Bool = true, showNarration: Bool = true, useTimings: Bool = true) {
+        self.loop = loop
+        self.showAnimation = showAnimation
+        self.showNarration = showNarration
+        self.useTimings = useTimings
+    }
+}
+
+extension Presentation {
+    /// Part Presentation Properties lần theo relationship `presProps` từ
+    /// presentation; không giả định part luôn tồn tại hay luôn có tên cố định.
+    private func presPropsPart() throws -> PartName? {
+        try package.relatedPart(from: mainPart, .presProps)
+    }
+
+    private func decodeShowSettings(_ element: XElement) -> ShowSettings {
+        func b(_ name: String, _ def: Bool) -> Bool {
+            guard let v = element.attribute(name) else { return def }
+            return v == "1" || v.lowercased() == "true"
+        }
+        return ShowSettings(loop: b("loop", false), showAnimation: b("showAnimation", true),
+                            showNarration: b("showNarration", true), useTimings: b("useTimings", true))
+    }
+
+    /// Đọc cài đặt trình chiếu từ `presProps.xml`/`showPr`; chưa có part hoặc
+    /// chưa có `showPr` thì trả mặc định đã công bố. Nếu gói chỉ còn cấu trúc cũ
+    /// do bản thư viện trước ghi nhầm vào `presentation.xml`, getter đọc nốt
+    /// cấu trúc đó để không mất cài đặt của người dùng.
+    public var showSettings: ShowSettings {
+        if let part = (try? presPropsPart()) ?? nil, let doc = try? package.xml(part) {
+            guard let showPr = doc.root.firstChild(NS.p, "showPr") else { return ShowSettings() }
+            return decodeShowSettings(showPr)
+        }
+        if let legacy = document.root.firstChild(NS.p, "presentationPr")?.firstChild(NS.p, "showSettings") {
+            return decodeShowSettings(legacy)
+        }
+        return ShowSettings()
+    }
+
+    /// Ghi cài đặt trình chiếu vào `p:showPr` của part Presentation Properties.
+    /// Nếu gói chưa có part, tạo `ppt/presProps.xml` bằng OPC content-type và
+    /// relationship APIs; nếu part đã có thì đi theo relationship hiện hữu.
+    /// Nội dung khác trong part (kể cả `extLst` và các con lạ của `showPr`) được
+    /// giữ nguyên. Cấu trúc cũ ghi nhầm trong `presentation.xml` được dọn đi.
+    public func setShowSettings(_ s: ShowSettings) throws {
+        let contentType = "application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"
+        let part: PartName
+        let doc: XDocument
+        if let existing = try presPropsPart() {
+            part = existing
+            if package.hasPart(existing) {
+                doc = try package.xml(existing)
+            } else {
+                let root = XElement(name: "p:presentationPr",
+                                    attributes: [XAttribute(name: "xmlns:p", value: "http://schemas.openxmlformats.org/presentationml/2006/main")])
+                doc = XDocument(root: root)
+                package.setXML(doc, for: part, contentType: contentType)
+            }
+        } else {
+            part = PartName("/ppt/presProps.xml")
+            let root = XElement(name: "p:presentationPr",
+                                attributes: [XAttribute(name: "xmlns:p", value: "http://schemas.openxmlformats.org/presentationml/2006/main")])
+            doc = XDocument(root: root)
+            package.setXML(doc, for: part, contentType: contentType)
+            _ = try package.relationships(of: mainPart).add(.presProps, to: part)
+        }
+        let root = doc.root
+        let showPr: XElement
+        if let existing = root.firstChild(NS.p, "showPr") {
+            showPr = existing
+        } else {
+            showPr = XElement(name: "p:showPr")
+            if let ext = root.firstChild(NS.p, "extLst") { root.insert(showPr, before: ext) } else { root.append(showPr) }
+        }
+        showPr.setAttribute("loop", s.loop ? "1" : "0")
+        showPr.setAttribute("showAnimation", s.showAnimation ? "1" : "0")
+        showPr.setAttribute("showNarration", s.showNarration ? "1" : "0")
+        showPr.setAttribute("useTimings", s.useTimings ? "1" : "0")
+        package.markModified(part)
+        if let legacy = document.root.firstChild(NS.p, "presentationPr") {
+            legacy.removeFromParent()
+            package.markModified(mainPart)
+        }
+    }
+}
+
+/// Thông tin trích từ theme của bản trình chiếu (a:theme): tên theme, bảng
+/// màu (slot -> mã hex srgb, hoặc lastClr của sysClr) và font latin chính/phụ.
+/// Dùng để đối chiếu/đồng bộ màu sắc, font khi không còn LibreOffice.
+public struct ThemeInfo: Equatable, Sendable {
+    public let name: String?
+    public let colorSchemeName: String?
+    public let colors: [String: String]
+    public let majorFontLatin: String?
+    public let minorFontLatin: String?
+    public let part: String
+}
+
+extension Presentation {
+    /// Theme của slide đầu tiên (qua layout -> slideMaster -> theme), dự phòng
+    /// là theme gắn trực tiếp vào presentation. Không có theme thì nil.
+    public var theme: ThemeInfo? {
+        var part: PartName?
+        for slide in slides {
+            if let layout = slide.layoutPart,
+               let master = try? package.relatedPart(from: layout, .slideMaster),
+               let candidate = try? package.relatedPart(from: master, .theme),
+               package.hasPart(candidate) { part = candidate; break }
+        }
+        if part == nil { part = try? package.relatedPart(from: mainPart, .theme) }
+        guard let part, let doc = try? package.xml(part) else { return nil }
+        let root = doc.root
+        var colors: [String: String] = [:]
+        let scheme = root.firstChild(NS.a, "themeElements")?.firstChild(NS.a, "clrScheme")
+        for slot in scheme?.elements ?? [] where slot.namespaceURI == NS.a.primaryURI {
+            if let srgb = slot.firstChild(NS.a, "srgbClr")?.attribute("val") { colors[slot.localName] = srgb }
+            else if let sys = slot.firstChild(NS.a, "sysClr"), let last = sys.attribute("lastClr") { colors[slot.localName] = last }
+        }
+        let fonts = root.firstChild(NS.a, "themeElements")?.firstChild(NS.a, "fontScheme")
+        return ThemeInfo(name: root.attribute("name"),
+                         colorSchemeName: scheme?.attribute("name"),
+                         colors: colors,
+                         majorFontLatin: fonts?.firstChild(NS.a, "majorFont")?.firstChild(NS.a, "latin")?.attribute("typeface"),
+                         minorFontLatin: fonts?.firstChild(NS.a, "minorFont")?.firstChild(NS.a, "latin")?.attribute("typeface"),
+                         part: part.value)
+    }
 }
 
 /// Bản trình chiếu PPTX/PPTM/POTX.
@@ -51,10 +195,13 @@ public final class Presentation {
 
     public init(package: OPCPackage) throws {
         self.package = package
-        guard let main = try? package.mainDocumentPart(), package.hasPart(main),
-              let doc = try? package.xml(main), doc.root.is(NS.p, "presentation") else {
+        guard let main = try? package.mainDocumentPart(), package.hasPart(main) else {
             throw PresentationError.notAPresentation
         }
+        // Như WordDocument (gói L8): part chính có mà XML hỏng/quá sâu thì
+        // truyền thẳng XMLError có mã, không gộp thành notAPresentation.
+        let doc = try package.xml(main)
+        guard doc.root.is(NS.p, "presentation") else { throw PresentationError.notAPresentation }
         mainPart = main
         document = doc
     }

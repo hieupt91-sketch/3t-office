@@ -28,7 +28,7 @@ let package = Package(
         .target(name: "OOXMLBridge", dependencies: ["OOXMLKit"]),
         .executableTarget(name: "ooxml-engine", dependencies: ["OOXMLBridge"]),
         // Benchmark mở/lưu (G1): sinh XLSX tổng hợp ~1MB/~10MB và đo thời gian + bộ nhớ đỉnh. Xem scripts/bench.sh.
-        .executableTarget(name: "ooxml-bench", dependencies: ["OOXMLZip", "OOXMLPackage", "OOXMLSpreadsheet"]),
+        .executableTarget(name: "ooxml-bench", dependencies: ["OOXMLZip", "OOXMLPackage", "OOXMLSpreadsheet", "OOXMLWord", "OOXMLPresentation"]),
 
         .target(
             name: "OOXMLTestSupport",

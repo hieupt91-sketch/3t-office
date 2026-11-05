@@ -3,8 +3,8 @@
 > **Mã tài liệu:** `SPEC-OOXML-ENGINE-PROTOCOL`  
 > **Áp dụng cho:** `ports/ios/OOXMLKit`, `platform/ooxml/engine_client.py`, `apps/sheet`, `apps/writer`, `apps/slides`  
 > **Nền tảng tham chiếu:** Windows, macOS, iOS/iPadOS  
-> **Trạng thái:** TÀI LIỆU CHUẨN GIAO THỨC (Được kiểm chứng 100% bằng thực thi lệnh thật qua `ooxml-engine.exe`)  
-> **Phiên bản:** 1.0 (Tháng 10/2026)  
+> **Trạng thái:** TÀI LIỆU CHUẨN GIAO THỨC. Khung giao thức và 34 lệnh ở §11 đã kiểm chứng bằng thực thi lệnh thật qua `ooxml-engine.exe` trên máy bàn (bản gốc tài liệu). Danh mục lệnh được đối chiếu lại với `OOXMLBridge.handle` ngày 2026-10-31 trên nền `1354d7ec` + nhánh `muse/ooxmlkit-directive-3110`: các lệnh bổ sung ở §4.8, §5.3, §6.3 được kiểm chứng bằng OOXMLBridgeTests (Linux, Swift 6.0.3), chưa chạy lại qua `ooxml-engine.exe` trên máy bàn.
+> **Phiên bản:** 1.1 (31/10/2026; bản 1.0 tháng 10/2026)  
 
 ---
 
@@ -364,6 +364,50 @@ sequenceDiagram
 
 ---
 
+### 4.8. Cấu hình Sheet & Workbook (`sheet.setPageSetup`, cấu hình in/hiển thị/bảo vệ, `sheet.rewriteLegacyConcat`)
+
+Bổ sung 2026-10-31, đối chiếu trực tiếp `OOXMLBridge.handle` (nhánh `muse/ooxmlkit-directive-3110` trên nền `1354d7ec`). Mọi lệnh đều nhận `handle` (xlsx) và — trừ nhóm `workbook.*` — `sheet` (tên sheet); kết quả `{}` nếu không ghi khác. Lỗi chung: `kind` (handle không phải xlsx), `args` (thiếu/sai tham số), `index` (hàng/cột ngoài phạm vi), lỗi model (ví dụ `SpreadsheetError.invalidReference`) đi qua catch-all thành `internal` kèm thông điệp gốc (xem ghi chú §9). Thay đổi chỉ có hiệu lực trên tài liệu khi gọi `save`/`exportBytes`/`xlsx.save` như mọi lệnh tương tác khác.
+
+| `op` | Tham số (bắt buộc / tùy chọn) | Kết quả & ngữ nghĩa |
+|---|---|---|
+| `sheet.rewriteLegacyConcat` | — | `{"changed": n}`: viết lại các công thức nối chuỗi kiểu cũ (`CONCAT`/`&` dạng legacy) trong sheet thành dạng hiện hành; `n` = số công thức đã đổi. |
+| `sheet.setAutoFilter` | `range` (chuỗi A1) | Đặt AutoFilter theo vùng. |
+| `sheet.autoFilter` | — | Đọc vùng + tiêu chí AutoFilter (gói L7, STT 17): `{found, range?, columns: [{col, kind, ...}]}` — kind `values` (kèm `values`), `custom` (kèm `and`, `conditions: [{op, value}]`), `top10` (kèm `top`, `percent`, `value`), `unsupported` (cột dùng dateGroupItem/colorFilter/dynamicFilter/iconFilter — chỉ đọc). |
+| `sheet.setAutoFilterCriterion` | `col`, `criterion` (object hoặc null) | Đặt/gỡ tiêu chí lọc cho cột colId `col` (0-based từ cột đầu vùng; phải đã có vùng AutoFilter). `criterion`: `{kind:"values", values:[...]}` / `{kind:"custom", and, conditions:[{op, value}]}` (toán tử equal/notEqual/greaterThan/greaterThanOrEqual/lessThan/lessThanOrEqual, 1–2 điều kiện) / `{kind:"top10", top, percent, value}`; null = gỡ tiêu chí cột. Ghi đè toàn bộ filterColumn của cột; cột khác giữ nguyên. Chỉ ghi tiêu chí — ứng dụng tự lọc khi mở tệp. Lỗi tham số → `SpreadsheetError.invalidSetting`. |
+| `sheet.removeAutoFilter` | — | Gỡ AutoFilter. |
+| `sheet.hyperlinks` | — | `{"hyperlinks": [{"cell", "target"}]}`. |
+| `sheet.setHyperlink` | `ref`, `target` / `location`, `isExternal` (mặc định `true`) | Gắn hyperlink cho ô. |
+| `sheet.removeHyperlink` | `ref` | Gỡ hyperlink của ô. |
+| `sheet.setColumnWidth` | `col` (Int), `width` (Double) / `hidden` (mặc định `false`) | Đặt bề rộng cột. |
+| `sheet.setColumnHidden` | `col` / `hidden` (mặc định `true`) | Ẩn/hiện cột. |
+| `sheet.setRowHeight` | `row` (Int), `height` (Double) / `hidden` (mặc định `false`) | Đặt chiều cao hàng. |
+| `sheet.setRowHidden` | `row` / `hidden` (mặc định `true`) | Ẩn/hiện hàng. |
+| `sheet.setState` | `state` (theo `SheetState`; sai giá trị → `args`) | Đặt trạng thái hiển thị của sheet. |
+| `sheet.setPageSetup` | / `orientation` (`portrait`/`landscape`, mặc định `portrait`; sai → `args`), `paperSize` (Int, mặc định 1), `margins` (`left/right/top/bottom/header/footer`, inch, mặc định 0) | Đặt thiết lập trang in. |
+| `sheet.setViewOptions` | `options`: `showGridLines` (mặc định `true`), `showRowColumnHeaders` (mặc định `true`), `zoomScale` (Int, tùy chọn) | Tùy chọn hiển thị sheet. |
+| `sheet.setPrintOptions` | `options`: `gridLines`, `headings`, `horizontalCentered`, `verticalCentered` (đều mặc định `false`) | Tùy chọn in. |
+| `sheet.setSheetProtection` | / `password`, `options`: `sheet` (mặc định `true`), `objects/scenarios/formatCells/formatColumns/formatRows/insertColumns/insertRows/deleteColumns/deleteRows/selectLockedCells/selectUnlockedCells` (mặc định `false`) | Bảo vệ sheet theo cờ quyền. |
+| `sheet.addDataValidation` | `range`, `rule`: `type` (bắt buộc; thiếu → `args`), `formula1`, `formula2`, `operator`, `allowBlank` (mặc định `false`) | Thêm quy tắc kiểm chứng dữ liệu. |
+| `sheet.addConditionalFormatting` | `range`, `rule`: `type` (bắt buộc), `operator`, `formula` (chuỗi hoặc mảng chuỗi), `visual` | Thêm định dạng có điều kiện. |
+| `sheet.clearConditionalFormatting` | / `range` (vắng mặt = toàn sheet) | Xóa định dạng có điều kiện. |
+| `workbook.setCalculationOptions` | `calcMode` (theo `CalcMode`; sai → `args`) / `iterate` (mặc định `false`), `date1904` (mặc định `false`) | Tùy chọn tính toán của workbook. |
+| `workbook.setTheme` | `preset` — snapshot hiện tại chỉ nhận `"ocean"` (khác → `args`) | Áp theme có sẵn cho workbook (tạo part theme nếu tệp chưa có). |
+| `workbook.setWorkbookProtection` | / `lockStructure` (mặc định `true`), `password` | Khóa cấu trúc workbook. |
+
+`sheet.freezePanes`, `sheet.setTabColor`, `sheet.setPrintArea` chỉ tồn tại dưới dạng thao tác **delta** bên trong `xlsx.save` (§7.2), không phải lệnh tương tác độc lập ở snapshot này.
+
+#### Ví dụ:
+
+```json
+{"id":90,"op":"sheet.rewriteLegacyConcat","args":{"handle":"h1","sheet":"Dữ liệu"}}
+{"ok":true,"id":90,"result":{"changed":2}}
+
+{"id":91,"op":"sheet.setPageSetup","args":{"handle":"h1","sheet":"Dữ liệu","orientation":"landscape","paperSize":9,"margins":{"left":0.5,"right":0.5,"top":0.75,"bottom":0.75}}}
+{"ok":true,"id":91,"result":{}}
+```
+
+---
+
 ## 5. BỘ LỆNH TƯƠNG TÁC VĂN BẢN (VN WRITER INTERACTIVE OPS)
 
 Điều phối tại [OOXMLBridge.swift:94-98](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L94-L98). Tất cả các thao tác yêu cầu handle của tài liệu kiểu `docx`.
@@ -410,6 +454,51 @@ sequenceDiagram
 {"id":31,"op":"doc.replace","args":{"handle":"h2","find":"Công ty TNHH 3T","replace":"Tập đoàn VN Office"}}
 // ĐẦU RA THẬT:
 {"id":31,"result":{"count":6},"ok":true}
+```
+
+---
+
+### 5.3. Định dạng đoạn/run, numbering, field, section, revision (`doc.setSpacing`, `doc.setRunEffect`, `doc.setNumbering`, `doc.insertField`, `doc.sections`, `doc.setSectionLinked`, …)
+
+Bổ sung 2026-10-31, đối chiếu `OOXMLBridge.handle`. Mọi lệnh nhận `handle` (docx); lệnh theo đoạn nhận thêm `index` (chỉ số đoạn, ngoài phạm vi → `index`). Kết quả `{}` nếu không ghi khác.
+
+| `op` | Tham số (bắt buộc / tùy chọn) | Kết quả & ngữ nghĩa |
+|---|---|---|
+| `doc.setSpacing` | `index` / `before`, `after`, `line` (Int, twips/line units theo model), `lineRule` (chuỗi) | Đặt giãn cách đoạn; giá trị không hợp lệ → lỗi model `invalidSpacing` (qua catch-all: `internal` + thông điệp). |
+| `doc.setRunEffect` | `index`, `run` (Int), `effect` / `on` (mặc định `true`) | Bật/tắt hiệu ứng run: `caps`, `smallCaps`, `strike`, `doubleStrike`, `outline`, `shadow` (và các effect model hỗ trợ); `run` ngoài phạm vi → `index`. |
+| `doc.setStyle` | `index` / `style` (styleId; vắng mặt = gỡ style) | Đặt style cho đoạn. |
+| `doc.setNumbering` | `index`, `format` (`decimal`, `bullet`, `lowerLetter`, `upperLetter`, `lowerRoman`, `upperRoman`; sai → `args`) / `level` (0…8, mặc định 0; ngoài khoảng → lỗi model) | Gắn đoạn vào danh sách. Khi tạo định nghĩa mới với `level > 0`, thư viện sinh abstractNum **đa cấp thật** (`multiLevelType=multilevel`, đủ `w:lvl` 0…level, `lvlText` tích lũy `%1.`, `%1.%2.`, …; cấp đích dùng đúng `format`, cấp cha theo decimal/lowerLetter/lowerRoman; bullet thì mọi cấp là bullet). Cùng format + cấp dùng lại cùng một `numId`. |
+| `doc.removeNumbering` | `index` | Gỡ numbering của đoạn. |
+| `doc.insertField` | `index`, `instruction` / `result`, `before` (tùy chọn) | Chèn field phức hợp (begin → instrText → separate → result → end). **An toàn field:** chỉ field trong allowlist mới được chèn (16 field, mở rộng theo chốt Windows 02/11/2026) — nội bộ: `PAGE`, `NUMPAGES`, `SECTION`, `SECTIONPAGES`, `DATE`, `TIME`, `AUTHOR`, `TITLE`, `SUBJECT`, `FILENAME`; đánh số/mục lục/tham chiếu/điều kiện/trộn thư: `SEQ`, `TOC`, `TOF`, `REF`, `IF`, `MERGEFIELD` (không phân biệt hoa/thường, được kèm switch/đối số an toàn như `DATE \@ "dd/MM/yyyy"`, `IF { MERGEFIELD X } >= 18 "a" "b"`). Mọi field khác bị từ chối — đặc biệt `DDE`, `DDEAUTO`, `INCLUDETEXT`, `INCLUDEPICTURE`, `LINK`, `DATABASE` ở bất kỳ vị trí nào ngoài ngoặc kép, kể cả sau prefix hợp lệ (ví dụ `SEQ INCLUDETEXT ...` vẫn bị chặn); field liên kết ngoài không thuộc allowlist như `HYPERLINK` cũng bị từ chối. Lỗi là `WordError.invalidField` (qua catch-all: `internal`) với thông điệp ổn định `field bị cấm: <TÊN>` hoặc `field không được hỗ trợ: <TÊN>`; tài liệu không bị sửa khi bị từ chối. Tham số `before` (số nguyên, gói L7 — STT mapping 171) chèn field ngay trước run thứ `before` của đoạn (0-based theo thứ tự run API nhìn thấy) thay vì ở cuối đoạn; ngoài phạm vi → lỗi `WordError.invalidField`. |
+| `doc.insertImage` | `base64` (sai → `args`) / `afterIndex` (ngoài phạm vi → `index`), `description`, `widthEMU`, `heightEMU` | Chèn ảnh PNG/JPEG/GIF vào sau đoạn chỉ định (hoặc cuối tài liệu); trả về thông tin ảnh đã chèn theo helper `docInsertImage`. |
+| `doc.sections` | — | `{"sections": [{"index", "headerLinked": {"default","first","even"}, "footerLinked": {"default","first","even"}, "breakType", "titlePage", "columns", + "pageWidth", "pageHeight", "orientation", "marginTop", "marginRight", "marginBottom", "marginLeft", "marginHeader", "marginFooter", "marginGutter" khi sectPr có pgSz/pgMar}]}` — trạng thái liên kết header/footer và thuộc tính trang của từng section (đơn vị twips). |
+| `doc.setSectionLinked` | `index`, `kind` (`header`/`footer`; sai → `args`) / `type` (`default`/`first`/`even`, mặc định `default`), `linked` (mặc định `true`) | Bật/tắt liên kết tới section trước. Khi tắt (`linked=false`), thư viện sao chép header/footer **hiệu lực gần nhất của đúng kind + type** (tìm ngược qua các section đang kế thừa) thành part mới độc lập kèm các quan hệ phụ thuộc; không có reference hiệu lực nào trước đó thì tạo part rỗng đúng root (`w:hdr`/`w:ftr`). Section nguồn không bị sửa. |
+| `doc.setSectionProperties` | `index` (ngoài phạm vi → `index`) / `pageWidth` + `pageHeight` (Int twips > 0) + `orientation` (`portrait`/`landscape`), `marginTop` + `marginRight` + `marginBottom` + `marginLeft` (Int twips ≥ 0) + `marginHeader`, `marginFooter`, `marginGutter` (vắng = giữ giá trị hiện tại), `breakType` (`nextPage`/`continuous`/`evenPage`/`oddPage`/`nextColumn`; sai → `args`), `titlePage` (Bool), `columns` (Int 1…45) | Đặt thuộc tính section: kích thước/hướng giấy (`w:pgSz`), lề (`w:pgMar`), kiểu ngắt (`w:type`; `nextPage` = bỏ phần tử), trang đầu riêng (`w:titlePg`), số cột (`w:cols/@num`). Phần tử con của sectPr được chèn đúng thứ tự schema CT_SectPr. Giá trị không hợp lệ → lỗi model `invalidSection` (qua catch-all: `internal`). |
+| `doc.insertFootnote` | `index`, `text` | Chèn footnote ở cuối đoạn: thêm entry vào part footnotes (tự tạo part kèm hai entry separator chuẩn id 0/1 + quan hệ + content type khi tài liệu chưa có), id mới = max id hiện có + 1, kèm run `w:footnoteReference` (rStyle `FootnoteReference`). Trả `{"id": n}`. |
+| `doc.insertEndnote` | `index`, `text` | Như `doc.insertFootnote` cho part endnotes (`w:endnoteReference`, rStyle `EndnoteReference`). Trả `{"id": n}`. |
+| `doc.watermark` | — | `{"text": "…"}` nếu tài liệu có watermark, `{}` nếu không. |
+| `doc.setWatermark` | `text` (rỗng → lỗi model `invalidSection`) | Đặt watermark chữ cho toàn tài liệu theo mẫu Word: shape VML textpath (id `VNOfficeWatermark`, shapetype `_x0000_t136`, xoay 315°, mờ 50%) trong từng part header mặc định hiệu lực phân biệt của các section; tài liệu chưa có header hiệu lực nào thì tạo header riêng cho section đầu. Watermark cũ trong cùng part bị thay thế. |
+| `doc.removeWatermark` | — | Gỡ watermark khỏi mọi part header (cả watermark do thư viện đặt và do Word đặt với id `PowerPlusWaterMarkObject…`). |
+| `doc.setRunTextEffects` | `index`, `run` (ngoài phạm vi → `index`) / `glow`: `{"color", "alpha" (0…100), "radiusPt"}` (dict rỗng = gỡ), `reflection`: `{"preset": "standard"}` hoặc `{"blurPt", "startAlpha", "startPos", "endAlpha", "endPos", "distancePt", "direction"}` (dict rỗng = gỡ), `softEdgePt` (số; `null` = gỡ), `textFill`: `{"color", "alpha"}` (đặc) hoặc `{"stops": [{"pos", "color", "alpha"}], "angle"}` (gradient; dict rỗng = gỡ) | Hiệu ứng chữ w14 trong rPr của run: `w14:glow`, `w14:reflection`, `w14:softEdge`, `w14:textFill` (solidFill/gradFill). Phần tử w14 đứng cuối rPr, trước `w:rPrChange` nếu có; part chưa khai báo w14 thì thêm `xmlns:w14` vào gốc part (+ `w14` vào `mc:Ignorable` khi có). Màu/alpha/bán kính không hợp lệ → lỗi model `invalidTextEffect` (qua catch-all: `internal`). API model tương ứng: `Run.glow`/`setGlow`, `Run.reflection`/`setReflection`, `Run.softEdgeRadiusPt`/`setSoftEdge`, `Run.textFill`/`setTextFill`. |
+| `doc.acceptAllRevisions` | — | `{"count": n}`: chấp nhận toàn bộ revision. |
+| `doc.rejectAllRevisions` | — | `{"count": n}`: từ chối toàn bộ revision. |
+
+Ghi chú revision (bổ sung gói L5): `acceptAllRevisions`/`rejectAllRevisions` nay xử lý cả thay đổi định dạng `w:rPrChange`/`w:pPrChange` và tính vào `count` — chấp nhận = bỏ phần tử chụp (giữ định dạng mới); từ chối = khôi phục bản chụp vào `w:rPr`/`w:pPr`. API model ghi dấu: `Run.markFormattingChange(revision:)` / `Paragraph.markFormattingChange(revision:)` chụp thuộc tính hiện tại TRƯỚC khi sửa (đã có bản chụp thì giữ bản đầu tiên); hai API này chưa có lệnh bridge, cùng tình trạng với `setText(_:revision:)`.
+
+#### Ví dụ:
+
+```json
+{"id":92,"op":"doc.setNumbering","args":{"handle":"h2","index":0,"format":"decimal","level":2}}
+{"ok":true,"id":92,"result":{}}
+
+{"id":93,"op":"doc.insertField","args":{"handle":"h2","index":1,"instruction":"DATE \\@ \"dd/MM/yyyy\"","result":"31/10/2026"}}
+{"ok":true,"id":93,"result":{}}
+
+{"id":94,"op":"doc.insertField","args":{"handle":"h2","index":1,"instruction":"INCLUDETEXT \"C:\\bi-mat.docx\""}}
+{"ok":false,"id":94,"error":{"code":"internal","message":"field bị cấm: INCLUDETEXT"}}
+
+{"id":95,"op":"doc.setSectionLinked","args":{"handle":"h2","index":2,"kind":"header","type":"default","linked":false}}
+{"ok":true,"id":95,"result":{}}
 ```
 
 ---
@@ -466,6 +555,55 @@ sequenceDiagram
 ```
 
 ---
+
+### 6.3. Cài đặt trình chiếu & theme (`slide.showSettings`, `slide.setShowSettings`, `slide.theme`, …)
+
+Bổ sung 2026-10-31, đối chiếu `OOXMLBridge.handle`. Mọi lệnh nhận `handle` (pptx).
+
+**Ngữ nghĩa show settings (chuẩn PresentationML):** cài đặt trình chiếu nằm ở part Presentation Properties — mặc định `ppt/presProps.xml`, root `p:presentationPr`, phần tử con `p:showPr` — nối tới presentation bằng một relationship loại `…/relationships/presProps` từ `ppt/_rels/presentation.xml.rels` và content type `application/vnd.openxmlformats-officedocument.presentationml.presProps+xml`. Thư viện lần theo relationship hiện hữu (không giả định tên part); gói chưa có part thì tạo mới qua OPC relationship + content-type APIs. **Không** ghi `presentationPr`/`showSettings` vào `ppt/presentation.xml` (cấu trúc đó không tồn tại trong schema và consumer theo chuẩn không đọc). Nội dung khác trong `presProps.xml` và các con lạ của `showPr` (ví dụ `penClr`, `sldAll`) được giữ nguyên; gọi setter nhiều lần không tạo thêm part/relationship. Gói do bản thư viện cũ từng ghi nhầm vào `presentation.xml`: getter đọc nốt cấu trúc cũ, setter ghi sang presProps và dọn cấu trúc cũ đi.
+
+| `op` | Tham số | Kết quả & ngữ nghĩa |
+|---|---|---|
+| `slide.showSettings` | `handle` | `{"loop", "showAnimation", "showNarration", "useTimings"}` (Bool). Chưa có part/`showPr` thì trả mặc định: `loop=false`, `showAnimation=true`, `showNarration=true`, `useTimings=true`. |
+| `slide.setShowSettings` | `handle` / `loop`, `showAnimation`, `showNarration`, `useTimings` (Bool; chỉ khóa được truyền mới đổi, khóa vắng mặt giữ giá trị hiện tại) | `{}`. Ghi vào `p:showPr` của presProps như mô tả trên; lỗi gói (part/relationship hỏng) qua catch-all thành `internal`. |
+| `slide.theme` | `handle` | `{"found": true, "name", "colorSchemeName", "colors": {slot: hex}, "majorFontLatin", "minorFontLatin", "part"}` (các khóa vắng giá trị trả `null`), hoặc `{"found": false}` nếu bản trình chiếu không có theme. Theme của slide đầu tiên (qua layout → slideMaster → theme); chỉ đọc. |
+| `slide.setTitle` | `handle`, `index`, `text` | `{}`: đặt tiêu đề slide. |
+| `slide.renameShape` | `handle`, `index`, `shape`, `new` | `{}`: đổi tên shape. |
+| `slide.setTableCell` | `handle`, `index`, `shape`, `row`, `column`, `text` | `{}`: đặt chữ trong ô của shape bảng. |
+| `slide.duplicate` | `handle`, `index` | `{"slides": n}`: nhân đôi slide, `n` = tổng số slide sau khi nhân đôi. |
+
+`slide.add` chỉ tồn tại dưới dạng thao tác **delta** bên trong `pptx.save` (§7.4), không phải lệnh tương tác độc lập ở snapshot này.
+
+#### Ví dụ:
+
+```json
+{"id":96,"op":"slide.setShowSettings","args":{"handle":"h3","loop":true,"useTimings":false}}
+{"ok":true,"id":96,"result":{}}
+
+{"id":97,"op":"slide.showSettings","args":{"handle":"h3"}}
+{"ok":true,"id":97,"result":{"loop":true,"showAnimation":true,"showNarration":true,"useTimings":false}}
+```
+
+---
+
+### 6.4. Transition & hoạt ảnh (`slide.transition`, `slide.setTransition`, `slide.animations`, `slide.animationSteps`, …) — bổ sung gói L6
+
+Mọi lệnh nhận `handle` (pptx) và `index` (slide; ngoài phạm vi → `index`). Thay đổi chỉ có hiệu lực khi gọi `save`/`exportBytes` như các lệnh tương tác khác.
+
+| Lệnh | Tham số | Kết quả / ghi chú |
+|---|---|---|
+| `slide.transition` | — | `{"found": true, "type", "speed"?, "durationMs"?}` hoặc `{"found": false}`. Đọc cả transition nằm trong AlternateContent p14 (theo thứ tự tài liệu, Choice trước). |
+| `slide.setTransition` | `type` (tên hiệu ứng: `fade`, `wipe`, `push`, `split`, `cover`…; rỗng → lỗi model `invalidTransition`), `speed` (`slow`/`med`/`fast`), `durationMs` (ghi thuộc tính `dur`) | `{}`. Thay mọi transition cũ (kể cả dạng AlternateContent); hướng dùng mặc định của PowerPoint. Phần tử `p:transition` đứng sau `p:cSld`/`p:clrMapOvr` theo thứ tự schema. |
+| `slide.removeTransition` | — | `{"removed": Bool}`. Gỡ cả transition trong AlternateContent và dọn AlternateContent rỗng. |
+| `slide.animations` | — | `{"animations": [{"presetID", "presetClass", "shapeId"}]}` — các hiệu ứng preset trong cây `p:timing`, theo thứ tự tài liệu. |
+| `slide.animationSteps` | — | `{"steps": [{"presetID", "presetClass", "shapeId", "durationMs"?, "delayMs"?}]}` — như trên, kèm thời lượng (dur của nút `anim`/`animEffect` con, không có thì dur của nút effect) và độ trễ (cond đầu của nút effect; vắng khi `indefinite`). |
+| `slide.setAnimationTiming` | `shapeId` / `durationMs`, `delayMs` | `{"changed": n}`: đổi thời lượng/độ trễ của MỌI hiệu ứng nhắm tới shape đó (0 = không có hiệu ứng nào cho shape). |
+| `slide.addFadeEntrance` | `shapeId` (không có → lỗi model `shapeNotFound`) / `delayMs` (mặc định 0), `durationMs` (mặc định 600) | `{}`. Thêm hiệu ứng vào mờ (presetID 10, presetClass `entr`) ở một click mới trong mainSeq: set visibility + anim opacity, đúng mẫu cây timing PowerPoint; tạo khung timing/mainSeq nếu chưa có. |
+| `slide.addEntranceEffect` | `shapeId`, `presetID` (> 0, `filter` rỗng → lỗi model `invalidTiming`) / `presetSubtype`, `delayMs`, `durationMs` | `{}`. Hiệu ứng entrance thuộc họ `animEffect` (nút `p:animEffect transition="in"` + set visibility): blinds (3, "blinds"), box (4, "box"), circle (11, "circle"), checkerboard (12, "checkerboard"), dissolve in (9, "dissolve"), diamond (17, "diamond"), wedge (39, "wedge")… — presetID/filter do người gọi cấp theo bảng preset ECMA-376. |
+| `slide.addAppearEntrance` | `shapeId` / `delayMs` | `{}`. Hiệu ứng xuất hiện tức thì (presetID 1): chỉ set visibility ở một click mới. |
+| `slide.removeAnimations` | — | `{}`: gỡ toàn bộ `p:timing` của slide. |
+
+Giới hạn hiện tại: chưa dựng hiệu ứng nhấn mạnh (emphasis), thoát (exit), đường chuyển động (motion path); timing của media (audio/video — STT mapping 84) chưa có API và chưa có fixture kiểm chứng; transition chưa có tham số hướng/ biến thể (dùng mặc định PowerPoint).
 
 ## 7. TẦNG LƯU DELTA VÀO STAGING (`xlsx.save`, `docx.save`, `pptx.save`)
 
@@ -741,6 +879,8 @@ Mọi lỗi trả về qua kênh giao thức đều tuân thủ `BridgeError` ([
 | `value` | [BridgeJSON.swift:49, 57, 62](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/BridgeJSON.swift#L49) | Giá trị ô hoặc kiểu giá trị trong `sheet.setValue` không hợp lệ. | `"giá trị ô không hợp lệ"`, `"kiểu giá trị '...' không hỗ trợ"` |
 | `internal` | [OOXMLBridge.swift:47](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L47) | Lỗi hệ thống, ngoại lệ Cocoa hoặc lỗi logic thư viện cấp thấp. | Thông báo chi tiết từ ngoại lệ nội bộ của hệ thống. |
 
+> **Ghi chú đối chiếu 2026-10-31 (nhánh `muse/ooxmlkit-directive-3110`, nền `1354d7ec`):** các tham chiếu dòng trong bảng trên là của snapshot gốc (checkout `E:/VNOffice-agy-PROTOCOL`) và có thể lệch ở các commit sau; mã lỗi và thông điệp không đổi. Lỗi từ tầng model (`WordError`, `SpreadsheetError`, `PresentationError`, `PackageError`, `ZipError`, …) không phải `BridgeError` nên đi qua catch-all của `handle`/`perform` và trả về mã **`internal`** kèm thông điệp tiếng Việt gốc của model — ngoại lệ duy nhất đã map riêng: `PresentationError.noNotesMaster` → `unsupported`. Các thông điệp kiểm chứng đầu vào sau đây là ổn định và có thể dùng làm test contract: `field bị cấm: <TÊN-FIELD>` và `field không được hỗ trợ: <TÊN-FIELD>` (từ `WordError.invalidField` qua `doc.insertField`), `cấp danh sách phải trong 0...8` (từ `WordError.invalidNumbering` qua `doc.setNumbering`), `section đầu tiên không liên kết tới section trước` (từ `WordError.invalidSection` qua `doc.setSectionLinked`).
+
 #### Ví dụ Chạy Thật Minh Chứng Lỗi:
 ```json
 // 1. Gọi sai kind (sheet.read trên docx):
@@ -798,6 +938,14 @@ Trên iOS, cầu nối được liên kết trực tiếp trong cùng một ti�
 
 Dưới đây là bảng đối chiếu kết quả kiểm thử thực thi thực tế 100% của toàn bộ 34 lệnh giao thức được thực hiện trên môi trường máy bàn với `ooxml-engine.exe` và bộ test fixture chuẩn (`rich-excel.xlsx`, `rich-word.docx`, `rich-deck.pptx`):
 
+> **Bổ sung 2026-10-31:** danh mục lệnh đã đối chiếu lại với `OOXMLBridge.handle` trên nền `1354d7ec` + nhánh `muse/ooxmlkit-directive-3110`. Các lệnh mới mô tả ở §4.8, §5.3, §6.3 được kiểm chứng bằng **OOXMLBridgeTests** trong bộ `swift test` của OOXMLKit (Linux, Swift 6.0.3) — tức kiểm chứng ở tầng thư viện/bridge, **chưa** chạy qua `ooxml-engine.exe` trên máy bàn, nên không được đánh dấu "ĐÃ CHẠY" trong bảng này. Bảng 34 lệnh dưới đây giữ nguyên trạng thái kiểm chứng gốc.
+
+> **Bổ sung 2026-11-02 (gói L4 — engine công thức, nhánh `muse/l4-formulas-0211`):** gói này KHÔNG thêm lệnh giao thức nào; nó mở rộng khả năng của engine công thức phía sau `sheet.setFormula`/`sheet.read`: hàm mới SUMPRODUCT, XLOOKUP (match_mode 0/−1/1/2, search_mode 1/−1; chế độ nhị phân 2/−2 tính tuyến tính, cùng kết quả trên dữ liệu đã sắp), LET (biến cục bộ, không phân biệt hoa thường); cú pháp mới: tham số bỏ trống (`SUM(1,,2)`), tham chiếu cả cột/hàng (`A:A`, `$A:$A`, `1:1`, có tiền tố sheet), hằng mảng `{1,2;3,4}` và công thức mảng CSE (đăng ký theo vùng qua `FormulaEngine.setArrayFormula`, giao ngầm theo vị trí ô; bridge tự nạp từ `Worksheet.arrayFormulas` khi mở workbook). TEXT nay tôn trọng thẻ locale trong định dạng: `[$-vi-VN]`/`[$-042A]` cho ngăn nghìn `.`, thập phân `,`, tên tháng/thứ tiếng Việt (tháng 1…, thứ hai…), SA/CH; `[$₫-vi-VN]` in kèm ký hiệu tiền tệ. Giới hạn còn lại: XLOOKUP yêu cầu return_array là vector 1 chiều cùng hướng (chưa spill cả hàng/cột kiểu dynamic array); vùng CSE trên 100.000 ô chỉ đăng ký ô chủ; định dạng số mũ khoa học trong TEXT chưa hỗ trợ (có từ trước). Kiểm chứng bằng bộ `swift test` của OOXMLKit (Linux, Swift 6.0.3, chạy cô lập): **253/253 PASS** — tức kiểm chứng tầng thư viện/engine, **chưa** qua `ooxml-engine.exe` trên máy bàn và chưa đối chiếu Excel thật.
+
+> **Bổ sung 2026-11-02 (gói L5 — DOCX, nhánh `muse/l5-docx-0211`):** thêm 7 lệnh ở §5.3 (`doc.setSectionProperties`, `doc.insertFootnote`, `doc.insertEndnote`, `doc.watermark`, `doc.setWatermark`, `doc.removeWatermark`, `doc.setRunTextEffects`) và mở rộng payload `doc.sections` (thuộc tính trang). Ở tầng model: thuộc tính section đầy đủ (STT mapping 181/184/185), chèn footnote/endnote (phần còn thiếu của STT 189), watermark (STT 198), hiệu ứng chữ w14 (phần còn thiếu của STT 202/209) và markup thay đổi định dạng rPrChange/pPrChange kèm xử lý chấp nhận/từ chối (phần còn thiếu của STT 199). PHẦN FIELD (SEQ/TOC/TOF/MERGEFIELD/IF/REF — STT 170/173/174/192/193) CHƯA làm: allowlist của directive 31/10 §2.4 vẫn khóa ở 10 field, chờ quyết định của Windows/chủ repo. Kiểm chứng bằng bộ `swift test` của OOXMLKit (Linux, Swift 6.0.3, chạy cô lập, hai lượt tuần tự): **260/260 PASS, 0 cảnh báo** — kiểm chứng tầng thư viện, chưa qua `ooxml-engine.exe` và chưa đối chiếu Word thật (COM).
+
+> **Bổ sung 2026-11-02 (gói L6 — PPTX, nhánh `muse/l6-pptx-0211`):** thêm §6.4 với 10 lệnh transition/hoạt ảnh (nền tảng từ các nhánh đợt thiếu 28/10 `muse/ooxmlkit-pptx-anim-2510` + `muse/ooxmlkit-timing-2510` + `muse/ooxmlkit-bridge-timing-2510` được cherry-pick nguyên vẹn lên nền hiện tại, cộng thêm bộ dựng hiệu ứng entrance tổng quát `slide.addEntranceEffect`/`slide.addAppearEntrance` và việc đọc/ghi thời lượng cho nút `animEffect`). Đối chiếu mapping: STT 90/91 (transition) và phần đọc/sửa timing của STT 80/83/85 đã có API; STT 84 (media timing) vẫn chưa có — thiếu fixture media để kiểm chứng. Kiểm chứng bằng bộ `swift test` của OOXMLKit (Linux, Swift 6.0.3, chạy cô lập, hai lượt tuần tự): **267/267 PASS, 0 cảnh báo** — kiểm chứng tầng thư viện, chưa qua `ooxml-engine.exe` và chưa đối chiếu PowerPoint thật (COM).
+
 | Nhóm | Tên Lệnh (`op`) | Tham số kiểm thử | Trạng thái Chạy Thật | Kết quả / Bằng chứng thực thi |
 |---|---|---|:---:|---|
 | Khung STDIO | *(cú pháp lỗi)* | Chuỗi không phải JSON | **ĐÃ CHẠY** | Bắt lỗi `request` / `internal`, tiến trình an toàn |
@@ -840,3 +988,8 @@ Dưới đây là bảng đối chiếu kết quả kiểm thử thực thi th�
 | Delta Save (Gate) | `docx.save` | Kèm `insertDrawing` | **ĐÃ CHẠY** | Trả về `unsupported`, **tệp đích không được ghi** |
 | Delta Save | `pptx.save` | Batch slides replace, add, del | **ĐÃ CHẠY** | Mở lại kiểm tra thành công, đổi slide & notes |
 | Delta Save (Gate) | `pptx.save` | Kèm `slide.addAudio` | **ĐÃ CHẠY** | Trả về `unsupported`, **tệp đích không được ghi** |
+> **Bổ sung 2026-11-02 (gói L7 — làm nốt mapping, nhánh `muse/l7-mapping-gaps-0211`):** đóng các hàng "một phần/chưa có" còn lại của bản đối chiếu §6/§7 sau L4/L5/L6. (1) STT 171 (DOCX): `Paragraph.insertField(instruction:result:beforeRunIndex:)` + tham số `before` cho `doc.insertField` — chèn field tại vị trí run, cùng allowlist/kiểm tra như appendField (commit field của gói L5 được cherry-pick nguyên văn vào nhánh này để tầng field đầy đủ). (2) STT 17 (XLSX): đọc/ghi tiêu chí AutoFilter theo cột — `Worksheet.autoFilterRange`, `autoFilterColumns`, `setAutoFilterCriterion(column:_:)` (values/custom/top10; cột chưa mô hình hoá đọc là `.unsupported`) + bridge `sheet.autoFilter`, `sheet.setAutoFilterCriterion`. (3) Các hàng PPTX 80/83/85 xác nhận ĐÃ CÓ ở gói L6 (giữ nguyên p:timing khi không sửa, `animationSteps` đọc spec, `setAnimationTiming` ghi thời lượng/trễ) — chi tiết §7 của PATCH-TO-OOXMLKIT-MAPPING; riêng STT 84 (media) vẫn chờ fixture Q76. Kiểm chứng bằng bộ `swift test` của OOXMLKit trên HEAD gói (Linux, Swift 6.0.3, chạy cô lập, hai lượt tuần tự): **269/269 PASS, 0 cảnh báo** — kiểm chứng tầng thư viện, chưa qua `ooxml-engine.exe` và chưa đối chiếu Office thật (COM).
+
+> **Bổ sung 2026-11-02 (gói L8 — độ bền mobile, nhánh `muse/l8-hardening-0211`):** (1) **Giới hạn độ sâu XML 512 tầng** ở tầng phân tích (`XParser.maxElementDepth`): vượt → lỗi có mã `XMLError.tooDeep(limit:)`; tệp thật lồng < ~100 tầng nên không ảnh hưởng tài liệu hợp lệ, nhưng chặn cây lồng cực sâu làm tràn ngăn xếp ở các bước đệ quy phía sau (ghi XML, sao chép cây, duyệt cây). (2) **Độ trung thực của lỗi mở tệp**: `WordDocument`/`Presentation` nay truyền thẳng lỗi có mã của part chính (qua `PackageError.invalidPart` — part + lý do) khi part tồn tại mà XML hỏng/quá sâu, thay vì gộp thành `notAWordDocument`/`notAPresentation` — nhất quán với `Workbook` vốn đã làm vậy; hai lỗi notA… vẫn dùng khi thiếu part chính hoặc sai phần tử gốc. (3) Test độ bền mới (HardeningTests + WordHardeningTests): độ sâu đúng biên 512/513, DOCX lồng 2.000 tầng bị từ chối có mã, vòng quan hệ a↔b kết thúc đúng, đích quan hệ `..` bị kẹp ở gốc gói, fuzz XML 300 đột biến không crash — bổ sung cho tầng ZIP đã có từ L1 (giới hạn bom, tên không an toàn, fuzz lưu trữ). (4) **Đo tệp lớn** (ooxml-bench, bản release, VM x86 — mốc tham chiếu, không phải số đo iPhone): DOCX ~200 trang (12.000 đoạn) mở 0,11 s / đỉnh 30 MB, lưu 0,23 s / 32 MB; PPTX 100 slide có ảnh mở 0,08 s / 23 MB; XLSX 100.000 dòng × 6 cột (3,4 MB) mở lazy 2,4 s / 188 MB, mở eager 4,5 s / 358 MB, **lưu sau khi sửa 1 ô: tổng 11,7 s / đỉnh ~805 MB — điểm nghẽn bộ nhớ khi lưu bảng tính rất lớn, xem INBOX-WIN #38**. Khuyến nghị mobile: mở lazy mặc định; DOCX/PPTX ở quy mô trên hoàn toàn trong ngưỡng; XLSX ≥ 100k dòng cần lưu ở nền và được coi là mục tối ưu tiếp theo (serializer truyền phát). Kiểm chứng: bộ `swift test` đầy đủ trên HEAD gói (Linux, Swift 6.0.3, chạy cô lập, hai lượt tuần tự): **275/275 PASS, 0 cảnh báo**; chưa đối chiếu Office thật (COM).
+
+> **Bổ sung 2026-11-03 (gói L9 — serializer truyền phát khi lưu, M2/issue #10, nhánh `muse/l9-streaming-save-0211`):** gói này KHÔNG thêm lệnh giao thức và KHÔNG đổi mặc định; nó thêm đường lưu opt-in ở tầng thư viện: (1) `ZipStreamingWriter` (OOXMLZip) ghi từng mục ZIP thẳng ra `FileHandle` theo lát 512 KiB — local header + dữ liệu nén viết ngay, central directory tích lũy theo SỐ mục; định dạng bám đúng `ZipArchive.serialize()` (cờ, ZIP64, thứ tự) nên ở cùng trạng thái gói, tệp ra của đường truyền phát **khớp từng byte** với đường thường (test `StreamingSaveTests` canh trên toàn bộ fixture docx/xlsx/pptx/real + test tầng ZIP riêng). (2) `OPCPackage.saveStreaming(to:verify:)`: dùng chung bước flush thay đổi với `save()`; hợp đồng an toàn giữ nguyên (tệp tạm → kiểm chứng → thay nguyên tử bằng hoán đổi tên trong cùng thư mục); khi kiểm chứng bật, baseline và bản ra đều qua `PackageValidator.validateLight`. (3) `PackageValidator.validateLight(domParseLimit: 4 MiB)`: cùng các kiểm tra cấu trúc như `validate` (kiểu nội dung, đích quan hệ, Override mồ côi, officeDocument) và mọi phần vẫn giải nén + kiểm CRC qua tầng ZIP; chỉ khác là phần XML vượt ngưỡng không parse DOM kiểm tra well-formed (tính well-formed của chúng do serializer xuất phát từ DOM hợp lệ + bộ test round-trip bảo đảm). (4) `Workbook.saveStreaming(to:)` là điểm vào cho XLSX. **Đo lại (ooxml-bench, release, VM x86, fixture XLSX 100.000 dòng × 6 cột của gói L8):** đường cũ (mở lazy + sửa 1 ô + `save(to:)`) đỉnh **793–805 MB**, pha sửa+lưu 8,7–19,8 s; đường truyền phát đỉnh **538 MB**, pha sửa+lưu **5,0–5,3 s** — tức pha lưu chỉ còn cộng ~25 MB trên sàn mô hình thay vì ~290 MB. **Giới hạn trung thực:** sàn mô hình DOM (mở workbook + truy cập sheet, CHƯA lưu) đã là **513 MB** trên fixture này (DOM sheet ≈ 330 MB cho 22 MB XML, DOM sharedStrings ≈ 160 MB cho 15,9 MB XML) — tiêu chí "< 300 MB tổng tiến trình" của issue #10 không thể đạt bằng riêng đường lưu; cần gói mô hình lười (cửa sổ dòng cho sheet + chỉ mục offset cho sharedStrings) đã đề xuất trong issue #10 chờ Windows chốt. Kiểm chứng: bộ `swift test` đầy đủ trên HEAD gói (Linux, Swift 6.0.3, chạy cô lập, hai lượt tuần tự): **284/284 PASS, 0 cảnh báo** (275 của L8 + 9 test mới); chưa đối chiếu Office thật (COM).

@@ -32,6 +32,16 @@ struct Args {
         if let d = raw[key] as? Double { return Int(d) }
         return nil
     }
+    func double(_ key: String) throws -> Double {
+        if let d = raw[key] as? Double { return d }
+        if let i = raw[key] as? Int { return Double(i) }
+        throw BridgeError("args", "thiếu/sai tham số số '\\(key)'")
+    }
+    func optDouble(_ key: String) -> Double? {
+        if let d = raw[key] as? Double { return d }
+        if let i = raw[key] as? Int { return Double(i) }
+        return nil
+    }
     func dict(_ key: String) -> [String: Any] { raw[key] as? [String: Any] ?? [:] }
     func optBool(_ key: String) -> Bool? { raw[key] as? Bool }
 }

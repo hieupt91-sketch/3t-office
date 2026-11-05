@@ -90,6 +90,7 @@ public final class OOXMLBridge {
         case "sheet.setValue": return try sheetSetValue(args)
         case "sheet.setFormula": return try sheetSetFormula(args)
         case "sheet.clear": try worksheet(args).clear(try args.string("ref")); return [:]
+        case "sheet.rewriteLegacyConcat": return ["changed": try worksheet(args).rewriteLegacyConcat()]
         case "sheet.format": try worksheet(args).applyFormat(BridgeValue.format(from: args.dict("change")), at: try args.string("ref")); return [:]
         case "sheet.merge": try worksheet(args).merge(try args.string("range")); return [:]
         case "sheet.unmerge": try worksheet(args).unmerge(try args.string("range")); return [:]
@@ -100,18 +101,101 @@ public final class OOXMLBridge {
         case "sheet.add": try workbook(args).addWorksheet(named: try args.string("name")); return [:]
         case "sheet.rename": try workbook(args).renameSheet(try args.string("old"), to: try args.string("new")); return [:]
         case "sheet.delete": try workbook(args).deleteSheet(named: try args.string("name")); return [:]
+        case "sheet.setHyperlink": try worksheet(args).setHyperlink(at: try args.string("ref"), target: try args.string("target"), location: args.optString("location"), isExternal: args.optBool("isExternal") ?? true); return [:]
+        case "sheet.removeHyperlink": try worksheet(args).removeHyperlink(at: try args.string("ref")); return [:]
+        case "sheet.hyperlinks": return ["hyperlinks": try worksheet(args).hyperlinks.map { ["cell": $0.cell, "target": $0.target] }]
+        case "sheet.setAutoFilter": let rangeText = try args.string("range"); guard let range = CellRange(rangeText) else { throw SpreadsheetError.invalidReference(rangeText) }; try worksheet(args).setAutoFilter(range: range); return [:]
+        case "sheet.autoFilter": let ws = try worksheet(args); var out: [String: Any] = ["found": ws.autoFilterRange != nil]; if let r = ws.autoFilterRange { out["range"] = r.description }; out["columns"] = ws.autoFilterColumns.map { col -> [String: Any] in switch col.criterion { case .values(let v): return ["col": col.column, "kind": "values", "values": v]; case .custom(let conds, let and): return ["col": col.column, "kind": "custom", "and": and, "conditions": conds.map { ["op": $0.op, "value": $0.value] }]; case .top10(let top, let percent, let value): return ["col": col.column, "kind": "top10", "top": top, "percent": percent, "value": value]; case .unsupported: return ["col": col.column, "kind": "unsupported"] } }; return out
+        case "sheet.setAutoFilterCriterion": let ws = try worksheet(args); let col = try args.int("col"); if args.raw["criterion"] == nil || args.raw["criterion"] is NSNull { try ws.setAutoFilterCriterion(column: col, nil) } else { let c = Args(args.dict("criterion")); switch c.optString("kind") ?? "" { case "values": try ws.setAutoFilterCriterion(column: col, .values((c.raw["values"] as? [String]) ?? [])); case "custom": let conds = ((c.raw["conditions"] as? [[String: Any]]) ?? []).map { FilterCondition(op: Args($0).optString("op") ?? "equal", value: Args($0).optString("value") ?? "") }; try ws.setAutoFilterCriterion(column: col, .custom(conds, and: c.optBool("and") ?? false)); case "top10": try ws.setAutoFilterCriterion(column: col, .top10(top: c.optBool("top") ?? true, percent: c.optBool("percent") ?? false, value: c.optDouble("value") ?? 0)); default: throw BridgeError("args", "kind tiêu chí lọc không hợp lệ") } }; return [:]
+        case "sheet.removeAutoFilter": try worksheet(args).removeAutoFilter(); return [:]
+        case "sheet.setColumnWidth": try worksheet(args).setColumnWidth(col: try args.int("col"), width: try args.double("width"), hidden: args.optBool("hidden") ?? false); return [:]
+        case "sheet.setColumnHidden": try worksheet(args).setColumnHidden(col: try args.int("col"), hidden: args.optBool("hidden") ?? true); return [:]
+        case "sheet.setRowHeight": try worksheet(args).setRowHeight(row: try args.int("row"), height: try args.double("height"), hidden: args.optBool("hidden") ?? false); return [:]
+        case "sheet.setRowHidden": try worksheet(args).setRowHidden(row: try args.int("row"), hidden: args.optBool("hidden") ?? true); return [:]
+        case "sheet.setPageSetup": try sheetSetPageSetup(args); return [:]
+        case "sheet.setState": let stateText = try args.string("state"); guard let state = SheetState(rawValue: stateText) else { throw BridgeError("args", "trạng thái sheet '\\(stateText)' không hợp lệ") }; try workbook(args).setSheetState(named: try args.string("sheet"), state: state); return [:]
+        case "workbook.setCalculationOptions": let modeText = try args.string("calcMode"); guard let mode = CalcMode(rawValue: modeText) else { throw BridgeError("args", "chế độ tính toán '\\(modeText)' không hợp lệ") }; try workbook(args).setCalculationOptions(calcMode: mode, iterate: args.optBool("iterate") ?? false, date1904: args.optBool("date1904") ?? false); return [:]
+        case "sheet.setViewOptions": let o = args.dict("options"); try worksheet(args).setViewOptions(WorksheetViewOptions(showGridLines: o["showGridLines"] as? Bool ?? true, showRowColumnHeaders: o["showRowColumnHeaders"] as? Bool ?? true, zoomScale: (o["zoomScale"] as? Int) ?? (o["zoomScale"] as? Double).map(Int.init))); return [:]
+        case "sheet.setPrintOptions": let o = args.dict("options"); try worksheet(args).setPrintOptions(WorksheetPrintOptions(gridLines: o["gridLines"] as? Bool ?? false, headings: o["headings"] as? Bool ?? false, horizontalCentered: o["horizontalCentered"] as? Bool ?? false, verticalCentered: o["verticalCentered"] as? Bool ?? false)); return [:]
+        case "sheet.setSheetProtection": let o = args.dict("options"); func flag(_ k: String, _ d: Bool) -> Bool { o[k] as? Bool ?? d }; try worksheet(args).setSheetProtection(password: args.optString("password"), options: SheetProtectionOptions(sheet: flag("sheet", true), objects: flag("objects", false), scenarios: flag("scenarios", false), formatCells: flag("formatCells", false), formatColumns: flag("formatColumns", false), formatRows: flag("formatRows", false), insertColumns: flag("insertColumns", false), insertRows: flag("insertRows", false), deleteColumns: flag("deleteColumns", false), deleteRows: flag("deleteRows", false), selectLockedCells: flag("selectLockedCells", false), selectUnlockedCells: flag("selectUnlockedCells", false))); return [:]
+        case "workbook.setWorkbookProtection": try workbook(args).setWorkbookProtection(lockStructure: args.optBool("lockStructure") ?? true, password: args.optString("password")); return [:]
+        case "sheet.addDataValidation": try sheetAddDataValidation(args); return [:]
+        case "sheet.addConditionalFormatting": try sheetAddConditionalFormatting(args); return [:]
+        case "sheet.clearConditionalFormatting": let rt = args.optString("range"); var cr: CellRange?; if let rt { guard let parsed = CellRange(rt) else { throw SpreadsheetError.invalidReference(rt) }; cr = parsed }; try worksheet(args).clearConditionalFormatting(range: cr); return [:]
+        case "workbook.setTheme": guard try args.string("preset") == "ocean" else { throw BridgeError("args", "preset theme chưa hỗ trợ") }; try workbook(args).setTheme(preset: .ocean); return [:]
+        case "setProperties": try setProperties(args); return [:]
 
         case "doc.read": return try docRead(args)
         case "doc.setText": try paragraph(args).setText(try args.string("text")); return [:]
+        case "doc.setStyle": try paragraph(args).setStyle(args.optString("style")); return [:]
+        case "doc.setSpacing": try paragraph(args).setSpacing(before: args.optInt("before"), after: args.optInt("after"), line: args.optInt("line"), lineRule: args.optString("lineRule")); return [:]
+        case "doc.setRunEffect": try docSetRunEffect(args); return [:]
+        case "doc.setNumbering": guard let format = NumberingFormat(rawValue: try args.string("format")) else { throw BridgeError("args", "định dạng numbering không hỗ trợ") }; try paragraph(args).setNumbering(format, level: args.optInt("level") ?? 0); return [:]
+        case "doc.removeNumbering": try paragraph(args).removeNumbering(); return [:]
+        case "doc.insertField": let p = try paragraph(args); if let before = args.optInt("before") { _ = try p.insertField(instruction: try args.string("instruction"), result: args.optString("result"), beforeRunIndex: before) } else { _ = try p.appendField(instruction: try args.string("instruction"), result: args.optString("result")) }; return [:]
+        case "doc.insertFootnote": return ["id": try paragraph(args).appendFootnote(try args.string("text"))]
+        case "doc.watermark": return try word(args).watermarkText.map { ["text": $0] } ?? [:]
+        case "doc.setRunTextEffects": try docSetRunTextEffects(args); return [:]
+        case "doc.setWatermark": try word(args).setWatermark(try args.string("text")); return [:]
+        case "doc.removeWatermark": try word(args).removeWatermark(); return [:]
+        case "doc.insertEndnote": return ["id": try paragraph(args).appendEndnote(try args.string("text"))]
+        case "doc.sections": return ["sections": try word(args).sections.map { sec -> [String: Any] in
+            func linked(_ kind: SectionHeaderFooterKind) -> [String: Bool] {
+                ["default": sec.isLinkedToPrevious(kind: kind, type: .default),
+                 "first": sec.isLinkedToPrevious(kind: kind, type: .first),
+                 "even": sec.isLinkedToPrevious(kind: kind, type: .even)]
+            }
+            var out: [String: Any] = ["index": sec.index, "headerLinked": linked(.header), "footerLinked": linked(.footer),
+                                      "breakType": sec.breakType.rawValue, "titlePage": sec.titlePage, "columns": sec.columnCount]
+            if let ps = sec.pageSize {
+                out["pageWidth"] = ps.width; out["pageHeight"] = ps.height; out["orientation"] = ps.orientation.rawValue
+            }
+            if let m = sec.margins {
+                out["marginTop"] = m.top; out["marginRight"] = m.right; out["marginBottom"] = m.bottom
+                out["marginLeft"] = m.left; out["marginHeader"] = m.header; out["marginFooter"] = m.footer; out["marginGutter"] = m.gutter
+            }
+            return out
+        }]
+        case "doc.setSectionLinked": try docSetSectionLinked(args); return [:]
+        case "doc.setSectionProperties": try docSetSectionProperties(args); return [:]
+        case "doc.acceptAllRevisions": return ["count": try word(args).acceptAllRevisions()]
+        case "doc.insertImage": return try docInsertImage(args)
+        case "doc.rejectAllRevisions": return ["count": try word(args).rejectAllRevisions()]
         case "doc.insertParagraph": return try docInsertParagraph(args)
         case "doc.appendParagraph": _ = try word(args).appendParagraph(try args.string("text"), style: args.optString("style")); return [:]
         case "doc.replace": return ["count": try word(args).replaceText(try args.string("find"), with: try args.string("replace"))]
 
         case "slide.read": return try slideRead(args)
         case "slide.setText": try slideShape(args).setText(try args.string("text")); return [:]
+        case "slide.setTitle": try slide(args).setTitle(try args.string("text")); return [:]
+        case "slide.renameShape": try slideShape(args).rename(to: try args.string("new")); return [:]
+        case "slide.setTableCell": try tableShape(args).setTableCell(row: try args.int("row"), column: try args.int("column"), text: try args.string("text")); return [:]
         case "slide.setNotes": try slide(args).setNotesText(try args.string("text")); return [:]
+        case "slide.transition": guard let t = try slide(args).transition else { return ["found": false] }; var td: [String: Any] = ["found": true, "type": t.type]; if let s = t.speed { td["speed"] = s }; if let ms = t.durationMs { td["durationMs"] = ms }; return td
+        case "slide.setTransition": try slide(args).setTransition(type: try args.string("type"), speed: args.optString("speed"), durationMs: args.optInt("durationMs")); return [:]
+        case "slide.removeTransition": return ["removed": try slide(args).removeTransition()]
+        case "slide.animations": return ["animations": try slide(args).animations.map { ["presetID": $0.presetID, "presetClass": $0.presetClass, "shapeId": $0.shapeId] }]
+        case "slide.animationSteps": return ["steps": try slide(args).animationSteps.map { s in var d: [String: Any] = ["presetID": s.presetID, "presetClass": s.presetClass, "shapeId": s.shapeId]; if let ms = s.durationMs { d["durationMs"] = ms }; if let ms = s.delayMs { d["delayMs"] = ms }; return d }]
+        case "slide.setAnimationTiming": return ["changed": try slide(args).setAnimationTiming(shapeId: try args.int("shapeId"), durationMs: args.optInt("durationMs"), delayMs: args.optInt("delayMs"))]
+        case "slide.addFadeEntrance": try slide(args).addFadeEntrance(shapeId: try args.int("shapeId"), delayMs: args.optInt("delayMs") ?? 0, durationMs: args.optInt("durationMs") ?? 600); return [:]
+        case "slide.removeAnimations": try slide(args).removeAnimations(); return [:]
+        case "slide.addEntranceEffect": try slide(args).addEntranceEffect(shapeId: try args.int("shapeId"), presetID: try args.int("presetID"), presetSubtype: args.optInt("presetSubtype") ?? 0, filter: try args.string("filter"), delayMs: args.optInt("delayMs") ?? 0, durationMs: args.optInt("durationMs") ?? 600); return [:]
+        case "slide.addAppearEntrance": try slide(args).addAppearEntrance(shapeId: try args.int("shapeId"), delayMs: args.optInt("delayMs") ?? 0); return [:]
         case "slide.replace": return ["count": try presentation(args).replaceText(try args.string("find"), with: try args.string("replace"))]
         case "slide.delete": try presentation(args).deleteSlide(at: try args.int("index")); return [:]
+        case "slide.duplicate": try presentation(args).duplicateSlide(at: try args.int("index")); return ["slides": try presentation(args).slides.count]
+        case "slide.theme": guard let t = try presentation(args).theme else { return ["found": false] }
+            return ["found": true, "name": t.name as Any, "colorSchemeName": t.colorSchemeName as Any,
+                    "colors": t.colors, "majorFontLatin": t.majorFontLatin as Any,
+                    "minorFontLatin": t.minorFontLatin as Any, "part": t.part]
+        case "slide.showSettings": let s = try presentation(args).showSettings
+            return ["loop": s.loop, "showAnimation": s.showAnimation, "showNarration": s.showNarration, "useTimings": s.useTimings]
+        case "slide.setShowSettings": let deck = try presentation(args); var s = deck.showSettings
+            if let v = args.optBool("loop") { s.loop = v }
+            if let v = args.optBool("showAnimation") { s.showAnimation = v }
+            if let v = args.optBool("showNarration") { s.showNarration = v }
+            if let v = args.optBool("useTimings") { s.useTimings = v }
+            try deck.setShowSettings(s); return [:]
         case "slide.move": try presentation(args).moveSlide(from: try args.int("from"), to: try args.int("to")); return [:]
 
         default: throw BridgeError("op", "thao tác '\(op)' không hỗ trợ")
@@ -708,6 +792,16 @@ public final class OOXMLBridge {
         return p
     }
     private func slide(_ args: Args) throws -> Slide { try presentation(args).slide(at: try args.int("index")) }
+    /// Shape bảng của slide: theo tên nếu truyền "shape", nếu không lấy bảng đầu tiên.
+    private func tableShape(_ args: Args) throws -> Shape {
+        let s = try slide(args)
+        if let name = args.optString("shape"), let sh = s.shape(named: name) { return sh }
+        guard let sh = s.allShapes.first(where: { $0.table != nil }) else {
+            throw BridgeError("shape", "slide không có bảng")
+        }
+        return sh
+    }
+
     private func slideShape(_ args: Args) throws -> Shape {
         let s = try slide(args)
         if let name = args.optString("shape"), let sh = s.shape(named: name) { return sh }
@@ -743,13 +837,217 @@ public final class OOXMLBridge {
         try worksheet(args).setValue(try BridgeValue.cellValue(from: args.raw["value"]), at: try args.string("ref"))
         return [:]
     }
+    private func sheetAddConditionalFormatting(_ args: Args) throws {
+        let rangeText = try args.string("range")
+        guard let range = CellRange(rangeText) else { throw SpreadsheetError.invalidReference(rangeText) }
+        let r = args.dict("rule")
+        guard let type = r["type"] as? String else { throw BridgeError("args", "thiếu tham số rule.type") }
+        var formula: [String] = []
+        if let list = r["formula"] as? [String] { formula = list }
+        else if let single = r["formula"] as? String { formula = [single] }
+        let visual = try cfVisualFormat(r["visual"] as? [String: Any])
+        try worksheet(args).addConditionalFormatting(range: range, rule: CFRule(
+            type: type, operator: r["operator"] as? String, formula: formula,
+            priority: (r["priority"] as? Int) ?? (r["priority"] as? Double).map(Int.init) ?? 1,
+            differentialStyleID: (r["differentialStyleID"] as? Int) ?? (r["dxfId"] as? Int),
+            stopIfTrue: r["stopIfTrue"] as? Bool ?? false, visualFormat: visual))
+    }
+
+    /// JSON visual → CFVisualFormat. Threshold dùng đúng rawValue của model
+    /// (min/max/num/percent/percentile/formula/autoMin/autoMax); màu 6 hoặc 8 ký tự hex.
+    private func cfVisualFormat(_ d: [String: Any]?) throws -> CFVisualFormat? {
+        guard let d else { return nil }
+        func threshold(_ v: Any?) throws -> CFThreshold {
+            guard let t = v as? [String: Any], let raw = t["type"] as? String,
+                  let kind = CFThresholdType(rawValue: raw) else {
+                throw BridgeError("args", "threshold của visual format không hợp lệ")
+            }
+            return CFThreshold(type: kind, value: t["value"] as? String)
+        }
+        func thresholds(_ v: Any?) throws -> [CFThreshold] {
+            guard let list = v as? [[String: Any]] else { throw BridgeError("args", "thiếu thresholds của visual format") }
+            return try list.map(threshold)
+        }
+        guard let kind = d["kind"] as? String else { throw BridgeError("args", "thiếu visual.kind") }
+        switch kind {
+        case "colorScale":
+            guard let colors = d["colors"] as? [String] else { throw BridgeError("args", "thiếu visual.colors") }
+            return .colorScale(thresholds: try thresholds(d["thresholds"]), colors: colors)
+        case "dataBar":
+            guard let color = d["color"] as? String else { throw BridgeError("args", "thiếu visual.color") }
+            return .dataBar(minimum: try threshold(d["minimum"]), maximum: try threshold(d["maximum"]),
+                            color: color, showValue: d["showValue"] as? Bool ?? true)
+        case "iconSet":
+            guard let name = d["name"] as? String else { throw BridgeError("args", "thiếu visual.name") }
+            return .iconSet(name: name, thresholds: try thresholds(d["thresholds"]),
+                            reverse: d["reverse"] as? Bool ?? false, showValue: d["showValue"] as? Bool ?? true)
+        default: throw BridgeError("args", "visual.kind '\\(kind)' không hỗ trợ")
+        }
+    }
+
+    private func sheetAddDataValidation(_ args: Args) throws {
+        let rangeText = try args.string("range")
+        guard let range = CellRange(rangeText) else { throw SpreadsheetError.invalidReference(rangeText) }
+        let r = args.dict("rule")
+        guard let type = r["type"] as? String else { throw BridgeError("args", "thiếu tham số rule.type") }
+        try worksheet(args).addDataValidation(range: range, validation: DataValidationRule(
+            type: type, formula1: r["formula1"] as? String, formula2: r["formula2"] as? String,
+            operator: r["operator"] as? String, allowBlank: r["allowBlank"] as? Bool ?? false))
+    }
+
+    private func sheetSetPageSetup(_ args: Args) throws {
+        let m = args.dict("margins")
+        func margin(_ key: String) -> Double {
+            if let d = m[key] as? Double { return d }
+            if let i = m[key] as? Int { return Double(i) }
+            return 0
+        }
+        let orientationText = args.optString("orientation") ?? "portrait"
+        guard let orientation = PageOrientation(rawValue: orientationText) else {
+            throw BridgeError("args", "hướng giấy '\\(orientationText)' không hợp lệ")
+        }
+        try worksheet(args).setPageSetup(
+            margins: PageMargins(left: margin("left"), right: margin("right"), top: margin("top"),
+                                 bottom: margin("bottom"), header: margin("header"), footer: margin("footer")),
+            orientation: orientation, paperSize: args.optInt("paperSize") ?? 1)
+    }
+
     private func sheetSetFormula(_ args: Args) throws -> [String: Any] {
         let cached = args.raw["cached"] != nil ? try BridgeValue.cellValue(from: args.raw["cached"]) : CellValue.empty
         try worksheet(args).setFormula(try args.string("formula"), at: try args.string("ref"), cachedValue: cached)
         return [:]
     }
 
+    /// Đặt core properties (title/creator/description/contentStatus) cho cả 3
+    /// loại tài liệu. Các trường không truyền vào được giữ nguyên (nil).
+    private func setProperties(_ args: Args) throws {
+        let title = args.optString("title")
+        let creator = args.optString("creator")
+        let description = args.optString("description")
+        let contentStatus = args.optString("contentStatus")
+        switch try doc(args) {
+        case .workbook(let wb):
+            try PackageTools.setProperties(package: wb.package, title: title, creator: creator, description: description, contentStatus: contentStatus)
+        case .word(let d):
+            try PackageTools.setProperties(package: d.package, title: title, creator: creator, description: description, contentStatus: contentStatus)
+        case .presentation(let p):
+            try PackageTools.setProperties(package: p.package, title: title, creator: creator, description: description, contentStatus: contentStatus)
+        }
+    }
+
     // MARK: Doc
+
+    private func docSetSectionLinked(_ args: Args) throws {
+        let doc = try word(args)
+        let i = try args.int("index")
+        guard doc.sections.indices.contains(i) else { throw BridgeError("index", "section \(i) ngoài phạm vi") }
+        guard let kind = SectionHeaderFooterKind(rawValue: try args.string("kind")) else { throw BridgeError("args", "kind section không hỗ trợ") }
+        let type = SectionHeaderFooterType(rawValue: args.optString("type") ?? "default") ?? .default
+        try doc.sections[i].setLinkedToPrevious(args.optBool("linked") ?? true, kind: kind, type: type)
+    }
+
+    private func docSetRunTextEffects(_ args: Args) throws {
+        let p = try paragraph(args)
+        let ri = try args.int("run")
+        guard p.runs.indices.contains(ri) else { throw BridgeError("index", "run \(ri) ngoài phạm vi") }
+        let run = p.runs[ri]
+        if args.raw.keys.contains("glow") {
+            let g = Args(args.dict("glow"))
+            if g.raw.isEmpty { try run.setGlow(nil) } else {
+                try run.setGlow(GlowEffect(colorHex: try g.string("color"),
+                                           alphaPercent: g.optDouble("alpha") ?? 100,
+                                           radiusPt: g.optDouble("radiusPt") ?? 0))
+            }
+        }
+        if args.raw.keys.contains("reflection") {
+            let r = Args(args.dict("reflection"))
+            if r.raw.isEmpty { try run.setReflection(nil) } else if r.optString("preset") == "standard" {
+                try run.setReflection(.standard)
+            } else {
+                try run.setReflection(ReflectionEffect(
+                    blurPt: r.optDouble("blurPt") ?? 0.5, startAlphaPercent: r.optDouble("startAlpha") ?? 59,
+                    startPositionPercent: r.optDouble("startPos") ?? 0, endAlphaPercent: r.optDouble("endAlpha") ?? 0.3,
+                    endPositionPercent: r.optDouble("endPos") ?? 41, distancePt: r.optDouble("distancePt") ?? 1.5,
+                    directionDegrees: r.optDouble("direction") ?? 90))
+            }
+        }
+        if args.raw.keys.contains("softEdgePt") { try run.setSoftEdge(radiusPt: args.optDouble("softEdgePt")) }
+        if args.raw.keys.contains("textFill") {
+            let tf = Args(args.dict("textFill"))
+            if tf.raw.isEmpty { try run.setTextFill(nil) } else if let stopsRaw = tf.raw["stops"] as? [[String: Any]] {
+                let stops = try stopsRaw.map { s -> GradientStop in
+                    let sa = Args(s)
+                    return GradientStop(positionPercent: sa.optDouble("pos") ?? 0,
+                                        colorHex: try sa.string("color"),
+                                        alphaPercent: sa.optDouble("alpha") ?? 100)
+                }
+                try run.setTextFill(.gradient(stops: stops, angleDegrees: tf.optDouble("angle") ?? 0))
+            } else {
+                try run.setTextFill(.solid(colorHex: try tf.string("color"), alphaPercent: tf.optDouble("alpha") ?? 100))
+            }
+        }
+    }
+
+    private func docSetSectionProperties(_ args: Args) throws {
+        let doc = try word(args)
+        let i = try args.int("index")
+        guard doc.sections.indices.contains(i) else { throw BridgeError("index", "section \(i) ngoài phạm vi") }
+        let sec = doc.sections[i]
+        if let w = args.optInt("pageWidth"), let h = args.optInt("pageHeight") {
+            let o = SectionOrientation(rawValue: args.optString("orientation") ?? "portrait") ?? .portrait
+            try sec.setPageSize(SectionPageSize(width: w, height: h, orientation: o))
+        }
+        if let top = args.optInt("marginTop"), let right = args.optInt("marginRight"),
+           let bottom = args.optInt("marginBottom"), let left = args.optInt("marginLeft") {
+            let cur = sec.margins
+            try sec.setMargins(SectionMargins(top: top, right: right, bottom: bottom, left: left,
+                                              header: args.optInt("marginHeader") ?? cur?.header ?? 0,
+                                              footer: args.optInt("marginFooter") ?? cur?.footer ?? 0,
+                                              gutter: args.optInt("marginGutter") ?? cur?.gutter ?? 0))
+        }
+        if let bt = args.optString("breakType") {
+            guard let b = SectionBreakType(rawValue: bt) else { throw BridgeError("args", "breakType không hỗ trợ") }
+            sec.setBreakType(b)
+        }
+        if let tp = args.optBool("titlePage") { sec.setTitlePage(tp) }
+        if let cols = args.optInt("columns") { try sec.setColumnCount(cols) }
+    }
+
+    private func docSetRunEffect(_ args: Args) throws {
+        let p = try paragraph(args)
+        let ri = try args.int("run")
+        guard p.runs.indices.contains(ri) else { throw BridgeError("index", "run \\(ri) ngoài phạm vi") }
+        let run = p.runs[ri]
+        let on = args.optBool("on") ?? true
+        switch try args.string("effect") {
+        case "caps": run.setCaps(on)
+        case "smallCaps": run.setSmallCaps(on)
+        case "strike": run.setStrike(on)
+        case "doubleStrike": run.setDoubleStrike(on)
+        case "outline": run.setOutline(on)
+        case "shadow": run.setShadow(on)
+        case "emboss": run.setEmboss(on)
+        case "imprint": run.setImprint(on)
+        case "vanish": run.setVanish(on)
+        case "bold": run.setBold(on)
+        case "italic": run.setItalic(on)
+        default: throw BridgeError("args", "hiệu ứng run không hỗ trợ")
+        }
+    }
+
+    private func docInsertImage(_ args: Args) throws -> [String: Any] {
+        let b64 = try args.string("base64")
+        guard let data = Data(base64Encoded: b64) else { throw BridgeError("args", "base64 ảnh không hợp lệ") }
+        let doc = try word(args)
+        var after: Paragraph?
+        if let i = args.optInt("afterIndex") {
+            guard doc.paragraphs.indices.contains(i) else { throw BridgeError("index", "đoạn \\(i) ngoài phạm vi") }
+            after = doc.paragraphs[i]
+        }
+        _ = try doc.insertImage(data, after: after, description: args.optString("description") ?? "",
+                                widthEMU: args.optInt("widthEMU"), heightEMU: args.optInt("heightEMU"))
+        return ["paragraphs": doc.paragraphs.count]
+    }
 
     private func docRead(_ args: Args) throws -> [String: Any] {
         let ps = try word(args).paragraphs
@@ -760,8 +1058,25 @@ public final class OOXMLBridge {
             var o: [String: Any] = ["index": i, "text": p.text]
             if let s = p.styleId { o["style"] = s }
             if let alignment = p.alignment { o["alignment"] = alignment }
+            if let n = p.numbering {
+                var numbering: [String: Any] = ["numId": n.numId, "level": n.level]
+                if let format = p.story.document.numberingFormat(numId: n.numId, level: n.level) { numbering["format"] = format }
+                o["numbering"] = numbering
+            }
+            if let sp = p.spacing {
+                var spacing: [String: Any] = [:]
+                if let v = sp.before { spacing["before"] = v }
+                if let v = sp.after { spacing["after"] = v }
+                if let v = sp.line { spacing["line"] = v }
+                if let v = sp.lineRule { spacing["lineRule"] = v }
+                o["spacing"] = spacing
+            }
             o["runs"] = p.runs.map { run -> [String: Any] in
-                var value: [String: Any] = ["text": run.text, "bold": run.isBold, "italic": run.isItalic]
+                var value: [String: Any] = ["text": run.text, "bold": run.isBold, "italic": run.isItalic,
+                                            "caps": run.isCaps, "smallCaps": run.isSmallCaps,
+                                            "strike": run.isStrike, "doubleStrike": run.isDoubleStrike,
+                                            "outline": run.isOutline, "shadow": run.isShadow,
+                                            "emboss": run.isEmboss, "imprint": run.isImprint, "vanish": run.isVanish]
                 if let color = run.color { value["color"] = color }
                 if let size = run.fontSize { value["fontSize"] = size }
                 return value

@@ -33,6 +33,8 @@ public final class OPCPackage {
     private var pendingData: [PartName: Data] = [:]
     private var removed: Set<PartName> = []
     private var sourceValidationIssues: Set<String>?
+    /// Baseline kiểm chứng NHẸ cho đường lưu truyền phát (tính muộn như baseline thường).
+    private var lightSourceIssuesCache: Set<String>?
     /// Gói mở bằng `deferValidation`: baseline kiểm tra tính khi cần (lúc `save(to:)`), không tốn lúc mở.
     private var baselineDeferred = false
     public var compression: ZipCompression = .deflate
@@ -329,6 +331,14 @@ public final class OPCPackage {
 
     /// Áp các thay đổi vào ZIP và trả về byte của gói mới.
     public func save() throws -> Data {
+        flushChanges()
+        return archive.serialize()
+    }
+
+    /// Đẩy mọi thay đổi đang chờ (quan hệ đã sửa, phần XML đã sửa, dữ liệu
+    /// chờ, phần đã xóa, [Content_Types].xml) vào trạng thái `archive` —
+    /// bước dùng chung của `save()` và `saveStreaming(to:)`.
+    private func flushChanges() {
         for (source, rels) in relsCache where rels.isModified {
             let part = source.relationshipsPart
             if removed.contains(part) { continue }
@@ -357,7 +367,6 @@ public final class OPCPackage {
         modifiedXML.removeAll()
         pendingData.removeAll()
         removed.removeAll()
-        return archive.serialize()
     }
 
     private func writeEntry(_ part: PartName, _ data: Data) {
@@ -385,5 +394,82 @@ public final class OPCPackage {
             guard issues.isEmpty else { throw PackageError.validationFailed(issues) }
         }
         try data.write(to: url, options: .atomic)
+    }
+
+    /// Vấn đề sẵn có của nguồn theo bộ kiểm chứng NHẸ (cho `saveStreaming`).
+    /// Gói đã có baseline đầy đủ lúc mở thì dùng luôn baseline đó (tập cha).
+    private func lightSourceIssues() -> Set<String> {
+        if let s = sourceValidationIssues { return s }
+        if let s = lightSourceIssuesCache { return s }
+        var result: Set<String> = []
+        if baselineDeferred, !archive.sourceData.isEmpty,
+           let src = try? OPCPackage(archive: ZipArchive(data: archive.sourceData, limits: archive.limits), deferValidation: true) {
+            result = Set(PackageValidator.validateLight(src))
+        }
+        lightSourceIssuesCache = result
+        return result
+    }
+
+    /// Lưu TRUYỀN PHÁT (opt-in, gói L9 — issue #10): ghi từng mục ZIP thẳng
+    /// xuống tệp tạm, không dựng toàn bộ byte của gói trong RAM và không
+    /// parse lại DOM của các phần XML lớn khi kiểm chứng (xem
+    /// `PackageValidator.validateLight`). Đỉnh RAM khi lưu tệp lớn thấp hơn
+    /// hẳn `save(to:)`; nội dung tệp ra khớp từng byte với đường thường ở
+    /// cùng một trạng thái gói. Hợp đồng an toàn giữ nguyên: tệp tạm →
+    /// kiểm chứng → thay nguyên tử; kiểm chứng hỏng thì tệp gốc nguyên vẹn.
+    /// Mặc định KHÔNG đổi: caller phải gọi tường minh hàm này.
+    public func saveStreaming(to url: URL, verify: Bool = true) throws {
+        // Baseline phải tính TRƯỚC khi flush (flush sửa archive).
+        let known = verify ? lightSourceIssues() : []
+        flushChanges()
+        let fm = FileManager.default
+        let tmp = url.deletingLastPathComponent()
+            .appendingPathComponent(".\(url.lastPathComponent).streaming-\(UUID().uuidString).tmp")
+        do {
+            guard fm.createFile(atPath: tmp.path, contents: nil) else {
+                throw PackageError.validationFailed(["Không tạo được tệp tạm để lưu truyền phát: \(tmp.lastPathComponent)"])
+            }
+            let handle = try FileHandle(forWritingTo: tmp)
+            let writer = ZipStreamingWriter(handle: handle)
+            for e in archive.entries {
+                try writer.writeEntry(e, compressed: archive.rawCompressedData(of: e))
+            }
+            try writer.finish(comment: archive.comment)
+            try handle.close()
+        } catch {
+            try? fm.removeItem(at: tmp)
+            throw error
+        }
+        if verify {
+            let issues: [String]
+            do {
+                let check = try OPCPackage(contentsOf: tmp, deferValidation: true)
+                issues = PackageValidator.validateLight(check).filter { !known.contains($0) }
+            } catch {
+                issues = ["Không mở được gói sau khi lưu: \(error)"]
+            }
+            guard issues.isEmpty else {
+                try? fm.removeItem(at: tmp)
+                throw PackageError.validationFailed(issues)
+            }
+        }
+        // Thay nguyên tử bằng hoán đổi tên trong cùng thư mục (mỗi bước là
+        // một rename): đích cũ được giữ làm bản dự phòng cho tới khi tệp mới
+        // đã vào đúng chỗ, hỏng giữa chừng thì khôi phục lại.
+        if fm.fileExists(atPath: url.path) {
+            let backup = url.deletingLastPathComponent()
+                .appendingPathComponent(".\(url.lastPathComponent).backup-\(UUID().uuidString).tmp")
+            try fm.moveItem(at: url, to: backup)
+            do {
+                try fm.moveItem(at: tmp, to: url)
+            } catch {
+                try? fm.moveItem(at: backup, to: url)
+                try? fm.removeItem(at: tmp)
+                throw error
+            }
+            try? fm.removeItem(at: backup)
+        } else {
+            try fm.moveItem(at: tmp, to: url)
+        }
     }
 }

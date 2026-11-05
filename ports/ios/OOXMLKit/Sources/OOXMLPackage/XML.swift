@@ -6,6 +6,7 @@ public enum XMLError: Error, Equatable, CustomStringConvertible {
     case mismatchedTag(expected: String, found: String, offset: Int)
     case unknownEntity(String, offset: Int)
     case dtdNotAllowed
+    case tooDeep(limit: Int)
     case noRootElement
     case unsupportedEncoding
 
@@ -16,6 +17,7 @@ public enum XMLError: Error, Equatable, CustomStringConvertible {
         case .mismatchedTag(let e, let f, let o): return "Thẻ đóng </\(f)> không khớp <\(e)> tại byte \(o)"
         case .unknownEntity(let n, let o): return "Thực thể không xác định &\(n); tại byte \(o)"
         case .dtdNotAllowed: return "OOXML không cho phép DTD (chặn tấn công XXE)"
+        case .tooDeep(let limit): return "XML lồng quá sâu (giới hạn \(limit) tầng)"
         case .noRootElement: return "XML không có phần tử gốc"
         case .unsupportedEncoding: return "Mã hóa ký tự XML không hỗ trợ"
         }
@@ -436,6 +438,12 @@ public final class XDocument {
 // MARK: - Bộ phân tích
 
 struct XParser {
+    /// Giới hạn độ sâu phần tử lồng nhau khi phân tích XML. Tệp OOXML thật
+    /// lồng dưới ~100 tầng; ngưỡng 512 cho biên rộng nhưng chặn cây lồng cực
+    /// sâu làm tràn ngăn xếp ở các bước đệ quy phía sau (ghi XML, sao chép
+    /// cây, duyệt cây). Vượt ngưỡng → `XMLError.tooDeep`, không bao giờ crash.
+    static let maxElementDepth = 512
+
     let bytes: [UInt8]
     var p = 0
 
@@ -577,7 +585,12 @@ struct XParser {
                     } else {
                         stack.last!.append(el)
                     }
-                    if !selfClosing { stack.append(el) }
+                    if !selfClosing {
+                        guard stack.count < XParser.maxElementDepth else {
+                            throw XMLError.tooDeep(limit: XParser.maxElementDepth)
+                        }
+                        stack.append(el)
+                    }
                 }
             } else {
                 let start = p

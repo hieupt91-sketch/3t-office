@@ -19,11 +19,18 @@ enum FormulaErrors {
 enum EvalValue {
     case scalar(CellValue)
     case ref(sheet: String, range: CellRange)
+    case array([[CellValue]])
 }
 
 /// Bộ tính giá trị cho AST. Không có hiệu ứng phụ; mọi lỗi trở thành `.error("#...")`.
 struct FormulaEvaluator {
     let context: FormulaContext
+    /// Biến cục bộ của LET (khóa đã viết hoa); rỗng ngoài LET.
+    var env: [String: EvalValue] = [:]
+    /// Vị trí ô đang tính + gốc vùng mảng — chỉ đặt cho ô thuộc công thức mảng (CSE);
+    /// bật giao ngầm (implicit intersection) trong scalar(). Công thức thường: nil -> giữ #VALUE!.
+    var position: CellReference? = nil
+    var arrayOrigin: CellReference? = nil
 
     func evaluate(_ expr: FormulaExpr) -> CellValue {
         scalar(eval(expr))
@@ -37,7 +44,11 @@ struct FormulaEvaluator {
         case .string(let s): return .scalar(.string(s))
         case .bool(let b): return .scalar(.bool(b))
         case .error(let s): return .scalar(.error(s))
-        case .name: return .scalar(.error(FormulaErrors.name))
+        case .empty: return .scalar(.empty)
+        case .array(let rows): return .array(rows)
+        case .name(let n):
+            if let v = env[n.uppercased()] { return v }
+            return .scalar(.error(FormulaErrors.name))
         case .cell(let sh, let r):
             guard let s = context.resolveSheet(sh) else { return .scalar(.error(FormulaErrors.ref)) }
             return .ref(sheet: s, range: CellRange(r, r))
@@ -62,13 +73,25 @@ struct FormulaEvaluator {
         }
     }
 
-    /// Ép về giá trị đơn. Vùng 1 ô → giá trị ô; vùng nhiều ô → #VALUE! (chưa hỗ trợ giao ngầm/mảng).
+    /// Ép về giá trị đơn. Vùng 1 ô → giá trị ô. Vùng nhiều ô/hằng nhiều phần tử: giao ngầm theo vị trí
+    /// ô đang tính nếu đang trong công thức mảng (position != nil), ngoài ra → #VALUE!.
     func scalar(_ v: EvalValue) -> CellValue {
         switch v {
         case .scalar(let c): return c
         case .ref(let sh, let r):
-            guard r.start == r.end else { return .error(FormulaErrors.value) }
-            return context.cellValue(sheet: sh, ref: r.start)
+            if r.start == r.end { return context.cellValue(sheet: sh, ref: r.start) }
+            guard let pos = position else { return .error(FormulaErrors.value) }
+            let col = r.start.column == r.end.column ? r.start.column : pos.column
+            let row = r.start.row == r.end.row ? r.start.row : pos.row
+            let target = CellReference(column: col, row: row)
+            guard r.contains(target) else { return .error(FormulaErrors.value) }
+            return context.cellValue(sheet: sh, ref: target)
+        case .array(let rows):
+            if rows.count == 1, rows[0].count == 1 { return rows[0][0] }
+            guard let pos = position, let origin = arrayOrigin else { return .error(FormulaErrors.value) }
+            let i = pos.row - origin.row, j = pos.column - origin.column
+            guard rows.indices.contains(i), rows[i].indices.contains(j) else { return .error(FormulaErrors.value) }
+            return rows[i][j]
         }
     }
 
@@ -178,8 +201,25 @@ struct FormulaEvaluator {
     // MARK: Hàm
 
     func call(_ name: String, _ args: [FormulaExpr]) -> EvalValue {
+        if name == "LET" { return letCall(args) }
         if let v = callReference(name, args) { return v }
         return .scalar(callScalar(name, args))
+    }
+
+    /// LET(name1, value1, ..., calculation): gán lần lượt (giá trị sau dùng được biến trước,
+    /// lỗi trong giá trị lan ra ngay), rồi tính biểu thức cuối trong môi trường đã gán.
+    private func letCall(_ args: [FormulaExpr]) -> EvalValue {
+        guard args.count >= 3, args.count % 2 == 1 else { return .scalar(.error(FormulaErrors.value)) }
+        var sub = self
+        var i = 0
+        while i < args.count - 1 {
+            guard case .name(let n) = args[i] else { return .scalar(.error(FormulaErrors.value)) }
+            let v = sub.eval(args[i + 1])
+            if case .scalar(let cv) = v, case .error = cv { return v }
+            sub.env[n.uppercased()] = v
+            i += 2
+        }
+        return sub.eval(args[args.count - 1])
     }
 
     private func callScalar(_ name: String, _ args: [FormulaExpr]) -> CellValue {
@@ -252,6 +292,7 @@ struct FormulaEvaluator {
         for a in args {
             switch eval(a) {
             case .scalar(let v): out.append((v, true))
+            case .array(let rows): for v in rows.flatMap({ $0 }) { out.append((v, true)) }
             case .ref(let sh, let r):
                 // Ô đơn rỗng bị bỏ qua cũng như trong vùng.
                 for v in context.nonEmptyValues(sheet: sh, range: r) { out.append((v, false)) }

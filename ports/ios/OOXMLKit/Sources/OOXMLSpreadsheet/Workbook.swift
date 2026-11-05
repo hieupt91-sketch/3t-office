@@ -250,6 +250,17 @@ public final class Workbook {
         package.markModified(workbookPart)
     }
 
+    /// Viết lại CONCAT vô hướng trong mọi sheet thường của sổ (xem
+    /// `Worksheet.rewriteLegacyConcat`). Trả về tổng số ô đã đổi.
+    @discardableResult
+    public func rewriteLegacyConcat() throws -> Int {
+        var total = 0
+        for (i, info) in sheets.enumerated() where info.kind == .worksheet {
+            total += try worksheet(at: i).rewriteLegacyConcat()
+        }
+        return total
+    }
+
     public func worksheet(named name: String) throws -> Worksheet {
         guard let info = sheets.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
             throw SpreadsheetError.sheetNotFound(name)
@@ -546,6 +557,16 @@ public final class Workbook {
     public func save(to url: URL) throws {
         try applyCalculationState()
         try package.save(to: url)
+    }
+
+    /// Lưu TRUYỀN PHÁT (opt-in, gói L9 — issue #10): như `save(to:)` nhưng
+    /// ghi từng mục ZIP thẳng xuống đĩa và kiểm chứng nhẹ, nên đỉnh RAM khi
+    /// lưu bảng tính lớn thấp hơn hẳn. Nội dung tệp ra khớp từng byte với
+    /// `save(to:)` ở cùng trạng thái. Mặc định không đổi — chỉ khi caller
+    /// gọi tường minh hàm này mới đi đường truyền phát.
+    public func saveStreaming(to url: URL) throws {
+        try applyCalculationState()
+        try package.saveStreaming(to: url)
     }
 
     // MARK: Ngày tháng

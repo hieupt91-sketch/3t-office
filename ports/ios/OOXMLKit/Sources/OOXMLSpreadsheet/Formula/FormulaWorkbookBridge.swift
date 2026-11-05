@@ -15,6 +15,10 @@ extension FormulaEngine {
                     setValue(c.value, sheet: name, at: c.reference.a1)
                 }
             }
+            // Công thức mảng: đăng ký theo vùng để evaluator giao ngầm từng ô (ghi đè cách đăng ký ô chủ ở trên).
+            for af in ws.arrayFormulas {
+                setArrayFormula(af.formula, sheet: name, range: af.range)
+            }
         }
     }
 }
