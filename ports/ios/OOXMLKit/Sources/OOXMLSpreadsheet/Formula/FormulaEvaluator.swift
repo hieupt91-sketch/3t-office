@@ -19,6 +19,8 @@ protocol FormulaContext {
 
 enum FormulaErrors {
     static let div0 = "#DIV/0!", value = "#VALUE!", ref = "#REF!", name = "#NAME?", na = "#N/A", num = "#NUM!"
+    /// Mảng quá lớn / tràn số khi sinh mảng động (M7 lát 18).
+    static let calc = "#CALC!"
 }
 
 /// Giá trị trung gian: số liệu đơn hoặc tham chiếu vùng (chưa trải phẳng).
@@ -220,6 +222,68 @@ struct FormulaEvaluator {
         return .array(out)
     }
 
+    // MARK: Hàm mảng động (M7 lát 18, INBOX-MAC #17)
+
+    /// Hàm trả về mảng: TRANSPOSE, SEQUENCE. nil = không phải hàm mảng → đường scalar như cũ.
+    private func callArray(_ name: String, _ args: [FormulaExpr]) -> EvalValue? {
+        switch name {
+        case "TRANSPOSE": return transpose(args)
+        case "SEQUENCE": return sequence(args)
+        default: return nil
+        }
+    }
+
+    /// TRANSPOSE(mảng): đổi hàng ↔ cột. Ô lỗi đi qua nguyên vẹn; đối số sai số lượng
+    /// hoặc vùng vượt giới hạn phần tử → #VALUE!.
+    private func transpose(_ args: [FormulaExpr]) -> EvalValue {
+        guard args.count == 1 else { return .scalar(.error(FormulaErrors.value)) }
+        guard let grid = materialize(eval(args[0])), let cols = grid.first?.count, cols > 0 else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        var out: [[CellValue]] = Array(repeating: [], count: cols)
+        for j in 0..<cols {
+            var line: [CellValue] = []
+            line.reserveCapacity(grid.count)
+            for i in 0..<grid.count { line.append(grid[i][j]) }
+            out[j] = line
+        }
+        return .array(out)
+    }
+
+    /// SEQUENCE(hàng, [cột=1], [bắt đầu=1], [bước=1]): sinh lưới số. Hàng/cột cắt phần lẻ
+    /// về số nguyên như Excel, phải ≥ 1 nếu không → #VALUE!; đối số không phải số → #VALUE!;
+    /// lỗi trong đối số lan truyền nguyên vẹn; lưới vượt giới hạn phần tử hoặc tràn số → #CALC!.
+    private func sequence(_ args: [FormulaExpr]) -> EvalValue {
+        guard (1...4).contains(args.count) else { return .scalar(.error(FormulaErrors.value)) }
+        var nums: [Double] = [1, 1, 1, 1]
+        for i in 0..<args.count {
+            let v = scalar(eval(args[i]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = number(v), n.isFinite else { return .scalar(.error(FormulaErrors.value)) }
+            nums[i] = n
+        }
+        let r0 = nums[0].rounded(.towardZero), c0 = nums[1].rounded(.towardZero)
+        guard r0 >= 1, c0 >= 1 else { return .scalar(.error(FormulaErrors.value)) }
+        guard r0 <= Double(Self.maxElementwiseCells), c0 <= Double(Self.maxElementwiseCells),
+              r0 * c0 <= Double(Self.maxElementwiseCells) else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        let rows = Int(r0), cols = Int(c0)
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rows)
+        for i in 0..<rows {
+            var line: [CellValue] = []
+            line.reserveCapacity(cols)
+            for j in 0..<cols {
+                let v = nums[2] + Double(i * cols + j) * nums[3]
+                guard v.isFinite else { return .scalar(.error(FormulaErrors.calc)) }
+                line.append(.number(v))
+            }
+            out.append(line)
+        }
+        return .array(out)
+    }
+
     // MARK: Ép kiểu
 
     /// nil nếu không đổi được sang số (chuỗi không phải số). Lỗi phải được xử lý trước.
@@ -328,6 +392,7 @@ struct FormulaEvaluator {
     func call(_ name: String, _ args: [FormulaExpr]) -> EvalValue {
         if name == "LET" { return letCall(args) }
         if name == "IF", let v = ifArray(args) { return v }
+        if let v = callArray(name, args) { return v }
         if let v = callReference(name, args) { return v }
         return .scalar(callScalar(name, args))
     }
