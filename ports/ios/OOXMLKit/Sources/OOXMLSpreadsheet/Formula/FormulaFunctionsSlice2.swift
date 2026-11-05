@@ -90,6 +90,10 @@ extension FormulaEvaluator {
         case "MEDIAN": return try median(a)
         case "LARGE", "SMALL": return try largeSmall(name == "LARGE", a)
         case "RANK": return try rank(a)
+        case "RANK.EQ": return try rank(a)
+        case "RANK.AVG": return try rankAvg(a)
+        case "PROB": return try prob(a)
+        case "STANDARDIZE": return try standardize(a)
         case "PERCENTILE", "PERCENTILE.INC": return try percentileInc(a)
         case "QUARTILE", "QUARTILE.INC": return try quartileInc(a)
         case "PERCENTILE.EXC": return try percentileExc(a)
@@ -692,6 +696,56 @@ extension FormulaEvaluator {
         let ascending = a.count == 3 ? try nm(a[2]).rounded(.towardZero) != 0 : false
         let beaten = ascending ? nums.filter { $0 < x }.count : nums.filter { $0 > x }.count
         return .number(Double(beaten + 1))
+    }
+
+    /// M7: RANK.AVG — hạng trung bình khi bằng nhau: trung bình các vị trí
+    /// (1-based) mà giá trị chiếm trong dãy đã sắp theo thứ tự; RANK.EQ là
+    /// bí danh của RANK (hạng cao nhất trong nhóm bằng nhau). Không tìm
+    /// thấy giá trị hoặc vùng rỗng → #N/A (như RANK).
+    private func rankAvg(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...3)
+        let x = try nm(a[0])
+        let nums = try orderStatsNumbers([a[1]])
+        guard !nums.isEmpty, nums.contains(x) else { throw fail(FormulaErrors.na) }
+        let ascending = a.count == 3 ? try nm(a[2]).rounded(.towardZero) != 0 : false
+        let sorted = ascending ? nums.sorted() : nums.sorted(by: >)
+        var sum = 0.0, count = 0.0
+        for (i, v) in sorted.enumerated() where v == x {
+            sum += Double(i + 1); count += 1
+        }
+        return .number(sum / count)
+    }
+
+    /// M7: PROB — xác suất X nằm trong [lower, upper] theo bảng phân phối rời
+    /// rạc (x_range, prob_range). Bỏ upper → xác suất X đúng bằng lower;
+    /// bỏ lower → xác suất X ≤ upper; bỏ cả hai → 1. Xác suất ngoài [0, 1],
+    /// tổng khác 1 (sai số 1e-9), hoặc lower > upper → #NUM!; hai vùng khác
+    /// cỡ lưới hoặc không còn cặp số nào → #N/A (như CORREL).
+    private func prob(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...4)
+        let (xs, ps) = try pairedNumbers(a[0], a[1])
+        guard !xs.isEmpty else { throw fail(FormulaErrors.na) }
+        for p in ps { guard p >= 0, p <= 1 else { throw fail(FormulaErrors.num) } }
+        guard abs(ps.reduce(0, +) - 1) <= 1e-9 else { throw fail(FormulaErrors.num) }
+        let lower = a.count >= 3 ? try nm(a[2]) : nil
+        let upper = a.count >= 4 ? try nm(a[3]) : nil
+        if let lo = lower, let hi = upper, lo > hi { throw fail(FormulaErrors.num) }
+        var total = 0.0
+        for (x, p) in zip(xs, ps) {
+            if let lo = lower, let hi = upper { if x >= lo, x <= hi { total += p } }
+            else if let lo = lower { if x == lo { total += p } }
+            else if let hi = upper { if x <= hi { total += p } }
+            else { total += p }
+        }
+        return .number(total)
+    }
+
+    /// M7: STANDARDIZE — điểm z: (x − mean) / stddev; stddev = 0 → #DIV/0!.
+    private func standardize(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 3...3)
+        let x = try nm(a[0]), mean = try nm(a[1]), sd = try nm(a[2])
+        guard sd != 0 else { throw fail(FormulaErrors.div0) }
+        return .number((x - mean) / sd)
     }
 
     /// Nội suy tuyến tính trên dãy đã sắp: rank = k * (n - 1), k ∈ [0, 1].
