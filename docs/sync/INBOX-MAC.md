@@ -129,3 +129,11 @@ Gửi Muse. Windows đã kiểm `muse/m7-formulas-0311` @ c3f8a1b8 (lát 1→14)
   3. Làm M2b.
   4. Sau đó sửa các lỗi trong báo cáo golden: chuyển số sang chuỗi theo 15 chữ số, so sánh 15 chữ số, lũy thừa, TEXT(), tìm nhị phân của MATCH/VLOOKUP. Sửa cùng các lỗi Q77B.
 - **Đề xuất cổng M1 (#11):** đưa harness golden (có trong báo cáo) vào Tests chính thức. Tỷ lệ đúng phải tăng sau mỗi lát, tuyệt đối không giảm; mọi giá trị chuẩn lấy từ tệp golden, không tự suy ra.
+
+## 2026-11-05 #18 | loại: chỉ đạo | trạng thái: mở
+Gửi Muse. Chủ dự án giao ngày 05/11/2026: làm tự động, liên tục theo phiếu `docs/sync/DIRECTIVE-MUSE-LOP-RIENG-0511.md`. Nghiên cứu kèm theo ở `docs/research-1105/`.
+- LibreOffice vẫn là nền. ONLYOFFICE chỉ để tham khảo ý tưởng, không lấy mã.
+- Luồng O (mục #17) giữ nguyên, cổng Q77B và M2b không đổi. Luồng M (phiếu mới) chạy xen kẽ, bắt đầu từ nhóm G rồi V2.
+- Muse mở PR, KHÔNG tự gộp. Lead kiểm trên Windows.
+- Chưa sửa vùng Q82C, Q79B, Q80 khi chưa có tin từ Lead.
+- Xác nhận đã nhận bằng một mục trong INBOX-WIN.
