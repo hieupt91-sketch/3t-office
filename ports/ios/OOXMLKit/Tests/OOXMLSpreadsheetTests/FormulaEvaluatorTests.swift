@@ -64,6 +64,41 @@ final class FormulaEvaluatorTests: XCTestCase {
         XCTAssertEqual(calc("XLOOKUP(1,A1:A3,B1:B3)", d), .number(10), "đầu mảng")
     }
 
+    func testXmatch() {
+        let d: [String: CellValue] = [
+            "A1": .number(1), "A2": .number(2), "A3": .number(3),
+            "B1": .number(10), "B2": .number(20), "B3": .number(30),
+            "E1": .string("táo"), "E2": .string("cam"), "E3": .string("xoài"),
+            "F1": .number(7), "F2": .number(7), "F3": .number(9),
+            "H1": .number(3), "H2": .number(2), "H3": .number(1),
+        ]
+        XCTAssertEqual(calc("XMATCH(2,A1:A3)", d), .number(2), "khớp đúng")
+        XCTAssertEqual(calc("XMATCH(4,A1:A3)", d), err("#N/A"), "không thấy")
+        XCTAssertEqual(calc("XMATCH(2.5,A1:A3,-1)", d), .number(2), "match -1: nhỏ hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(0.5,A1:A3,-1)", d), err("#N/A"), "match -1: không có gì nhỏ hơn")
+        XCTAssertEqual(calc("XMATCH(2.5,A1:A3,1)", d), .number(3), "match 1: lớn hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(4,A1:A3,1)", d), err("#N/A"), "match 1: không có gì lớn hơn")
+        XCTAssertEqual(calc("XMATCH(\"c*\",E1:E3,2)", d), .number(2), "match 2: ký tự đại diện *")
+        XCTAssertEqual(calc("XMATCH(\"t?o\",E1:E3,2)", d), .number(1), "match 2: ký tự đại diện ?")
+        XCTAssertEqual(calc("XMATCH(\"TÁO\",E1:E3)", d), .number(1), "khớp chuỗi không phân biệt hoa thường")
+        XCTAssertEqual(calc("XMATCH(7,F1:F3,0,-1)", d), .number(2), "search -1: lấy khớp cuối")
+        XCTAssertEqual(calc("XMATCH(10,A1:B1)", d), .number(2), "mảng ngang")
+        XCTAssertEqual(calc("XMATCH(2,A1:A3,0,2)", d), .number(2), "nhị phân tăng dần: khớp đúng")
+        XCTAssertEqual(calc("XMATCH(2.5,A1:A3,-1,2)", d), .number(2), "nhị phân tăng dần: nhỏ hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(2.5,A1:A3,1,2)", d), .number(3), "nhị phân tăng dần: lớn hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(2,H1:H3,0,-2)", d), .number(2), "nhị phân giảm dần: khớp đúng")
+        XCTAssertEqual(calc("XMATCH(2.5,H1:H3,-1,-2)", d), .number(2), "nhị phân giảm dần: nhỏ hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(2.5,H1:H3,1,-2)", d), .number(1), "nhị phân giảm dần: lớn hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(0.5,H1:H3,1,-2)", d), .number(3), "nhị phân giảm dần: lớn hơn gần nhất ở cuối")
+        XCTAssertEqual(calc("XMATCH(2,A1:A3,3)", d), err("#VALUE!"), "match_mode ngoài miền")
+        XCTAssertEqual(calc("XMATCH(2,A1:A3,0,3)", d), err("#VALUE!"), "search_mode ngoài miền")
+        XCTAssertEqual(calc("XMATCH(2,A1:B2)", d), err("#VALUE!"), "lookup_array không phải vector")
+        XCTAssertEqual(calc("XMATCH(\"c*\",E1:E3,2,2)", d), err("#VALUE!"), "ký tự đại diện + tìm nhị phân")
+        XCTAssertEqual(calc("XMATCH(1/0,A1:A3)", d), err("#DIV/0!"), "lỗi trong khóa lan ra")
+        XCTAssertEqual(calc("XMATCH(2,A1:A3,)", d), .number(2), "match_mode trống -> 0 = khớp đúng")
+        XCTAssertEqual(calc("XMATCH(2,A1:A3,,)", d), err("#VALUE!"), "search_mode trống -> 0, ngoài miền (quy ước: đối số trống ép về 0 như XLOOKUP)")
+    }
+
     func testEmptyArguments() {
         XCTAssertEqual(calc("SUM(1,,2)"), .number(3), "tham số trống ở giữa bị bỏ qua như Excel")
         XCTAssertEqual(calc("SUM(,1,2)"), .number(3), "tham số trống ở đầu")

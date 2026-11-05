@@ -53,6 +53,7 @@ extension FormulaEvaluator {
         case "HLOOKUP": return try vhlookup(a, vertical: false)
         case "MATCH": return try match(a)
         case "XLOOKUP": return try xlookup(a)
+        case "XMATCH": return try xmatch(a)
         // Văn bản
         case "LEFT", "RIGHT": return try leftRight(name == "LEFT", a)
         case "MID": return try mid(a)
@@ -279,6 +280,81 @@ extension FormulaEvaluator {
         }
         let out = rvecW[hit]
         return out == .empty ? .number(0) : out
+    }
+
+    /// XMATCH(lookup_value, lookup_array, [match_mode], [search_mode]): vị trí 1-based.
+    /// match_mode: 0 khớp đúng (mặc định), -1 đúng hoặc nhỏ hơn gần nhất, 1 đúng hoặc lớn hơn
+    /// gần nhất, 2 ký tự đại diện. search_mode: 1 từ đầu (mặc định), -1 từ cuối, 2 nhị phân
+    /// tăng dần, -2 nhị phân giảm dần. Không thấy → #N/A; match_mode/search_mode ngoài
+    /// miền, lookup_array không phải vector, hoặc ký tự đại diện + tìm nhị phân → #VALUE!.
+    private func xmatch(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...4)
+        let key = try sc(a[0])
+        let g = try grid(a[1])
+        guard g.nRows == 1 || g.nCols == 1 else { throw fail(FormulaErrors.value) }
+        let matchMode = a.count >= 3 ? Int(try nm(a[2]).rounded(.towardZero)) : 0
+        let searchMode = a.count >= 4 ? Int(try nm(a[3]).rounded(.towardZero)) : 1
+        guard [-1, 0, 1, 2].contains(matchMode), [-2, -1, 1, 2].contains(searchMode) else {
+            throw fail(FormulaErrors.value)
+        }
+        if matchMode == 2 && (searchMode == 2 || searchMode == -2) { throw fail(FormulaErrors.value) }
+        var vec = g.flat
+        if searchMode == -1 { vec.reverse() }
+        let hit: Int?
+        switch searchMode {
+        case 2: hit = binaryLookupIndex(key, in: vec, ascending: true, matchMode: matchMode)
+        case -2: hit = binaryLookupIndex(key, in: vec, ascending: false, matchMode: matchMode)
+        default:
+            switch matchMode {
+            case -1: hit = approxIndex(key, in: vec, larger: false)
+            case 1: hit = approxIndex(key, in: vec, larger: true)
+            default: hit = lookupIndex(key, in: vec, mode: 0)
+            }
+        }
+        guard let hit = hit else { throw fail(FormulaErrors.na) }
+        return .number(Double(hit + 1))
+    }
+
+    /// So sánh toàn phần theo thứ tự Excel (số < chuỗi < logic < lỗi < rỗng) để tìm
+    /// nhị phân; cmpSame chỉ so được cùng kiểu nên nil thì rơi về hạng.
+    private static func cmpTotal(_ a: CellValue, _ b: CellValue) -> Int {
+        if let c = cmpSame(a, b) { return c }
+        func rank(_ v: CellValue) -> Int {
+            switch v { case .number: return 0; case .string: return 1; case .bool: return 2; case .error: return 3; case .empty: return 4 }
+        }
+        let ra = rank(a), rb = rank(b)
+        return ra == rb ? 0 : (ra < rb ? -1 : 1)
+    }
+
+    /// Tìm nhị phân trên mảng đã sắp (tăng dần nếu ascending, giảm dần nếu không).
+    /// matchMode 0: khớp đúng (vị trí đầu tiên); -1: lớn nhất ≤ khóa; 1: nhỏ nhất ≥ khóa.
+    private func binaryLookupIndex(_ key: CellValue, in vec: [CellValue], ascending: Bool, matchMode: Int) -> Int? {
+        var lo = 0, hi = vec.count - 1
+        var best: Int? = nil
+        while lo <= hi {
+            let mid = (lo + hi) / 2
+            let c = Self.cmpTotal(vec[mid], key)
+            if c == 0 {
+                var i = mid
+                while i > 0 && Self.cmpTotal(vec[i - 1], key) == 0 { i -= 1 }
+                return i
+            }
+            switch matchMode {
+            case -1:
+                if c <= 0 {
+                    best = mid
+                    if ascending { lo = mid + 1 } else { hi = mid - 1 }
+                } else if ascending { hi = mid - 1 } else { lo = mid + 1 }
+            case 1:
+                if c >= 0 {
+                    best = mid
+                    if ascending { hi = mid - 1 } else { lo = mid + 1 }
+                } else if ascending { lo = mid + 1 } else { hi = mid - 1 }
+            default:
+                if ascending ? c < 0 : c > 0 { lo = mid + 1 } else { hi = mid - 1 }
+            }
+        }
+        return best
     }
 
     /// Chỉ số cho XLOOKUP match_mode ±1: khớp đúng (đầu tiên) thắng ngay; không thì phần tử
