@@ -94,6 +94,10 @@ extension FormulaEvaluator {
         case "RANK.AVG": return try rankAvg(a)
         case "PROB": return try prob(a)
         case "STANDARDIZE": return try standardize(a)
+        case "NORM.S.DIST": return try normSDist(a)
+        case "NORM.DIST": return try normDist(a)
+        case "NORM.S.INV": return try normSInv(a)
+        case "NORM.INV": return try normInv(a)
         case "PERCENTILE", "PERCENTILE.INC": return try percentileInc(a)
         case "QUARTILE", "QUARTILE.INC": return try quartileInc(a)
         case "PERCENTILE.EXC": return try percentileExc(a)
@@ -746,6 +750,84 @@ extension FormulaEvaluator {
         let x = try nm(a[0]), mean = try nm(a[1]), sd = try nm(a[2])
         guard sd != 0 else { throw fail(FormulaErrors.div0) }
         return .number((x - mean) / sd)
+    }
+
+    // MARK: Phân phối chuẩn (M7 lát 15)
+
+    /// Mật độ chuẩn tắc φ(z) = exp(−z²/2) / √(2π).
+    private func normalPDF(_ z: Double) -> Double { exp(-z * z / 2) / sqrt(2 * Double.pi) }
+
+    /// Hàm phân phối tích lũy chuẩn tắc Φ(z) qua erf.
+    private func normalCDF(_ z: Double) -> Double { 0.5 * (1 + erf(z / sqrt(2))) }
+
+    /// Nghịch đảo Φ theo xấp xỉ Acklam (sai số tuyệt đối ~1.15e-9),
+    /// rồi 2 bước Newton với Φ/φ để đạt ~1e-12. p ∈ (0, 1).
+    private func normalInv(_ p: Double) -> Double {
+        let a = [-3.969683028665376e+01, 2.209460984245205e+02,
+                 -2.759285984469534e+02, 1.383577518672690e+02,
+                 -3.066479806614716e+01, 2.506628277459239e+00]
+        let b = [-5.447609879822406e+01, 1.615858368580409e+02,
+                 -1.556989798598866e+02, 6.680131188771972e+01,
+                 -1.328068155288572e+01]
+        let c = [-7.784894002430293e-03, -3.223964580411365e-01,
+                 -2.400758277161838e+00, -2.549732539343734e+00,
+                 4.374664141464968e+00, 2.938163982698783e+00]
+        let d = [7.784695709041462e-03, 3.224671290700398e-01,
+                 2.445134137142996e+00, 3.754408661907416e+00]
+        let plow = 0.02425, phigh = 1 - plow
+        var x: Double
+        if p < plow {
+            let q = sqrt(-2 * log(p))
+            x = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
+                / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+        } else if p <= phigh {
+            let q = p - 0.5, r = q * q
+            x = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q
+                / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+        } else {
+            let q = sqrt(-2 * log(1 - p))
+            x = -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
+                / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+        }
+        for _ in 0..<2 {
+            let e = normalCDF(x) - p, u = e * sqrt(2 * Double.pi) * exp(x * x / 2)
+            x -= u / (1 + x * u / 2)
+        }
+        return x
+    }
+
+    /// M7: NORM.S.DIST(z, cumulative) — Φ(z) hoặc φ(z).
+    private func normSDist(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...2)
+        let z = try nm(a[0]), cumulative = try bl(a[1])
+        return .number(cumulative ? normalCDF(z) : normalPDF(z))
+    }
+
+    /// M7: NORM.DIST(x, mean, sd, cumulative) — Φ((x−mean)/sd)
+    /// hoặc φ((x−mean)/sd)/sd. sd ≤ 0 → #NUM!.
+    private func normDist(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 4...4)
+        let x = try nm(a[0]), mean = try nm(a[1]), sd = try nm(a[2]), cumulative = try bl(a[3])
+        guard sd > 0 else { throw fail(FormulaErrors.num) }
+        let z = (x - mean) / sd
+        return .number(cumulative ? normalCDF(z) : normalPDF(z) / sd)
+    }
+
+    /// M7: NORM.S.INV(p) — nghịch đảo Φ. p ∉ (0, 1) → #NUM!.
+    private func normSInv(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...1)
+        let p = try nm(a[0])
+        guard p > 0, p < 1 else { throw fail(FormulaErrors.num) }
+        return .number(normalInv(p))
+    }
+
+    /// M7: NORM.INV(p, mean, sd) = mean + sd · NORM.S.INV(p).
+    private func normInv(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 3...3)
+        let p = try nm(a[0]), mean = try nm(a[1]), sd = try nm(a[2])
+        guard sd > 0 else { throw fail(FormulaErrors.num) }
+        guard p > 0, p < 1 else { throw fail(FormulaErrors.num) }
+        return .number(mean + sd * normalInv(p))
     }
 
     /// Nội suy tuyến tính trên dãy đã sắp: rank = k * (n - 1), k ∈ [0, 1].
