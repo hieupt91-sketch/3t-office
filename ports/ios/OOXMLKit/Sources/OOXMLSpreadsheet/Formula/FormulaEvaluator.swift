@@ -12,6 +12,9 @@ protocol FormulaContext {
     /// Đích của tên vùng (M7): (tên sheet như đã đăng ký, vùng). Sheet cục bộ của sheet hiện
     /// tại ưu tiên hơn phạm vi workbook. nil nếu tên không tồn tại.
     func definedNameTarget(_ name: String) -> (sheet: String, range: CellRange)?
+    /// Biểu thức đích của tên hằng/công thức (M7 lát 17). nil nếu tên không tồn tại
+    /// hoặc tên đó là tên vùng (đích là ô/vùng, xem `definedNameTarget`).
+    func definedNameExpr(_ name: String) -> FormulaExpr?
 }
 
 enum FormulaErrors {
@@ -34,6 +37,8 @@ struct FormulaEvaluator {
     /// bật giao ngầm (implicit intersection) trong scalar(). Công thức thường: nil -> giữ #VALUE!.
     var position: CellReference? = nil
     var arrayOrigin: CellReference? = nil
+    /// Tên hằng/công thức đang được mở (M7 lát 17): chặn vòng tên A→B→A thành #REF!.
+    var nameStack: Set<String> = []
 
     func evaluate(_ expr: FormulaExpr) -> CellValue {
         scalar(eval(expr))
@@ -55,6 +60,14 @@ struct FormulaEvaluator {
             if let (sh, r) = context.definedNameTarget(n) {
                 guard let s = context.resolveSheet(sh) else { return .scalar(.error(FormulaErrors.ref)) }
                 return .ref(sheet: s, range: r)
+            }
+            // M7 lát 17: tên hằng/công thức — tính biểu thức đích; vòng tên → #REF!.
+            if let ex = context.definedNameExpr(n) {
+                let key = n.uppercased()
+                guard !nameStack.contains(key) else { return .scalar(.error(FormulaErrors.ref)) }
+                var sub = self
+                sub.nameStack.insert(key)
+                return sub.eval(ex)
             }
             return .scalar(.error(FormulaErrors.name))
         case .cell(let sh, let r):

@@ -269,3 +269,46 @@ def office_quirks(path):
 
 office_quirks(os.path.join(D, "office-quirks.xlsx"))
 print("office-quirks.xlsx written")
+
+# named-expr.xlsx — tên định nghĩa HẰNG/CÔNG THỨC cho M7 lát 17 (bridge nạp cả đích
+# không phải vùng/ô): TyLe = 0.1 (hằng số), TenHang = "Giấy A4" (hằng chuỗi),
+# Tong2 = 'Data'!$A$1+'Data'!$A$2 (biểu thức), Gap = Tong2*2 (tên dùng tên khác),
+# CucBo cục bộ sheet TongHop = 'TongHop'!$B$1*3. Ô Z1 trên TongHop dùng sẵn tên Tong2.
+def named_expr(path):
+    X = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    wb = (DECL + f'<workbook xmlns="{X}" xmlns:r="{R_NS}">'
+          '<sheets><sheet name="Data" sheetId="1" r:id="rId1"/>'
+          '<sheet name="TongHop" sheetId="2" r:id="rId2"/></sheets>'
+          '<definedNames>'
+          '<definedName name="TyLe">0.1</definedName>'
+          '<definedName name="TenHang">"Giấy A4"</definedName>'
+          "<definedName name=\"Tong2\">'Data'!$A$1+'Data'!$A$2</definedName>"
+          '<definedName name="Gap">Tong2*2</definedName>'
+          "<definedName name=\"CucBo\" localSheetId=\"1\">'TongHop'!$B$1*3</definedName>"
+          '</definedNames></workbook>')
+    st = (DECL + f'<styleSheet xmlns="{X}"><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>'
+          '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
+          '<borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+          '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs></styleSheet>')
+    data = (DECL + f'<worksheet xmlns="{X}"><sheetData><row r="1"><c r="A1"><v>10</v></c></row>'
+            '<row r="2"><c r="A2"><v>20</v></c></row></sheetData></worksheet>')
+    tonghop = (DECL + f'<worksheet xmlns="{X}"><sheetData><row r="1"><c r="B1"><v>5</v></c>'
+              '<c r="Z1"><f>Tong2*2</f><v>60</v></c></row></sheetData></worksheet>')
+    write_package(path, [
+        ("[Content_Types].xml", content_types([("rels", "application/vnd.openxmlformats-package.relationships+xml"), ("xml", "application/xml")],
+            [("/xl/workbook.xml", CT + "sheet.main+xml"), ("/xl/worksheets/sheet1.xml", CT + "worksheet+xml"),
+             ("/xl/worksheets/sheet2.xml", CT + "worksheet+xml"), ("/xl/styles.xml", CT + "styles+xml")])),
+        ("_rels/.rels", rels([("rId1", "officeDocument", "xl/workbook.xml")])),
+        ("xl/workbook.xml", wb),
+        ("xl/_rels/workbook.xml.rels", rels([("rId1", "worksheet", "worksheets/sheet1.xml"), ("rId2", "worksheet", "worksheets/sheet2.xml"), ("rId3", "styles", "styles.xml")])),
+        ("xl/styles.xml", st), ("xl/worksheets/sheet1.xml", data), ("xl/worksheets/sheet2.xml", tonghop)])
+    # Bản sao base64 (.xlsx.b64, UTF-8): kênh đẩy snapshot qua GitHub API chỉ nhận
+    # tệp UTF-8 nên test bridge đọc bản này; bản .xlsx nhị phân đi kèm để mở bằng Excel thật.
+    import base64
+    with open(path, "rb") as f:
+        raw = f.read()
+    with open(path + ".b64", "w", encoding="utf-8") as f:
+        f.write(base64.b64encode(raw).decode("ascii") + "\n")
+
+named_expr(os.path.join(D, "named-expr.xlsx"))
+print("named-expr.xlsx written")

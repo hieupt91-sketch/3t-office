@@ -28,6 +28,9 @@ public final class FormulaEngine {
     private var arrayMembership: [CellAddress: CellRange] = [:] // ô -> vùng công thức mảng của nó
     /// Tên vùng M7: khóa (phạm vi cục bộ — tên chuẩn của sheet, hoặc nil = workbook, tên viết hoa).
     private var definedNames: [(scope: String?, name: String, sheet: String, range: CellRange)] = []
+    /// Tên định nghĩa hằng/công thức M7 lát 17: đích là biểu thức (không phải vùng/ô).
+    /// Cùng (phạm vi, tên) chỉ tồn tại một trong hai dạng: đăng ký dạng này ghi đè dạng kia.
+    private var definedNameExprs: [(scope: String?, name: String, expr: FormulaExpr)] = []
 
     /// Đồng hồ cho TODAY()/NOW(); test có thể thay bằng giờ cố định.
     public var clock: () -> Date = { Date() }
@@ -108,7 +111,25 @@ public final class FormulaEngine {
         }
         let key = name.uppercased()
         definedNames.removeAll { $0.scope == scope && $0.name == key }
+        definedNameExprs.removeAll { $0.scope == scope && $0.name == key }
         definedNames.append((scope: scope, name: key, sheet: sheet, range: range))
+    }
+
+    /// Đăng ký tên định nghĩa hằng/công thức (M7 lát 17): đích là biểu thức tùy ý —
+    /// hằng số (`0.1`, `"Giấy A4"`, `TRUE`), biểu thức dùng ô (`Data!A1+Data!A2`),
+    /// hoặc dùng tên khác (`Tong2*2`). Ghi đè tên vùng cùng (phạm vi, tên).
+    public func defineNameExpression(_ name: String, localSheet: String? = nil, expr: FormulaExpr) {
+        let scope: String?
+        if let ls = localSheet {
+            guard let s = canonicalName(ls) else { return }
+            scope = s
+        } else {
+            scope = nil
+        }
+        let key = name.uppercased()
+        definedNames.removeAll { $0.scope == scope && $0.name == key }
+        definedNameExprs.removeAll { $0.scope == scope && $0.name == key }
+        definedNameExprs.append((scope: scope, name: key, expr: expr))
     }
 
     /// Đích của tên vùng cho sheet hiện tại: cục bộ trước, workbook sau.
@@ -119,6 +140,18 @@ public final class FormulaEngine {
         }
         if let global = definedNames.first(where: { $0.scope == nil && $0.name == key }) {
             return (global.sheet, global.range)
+        }
+        return nil
+    }
+
+    /// Biểu thức đích của tên hằng/công thức cho sheet hiện tại: cục bộ trước, workbook sau.
+    func resolveDefinedNameExpr(_ name: String, currentSheet: String) -> FormulaExpr? {
+        let key = name.uppercased()
+        if let local = definedNameExprs.first(where: { $0.scope == currentSheet && $0.name == key }) {
+            return local.expr
+        }
+        if let global = definedNameExprs.first(where: { $0.scope == nil && $0.name == key }) {
+            return global.expr
         }
         return nil
     }
@@ -225,19 +258,23 @@ public final class FormulaEngine {
 
     /// Mọi tham chiếu ô/vùng trong biểu thức, mở rộng tên vùng M7 thành đích của chúng.
     /// Tên bị LET ràng buộc trong phạm vi đó không mở rộng (đó là biến cục bộ, không phải tên vùng).
-    private func expandedReferences(_ e: FormulaExpr, currentSheet: String, bound: Set<String>) -> [(sheet: String?, range: CellRange)] {
+    /// Tên hằng/công thức (lát 17) mở rộng đệ quy theo biểu thức đích; `expanding` chặn vòng tên.
+    private func expandedReferences(_ e: FormulaExpr, currentSheet: String, bound: Set<String>, expanding: Set<String> = []) -> [(sheet: String?, range: CellRange)] {
         switch e {
         case .cell(let s, let r): return [(s, CellRange(r, r))]
         case .range(let s, let r): return [(s, r)]
         case .unary(_, let x), .percent(let x):
-            return expandedReferences(x, currentSheet: currentSheet, bound: bound)
+            return expandedReferences(x, currentSheet: currentSheet, bound: bound, expanding: expanding)
         case .binary(_, let a, let b):
-            return expandedReferences(a, currentSheet: currentSheet, bound: bound)
-                + expandedReferences(b, currentSheet: currentSheet, bound: bound)
+            return expandedReferences(a, currentSheet: currentSheet, bound: bound, expanding: expanding)
+                + expandedReferences(b, currentSheet: currentSheet, bound: bound, expanding: expanding)
         case .name(let n):
             guard !bound.contains(n.uppercased()) else { return [] }
-            guard let (sh, r) = resolveDefinedName(n, currentSheet: currentSheet) else { return [] }
-            return [(sh, r)]
+            if let (sh, r) = resolveDefinedName(n, currentSheet: currentSheet) { return [(sh, r)] }
+            guard let ex = resolveDefinedNameExpr(n, currentSheet: currentSheet) else { return [] }
+            let key = n.uppercased()
+            guard !expanding.contains(key) else { return [] }
+            return expandedReferences(ex, currentSheet: currentSheet, bound: bound, expanding: expanding.union([key]))
         case .call(let name, let args):
             if name == "LET" {
                 var out: [(sheet: String?, range: CellRange)] = []
@@ -245,17 +282,17 @@ public final class FormulaEngine {
                 var i = 0
                 while i < args.count - 1 {
                     if case .name(let n) = args[i] {
-                        out += expandedReferences(args[i + 1], currentSheet: currentSheet, bound: b)
+                        out += expandedReferences(args[i + 1], currentSheet: currentSheet, bound: b, expanding: expanding)
                         b.insert(n.uppercased())
                     } else {
-                        out += expandedReferences(args[i], currentSheet: currentSheet, bound: b)
+                        out += expandedReferences(args[i], currentSheet: currentSheet, bound: b, expanding: expanding)
                     }
                     i += 2
                 }
-                if let last = args.last { out += expandedReferences(last, currentSheet: currentSheet, bound: b) }
+                if let last = args.last { out += expandedReferences(last, currentSheet: currentSheet, bound: b, expanding: expanding) }
                 return out
             }
-            return args.flatMap { expandedReferences($0, currentSheet: currentSheet, bound: bound) }
+            return args.flatMap { expandedReferences($0, currentSheet: currentSheet, bound: bound, expanding: expanding) }
         default: return []
         }
     }
@@ -296,6 +333,9 @@ public final class FormulaEngine {
         }
         func definedNameTarget(_ name: String) -> (sheet: String, range: CellRange)? {
             engine.resolveDefinedName(name, currentSheet: current)
+        }
+        func definedNameExpr(_ name: String) -> FormulaExpr? {
+            engine.resolveDefinedNameExpr(name, currentSheet: current)
         }
         func nonEmptyValues(sheet: String, range: CellRange) -> [CellValue] {
             let cells = engine.inputs[sheet] ?? [:]
