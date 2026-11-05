@@ -121,7 +121,8 @@ Rủi ro thấp, chỉ thêm kiểm thử. Làm trước tiên.
 
 #### G1. Cổng giấy phép dependency
 
-- **Việc:** script đọc `package.json` và tệp yêu cầu Python, đối chiếu với allowlist: MIT, BSD-2/3, ISC, Apache-2.0, MPL-2.0, PSF-2.0, Unicode-3.0, Zlib, OFL-1.1, CC0-1.0. Không có giấy phép hoặc giấy phép lạ thì FAIL. Ngoại lệ phải có dòng lý do và người duyệt.
+- **Lưu ý:** `package.json` không có dependency npm, nên rủi ro nằm ở thành phần đóng gói kèm. Cổng phải dựa trên một manifest liệt kê mọi thành phần đóng gói (LibreOffice, Python, font, dữ liệu), không chỉ đọc `package.json`.
+- **Việc:** script đọc manifest đó và tệp yêu cầu Python, đối chiếu với allowlist: MIT, BSD-2/3, ISC, Apache-2.0, MPL-2.0, PSF-2.0, Unicode-3.0, Zlib, OFL-1.1, CC0-1.0. Không có giấy phép hoặc giấy phép lạ thì FAIL. Ngoại lệ phải có dòng lý do và người duyệt.
 - **Tệp:** `scripts/audit-licenses/`, nối vào `tests/run-tests.js`.
 - **Đạt:** thử một gói GPL giả trong fixture thì cổng FAIL; kho hiện tại PASS hoặc liệt kê ngoại lệ thật, không che.
 - **Cấm:** kiểu `|| echo warning` làm cổng thành vô nghĩa.
@@ -171,11 +172,15 @@ Quy tắc chung:
 - Chạy offline hoàn toàn.
 - **Font:** không đóng gói Times New Roman, `.VnTime`, `VNI-Times` hay bất kỳ font độc quyền nào. Dùng font có trên máy người dùng; thiếu thì báo rõ, hướng dẫn cài, cho người dùng chọn font thay thế. Chỉ đề xuất font khớp chỉ số có giấy phép đã đọc từ chính tệp LICENSE. Font nhúng sẵn trong tài liệu của người dùng thì giữ nguyên khi lưu.
 
-#### V2. Bảng mã tiếng Việt cũ (làm đầu tiên trong nhóm)
+**Thứ tự trong nhóm (sửa 05/11, theo INBOX-MAC #19): V4 → V1 → V5a → V3 → V5b → V6. V2 đang tạm dừng.**
+
+#### V2. Bảng mã tiếng Việt cũ (TẠM DỪNG, không làm khi Lead chưa báo mở)
+
+**Lý do dừng:** chưa có số đo nhu cầu. Trên mẫu cục bộ, không tệp nào trong 53 tệp đọc được có từ 5% chữ trở lên ở font cũ. Khi máy có font trùng tên, Word hiển thị đúng, nhưng tìm bằng chữ Unicode vẫn không thấy. Bảng TCVN3 không đều nên không dựng được theo quy luật, và chưa có nguồn bảng TCVN3/VNI có giấy phép rõ. Lead sẽ quét kho LAN và chủ dự án quyết định có làm không. Phần dưới chỉ là thiết kế dự kiến.
 
 - **Giai đoạn 1, thư viện thuần (không giao diện):**
   - `platform/text/legacy-encodings.js`: TCVN3, VNI-Windows, VISCII, VPS, VIQR → Unicode NFC.
-  - **Tự lập bảng mã, phát hành CC0-1.0.** VISCII và VIQR theo RFC 1456. TCVN3 và VNI dựng theo cấu trúc rồi đối chiếu ít nhất 3 nguồn độc lập; nguồn không giấy phép **chỉ để đối chiếu, không sao chép**. BK HCM và Vietware hoãn sang giai đoạn sau.
+  - **Nguồn bảng mã do chủ dự án chốt.** VISCII và VIQR theo RFC 1456. TCVN3 và VNI **không dựng theo quy luật**; nguồn không giấy phép chỉ để đối chiếu, không sao chép. BK HCM và Vietware hoãn sang giai đoạn sau.
   - Bẫy TCVN3: chữ hoa có dấu nằm ở font họ `...H`. Không đọc tên font thì không biết hoa hay thường.
   - Bẫy VNI: một chữ có dấu có thể chiếm 2 byte.
   - Nhận dạng: gợi ý theo tên font trước, sau đó chấm điểm bằng `isValidVietnameseSyllable` trong `platform/text/vi-syllable.js`. Điểm thấp thì không kết luận. Chữ đã là Unicode hợp lệ thì không đổi, tránh chuyển hai lần.
@@ -199,7 +204,7 @@ Quy tắc chung:
 - **Giai đoạn 1:** nút áp dụng thể thức cho tài liệu hiện tại: A4, lề, Times New Roman, kiểu cho từng thành phần, số trang ở lề trên, ẩn số trang 1. Một bước Undo.
 - **Giai đoạn 2:** bộ soát lỗi, tối đa 26 luật khởi điểm ở mục 1.8. Mỗi luật có `id`, `severity`, `clause`, `message`, `autofix`. **`clause` phải trỏ đúng mục ở Phụ lục I và có test.** Bộ soát chỉ báo, người dùng chọn sửa.
 - **Giai đoạn 3:** các mẫu theo Phụ lục III, mỗi mẫu lưu mở lại đúng.
-- **Lời hiển thị:** "kiểm theo thể thức NĐ 30/2020", **không ghi "đảm bảo hợp lệ pháp lý"**.
+- **Lời hiển thị:** "kiểm theo thể thức NĐ 30/2020", **không ghi "đảm bảo hợp lệ pháp lý"**. Điều 2 của nghị định áp dụng cho cơ quan, tổ chức nhà nước và doanh nghiệp nhà nước; không ghi là bắt buộc với mọi doanh nghiệp.
 - **Đạt:** mỗi luật có ca đúng và ca sai; ảnh 1366×768 đã xem; Lead đối chiếu mẫu bằng Word.
 
 #### V3. Sắp xếp tiếng Việt
@@ -249,6 +254,7 @@ Rủi ro cao hơn, chạm mã lõi. **Đi sau G. Mỗi PR một quy tắc.** Gi�
 #### F4. An toàn lưu tệp và độ bền worker
 
 - **Rà trước, sửa sau:** viết báo cáo hiện trạng đường lưu với 3 câu hỏi: ghi tệp tạm rồi đổi tên có đúng không; có flush cả tệp và thư mục không; có giữ `.bak` một vòng không. Có khoảng trống thì mở PR riêng.
+- **Điểm cần kiểm đầu tiên:** `_atomic_replace_file` trong `main.py` (khoảng dòng 3154) và câu hỏi: tệp trên ổ mạng bị người khác sửa sau khi mở thì lần lưu sau có ghi đè im lặng không? Rà mã chưa thấy so mtime và kích thước trước khi ghi, nhưng chưa tái hiện. Viết bài tái hiện trước; đúng là lỗi thì sửa bằng cách hỏi người dùng trước khi ghi đè.
 - **Worker `soffice`:** mỗi job có giới hạn thời gian và báo lỗi rõ, tệp hỏng chỉ làm hỏng job đó, không treo app.
 - **Nhận diện định dạng theo nội dung**, không theo đuôi tệp: phân biệt ZIP, OLE, tệp mã hóa, đuôi sai; lỗi bằng tiếng Việt. Viết từ `[MS-CFB]` và đặc tả công khai.
 - **Tệp mật khẩu:** thêm test mật khẩu có dấu và mật khẩu dài với `adapters/libreoffice/common/ooxml_encryption.py`. Chưa rõ giới hạn thật của Word.

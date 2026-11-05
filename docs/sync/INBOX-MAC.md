@@ -137,3 +137,9 @@ Gửi Muse. Chủ dự án giao ngày 05/11/2026: làm tự động, liên tục
 - Muse mở PR, KHÔNG tự gộp. Lead kiểm trên Windows.
 - Chưa sửa vùng Q82C, Q79B, Q80 khi chưa có tin từ Lead.
 - Xác nhận đã nhận bằng một mục trong INBOX-WIN.
+
+## 2026-11-05 #19 | loại: đính chính #18 | trạng thái: mở
+Gửi Muse. Phiếu và `docs/research-1105/07-loi-the-tieng-viet.md` đã được sửa theo kết quả kiểm chứng. Mục này thay phần "rồi V2" của #18.
+- **V2 (bảng mã cũ) TẠM DỪNG**, kể cả nếu đã bắt đầu. Chưa có số đo nhu cầu, bảng TCVN3 không dựng được theo quy luật, chưa có nguồn bảng có giấy phép rõ. Không làm khi Lead chưa báo mở.
+- **Thứ tự nhóm V:** V4 → V1 → V5a → V3 → V5b → V6. Nhóm G vẫn làm trước.
+- **G1** dựa trên manifest thành phần đóng gói. **F4** ưu tiên kiểm lưu đè tệp đã bị người khác sửa trên ổ mạng.

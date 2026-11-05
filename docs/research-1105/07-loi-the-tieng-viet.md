@@ -5,27 +5,86 @@
 **Ngày:** 05/11/2026 · **Người soạn:** Claude (agent nghiên cứu) · **Phạm vi:** VN Writer / VN Sheet / VN Slides
 **Mục đích:** xác định và đặc tả cụ thể các tính năng CHỈ có ý nghĩa với người Việt, mà Word/Excel/PowerPoint thật không làm (hoặc làm sai), để biến thành ticket thật.
 
-> **Quy ước nguồn:** mọi con số pháp lý trong tài liệu này được trích từ **văn bản gốc** (PDF Phụ lục Nghị định 30/2020/NĐ-CP), không lấy từ blog. Chỗ nào chưa xác minh được ghi rõ **CHƯA KIỂM**.
+> **Quy ước nguồn:** số liệu về thể thức lấy từ **bản đăng lại toàn văn Phụ lục NĐ 30/2020** (VCCI, đối chiếu với bản HPU2 ở các điều khoản chính), không lấy từ blog. **Chưa đối chiếu với Công báo** — phải làm trước khi đưa trích dẫn vào sản phẩm. Điểm số ưu tiên là **đánh giá chủ quan**, không phải số đo. Chỗ chưa xác minh ghi **CHƯA KIỂM**.
+
+---
+
+## ĐÍNH CHÍNH (bản sửa 05/11/2026, sau khi tự kiểm chứng)
+
+Bản đầu của tài liệu này có **các sai sót nghiêm trọng**, đã sửa trong bản này:
+
+| # | Bản đầu viết | Thực tế | Hệ quả |
+|---|---|---|---|
+| 1 | VN-2 là "sát thủ", xếp hạng 1, 95 điểm; "đã chứng minh bằng file thật" | Đoạn chữ làm bằng chứng lấy từ quét byte thô của cả file; chữ ký TCVN3 có mặt trong **luồng siêu dữ liệu** của file. Phần thân chủ yếu là **Unicode**; chỉ khoảng 4,6% ký tự dùng `.VnTime` | **VN-2 xuống 66 điểm**, phải đo trước khi đầu tư |
+| 2 | "1/4 file nhị phân là TCVN3 → 25%", ngoại suy "hàng chục tới hàng trăm file" | **0/4 file** chủ yếu là mã cũ; cả 4 tạo năm 2020–2022. "Khai báo font" không phải "văn bản viết bằng font đó" | Bỏ ngoại suy. `.doc/.xls` **không đồng nghĩa** mã cũ |
+| 3 | Thống kê tần suất byte (`®` 140 lần…) là "tài liệu TCVN3 nguyên bản, không phải nhiễu" | Quét trên toàn bộ byte nhị phân; các số gần đều nhau, **rất có thể là nhiễu** | Đã xoá |
+| 4 | Word mở ra "nguyên văn chữ rác" | **Chỉ đúng khi thiếu font.** Có font thì hiển thị đúng (xem kiểm chứng a) | Đổi thông điệp sản phẩm |
+| 5 | Dựng bảng TCVN3/VNI "theo quy luật nhóm 5 thanh", "cả hai đều có cấu trúc đều" | **Sai.** Bảng đối chiếu cho `è=CC`, `é=D0` (cách 4, nhóm `a` cách 3): TCVN3 không đều. VNI là kiểu tổ hợp 2 byte, không cùng cấu trúc | Bỏ phương án suy ra theo quy luật |
+| 6 | "Excel dùng chính ICU/NLS" | Đã đo: Excel xếp thanh và chữ **khác ICU** | Đã sửa VN-3 |
+| 7 | "Excel COM đang bị chặn" | Excel 2016 chạy được qua COM trong phiên này | Đã đo VN-3, VN-5a |
+| 8 | "26 luật", "12 mẫu" | Bảng có **34 luật**; Phụ lục III có **14 mẫu** | Đã sửa |
+| 9 | Điểm ưu tiên "theo công thức" | Hầu hết **không khớp** công thức đã nêu | Đã tính lại, bảng xếp hạng đổi |
+| 10 | Có tên file và một dòng siêu dữ liệu của tài liệu nội bộ | Không được đưa nội dung tài liệu vào báo cáo | **Đã xoá**; dùng mã ẩn danh |
+| 11 | "NĐ 30/2020 mới bắt buộc Unicode", "mọi tài liệu trước 2003 gần như chắc chắn…", "kho lưu 20–70 năm", "khách sẵn sàng trả tiền" | Khẳng định không có nguồn | Đã xoá hoặc ghi CHƯA KIỂM |
+
+---
+
+## KIỂM CHỨNG 5 GIẢ ĐỊNH ĐÃ BÁO VỚI CHỦ DỰ ÁN
+
+**(a) "Word 2016 hiển thị chữ rác với tài liệu TCVN3/VNI" — BÁC BỎ như đã phát biểu; chỉ đúng khi thiếu font.**
+Đã chạy trên Word 16.0.4266 qua COM, chữ tổng hợp (cụm "Cộng hòa xã hội chủ nghĩa Việt Nam" theo mã TCVN3, cụm ngắn theo mã VNI), lưu cả `.docx` và `.doc`:
+
+| Trường hợp | Font Word dùng khi xuất PDF | Hiển thị | Tìm chữ Việt Unicode thật |
+|---|---|---|---|
+| Không có font | Thay bằng Times New Roman | **Chữ rác** | Không thấy |
+| Có font trùng tên `.VnTime`, `VNI-Times` | `.VnTime`, `VNI-Times` được nhúng | **Đúng tiếng Việt** | **Vẫn không thấy** |
+
+Giới hạn: font thử là **font tổng hợp do tôi dựng** (dựng từ VNSans, ánh xạ mã Latin-1 sang chữ Việt) theo cơ chế của font cũ, không phải `.VnTime` thật; dấu mũ VNI lệch vị trí là do font thử. **CHƯA KIỂM với font thật.** Nguồn thực hành khớp với kết quả: [topthuthuat](https://topthuthuat.com/sua-loi-font-chu-trong-word/), [vnit](https://vnit.com.vn/bai-viet/loi-font-tieng-viet-trong-word-excel-cach-sua). Danh mục [MsoEncoding](https://learn.microsoft.com/en-us/office/vba/api/office.msoencoding) chỉ có `msoEncodingVietnamese` (1258), không có TCVN3/VNI/VISCII/VPS (đây là danh mục mã cho trình duyệt, không phải hộp thoại chuyển đổi).
+Kết luận: điểm yếu thật của Word **không phải "không đọc được"**, mà là phụ thuộc font và chữ vẫn không phải Unicode (không tìm, sắp xếp, tra cứu đúng được).
+
+**(b) "Đa số tài liệu thời .doc dùng các bộ mã đó" — BÁC BỎ trên mẫu cục bộ; CHƯA KIỂM ở phạm vi Việt Nam.**
+Đo chỉ đọc trên `<kho tệp thử nội bộ>`, chỉ lấy số đếm. 83 file Office, gộp trùng theo SHA-256 còn **54 file; đọc được 53** (1 `.docx` không phải zip hợp lệ).
+
+| Loại | File | Có khai báo font cũ | Mã cũ ≥ 5% chữ | Phần chữ nằm trong font cũ |
+|---|---|---|---|---|
+| `.doc` | 2 | 2 | **0** | #1: 0 theo Word; #2: 430/9.357 ký tự (4,6%) theo Word |
+| `.xls` | 2 | 0 | **0** | 0/791 ô nhãn; 0 chữ ký TCVN3 trong bảng chuỗi |
+| `.docx` | 20 đọc được | 5 | **0** | 136/236.684 ký tự (0,06%) |
+| `.xlsx` | 28 | 4 | **0** | 0 (cả ô lẫn rich text) |
+| `.pptx` | 1 | 0 | **0** | 0 |
+
+Cả 4 file nhị phân có năm tạo **2020–2022** theo siêu dữ liệu, và bảng chuỗi `.xls` có 5.365 chữ Việt Unicode. Hai phương pháp độc lập (tự phân tích định dạng và đếm qua Word) cho kết quả gần nhau: `.doc` #2 là 447 và 430 ký tự, nhưng lệch ở phần ngoài ASCII (5 và 23), và `.doc` #1 lệch (0–20 ký tự, đều rất nhỏ).
+Giới hạn: **mẫu quá nhỏ và không đại diện**: chỉ 4 file nhị phân (7%, trong khi share LAN có 41%), và không phải kho lưu trữ cũ. Vì vậy số này **không** chứng minh kho tài liệu trước 2003 ở Việt Nam không dùng mã cũ. **Không tìm thấy số liệu toàn quốc nào.** Chưa quét 672 file trên LAN.
+
+**(c) "Luật SHTT Điều 15 loại trừ nghị định và văn bản hành chính khỏi bảo hộ quyền tác giả" — XÁC NHẬN, kèm lưu ý.**
+[Văn bản hợp nhất 67/VBHN-VPQH](https://luatvietnam.vn/so-huu-tri-tue/van-ban-hop-nhat-67-vbhn-vpqh-2026-luat-so-huu-tri-tue-431761-d5.html) (xác thực 23/03/2026, hợp nhất đến Luật 131/2025/QH15, hiệu lực 01/04/2026), Điều 15 khoản 2, nguyên văn: *"Văn bản quy phạm pháp luật, văn bản hành chính, văn bản khác thuộc lĩnh vực tư pháp và bản dịch chính thức của văn bản đó."* Khoản 4 mới thêm (ý tưởng, khẩu hiệu, tên tác phẩm) không đổi khoản 2.
+Điều 15 **không nêu từ "nghị định"**; nghị định được loại trừ vì là văn bản quy phạm pháp luật ([Luật 64/2025/QH15 Điều 4 khoản 5](https://hethongphapluat.com/luat-ban-hanh-van-ban-quy-pham-phap-luat-2025/dieu-4): *"Nghị định, nghị quyết của Chính phủ…"*).
+Lưu ý: đọc qua bản đăng trên LuatVietnam, chưa đối chiếu Công báo. **CHƯA KIỂM:** có bản hợp nhất nào mới hơn không; câu chữ Điều 4 sau Luật 87/2025/QH15. Khoản 2 không bao gồm bài bình luận hay bản biên tập của bên thứ ba. Cần luật sư xác nhận trước khi dùng làm ý kiến pháp lý.
+
+**(d) "NĐ 30/2020 còn hiệu lực năm 2026, kể cả các sửa đổi" — XÁC NHẬN đang được áp dụng tới 6/2026; tình trạng chính thức và việc có sửa đổi hay không: CHƯA KIỂM.**
+- Bằng chứng mới nhất đọc được: [thông báo của Sở Nội vụ Bắc Ninh](https://bacninh.gov.vn/documents/207614/124310906/tb_ket_luan_ubnd_thuan_thanh_2026__10062026172505_signed.pdf) (6/2026, ký số 10/06/2026) yêu cầu soạn thảo *"đảm bảo đúng thể thức, kỹ thuật trình bày theo quy định tại Nghị định số 30/2020/NĐ-CP"*.
+- **Không tìm thấy** văn bản sửa đổi hay thay thế. Đây chỉ là "không tìm thấy", không phải bằng chứng là không có.
+- [NĐ 128/2025/NĐ-CP](https://www.saovietlaw.com/nghi-dinh/nghi-dinh-128-2025-nd-cp-quy-dinh-ve-phan-quyen-phan-cap-trong-quan-ly-nha-nuoc-linh-vuc-noi-vu/) có Điều 14 về phân cấp quản lý văn thư, lưu trữ, nhưng phần đọc được (100.000/122.765 ký tự) không nhắc NĐ 30/2020.
+- Không đọc được tình trạng chính thức: vbpl.vn không trả nội dung, Thư viện Pháp luật trả 403, [hethongphapluat](https://hethongphapluat.com/nghi-dinh-30-2020-nd-cp-ve-cong-tac-van-thu.html) chỉ ghi "Kiểm tra". Từ 7/2026 đến nay chưa có bằng chứng.
+
+**(e) "NĐ 30/2020 bắt buộc Times New Roman theo đúng tên" — XÁC NHẬN.** Không phải chỉ quy định "phông Unicode".
+Phụ lục I, Phần I, Mục I, khoản 4, nguyên văn: *"Phông chữ: Phông chữ tiếng Việt Times New Roman, bộ mã ký tự Unicode theo Tiêu chuẩn Việt Nam TCVN 6909:2001, màu đen."* Khớp ở 2 bản độc lập ([VCCI](https://vanban.vcci.com.vn/hm_content/uploads/van-ban/ND_30-2020-ND-CP_Phu_luc.pdf), [HPU2](https://hcmyu.hpu2.edu.vn/public/fileupload/source/TAI%20LIEU/Phuluc1.pdf)); chưa đối chiếu Công báo.
+Phạm vi: theo Điều 2, áp dụng cho cơ quan, tổ chức nhà nước và doanh nghiệp nhà nước; tổ chức chính trị, xã hội "căn cứ… để áp dụng cho phù hợp". **Doanh nghiệp tư nhân không nằm trong đối tượng nêu tại Điều 2**, và đây là quy định cho **văn bản hành chính**, nên công cụ kiểm tra phải là tuỳ chọn, không được báo lỗi mặc định với mọi tài liệu.
 
 ---
 
 ## 0. TÓM TẮT ĐIỀU HÀNH
 
-Có **2 tính năng "sát thủ"** (không đối thủ nào có, nhu cầu thật, không vướng bản quyền) và **4 tính năng bổ trợ**:
+| Hạng | Mã | Tính năng | Bằng chứng đã có | Điểm |
+|---|---|---|---|:-:|
+| 1 | **VN-4** | Hàm đọc số thành chữ (`DOCSO`/`BANGCHU`) | Excel chỉ có `BAHTTEXT`; các nguồn thực hành cho thấy phải dùng VBA hoặc add-in | **93** |
+| 2 | **VN-1** | Chuẩn NĐ 30/2020: định dạng 1 nút + kiểm tra có trích dẫn + 14 mẫu | Đã trích đủ Phụ lục I; đã có sẵn preset lề và danh sách Điều/Khoản/Điểm | **91** |
+| 3 | **VN-5a** | Dấu thanh `hoà` ⇄ `hòa` | **Đã đo:** Excel `EXACT` sai, `MATCH` không khớp, Word Find không tìm thấy | **88** |
+| 4 | **VN-3** | Sắp xếp theo âm tiết | **Đã đo:** cả Excel 2016 và ICU xếp `cà phê` trước `ca sĩ` | **83** |
+| 5 | **VN-5b** | AutoCorrect và kiểm tra lỗi gõ tiếng Việt | Có sẵn hạ tầng AutoCorrect; chưa khảo sát nhu cầu | **82** |
+| … | **VN-2** | Chuyển bộ mã cũ | **Nhu cầu chưa đo được;** mẫu cục bộ không ủng hộ. Word hiển thị được khi có font | **66** |
 
-| # | Tính năng | Vì sao Office không làm | Bằng chứng mạnh nhất |
-|---|---|---|---|
-| **VN-1** | **Chuẩn văn bản hành chính NĐ 30/2020** — bộ định dạng 1 nút + bộ kiểm tra vi phạm + 12 mẫu chính thức | Microsoft không nhúng luật của một nước vào Word | Đã trích đủ toàn bộ Phụ lục I từ PDF gốc; VN Office đã có sẵn 2 mảnh ghép (preset lề + danh sách Điều/Khoản/Điểm) |
-| **VN-2** | **Đọc được bộ mã cũ TCVN3/VNI/VISCII/VPS** (tự nhận dạng khi mở + chuyển hàng loạt) | LibreOffice **chỉ** có Windows-1258 (xác minh trong `core-master`); Word cũng vậy | **Đã chứng minh bằng file thật của chủ dự án**: `<tệp TCVN3 thật phía Windows>` chứa `<mẫu TCVN3>` (= "<cụm mẫu>" mã TCVN3) + font `.VnTime/.VnTimeH/.VnArial` |
-| **VN-3** | **Sắp xếp tiếng Việt theo âm tiết** (đúng thứ tự từ điển) | ICU/CLDR `vi` **sai** với từ nhiều âm tiết; Excel dùng chính ICU/NLS | Đã đo trong Node: `Intl.Collator('vi')` xếp `cà phê` **trước** `ca sĩ`, `hòa bình` **trước** `hoa hồng`, `án mạng` **trước** `an toàn` — cả 3 đều sai thứ tự từ điển |
-| **VN-4** | **Hàm đọc số thành chữ** (`DOCSO`/`BANGCHU`) sẵn trong Sheet | Excel chỉ có `BAHTTEXT` (tiếng Thái); tiếng Việt phải tự viết VBA | Nhu cầu kế toán phổ quát; hóa đơn/chứng từ bắt buộc có "số tiền bằng chữ" |
-| **VN-5** | **Dấu thanh kiểu cũ ⇄ kiểu mới** (hoà ⇄ hòa) + chính tả + autocorrect lỗi gõ VN | Word không biết "hoà" và "hòa" là cùng một từ | Đã đo: `Intl.Collator('vi')` coi `hòa` ≠ `hoà` (trả về 1) |
-| **VN-6** | Âm lịch, định dạng số/tiền/ngày VN, mẫu bảng lương/BHXH/TNCN | Không phải thị trường của Microsoft | Rủi ro pháp lý: thuế TNCN **vừa đổi** 2026 (biểu 5 bậc, giảm trừ 15,5tr) → không được hard-code |
-
-**Khuyến nghị thứ tự làm:** VN-2 → VN-1 → VN-4 → VN-3 → VN-5 → VN-6.
-VN-2 đứng đầu vì: rẻ nhất, không ai có, và chạm trực tiếp vào 41% corpus `.doc/.xls` cũ mà hiện ta mở ra là chữ rác.
-
----
+**Khuyến nghị:** làm VN-4 và VN-1 trước (chênh 2 điểm là nằm trong sai số đánh giá; VN-1 giá trị chiến lược lớn hơn, VN-4 rẻ hơn nhiều). **Với VN-2, chỉ làm một bước trước: quét chỉ đọc 672 file LAN (khoảng 0,5 ngày), rồi mới quyết định.** Chưa có căn cứ để truyền thông VN-2 là tính năng "sát thủ".
 
 ## 1. VN-1 — CHUẨN VĂN BẢN HÀNH CHÍNH VN (Nghị định 30/2020/NĐ-CP)
 
@@ -35,7 +94,7 @@ Ba phần, nằm trong một nhóm ribbon mới của VN Writer (đề xuất ta
 
 1. **"Áp dụng chuẩn NĐ 30" (1 nút)** — đặt khổ giấy, lề, phông, cỡ chữ, giãn dòng, giãn đoạn, số trang, và các style đặt tên theo đúng thành phần thể thức (`VN30_QuocHieu`, `VN30_TieuNgu`, `VN30_TenCoQuan`, `VN30_SoKyHieu`, `VN30_DiaDanhNgay`, `VN30_TenLoai`, `VN30_TrichYeu`, `VN30_CanCu`, `VN30_NoiDung`, `VN30_Dieu`, `VN30_Khoan`, `VN30_Diem`, `VN30_ChucVu`, `VN30_HoTen`, `VN30_NoiNhan`, `VN30_NoiNhanList`, `VN30_PhuLuc`…).
 2. **"Kiểm tra thể thức" (checker)** — panel bên phải liệt kê từng vi phạm, **có trích dẫn chính xác điều/mục/khoản của Phụ lục I**, nút "Sửa ngay" cho từng dòng. Đây là phần không ai có.
-3. **Thư viện 12 mẫu chính thức** (Phụ lục III) trong backstage "Mới" → "Mẫu hành chính VN".
+3. **Thư viện 14 mẫu chính thức** (Phụ lục III) trong backstage "Mới" → "Mẫu hành chính VN".
 
 ### 1.2. Ai cần
 
@@ -43,7 +102,7 @@ Cơ quan nhà nước, doanh nghiệp nhà nước (đối tượng áp dụng b
 
 ### 1.3. Vì sao Word không làm
 
-Microsoft không nhúng quy định hành chính của từng quốc gia vào sản phẩm. Trên thực tế người Việt đang xoay bằng: file `.dot/.docx` mẫu truyền tay, hoặc tự nhớ "Times New Roman 14, lề 3-2-2". **Không có bất kỳ công cụ nào kiểm tra lại văn bản và chỉ ra vi phạm.** Đó là chỗ trống.
+Microsoft không nhúng quy định hành chính của từng quốc gia vào sản phẩm. Trên thực tế người Việt đang xoay bằng: file `.dot/.docx` mẫu truyền tay, hoặc tự nhớ "Times New Roman 14, lề 3-2-2". Tôi **chưa tìm thấy** công cụ kiểm tra lại văn bản và chỉ ra vi phạm, nhưng **chưa khảo sát thị trường** (WPS, add-in, phần mềm quản lý văn bản): CHƯA KIỂM.
 
 ### 1.4. ĐẶC TẢ CHÍNH XÁC (trích nguyên văn Phụ lục I)
 
@@ -112,7 +171,7 @@ Chú thích 1 của bảng Mục V Phần I Phụ lục I, nguyên văn:
 
 > *"Cỡ chữ trong cùng một văn bản tăng, giảm phải thống nhất, ví dụ: Quốc hiệu cỡ chữ 13, Tiêu ngữ cỡ chữ 14, địa danh và ngày, tháng, năm văn bản cỡ chữ 14 hoặc Quốc hiệu cỡ chữ 12, Tiêu ngữ cỡ chữ 13, địa danh và ngày, tháng, năm văn bản cỡ chữ 13."*
 
-→ Checker phải hỗ trợ **2 bộ cỡ chữ hợp lệ** và cấm trộn lẫn:
+→ Chú thích chỉ nêu ví dụ cho **Quốc hiệu, Tiêu ngữ, địa danh/ngày**. Các dòng còn lại dưới đây là **suy luận của tôi**, nên phần ngoài ví dụ chỉ được báo **cảnh báo**, không báo lỗi:
 - **Bộ "nhỏ"**: Quốc hiệu 12 · Tiêu ngữ 13 · Địa danh/ngày 13 · Tên cơ quan 12 · Nội dung 13 · Tên loại 13 · Trích yếu công văn 12
 - **Bộ "lớn"**: Quốc hiệu 13 · Tiêu ngữ 14 · Địa danh/ngày 14 · Tên cơ quan 13 · Nội dung 14 · Tên loại 14 · Trích yếu công văn 13
 - Cố định không theo bộ: Số/ký hiệu **13**, "Nơi nhận" **12**, danh sách nơi nhận **11**, ký hiệu người soạn thảo **11**, địa chỉ/liên hệ **11–12**, thông tin ký số **10**, "Phụ lục" **14**.
@@ -200,17 +259,17 @@ Phụ lục II của Nghị định quy định **viết hoa trong văn bản h�
 
 ### 1.6. Dữ liệu / giấy phép
 
-**Không có vướng mắc.** Văn bản quy phạm pháp luật Việt Nam không thuộc đối tượng bảo hộ quyền tác giả (Luật Sở hữu trí tuệ, Điều 15 — *CHƯA KIỂM số điều chính xác, cần xác nhận trước khi ghi vào tài liệu pháp lý của sản phẩm*). Nội dung mẫu và bảng cỡ chữ là quy định công khai. Không cần phụ thuộc bên thứ ba, không cần mạng.
+Rủi ro bản quyền với nội dung Nghị định và mẫu kèm theo là thấp: xem **kiểm chứng (c)** (Luật SHTT Điều 15 khoản 2). Không cần phụ thuộc bên thứ ba, không cần mạng.
 
-Rủi ro duy nhất: **phải trích dẫn chính xác**. Nếu checker báo sai điều khoản thì mất uy tín nặng. Vì vậy mỗi luật kiểm tra trong code **bắt buộc kèm trường `clause`** trỏ đúng Mục/khoản/điểm của Phụ lục I, và một test so khớp với bản trích PDF gốc.
+Rủi ro chính là **trích dẫn sai**. Vì vậy mỗi luật kiểm tra **bắt buộc có trường `clause`** trỏ đúng Mục/khoản/điểm của Phụ lục I, kèm test so khớp với bản đã đối chiếu Công báo.
 
 ### 1.7. Tình trạng hiệu lực (2026)
 
-- Nghị định 30/2020/NĐ-CP ngày 05/3/2020, căn cứ Luật Tổ chức Chính phủ 2015, thay thế Nghị định 110/2004/NĐ-CP và 09/2010/NĐ-CP.
-- **Vẫn được viện dẫn là căn cứ trong các kế hoạch công tác văn thư năm 2026** của nhiều cơ quan (ví dụ Sở Tư pháp Bắc Ninh, các trường ở Ninh Bình), song song với Luật Lưu trữ 2024 và Nghị định 113/2025/NĐ-CP (quy định chi tiết Luật Lưu trữ — về **lưu trữ**, không thay thế phần **văn thư**).
-- **CHƯA KIỂM:** có văn bản nào sửa đổi/bổ sung trực tiếp Nghị định 30/2020 hay Phụ lục I hay không. Phải tra trên `vbpl.vn` (CSDL quốc gia về văn bản pháp luật) trước khi chốt ticket. Không được kết luận từ blog.
+Xem **kiểm chứng (d)**. Nghị định có hiệu lực từ ngày ký (Điều 37), thay NĐ 110/2004 và 09/2010. Có căn cứ áp dụng tới 6/2026. **Phải tra tình trạng chính thức trước khi mở ticket** vì mỗi luật kiểm tra phụ thuộc vào điều này.
 
-### 1.8. Đặc tả checker — danh sách luật kiểm tra khởi điểm (26 luật)
+Phạm vi: chỉ cho **văn bản hành chính** theo Điều 2. Văn bản quy phạm pháp luật có quy định thể thức riêng (kết quả tìm kiếm nhắc NĐ 78/2025/NĐ-CP: **CHƯA KIỂM**), nên không được áp bộ kiểm tra này cho loại đó.
+
+### 1.8. Đặc tả checker — danh sách luật kiểm tra khởi điểm (34 luật)
 
 Mỗi luật: `id`, `severity` (lỗi / cảnh báo), `clause`, `message` (tiếng Việt), `autofix`.
 
@@ -248,125 +307,90 @@ Mỗi luật: `id`, `severity` (lỗi / cảnh báo), `clause`, `message` (tiế
 | ND30-C22 | Ký hiệu người soạn thảo + số bản: cỡ **11** đứng | Cảnh báo | Mục III.3 |
 | ND30-C23 | Địa chỉ/ĐT/Fax/Email/Website: cỡ **11–12** đứng, chỉ trang 1, dưới đường kẻ hết chiều ngang | Cảnh báo | Mục III.4 |
 | ND30-C24 | Phụ lục: "Phụ lục" cỡ **14** đứng đậm; tên in hoa 13–14; chỉ dẫn kèm theo **nghiêng** 13–14; **số trang đánh riêng từng phụ lục** | Lỗi | Mục III.1.b/c/đ |
-| ND30-X01 | **Nhất quán cỡ chữ**: toàn văn bản phải khớp bộ "nhỏ" hoặc bộ "lớn", không trộn | Lỗi | Chú thích 1 bảng Mục V |
+| ND30-X01 | **Nhất quán cỡ chữ**: Quốc hiệu, Tiêu ngữ, địa danh/ngày khớp một trong hai ví dụ; phần còn lại chỉ cảnh báo | Cảnh báo | Chú thích 1 bảng Mục V |
 | ND30-X02 | Viết hoa đúng Phụ lục II (tên cơ quan, tên địa lý, chức vụ) | Cảnh báo | PL II |
 
 ### 1.9. Công sức & ưu tiên
 
 - **Nút áp dụng chuẩn + 20 style**: ~3 ngày-agent (đã có preset lề và numbering).
-- **Checker 26 luật + panel + autofix**: ~6 ngày-agent (phần nặng là đọc được đúng thuộc tính đoạn/run từ model Writer, và "Sửa ngay" không được phá layout).
+- **Checker 34 luật + panel + autofix**: ~6 ngày-agent (phần nặng là đọc được đúng thuộc tính đoạn/run từ model Writer, và "Sửa ngay" không được phá layout).
 - **14 mẫu Phụ lục III**: ~4 ngày-agent (mỗi mẫu phải round-trip DOCX đúng, kiểm bằng `batch_document_audit.py`).
 - **Hướng dẫn tiếng Việt trong app** (bắt buộc theo AGENTS.md §10): ~1 ngày.
 - **Lấy toạ độ sơ đồ ô từ ảnh trang 12**: ~0,5 ngày.
 
-**Tổng ≈ 14,5 ngày-agent. Điểm ưu tiên: 92/100.**
+**Tổng ≈ 14,5 ngày-agent (ước lượng, chưa kiểm chứng). Điểm ưu tiên: 91/100.**
 
 ---
 
-## 2. VN-2 — ĐỌC ĐƯỢC BỘ MÃ TIẾNG VIỆT CŨ (TCVN3 / VNI / VISCII / VPS / BK HCM)
+## 2. VN-2 — CHUYỂN BỘ MÃ TIẾNG VIỆT CŨ (TCVN3 / VNI / VISCII / VPS)
 
-> **Đây là tính năng có khả năng tạo khác biệt lớn nhất với chi phí thấp nhất.**
+> **Trạng thái: phải đo nhu cầu trước khi làm.** Xem Đính chính 1–5 và kiểm chứng (a), (b).
 
-### 2.1. Bằng chứng
+### 2.1. Điều đã biết và chưa biết
 
-Lead đã thấy một tệp `.doc` thật dùng font họ `.Vn*` và chữ mã TCVN3 trong kho nội bộ. Tệp và nội dung không đưa lên kho mã; Lead tự kiểm phía Windows.
-
-### 2.2. Office và LibreOffice hiện làm gì
-
-| Sản phẩm | Hỗ trợ |
+| Câu hỏi | Trả lời |
 |---|---|
-| **LibreOffice** (bản ta bundle) | **CHỈ Windows-1258.** Xác minh trong repo: `core-master/core-master/include/rtl/textenc.h:81` chỉ có `RTL_TEXTENCODING_MS_1258` cho tiếng Việt; `sal/textenc/tcvteas1.tab` chỉ có bảng "Windows Standard CharSet for Vietnamease". **Không có TCVN3, VNI, VISCII, VPS, BK HCM.** |
-| **Word 2016** | Hộp thoại "Encoded Text" chỉ có "Vietnamese (Windows)" = CP1258. **CHƯA KIỂM bằng Word thật** (Excel/Word COM đang bị chặn trên máy này) nhưng danh mục code page của Windows không chứa TCVN3/VNI nên kết luận gần như chắc. |
-| Cả hai | Với `.doc` TCVN3, text được lưu như ký tự CP1252 + font `.VnTime`. Word/LibreOffice mở ra **nguyên văn chữ rác** `<mẫu TCVN3>` vì chúng tôn trọng byte và font, và **không có bộ chuyển mã nào**. |
+| Word có hiển thị được không? | **Có, nếu có font** (đã thử với font tổng hợp). Không có font thì ra chữ rác |
+| LibreOffice có bộ mã này không? | **Không.** `core-master/.../include/rtl/textenc.h:81` chỉ có `RTL_TEXTENCODING_MS_1258` cho tiếng Việt; `sal/textenc` chỉ có bảng Windows-1258 (đã rà trong repo). Hành vi mở file thực tế của bản đóng gói: **CHƯA KIỂM** |
+| Có công cụ chuyển sẵn không? | **Có:** Unikey Toolkit được các hướng dẫn thực hành nêu ([topthuthuat](https://topthuthuat.com/sua-loi-font-chu-trong-word/)); UnicodeConverter (GPL-2.0). Khoảng trống của ta là **tích hợp và giữ định dạng**, không phải "không ai làm được" |
+| Nhu cầu ở Việt Nam 2026? | **Chưa có số liệu.** Lập luận "kho lưu trữ cũ" là hợp lý nhưng chưa được kiểm chứng |
+| Trên mẫu cục bộ? | 0/53 file có ≥ 5% chữ trong font cũ; 11/53 có **khai báo** font cũ nhưng gần như không dùng |
 
-Hệ quả: mọi người Việt có kho tài liệu trước ~2003 đều phải tải một tiện ích rời (Unikey có chức năng chuyển mã bảng chọn, hoặc UnicodeConverter) và chuyển **từng file bằng tay qua clipboard**, mất hết định dạng.
+### 2.2. Bước đầu tiên (gate): đo trên 672 file LAN
 
-### 2.3. Tính năng đề xuất
+Chạy census chỉ đọc (`scan_corpus.py`, `scan_binary.py` trong scratchpad phiên này; cần đưa vào `scripts/audit-*` nếu dùng lại) trên `<kho LAN nội bộ>`, chỉ xuất số đếm, không sao chép nội dung, không commit. Ghi lại năm tạo file để tách theo thời kỳ.
 
-1. **Tự nhận dạng khi mở file** — khi phát hiện tài liệu dùng bộ mã cũ, hiện thanh thông báo (infobar) ngay trên vùng soạn thảo:
-   > *"Tài liệu này dùng bảng mã cũ **TCVN3 (ABC)** nên hiển thị sai dấu. **[Chuyển sang Unicode]** · [Giữ nguyên] · [Tìm hiểu]"*
-   Không tự sửa ngầm — người dùng quyết định (đúng nguyên tắc không làm thay người dùng dữ liệu của họ).
-2. **Chuyển mã tại chỗ** — chuyển ký tự **theo từng run**, chỉ những run có font thuộc họ cũ; sau khi chuyển thì **đổi font run đó sang Times New Roman** (hoặc font Unicode tương ứng: `.VnArial → Arial`), giữ nguyên cỡ chữ, đậm/nghiêng, màu, bảng, ảnh, lề. Toàn bộ hành động là **1 bước Undo**.
-3. **Bộ chuyển hàng loạt** — hộp thoại "Chuyển mã tài liệu cũ": chọn thư mục (có đệ quy), xem trước mẫu 200 ký tự cho từng file, chọn bộ mã (hoặc "Tự nhận dạng"), chạy, xuất báo cáo CSV (file / bộ mã nhận dạng / độ tin cậy / số ký tự đã đổi / kết quả). Ghi ra **thư mục đích mới**, không ghi đè bản gốc (nguyên tắc tài liệu lưu trữ).
-4. **Chuyển mã vùng chọn** — nút trong nhóm ribbon "Hành chính VN": bôi đen đoạn chữ rác → chuyển. Hữu ích khi người dùng dán từ hệ thống cũ.
-5. Cùng cơ chế cho **VN Sheet** (`.xls` cũ) và **VN Slides**.
+Ngưỡng đề xuất, **chủ dự án nên chốt**:
+- ≥ 5% file có ≥ 20% chữ trong font cũ: làm bản đầy đủ.
+- 1–5%: chỉ làm bản tối thiểu ở §2.3.
+- < 1%: bỏ hoặc hoãn, đưa vào hướng dẫn cách dùng công cụ ngoài.
 
-### 2.4. Cách hoạt động của từng bộ mã (quyết định thiết kế)
+Lưu ý: share này là của một công ty, nên kết quả vẫn không đại diện cho toàn quốc.
 
-| Bộ mã | Kiểu | Đặc điểm | Font phụ thuộc |
-|---|---|---|---|
-| **TCVN3 (ABC)** = VN3 của TCVN 5712:1993 | 1 byte, nửa dưới là ASCII | 134 chữ Việt không nhét nổi vào 128 ô ⇒ **chữ hoa có dấu nằm ở FONT RIÊNG** (`.VnTimeH`, `.VnArialH`): cùng byte `0xB5` hiển thị `à` ở `.VnTime` và `À` ở `.VnTimeH`. **Đây là cái bẫy chí tử**: không đọc tên font thì không biết hoa/thường. | `.VnTime`, `.VnTimeH`, `.VnArial`, `.VnArialH`, `.VnBook`, `.Vn3DH`… (tiền tố `.Vn`) |
-| **VNI-Windows** | 1–2 byte, **tổ hợp** | Chữ có dấu = chữ gốc + 1 byte dấu, ví dụ `à` = `61 F8`, `Â` = `41 C2`. Vì vậy mỗi ký tự có dấu chiếm **2 byte** ⇒ đếm ký tự, tìm kiếm, ngắt dòng đều lệch. | `VNI-Times`, `VNI-Helve`, `VNI-Aptima`, `VNI-Book`… (tiền tố `VNI-`) |
-| **VISCII** | 1 byte, dựng sẵn | Chuẩn hoá trong **RFC 1456** (IETF, 5/1993), dùng cả 0x02/0x05/0x14/0x19/0x1E/0x25 (6 vị trí điều khiển) để nhét đủ 134 chữ ⇒ **không font-dependent**, nhưng vỡ khi đi qua kênh 7-bit | Font Unicode bình thường cũng không hiển thị đúng; cần bảng |
-| **VPS** | 1 byte | Dùng trong cộng đồng người Việt ở nước ngoài (Vietnamese Professionals Society) | `VPS Times`, `VPS Helve` |
-| **VIQR** | ASCII thuần | `a'` = á, `a` + `` ` `` = à, `dd` = đ — cũng trong RFC 1456. Phổ biến trên email/Usenet cũ | Không |
-| **BK HCM1 / BK HCM2** | 1 byte / tổ hợp | Bộ mã của ĐH Bách khoa TP.HCM; **BK HCM1 dựng sẵn 1 byte, BK HCM2 tổ hợp**. Rất ít gặp ngoài tài liệu học thuật miền Nam thập niên 1990. **CHƯA KIỂM: bảng mã chi tiết** — chưa tìm được nguồn bảng mã có giấy phép rõ ràng. Đề xuất **xếp vào giai đoạn 2**, không làm trong ticket đầu. | `BKHCM1-Times`, `BKHCM2-Times` |
-| **Vietware-F / Vietware-X** | 1 byte / 2 byte | Tương tự, gặp rất ít. Giai đoạn 2. |
+### 2.3. Bản tối thiểu (khoảng 5 ngày-agent, nếu qua gate)
 
-### 2.5. Thuật toán TỰ NHẬN DẠNG — đề xuất riêng của ta, tận dụng code đã có
+Bôi đen vùng chữ, chọn "Chuyển mã" (TCVN3/VNI sang Unicode), đổi font của vùng đó sang font Unicode, gộp thành 1 bước Undo. Có nhận dạng theo run và thanh thông báo nếu vùng chữ dùng font cũ đủ nhiều. Không tự sửa khi chưa hỏi.
 
-Đây là chỗ sáng tạo quan trọng: **VN Office đã có `platform/text/vi-syllable.js` với hàm `isValidVietnameseSyllable()`** (quy tắc ghép vần tiếng Việt tự biên soạn, CC0-1.0). Dùng nó làm **hàm chấm điểm**:
+### 2.4. Bản đầy đủ (khoảng 13 ngày-agent)
 
-```
-nhanDang(bytesHoacChuoi, tenFont):
-  1. Gợi ý theo FONT (tin cậy cao nhất):
-       tên font khớp /^\.Vn/i          → TCVN3   (+ cờ HOA nếu font kết thúc bằng H)
-       tên font khớp /^VNI-/i          → VNI-Windows
-       tên font khớp /^VPS/i           → VPS
-       tên font khớp /^BKHCM1/i        → BK HCM1   (giai đoạn 2)
-  2. Nếu không có gợi ý font, hoặc để xác nhận:
-       với mỗi bộ mã ứng viên C:
-         t = giaiMa(chuoi, C)
-         diem[C] = (số âm tiết hợp lệ theo isValidVietnameseSyllable) / (tổng số âm tiết)
-                   - phần trăm ký tự ngoài bảng mã × 2
-  3. Chọn C có điểm cao nhất.
-     Nếu điểm cao nhất < 0,75  → KHÔNG kết luận, không hiện infobar (tránh báo động giả
-                                 trên tài liệu tiếng Anh/Pháp có nhiều ký tự nhấn).
-     Nếu khoảng cách giữa hạng 1 và hạng 2 < 0,05 → hỏi người dùng chọn.
-  4. Trước khi đổi: chuỗi gốc đã là tiếng Việt Unicode hợp lệ (≥ 0,9 âm tiết hợp lệ)
-     → KHÔNG đổi (bảo vệ khỏi "chuyển hai lần" làm hỏng file).
-```
+Thêm: chuyển theo run trong cả 3 app, chuyển hàng loạt ghi ra thư mục mới (không ghi đè bản gốc), báo cáo CSV, thêm VISCII/VPS/VIQR.
 
-Ưu điểm: không cần model thống kê, không cần dữ liệu bên ngoài, chạy hoàn toàn offline, và **có thể kiểm thử tự động** bằng chính file `<tệp TCVN3 thật phía Windows>` làm golden fixture.
+### 2.5. Bài học thiết kế từ phép đo
 
-### 2.6. Bảng mã: nguồn và GIẤY PHÉP (phần quan trọng nhất)
+- **Không được kích hoạt theo bảng font của file.** 11/53 file khai báo font cũ mà gần như không dùng: dựa vào đó sẽ báo động giả khoảng 1/5 số file. Phải đếm **theo run có chữ thật**.
+- `.doc` cần xét đúng thuộc tính font cho ký tự ngoài ASCII (`sprmCRgFtc2`) và kế thừa style; chỉ đọc font ASCII sẽ sai.
+- **Không dò chuỗi trên byte thô của cả file:** chính lỗi này đã làm bản đầu kết luận sai.
+- Chữ mã cũ nằm trong font Unicode (đã bị đổi font) là ca khó riêng; có thể chấm điểm bằng `isValidVietnameseSyllable()` trong `platform/text/vi-syllable.js`. **Đây là đề xuất, chưa thử nghiệm**, chưa có số đo độ chính xác và tỷ lệ báo nhầm; không đặt ngưỡng cố định khi chưa đo.
 
-| Nguồn | Nội dung | Giấy phép | Dùng được? |
-|---|---|---|---|
-| **RFC 1456** (IETF, 5/1993, `rfc-editor.org/rfc/rfc1456`) | Bảng VISCII 8-bit v1.1 + VIQR | Tài liệu IETF — được phép triển khai tự do; RFC "specifies no level of standard" (informational) | ✅ **Dùng được** cho VISCII + VIQR |
-| **TCVN 5712:1993** (tiêu chuẩn quốc gia VN) | Định nghĩa VN1/VN2/VN3 (TCVN3) | Tiêu chuẩn quốc gia; **CHƯA KIỂM điều kiện sao chép bảng mã** (tiêu chuẩn TCVN thường bán qua Tổng cục TCĐLCL) | ⚠️ Trích **dẫn chiếu** được; **không** sao chép nguyên văn tài liệu tiêu chuẩn |
-| **vietunicode.sourceforge.net/charset/** | Bảng đối chiếu Unicode ↔ VNI/VPS/VISCII/TCVN3/VIQR | **Trang không ghi bất kỳ giấy phép nào** | ❌ **Không sao chép**. Chỉ dùng để **đối chiếu kiểm tra** bảng ta tự lập. Trang còn tự cảnh báo giá trị chữ HOA của TCVN3 trong bảng là sai |
-| **UnicodeConverter** (vietunicode/SourceForge, Java) | Chuyển ISC/TCVN3/VISCII/VNI/VPS → UTF-8 | **GPL-2.0** | ❌ Copyleft, cần chủ dự án ký duyệt riêng; **không đáng** vì ta tự lập bảng được |
-| **py-unicode-convert** (github.com/vuthaihoc) | 8 bộ mã | **KHÔNG CÓ FILE LICENSE** ⇒ mặc định bảo lưu toàn bộ quyền | ❌ **Tuyệt đối không dùng** |
-| **vietnameseConverter** (CRAN, R) | TCVN3/VISCII/VPS | Bảng mã "adapted from vietunicode.sourceforge.net" | ❌ Dẫn xuất từ nguồn không rõ giấy phép |
-| **libiconv** `lib/viscii.h` | VISCII | LGPL (libiconv) | ❌ Không cần, RFC 1456 là nguồn gốc sạch hơn |
+### 2.6. Đặc điểm bộ mã
 
-**→ Khuyến nghị dứt khoát: VN Office TỰ LẬP bảng mã của mình, phát hành CC0-1.0**, giống y cách đã làm với từ điển chính tả (`platform/text/dictionaries/LICENSES-vi.txt` — corpus Common Voice + supplement tự biên, CC0-1.0). Cách lập:
+| Bộ mã | Đặc điểm | Mức tin cậy |
+|---|---|---|
+| TCVN3 (ABC) | 1 byte, nửa dưới ASCII, font `.Vn*`; bảng **không đều** (`è=CC`, `é=D0`) | Theo bảng vietunicode, khớp với phép thử hiển thị 6 mã. Toàn bộ bảng: **CHƯA KIỂM** |
+| TCVN3 chữ hoa | Font riêng `.Vn*H`; chính bảng vietunicode cảnh báo giá trị chữ hoa của nó sai; UnicodeConverter cũng nêu lỗi chữ hoa | Cơ chế chính xác: **CHƯA KIỂM**, phải thử bằng font thật |
+| VNI-Windows | 1–2 byte; chữ có dấu thường là chữ gốc + byte dấu (`à` = `61 F8`), một số 1 byte (`ì` = `EC`) | Theo bảng vietunicode |
+| VISCII, VIQR | Định nghĩa trong RFC 1456 | Bảng RFC có; chưa đối chiếu từng ô |
+| VPS | 1 byte | Theo bảng vietunicode |
+| BK HCM1/2, Vietware | Chưa có nguồn bảng mã | **CHƯA KIỂM**, ngoài phạm vi ban đầu |
 
-1. VISCII + VIQR: lấy từ **RFC 1456** (nguồn gốc, được phép triển khai).
-2. TCVN3 và VNI-Windows: **suy ra theo quy tắc, không copy bảng**. Cả hai đều có cấu trúc đều: 14 chữ nền (`Ă Â Ê Ô Ơ Ư Đ` hoa + thường) ở `0xA1–0xAE`, rồi các nhóm 5 thanh `[huyền, hỏi, ngã, sắc, nặng]` liên tiếp cho từng nguyên âm. Đã **xác minh được quy luật nhóm 5 thanh** từ 3 điểm dữ liệu độc lập: `0xB5 à`, `0xB6 ả`, `0xB7 ã`, `0xB8 á`, `0xB9 ạ`. Ta dựng bảng theo quy luật rồi **xác thực bằng file thật** (`<tệp TCVN3 thật phía Windows>` cho ta các cặp byte↔chữ ground-truth) và bằng `isValidVietnameseSyllable()`.
-3. **Cổng chấp nhận bắt buộc**: 100% âm tiết của file `<tệp TCVN3 thật phía Windows>` sau khi chuyển phải hợp lệ theo `vi-syllable.js`, và các cụm biết trước (`<cụm mẫu>`, `<cụm mẫu>`) phải khớp đúng từng ký tự.
-4. **CHƯA KIỂM**: toàn bộ 134 giá trị byte của TCVN3 và 134 cặp của VNI chưa được xác minh từng ô. Ticket phải có bước "dựng bảng + đối chiếu chéo 3 nguồn độc lập + xác thực trên corpus thật" trước khi ghi PASS.
+### 2.7. Nguồn bảng mã và giấy phép
 
-### 2.7. Nhu cầu thật ở Việt Nam năm 2026
+| Nguồn | Giấy phép | Kết luận |
+|---|---|---|
+| RFC 1456 (VISCII, VIQR) | Tài liệu IETF; điều khoản sử dụng cho mã nguồn: CHƯA KIỂM | Nguồn ưu tiên |
+| vietunicode.sourceforge.net/charset | **Trang không ghi giấy phép** | Chỉ để đối chiếu |
+| TCVN 5712:1993 | CHƯA KIỂM | Chỉ dẫn chiếu |
+| UnicodeConverter | **GPL-2.0** | Không dùng nếu chưa được duyệt |
+| py-unicode-convert | **Không có LICENSE** | Không dùng |
+| vietnameseConverter (R) | Bảng phỏng theo vietunicode; giấy phép: CHƯA KIỂM | Không dùng |
 
-- Unicode chỉ phổ biến ở VN từ khoảng 2001–2003 (sau TCVN 6909:2001, và chính Nghị định 30/2020 mới bắt buộc Unicode). **Mọi tài liệu hành chính, hồ sơ, luận văn, sổ sách trước 2003 gần như chắc chắn là TCVN3 hoặc VNI.**
-- Theo Luật Lưu trữ, hồ sơ nhiều loại có thời hạn lưu **vĩnh viễn** hoặc 20–70 năm ⇒ các kho này **vẫn phải mở được** hôm nay.
-- Nhu cầu không giảm theo thời gian mà **tăng**, vì các cơ quan đang số hoá kho giấy và kho file cũ.
-- Đây cũng là nhóm khách hàng sẵn sàng trả tiền: cơ quan nhà nước có kho lưu trữ.
+**Vấn đề mở:** nên tự lập bảng và ghi nguồn rõ ràng. Tuy nhiên ánh xạ TCVN3/VNI **không còn đường suy ra theo quy luật**, và tôi **chưa tìm được nguồn có giấy phép rõ** cho hai bảng này. Có thể đo ánh xạ từ font thật (nếu font được phép dùng) hoặc nhờ tư vấn về khả năng dùng dữ kiện kỹ thuật. **Cần chủ dự án quyết định** trước khi code. Không đóng gói font `.Vn*`/`VNI-*` khi chưa rõ giấy phép.
 
-### 2.8. Công sức & ưu tiên
+### 2.8. Kiểm thử
 
-- Bảng mã TCVN3 + VNI + VISCII + VPS + VIQR, tự lập, CC0, có test: **~3 ngày-agent**
-- Nhận dạng + chấm điểm bằng `vi-syllable.js` + unit test: **~2 ngày**
-- Chuyển mã theo run (giữ định dạng) trong Writer + Sheet + Slides, 1 bước Undo: **~4 ngày**
-- Infobar + hộp thoại chuyển hàng loạt + báo cáo CSV: **~3 ngày**
-- Hướng dẫn tiếng Việt trong app: **~0,5 ngày**
-- Quét `<kho LAN nội bộ>` để đo nhu cầu thật (chỉ đọc): **~0,5 ngày**
+Dùng **tệp mẫu tự tạo** (không dùng tài liệu nội bộ làm fixture trong repo). Với file thật: chỉ chạy cục bộ, chỉ báo số đếm. Phải thử cả với font thật trước khi kết luận về chữ hoa.
 
-**Tổng ≈ 13 ngày-agent. Điểm ưu tiên: 95/100.**
-
----
+**Điểm ưu tiên: 66/100, sẽ chấm lại sau gate. Ước lượng công sức chưa kiểm chứng.**
 
 ## 3. VN-3 — SẮP XẾP TIẾNG VIỆT ĐÚNG THỨ TỰ TỪ ĐIỂN
 
@@ -397,9 +421,20 @@ c.compare('an toàn', 'án mạng')   // → án mạng đứng trước  ❌ SA
 
 ⇒ Giải pháp **không phải** viết lại collation từ đầu, mà **bọc** ICU bằng một lớp so sánh theo âm tiết.
 
-### 3.3. Excel 2016 làm gì
+### 3.3. Excel 2016 làm gì (ĐÃ ĐO)
 
-**CHƯA KIỂM** — Excel COM đang bị chặn trên máy này (ghi nhận từ 18/10). Nhưng Excel sort dùng NLS/ICU của Windows với cùng UCA ⇒ **gần như chắc chắn mắc đúng lỗi này**. Ticket phải có bước đo thật trên Excel 2016 (một bảng 30 cặp từ) trước khi tuyên bố "Excel sai".
+Excel 16.0.4266 qua COM, dữ liệu tổng hợp, `Range.Sort` tăng dần:
+
+| Phép thử | Kết quả Excel | So sánh |
+|---|---|---|
+| `ca sĩ` / `cà phê` | `cà phê` trước | Cùng kết quả với ICU; trái thứ tự theo âm tiết |
+| `hoa hồng` / `hòa bình` | `hòa bình` trước | như trên |
+| `an toàn` / `án mạng` | `án mạng` trước | như trên |
+| `ba lô` / `bà con` | `bà con` trước | như trên |
+| Thứ tự thanh | `ba bá bà bã bả bạ` | **Khác ICU** (`ba bà bả bã bá bạ`) |
+| Thứ tự chữ | `a â ă d đ e ê o ô ơ u ư` | **`â` trước `ă`**, trái bảng chữ cái tiếng Việt |
+
+Giới hạn: máy đo dùng locale Windows **`en-GB`**; chưa thử với `vi-VN`, nên thứ tự thanh và chữ có thể đổi theo locale. Vì vậy chưa kết luận "Excel xếp sai" cho người dùng đặt vùng Việt Nam. Excel 2019/365: CHƯA KIỂM. **"Thứ tự đúng" hiện dựa trên thread cldr-users**; phải đối chiếu một từ điển in trước khi viết bộ test.
 
 ### 3.4. Hiện trạng VN Office
 
@@ -437,10 +472,10 @@ Bảng chữ cái tiếng Việt dùng cho `cấp1`: `a ă â b c d đ e ê g h 
 - Lớp so sánh theo âm tiết + 60 test case (lấy từ thứ tự Từ điển tiếng Việt): **~2 ngày**
 - Đấu nối vào Sort / AutoFilter / SORT / Pivot / bảng Writer: **~3 ngày**
 - Chế độ "Tên người Việt": **~1,5 ngày**
-- Đo thật Excel 2016 để chứng minh Excel sai: **~0,5 ngày**
+- Đo thêm Excel 2016 với locale `vi-VN` và đối chiếu từ điển in: **~0,5 ngày**
 - Hướng dẫn tiếng Việt: **~0,5 ngày**
 
-**Tổng ≈ 7,5 ngày-agent. Điểm ưu tiên: 74/100.**
+**Tổng ≈ 7,5 ngày-agent. Điểm ưu tiên: 83/100.**
 
 ---
 
@@ -550,7 +585,7 @@ Nghị định 123/2020/NĐ-CP (hoá đơn, chứng từ) quy định nội dung
 - Xuất/nhập XLSX: hàm riêng của ta không có trong Excel ⇒ **phải lưu kèm giá trị đã tính (cached value)** và khi mở lại trong Excel hiện giá trị đúng (không `#NAME?`), có cảnh báo khi Lưu dưới dạng `.xlsx` rằng công thức sẽ không tính lại được ở Excel: **~1,5 ngày** *(phần này cần cẩn trọng — chạm vào save pipeline, phải chạy batch LAN trước khi gộp)*
 - Cài đặt phương ngữ + hướng dẫn tiếng Việt: **~1 ngày**
 
-**Tổng ≈ 5,5 ngày-agent. Điểm ưu tiên: 85/100.**
+**Tổng ≈ 5,5 ngày-agent. Điểm ưu tiên: 93/100.**
 
 ---
 
@@ -581,15 +616,15 @@ Theo Wikipedia tiếng Việt ("Quy tắc đặt dấu thanh của chữ Quốc 
 new Intl.Collator('vi').compare('hòa','hoà')                    // → 1   (coi là hai từ khác nhau)
 new Intl.Collator('vi',{sensitivity:'base'}).compare('hòa','hoà') // → 0
 ```
-⇒ Trong Word/Excel: **tìm kiếm `hòa` không ra `hoà`**, sắp xếp tách thành hai nhóm, đếm từ sai, VLOOKUP tra không khớp (và VLOOKUP là **91% công thức** trên share LAN!). Microsoft hoàn toàn không xử lý.
+**Đã đo trên Office 2016 (dữ liệu tổng hợp):** Word Find tìm `hòa` trong văn bản `hoà` trả về **False**; Excel `EXACT` = FALSE, `A1=B1` = FALSE, `MATCH(...,0)` **không khớp**. VLOOKUP chính xác chưa đo riêng, dự kiến giống MATCH (VLOOKUP chiếm 91% công thức trên share LAN theo ghi nhận trước).
 
 **Tính năng đề xuất (3 phần):**
 1. **Chuẩn hoá khi tra cứu** — một tầng "Dấu thanh linh hoạt" bật trong: Tìm/Thay thế (Writer + Sheet + Slides), VLOOKUP/MATCH/XLOOKUP/COUNTIF (tuỳ chọn, mặc định **tắt** để giữ tương thích Excel), AutoFilter, sắp xếp. Cài đặt: "Coi *hoà* và *hòa* là một".
-2. **Bộ chuyển kiểu dấu** — nút "Chuyển kiểu đặt dấu thanh": `Kiểu cũ → Kiểu mới` / `Kiểu mới → Kiểu cũ`, áp dụng cho vùng chọn hoặc toàn tài liệu, 1 bước Undo. Chỉ ảnh hưởng **đúng 3 vần `oa/oe/uy` không có âm cuối** — danh sách ký tự bị ảnh hưởng là hữu hạn và nhỏ (`oà oá oả oã oạ oè oé oẻ oẽ oẹ uỳ uý uỷ uỹ uỵ` ↔ `òa óa ỏa õa ọa è̀e…`), rất dễ test cạn.
+2. **Bộ chuyển kiểu dấu** — nút "Chuyển kiểu đặt dấu thanh": `Kiểu cũ → Kiểu mới` / `Kiểu mới → Kiểu cũ`, áp dụng cho vùng chọn hoặc toàn tài liệu, 1 bước Undo. Chỉ ảnh hưởng **đúng 3 vần `oa/oe/uy` không có âm cuối** — danh sách ký tự bị ảnh hưởng là hữu hạn và nhỏ (`oà oá oả oã oạ oè oé oẻ oẽ oẹ uỳ uý uỷ uỹ uỵ` ↔ `òa óa ỏa õa ọa òe óe ỏe õe ọe ùy úy ủy ũy ụy`), rất dễ test cạn.
 3. **Kiểm tra nhất quán** — cảnh báo "Tài liệu này dùng lẫn cả hai kiểu đặt dấu (12 chỗ kiểu cũ, 48 chỗ kiểu mới). [Thống nhất theo kiểu mới]".
 
 **Giấy phép: không vướng gì.** Danh sách vần là kiến thức ngôn ngữ, tự lập.
-**Công sức ≈ 3 ngày-agent. Điểm ưu tiên: 70/100.**
+**Công sức ≈ 3 ngày-agent. Điểm ưu tiên: 88/100.**
 
 ### 5.3. Gõ Telex / VNI / VIQR — đã làm rất tốt, chỉ còn 2 khoảng trống
 
@@ -621,7 +656,7 @@ Word có AutoCorrect tiếng Anh (`teh → the`). **Không có bộ nào cho ti�
 | Khoảng trắng quanh dấu câu | `xin chào , bạn` → `xin chào, bạn` | An toàn, autocorrect được |
 | Dấu nháy/gạch ngang VN | `"..."` → `“…”`, `- ` đầu dòng giữ nguyên (**không** biến thành bullet trong văn bản hành chính vì NĐ 30 yêu cầu gạch đầu dòng là ký tự thật) | Đã có hạ tầng AutoCorrect |
 
-**Giấy phép:** danh sách cặp từ dễ lẫn phải **tự biên soạn** (CC0), không copy từ từ điển chính tả có bản quyền. **Công sức ≈ 3 ngày-agent** (2 ngày soạn + kiểm bộ quy tắc, 1 ngày đấu nối + hướng dẫn). **Điểm ưu tiên: 66/100.**
+**Giấy phép:** danh sách cặp từ dễ lẫn phải **tự biên soạn** (CC0), không copy từ từ điển chính tả có bản quyền. **Công sức ≈ 3 ngày-agent** (2 ngày soạn + kiểm bộ quy tắc, 1 ngày đấu nối + hướng dẫn). **Điểm ưu tiên: 82/100.**
 
 ---
 
@@ -629,43 +664,41 @@ Word có AutoCorrect tiếng Anh (`teh → the`). **Không có bộ nào cho ti�
 
 | Ý | Nhu cầu thật | Office làm được? | Rủi ro / giấy phép | Phán quyết |
 |---|---|---|---|---|
-| **Âm lịch Việt Nam** — hàm `AMLICH(ngày)`, `NGAYDUONG(ngày_âm)`, `CANCHI(năm)`, `TIETKHI(ngày)`; hiển thị ngày âm trong ô ngày và trong lịch | Cao: cưới hỏi, giỗ chạp, khai trương, lịch Tết, lịch sản xuất. Excel **hoàn toàn không có** (chỉ có lịch Hồi giáo/Do Thái/Nhật) | ❌ Không | Thuật toán phổ biến nhất là `amlich.js` của **Hồ Ngọc Đức (2004/2006)** — **không tìm được giấy phép công bố** ⇒ coi như bảo lưu toàn quyền, **KHÔNG copy**. Thư viện dẫn xuất ghi MIT nhưng đó là giấy phép **code của họ**, không phải thuật toán gốc. **Giải pháp sạch: tự cài đặt từ thuật toán thiên văn công bố (Jean Meeus, *Astronomical Algorithms* — công thức là dữ kiện khoa học) + múi giờ UTC+7**, rồi **xác thực bằng lịch in** của ≥2 năm. Đây đúng là cách tác giả gốc đã làm. | **LÀM** — nhưng tự cài đặt. ~4 ngày-agent (2 ngày thuật toán + 1 ngày xác thực đối chiếu + 1 ngày hàm/UI/hướng dẫn). **Ưu tiên 62/100** |
-| **Định dạng số/tiền kiểu Việt** — dấu phân cách nghìn `.` và thập phân `,`; `1.234.567,89 ₫`; định dạng `#.##0 "đồng"`; đọc đúng khi nhập `1.234,56` | Cao. Đã có một phần: `tests/unit/sheet-locale-input.test.js`, `tests/live/cdp/q66-sheet-locale.desktop.mjs` | Có, nhưng phụ thuộc cài đặt Windows của từng máy ⇒ file truyền tay bị lệch | Không vướng | **ĐÃ CÓ PHẦN LỚN** — việc còn lại: đưa thành **thuộc tính của workbook** (lưu trong file) chứ không theo locale máy, để file mở ở máy khác không lệch. ~2 ngày. **Ưu tiên 58/100** |
-| **Định dạng ngày VN** — `dd/mm/yyyy` mặc định, `"ngày" dd "tháng" mm "năm" yyyy` (đúng văn phong NĐ 30, gồm quy tắc thêm `0` cho ngày < 10 và tháng 1, 2), thứ tiếng Việt `Thứ Hai…Chủ Nhật` | Cao | Có định dạng tuỳ chỉnh, nhưng tên thứ/tháng theo locale máy | Không vướng | **LÀM**, gộp vào VN-1 (văn bản hành chính cần đúng kiểu `ngày 05 tháng 01 năm 2020`). ~1 ngày. **Ưu tiên 60/100** |
-| **Mẫu hoá đơn / chứng từ kế toán** | Cao nhưng… | — | ⚠️ **Rủi ro pháp lý cao.** Hoá đơn điện tử ở VN là **dữ liệu XML có ký số, gửi cơ quan thuế**, không phải tài liệu Office. Nghị định 123/2020 đã bị sửa 2 lần (2022, 2024) và Điều 10 sửa bởi **NĐ 70/2025** từ 01/06/2025. Làm "mẫu hoá đơn" trong Writer dễ bị hiểu là hoá đơn hợp pháp. | **KHÔNG LÀM hoá đơn.** Chỉ làm **phiếu thu/phiếu chi/biên bản** (là văn bản hành chính, thuộc VN-1) và hàm `BANGCHU` (VN-4). **Ưu tiên 20/100** |
-| **Mẫu bảng lương / BHXH** | Trung bình–cao | Người dùng tự làm | ⚠️ Tỷ lệ trích BHXH/BHYT/BHTN và mức lương cơ sở **thay đổi gần như hằng năm** | **LÀM dạng mẫu có BẢNG THAM SỐ tách riêng** (sheet "Tham số" chứa tỷ lệ, người dùng tự cập nhật), **tuyệt đối không hard-code tỷ lệ vào công thức**, kèm dòng chữ "Tham số cập nhật đến <ngày>; người dùng tự kiểm tra". ~2 ngày. **Ưu tiên 45/100** |
-| **Hàm tính thuế TNCN** | Trung bình | Người dùng tự làm bằng nhiều `IF` | ⚠️⚠️ **Rủi ro cao nhất trong toàn bộ tài liệu này.** Biểu thuế **vừa đổi năm 2026**: từ **7 bậc xuống 5 bậc** (5/10/20/30/35%), bậc 35% áp từ thu nhập tính thuế **trên 100 triệu/tháng** (trước là 80 triệu); giảm trừ gia cảnh lên **15,5 triệu/tháng** cho người nộp thuế và **6,2 triệu/tháng** cho mỗi người phụ thuộc (trước 11 / 4,4 triệu). Căn cứ được nêu: **Nghị quyết 110/2025/UBTVQH15** và **Luật số 109/2025/QH15**. **CHƯA KIỂM: ngày hiệu lực** — các nguồn mâu thuẫn giữa **01/01/2026** và **01/07/2026**; phải tra văn bản gốc trên `vbpl.vn`. | **KHÔNG làm hàm `THUETNCN()` cố định.** Thay vào đó: **mẫu "Bảng tính thuế TNCN"** với biểu thuế nằm trong một **bảng tham số nhìn thấy được**, công thức dùng `SUMPRODUCT`/`VLOOKUP` tra bảng đó, và **ô ghi rõ ngày hiệu lực của biểu thuế**. Tuyệt đối không nhúng số vào engine — số sai = sai thuế = trách nhiệm pháp lý. ~2 ngày. **Ưu tiên 35/100** |
+| **Âm lịch Việt Nam** — hàm `AMLICH(ngày)`, `NGAYDUONG(ngày_âm)`, `CANCHI(năm)`, `TIETKHI(ngày)`; hiển thị ngày âm trong ô ngày và trong lịch | Cao: cưới hỏi, giỗ chạp, khai trương, lịch Tết, lịch sản xuất. Excel **hoàn toàn không có** (chỉ có lịch Hồi giáo/Do Thái/Nhật) | ❌ Không | Thuật toán phổ biến nhất là `amlich.js` của **Hồ Ngọc Đức (2004/2006)** — **không tìm được giấy phép công bố** ⇒ coi như bảo lưu toàn quyền, **KHÔNG copy**. Thư viện dẫn xuất ghi MIT nhưng đó là giấy phép **code của họ**, không phải thuật toán gốc. **Giải pháp sạch: tự cài đặt từ thuật toán thiên văn công bố (Jean Meeus, *Astronomical Algorithms* — công thức là dữ kiện khoa học) + múi giờ UTC+7**, rồi **xác thực bằng lịch in** của ≥2 năm. Đây đúng là cách tác giả gốc đã làm. | **LÀM** — nhưng tự cài đặt. ~4 ngày-agent (2 ngày thuật toán + 1 ngày xác thực đối chiếu + 1 ngày hàm/UI/hướng dẫn). **Ưu tiên 77/100** |
+| **Định dạng số/tiền kiểu Việt** — dấu phân cách nghìn `.` và thập phân `,`; `1.234.567,89 ₫`; định dạng `#.##0 "đồng"`; đọc đúng khi nhập `1.234,56` | Cao. Đã có một phần: `tests/unit/sheet-locale-input.test.js`, `tests/live/cdp/q66-sheet-locale.desktop.mjs` | Có, nhưng phụ thuộc cài đặt Windows của từng máy ⇒ file truyền tay bị lệch | Không vướng | **ĐÃ CÓ PHẦN LỚN** — việc còn lại: đưa thành **thuộc tính của workbook** (lưu trong file) chứ không theo locale máy, để file mở ở máy khác không lệch. ~2 ngày. **Ưu tiên 75/100** |
+| **Định dạng ngày VN** — `dd/mm/yyyy` mặc định, `"ngày" dd "tháng" mm "năm" yyyy` (đúng văn phong NĐ 30, gồm quy tắc thêm `0` cho ngày < 10 và tháng 1, 2), thứ tiếng Việt `Thứ Hai…Chủ Nhật` | Cao | Có định dạng tuỳ chỉnh, nhưng tên thứ/tháng theo locale máy | Không vướng | **LÀM**, gộp vào VN-1 (văn bản hành chính cần đúng kiểu `ngày 05 tháng 01 năm 2020`). ~1 ngày. **Ưu tiên 77/100** |
+| **Mẫu hoá đơn / chứng từ kế toán** | Cao nhưng… | — | ⚠️ **Rủi ro pháp lý cao.** Hoá đơn điện tử ở VN là **dữ liệu XML có ký số, gửi cơ quan thuế**, không phải tài liệu Office. Nghị định 123/2020 đã bị sửa 2 lần (2022, 2024) và Điều 10 sửa bởi **NĐ 70/2025** từ 01/06/2025. Làm "mẫu hoá đơn" trong Writer dễ bị hiểu là hoá đơn hợp pháp. | **KHÔNG LÀM hoá đơn.** Chỉ làm **phiếu thu/phiếu chi/biên bản** (là văn bản hành chính, thuộc VN-1) và hàm `BANGCHU` (VN-4). **Ưu tiên 41/100** |
+| **Mẫu bảng lương / BHXH** | Trung bình–cao | Người dùng tự làm | ⚠️ Tỷ lệ trích BHXH/BHYT/BHTN và mức lương cơ sở **thay đổi gần như hằng năm** | **LÀM dạng mẫu có BẢNG THAM SỐ tách riêng** (sheet "Tham số" chứa tỷ lệ, người dùng tự cập nhật), **tuyệt đối không hard-code tỷ lệ vào công thức**, kèm dòng chữ "Tham số cập nhật đến <ngày>; người dùng tự kiểm tra". ~2 ngày. **Ưu tiên 59/100** |
+| **Hàm tính thuế TNCN** | Trung bình | Người dùng tự làm bằng nhiều `IF` | ⚠️⚠️ **Rủi ro cao nhất trong toàn bộ tài liệu này.** Biểu thuế **vừa đổi năm 2026**: từ **7 bậc xuống 5 bậc** (5/10/20/30/35%), bậc 35% áp từ thu nhập tính thuế **trên 100 triệu/tháng** (trước là 80 triệu); giảm trừ gia cảnh lên **15,5 triệu/tháng** cho người nộp thuế và **6,2 triệu/tháng** cho mỗi người phụ thuộc (trước 11 / 4,4 triệu). Căn cứ được nêu: **Nghị quyết 110/2025/UBTVQH15** và **Luật số 109/2025/QH15**. **CHƯA KIỂM: ngày hiệu lực** — các nguồn mâu thuẫn giữa **01/01/2026** và **01/07/2026**; phải tra văn bản gốc trên `vbpl.vn`. | **KHÔNG làm hàm `THUETNCN()` cố định.** Thay vào đó: **mẫu "Bảng tính thuế TNCN"** với biểu thuế nằm trong một **bảng tham số nhìn thấy được**, công thức dùng `SUMPRODUCT`/`VLOOKUP` tra bảng đó, và **ô ghi rõ ngày hiệu lực của biểu thuế**. Tuyệt đối không nhúng số vào engine — số sai = sai thuế = trách nhiệm pháp lý. ~2 ngày. **Ưu tiên 49/100** |
 | **Viết hoa theo Phụ lục II NĐ 30** | Cao (gộp VN-1/VN-5) | Không | Không vướng | Gộp vào VN-5 autocorrect |
 | **Sắp xếp tên người Việt theo tên gọi** | Cao (danh bạ, bảng điểm, danh sách CBCNV) | Không | Không vướng | Gộp vào VN-3 chế độ 3 |
-| **Chuyển Việt → không dấu (slug)** `KHONGDAU()` | Trung bình (đặt tên file, mã khách hàng, URL) | Không có hàm sẵn | Không vướng | **LÀM**, rẻ. ~0,5 ngày. **Ưu tiên 50/100** |
-| **Đếm từ tiếng Việt đúng** (âm tiết vs từ ghép) | Thấp–trung bình | Word đếm theo khoảng trắng ⇒ "Việt Nam" = 2 từ | Không vướng | Đã có probe `scripts/audit-0610/doc_wordcount_*`. Chỉ cần **bổ sung chỉ số "số âm tiết"** bên cạnh "số từ". ~1 ngày. **Ưu tiên 40/100** |
+| **Chuyển Việt → không dấu (slug)** `KHONGDAU()` | Trung bình (đặt tên file, mã khách hàng, URL) | Không có hàm sẵn | Không vướng | **LÀM**, rẻ. ~0,5 ngày. **Ưu tiên 79/100** |
+| **Đếm từ tiếng Việt đúng** (âm tiết vs từ ghép) | Thấp–trung bình | Word đếm theo khoảng trắng ⇒ "Việt Nam" = 2 từ | Không vướng | Đã có probe `scripts/audit-0610/doc_wordcount_*`. Chỉ cần **bổ sung chỉ số "số âm tiết"** bên cạnh "số từ". ~1 ngày. **Ưu tiên 70/100** |
 
 ---
 
 ## 7. BẢNG XẾP HẠNG CUỐI — SẴN SÀNG THÀNH TICKET
 
-Điểm ưu tiên = trung bình có trọng số: **Nhu cầu** (×0,35) + **Office không làm được** (×0,30) + **An toàn giấy phép/pháp lý** (×0,20) + **Rẻ để làm** (×0,15), thang 0–100.
+Điểm = Nhu cầu ×0,35 + Office thiếu ×0,30 + An toàn giấy phép/pháp lý ×0,20 + Rẻ ×0,15. **Điểm thành phần là đánh giá chủ quan**, nên chênh vài điểm không có ý nghĩa. Công thức có xu hướng ưu ái việc rẻ (như VN-6d).
 
-| Hạng | Mã | Tính năng | App | Nhu cầu | Office thiếu | An toàn GP | Rẻ | **Điểm** | Công sức | Rào cản |
+| Hạng | Mã | Tính năng | App | Nhu cầu | Office thiếu | An toàn | Rẻ | **Điểm** | Công sức | Rào cản |
 |---|---|---|---|:-:|:-:|:-:|:-:|:-:|---|---|
-| 1 | **VN-2** | Tự nhận dạng + chuyển bộ mã cũ TCVN3/VNI/VISCII/VPS (+ chuyển hàng loạt) | Doc, Sheet, Slide | 95 | 100 | 95 | 80 | **95** | 13 ng | Phải TỰ LẬP bảng mã (CC0), không copy GPL/no-licence |
-| 2 | **VN-1** | Chuẩn văn bản hành chính NĐ 30/2020: formatter 1 nút + checker 26 luật có trích dẫn + 14 mẫu | Doc | 100 | 100 | 85 | 60 | **92** | 14,5 ng | Cần xác nhận hiệu lực NĐ trên `vbpl.vn`; cần toạ độ sơ đồ từ ảnh trang 12 |
-| 3 | **VN-4** | `DOCSO` / `BANGCHU` — đọc số thành chữ tiếng Việt | Sheet (+ Doc qua field) | 95 | 95 | 100 | 75 | **85** | 5,5 ng | Chạm save pipeline (cached value cho XLSX) ⇒ **phải chạy batch LAN trước khi gộp** |
-| 4 | **VN-3** | Sắp xếp theo thứ tự từ điển tiếng Việt (theo âm tiết) + chế độ tên người | Sheet, Doc | 80 | 85 | 100 | 65 | **74** | 7,5 ng | Phải đo Excel 2016 thật trước khi tuyên bố Excel sai; **không** đổi hành vi so sánh trong công thức mà không có quyết định riêng |
-| 5 | **VN-5a** | Chuyển kiểu đặt dấu thanh (hoà ⇄ hòa) + tìm kiếm/tra cứu không phân biệt kiểu dấu | Doc, Sheet, Slide | 75 | 100 | 100 | 75 | **70** | 3 ng | Bật "dấu thanh linh hoạt" cho VLOOKUP phải **mặc định tắt** (tương thích Excel) |
-| 6 | **VN-5b** | AutoCorrect + kiểm tra chính tả tiếng Việt (hỏi/ngã, d/gi/r, s/x, i/y, viết hoa PL II) | Doc, Sheet, Slide | 85 | 90 | 90 | 50 | **66** | 3 ng | Danh sách phải tự biên; chỉ **gợi ý** với từ nhập nhằng, không tự sửa |
-| 7 | **VN-6a** | Âm lịch: `AMLICH`, `NGAYDUONG`, `CANCHI`, `TIETKHI` + ngày âm trong lịch | Sheet, Doc | 70 | 100 | 70 | 55 | **62** | 4 ng | **Không copy `amlich.js`**; tự cài từ thuật toán thiên văn công bố, xác thực đối chiếu lịch in |
-| 8 | **VN-6b** | Định dạng ngày VN (`ngày dd tháng mm năm yyyy`, thứ tiếng Việt) | Doc, Sheet | 80 | 55 | 100 | 85 | **60** | 1 ng | Gộp ticket với VN-1 |
-| 9 | **VN-6c** | Định dạng số/tiền VN lưu theo workbook (không theo locale máy) | Sheet | 85 | 50 | 100 | 70 | **58** | 2 ng | Đã có phần lớn; phần còn lại chạm định dạng file |
-| 10 | **VN-6d** | `KHONGDAU()` — bỏ dấu tiếng Việt | Sheet, Doc | 55 | 85 | 100 | 95 | **50** | 0,5 ng | — |
-| 11 | **VN-6e** | Mẫu bảng lương / BHXH với bảng tham số tách riêng | Sheet | 70 | 40 | 60 | 70 | **45** | 2 ng | **Không hard-code tỷ lệ**; phải ghi ngày cập nhật tham số |
-| 12 | **VN-6f** | Đếm âm tiết tiếng Việt bên cạnh đếm từ | Doc | 45 | 70 | 100 | 85 | **40** | 1 ng | — |
-| 13 | **VN-6g** | Mẫu bảng tính thuế TNCN (biểu thuế trong bảng tham số) | Sheet | 65 | 35 | 25 | 70 | **35** | 2 ng | ⚠️ Biểu thuế **vừa đổi 2026**; **CHƯA KIỂM ngày hiệu lực 01/01 hay 01/07/2026**. Cần chủ dự án duyệt trước khi làm |
-| 14 | **VN-6h** | Mẫu hoá đơn điện tử | — | 80 | 20 | 10 | 30 | **20** | — | ❌ **Khuyến nghị KHÔNG LÀM** — hoá đơn ĐT là XML ký số gửi thuế, không phải tài liệu Office; rủi ro pháp lý |
+| 1 | **VN-4** | `DOCSO` / `BANGCHU` | Sheet | 95 | 95 | 100 | 75 | **93** | 5,5 ng | Chạm save pipeline: **chạy batch LAN trước khi gộp** |
+| 2 | **VN-1** | Chuẩn NĐ 30/2020: 1 nút + 34 luật + 14 mẫu | Doc | 100 | 100 | 85 | 60 | **91** | 14,5 ng | Tra hiệu lực chính thức; đối chiếu Công báo; lấy sơ đồ trang 12 |
+| 3 | **VN-5a** | Chuyển kiểu dấu thanh, tra cứu linh hoạt | Doc, Sheet, Slide | 75 | 100 | 100 | 75 | **88** | 3 ng | Tra cứu linh hoạt mặc định tắt |
+| 4 | **VN-3** | Sắp xếp theo âm tiết, chế độ tên người | Sheet, Doc | 80 | 85 | 100 | 65 | **83** | 7,5 ng | Đối chiếu từ điển in; đo với locale `vi-VN` |
+| 5 | **VN-5b** | AutoCorrect, kiểm tra lỗi gõ | Cả 3 | 85 | 90 | 90 | 50 | **82** | 3 ng | Danh sách tự biên; từ nhập nhằng chỉ gợi ý |
+| 6 | **VN-6d** | `KHONGDAU()` | Sheet, Doc | 55 | 85 | 100 | 95 | **79** | 0,5 ng | — |
+| 7 | **VN-6a** | Âm lịch | Sheet, Doc | 70 | 100 | 70 | 55 | **77** | 4 ng | Không copy `amlich.js`; xác thực với lịch in |
+| 8 | **VN-6b** | Định dạng ngày VN | Doc, Sheet | 80 | 55 | 100 | 85 | **77** | 1 ng | Gộp với VN-1 |
+| 9 | **VN-6c** | Định dạng số/tiền theo workbook | Sheet | 85 | 50 | 100 | 70 | **75** | 2 ng | Chạm định dạng file |
+| 10 | **VN-6f** | Đếm âm tiết | Doc | 45 | 70 | 100 | 85 | **70** | 1 ng | — |
+| 11 | **VN-2** | Chuyển bộ mã cũ | Cả 3 | 50 | 70 | 90 | 60 | **66** | 0,5 ng gate; 5–13 ng | **Đo LAN trước;** chưa có nguồn bảng mã có giấy phép rõ |
+| 12 | **VN-6e** | Mẫu bảng lương/BHXH | Sheet | 70 | 40 | 60 | 70 | **59** | 2 ng | Không hard-code tỷ lệ |
+| 13 | **VN-6g** | Mẫu thuế TNCN | Sheet | 65 | 35 | 25 | 70 | **49** | 2 ng | Ngày hiệu lực chưa kiểm; chủ dự án duyệt trước |
+| 14 | **VN-6h** | Mẫu hoá đơn điện tử | — | 80 | 20 | 10 | 30 | **41** | — | **Khuyến nghị KHÔNG LÀM** dù có điểm: rủi ro pháp lý |
 
-**Tổng công sức 6 hạng đầu ≈ 46 ngày-agent.**
-
----
+**Tổng công sức 6 hạng đầu ≈ 34 ngày-agent** (ước lượng, chưa kiểm chứng).
 
 ## 8. ĐIỀU KIỆN HOÀN THÀNH DÙNG CHUNG CHO MỌI TICKET Ở TRÊN
 
@@ -683,23 +716,23 @@ Theo `AGENTS.md`:
 
 ## 9. VIỆC CẦN XÁC MINH TRƯỚC KHI MỞ TICKET (danh sách CHƯA KIỂM)
 
-| # | Nội dung chưa kiểm | Cách kiểm | Chặn ticket nào |
+| # | Nội dung | Cách kiểm | Chặn ticket |
 |---|---|---|---|
-| 1 | Nghị định 30/2020/NĐ-CP có bị sửa đổi/bổ sung hay thay thế (toàn phần hoặc Phụ lục I) tính đến 11/2026? | Tra `vbpl.vn` (CSDL quốc gia về văn bản pháp luật), xem mục "Văn bản liên quan / Hiệu lực". Không dùng blog | VN-1 (chặn) |
-| 2 | Toạ độ mm của từng ô trong **Sơ đồ** (Mục IV Phần I, trang 12 PDF) — là ảnh bitmap, pypdf không đọc được | Mở trang 12 của PDF gốc dưới dạng ảnh, đo | VN-1 (chặn một phần) |
-| 3 | Điều kiện sao chép bảng mã của **TCVN 5712:1993** | Hỏi Tổng cục Tiêu chuẩn Đo lường Chất lượng, hoặc **tránh hẳn**: tự lập bảng theo quy luật + xác thực trên corpus thật (khuyến nghị) | VN-2 (không chặn nếu đi đường tự lập) |
-| 4 | Toàn bộ 134 giá trị byte TCVN3 và 134 cặp byte VNI-Windows | Dựng theo quy luật nhóm 5 thanh, đối chiếu chéo ≥3 nguồn độc lập, xác thực 100% âm tiết trên `<tệp TCVN3 thật phía Windows>` qua `isValidVietnameseSyllable()` | VN-2 (chặn) |
-| 5 | Bảng mã **BK HCM1 / BK HCM2** và **Vietware-F/X** | Chưa tìm được nguồn có giấy phép rõ ⇒ **hoãn sang giai đoạn 2** | VN-2 (đã khoanh ra khỏi phạm vi) |
-| 6 | Tỷ lệ file dùng bộ mã cũ trên **toàn bộ 672 file** của `<kho LAN nội bộ>` | Chạy script quét tên font ở §2.1 ở chế độ **chỉ đọc**; không copy, không commit, không upload | VN-2 (chỉ ảnh hưởng ước lượng ROI) |
-| 7 | Word 2016 và Excel 2016 **thật** làm gì với: (a) file TCVN3, (b) sắp xếp `ca sĩ`/`cà phê` | Chạy khi Office COM mở lại được (đang bị chặn từ 18/10) | VN-2, VN-3 (chỉ ảnh hưởng câu khẳng định "Office sai") |
-| 8 | Kết quả 2 ticket CLDR **10867** / **10868** về collation tiếng Việt | Tra `unicode-org/cldr` issue tracker | VN-3 (không chặn) |
-| 9 | Có văn bản quy phạm nào quy định vị trí dấu thanh (kiểu cũ/mới)? | Tra `vbpl.vn` + văn bản của Bộ GD&ĐT. Nếu không có → ghi rõ "cả hai đều được dùng" trong hướng dẫn, **không** khẳng định kiểu nào "đúng" | VN-5a (ảnh hưởng nội dung hướng dẫn) |
-| 10 | Điểm/khoản chính xác quy định "tổng số tiền thanh toán bằng chữ" trong bản **hợp nhất** Điều 10 NĐ 123/2020 (đã sửa bởi NĐ 70/2025) | Tra văn bản hợp nhất Điều 10 trên `vbpl.vn` | VN-4 (chỉ ảnh hưởng câu căn cứ marketing) |
-| 11 | Ngày hiệu lực biểu thuế TNCN 5 bậc & giảm trừ 15,5/6,2 triệu: **01/01/2026** hay **01/07/2026**? Số hiệu chính thức (NQ 110/2025/UBTVQH15, Luật 109/2025/QH15) | Tra `vbpl.vn` / Công báo | VN-6g (chặn) |
-| 12 | Giấy phép của **Luật Sở hữu trí tuệ** với văn bản quy phạm pháp luật (điều khoản chính xác loại VBQPPL khỏi đối tượng bảo hộ) | Tra văn bản gốc Luật SHTT hợp nhất | VN-1 (chỉ ảnh hưởng ghi chú pháp lý nội bộ) |
-| 13 | Giấy phép danh sách từ gốc của **Hồ Ngọc Đức** (nguồn của hunspell-vi) và của `amlich.js` | Tra trang gốc `informatik.uni-leipzig.de/~duc/` | VN-5 / VN-6a — **nhưng khuyến nghị là không dùng cả hai**, nên không chặn |
-
----
+| 1 | Tình trạng chính thức và sửa đổi của NĐ 30/2020 đến 11/2026; đọc phần còn lại của NĐ 128/2025 | Người có tài khoản tra Thư viện Pháp luật/vbpl.vn, Công báo | VN-1 |
+| 2 | Đối chiếu Phụ lục I với Công báo | Công báo số 283–284 | VN-1 |
+| 3 | Toạ độ sơ đồ (trang 12, là hình) | Xem trang dưới dạng ảnh | VN-1 (một phần) |
+| 4 | Tỷ lệ mã cũ trên 672 file LAN | Census chỉ đọc, số đếm | **VN-2 (gate)** |
+| 5 | Nguồn bảng TCVN3/VNI có giấy phép rõ | Chủ dự án quyết định | VN-2 |
+| 6 | Word với font `.VnTime`/`VNI-*` **thật**; chữ hoa `.Vn*H` | Thử với font có giấy phép dùng | VN-2 |
+| 7 | Bản đóng gói mở file mã cũ khi thiếu font ra sao | Tệp mẫu tự tạo, CDP | VN-2 |
+| 8 | Excel với locale `vi-VN`; thứ tự theo từ điển in | Đo lại; đối chiếu từ điển | VN-3 |
+| 9 | Ticket CLDR 10867 / 10868 | Tra `unicode-org/cldr` | Không chặn |
+| 10 | Có văn bản nào quy định vị trí dấu thanh không | vbpl.vn, Bộ GD&ĐT | Nội dung hướng dẫn VN-5a |
+| 11 | Điểm/khoản về "số tiền bằng chữ" trong NĐ 123/2020 hợp nhất | Tra văn bản hợp nhất | Câu căn cứ VN-4 |
+| 12 | Ngày hiệu lực biểu thuế TNCN 5 bậc | vbpl.vn, Công báo | VN-6g |
+| 13 | Bản hợp nhất Luật SHTT mới hơn 67/VBHN-VPQH; Điều 4 Luật 64/2025 sau Luật 87/2025 | Trang Quốc hội, Công báo; luật sư | Ghi chú pháp lý VN-1 |
+| 14 | Giấy phép của `amlich.js`, danh sách từ Hồ Ngọc Đức | Trang gốc. Khuyến nghị không dùng cả hai | Không chặn |
+| 15 | Khảo sát đối thủ (WPS, add-in) cho VN-1, VN-2, VN-4 | Dùng thử | Câu truyền thông |
 
 ## 10. NGUỒN
 
@@ -737,17 +770,21 @@ Theo `AGENTS.md`:
 - Nghị định 123/2020/NĐ-CP, Điều 10 (đã sửa bởi NĐ 70/2025 từ 01/06/2025): https://caselaw.vn/van-ban-phap-luat/373273-nghi-dinh-so-123-2020-nd-cp-ngay-19-10-2020-cua-chinh-phu-quy-dinh-ve-hoa-don-chung-tu
 - Thuế TNCN 2026, biểu 5 bậc + giảm trừ 15,5/6,2 triệu (NQ 110/2025/UBTVQH15, Luật 109/2025/QH15): https://thuvienphapluat.vn/phap-luat-doanh-nghiep/bai-viet/cap-nhat-muc-giam-tru-gia-canh-2026-theo-quy-dinh-moi-nhat-18952.html · https://thuvienphapluat.vn/phap-luat/ho-tro-phap-luat/ap-dung-giam-tru-gia-canh-tu-01012026-hay-0172026-muc-giam-tru-gia-canh-2026-nhu-the-nao-245956.html
 
+**Kiểm chứng bổ sung:**
+- Luật SHTT, văn bản hợp nhất 67/VBHN-VPQH: https://luatvietnam.vn/so-huu-tri-tue/van-ban-hop-nhat-67-vbhn-vpqh-2026-luat-so-huu-tri-tue-431761-d5.html
+- Giới thiệu Luật 131/2025/QH15 (Cục Bản quyền tác giả): https://cov.gov.vn/tin-tuc/gioi-thieu-luat-sua-doi-bo-sung-mot-so-dieu-cua-luat-so-huu-tri-tue-nam-2025-noi-dung-quyen-tac-gia-quyen-lien-quan-168841.html
+- Luật 64/2025/QH15 Điều 4: https://hethongphapluat.com/luat-ban-hanh-van-ban-quy-pham-phap-luat-2025/dieu-4
+- Sở Nội vụ Bắc Ninh, thông báo 6/2026: https://bacninh.gov.vn/documents/207614/124310906/tb_ket_luan_ubnd_thuan_thanh_2026__10062026172505_signed.pdf
+- NĐ 128/2025/NĐ-CP: https://www.saovietlaw.com/nghi-dinh/nghi-dinh-128-2025-nd-cp-quy-dinh-ve-phan-quyen-phan-cap-trong-quan-ly-nha-nuoc-linh-vuc-noi-vu/
+- MsoEncoding: https://learn.microsoft.com/en-us/office/vba/api/office.msoencoding
+- Hướng dẫn xử lý lỗi font: https://topthuthuat.com/sua-loi-font-chu-trong-word/ · https://vnit.com.vn/bai-viet/loi-font-tieng-viet-trong-word-excel-cach-sua
+
 **Bằng chứng trong repo (đường dẫn tuyệt đối):**
-- `E:\VN OFice\core-master\core-master\include\rtl\textenc.h` (dòng 81, 236) — LibreOffice chỉ có `RTL_TEXTENCODING_MS_1258` cho tiếng Việt
-- `E:\VN OFice\core-master\core-master\sal\textenc\tcvteas1.tab` (dòng 193, 248) — chỉ có bảng Windows-1258
-- `<tệp TCVN3 thật phía Windows>` — **file TCVN3 thật**, chứa `<mẫu TCVN3>` và font `.VnTime/.VnTimeH/.VnArial`
-- `E:\VN OFice\platform\text\dictionaries\LICENSES-vi.txt` — từ điển chính tả hiện tại: Common Voice snapshot, **CC0-1.0**, không chứa dữ liệu Hunspell/Hồ Ngọc Đức
-- `E:\VN OFice\platform\text\vi-syllable.js` — `isValidVietnameseSyllable()`, quy tắc ghép vần tự biên, CC0-1.0 → **dùng làm hàm chấm điểm cho VN-2**
-- `E:\VN OFice\apps\sheet\page-setup-dialog.js` → thực tế là `E:\VN OFice\apps\writer\page-setup-dialog.js` dòng 10 — preset lề `"Chuẩn NĐ 30/2020"` (20/20/30/15 mm)
-- `E:\VN OFice\adapters\libreoffice\writer\writer-adapter.js` dòng 250 — preset danh sách `nd30`
-- `E:\VN OFice\adapters\libreoffice\common\ooxml_zip_patch.py` dòng 24639 — `nd30` → `[("decimal","Điều %1."),("decimal","%2."),("lowerLetter","%3)")]`
-- `E:\VN OFice\apps\sheet\sheet-grid.js` dòng 17253–17254, `E:\VN OFice\apps\sheet\data-tools.js` dòng 204–205 — sắp xếp đã dùng `localeCompare(..., "vi-VN")`
-- `E:\VN OFice\apps\sheet\formula-engine.js` dòng 1172, 1190, 1249 — so sánh chuỗi trong công thức dùng **locale `undefined`** (của máy) → cần quyết định riêng
-- `E:\VN OFice\docs\HANDOFF-VIETNAMESE-TYPING.md` — CH-4.7, 1082/1082 PASS qua CDP
-- `E:\VN OFice\docs\AUDIT-DOCADMIN-FIX-1610.md`, `E:\VN OFice\scripts\audit-0610\doc_admin_30.mjs`, `E:\VN OFice\docs\AUDIT-DOC-ADMIN-11-30.md` — bộ audit 30 kịch bản hành chính (29 PASS / 1 BLOCKED)
-- `E:\VN OFice\platform\help\help-catalog.js`, `help-panel.js` — cơ chế Trợ giúp để gắn hướng dẫn mới
+- `E:\VN OFice\core-master\core-master\include\rtl\textenc.h` (dòng 81, 236), `E:\VN OFice\core-master\core-master\sal\textenc\tcvteas1.tab` (dòng 193, 248) — bộ mã tiếng Việt của LibreOffice
+- `E:\VN OFice\platform\text\dictionaries\LICENSES-vi.txt`, `E:\VN OFice\platform\text\vi-syllable.js` — từ điển CC0 và quy tắc ghép vần
+- `E:\VN OFice\apps\writer\page-setup-dialog.js` dòng 10 — preset lề "Chuẩn NĐ 30/2020"
+- `E:\VN OFice\adapters\libreoffice\writer\writer-adapter.js` dòng 250; `E:\VN OFice\adapters\libreoffice\common\ooxml_zip_patch.py` dòng 24639 — preset danh sách `nd30`
+- `E:\VN OFice\apps\sheet\sheet-grid.js` dòng 17253–17254, `E:\VN OFice\apps\sheet\data-tools.js` dòng 204–205 — sắp xếp hiện tại
+- `E:\VN OFice\apps\sheet\formula-engine.js` dòng 1172, 1190, 1249 — so sánh chuỗi với locale `undefined`
+- `E:\VN OFice\docs\HANDOFF-VIETNAMESE-TYPING.md`, `E:\VN OFice\docs\AUDIT-DOCADMIN-FIX-1610.md`, `E:\VN OFice\scripts\audit-0610\doc_admin_30.mjs`
+- `E:\VN OFice\platform\help\help-catalog.js`, `E:\VN OFice\platform\help\help-panel.js` — cơ chế Trợ giúp
