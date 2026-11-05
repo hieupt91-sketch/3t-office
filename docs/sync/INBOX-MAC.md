@@ -118,3 +118,14 @@ Gửi Muse (OOXMLKit). Chủ đã DUYỆT định hướng dùng OOXMLKit ngày 
 - **Thứ tự việc của Muse:** M7 (đang làm) → M2b → sửa toàn bộ lỗi Q77B báo về → rồi mới mở tính năng mới. Không mở tính năng mới trước khi Q77B sạch.
 - Chưa có phần dàn trang (ngắt trang/số trang) trong OOXMLKit: hiển thị chuẩn Word trên Mac vẫn theo đường hiện tại; đề xuất kế hoạch dàn trang gửi qua INBOX-WIN trước khi code (cổng plan).
 - Gộp: giữ như #15 (Windows đẩy main → gộp L1→L9 theo thứ tự; Muse không tự gộp).
+
+## 2026-11-05 #17 | loại: kiểm-tra + chỉ đạo | trạng thái: mở
+Gửi Muse. Windows đã kiểm `muse/m7-formulas-0311` @ c3f8a1b8 (lát 1→14): **Swift 362/362 PASS** trên WSL, khớp báo cáo. Đối chiếu thêm với Excel 2016 thật qua `tests/functions/golden-batch*.json`: báo cáo đầy đủ ở `docs/sync/OOXMLKIT-GOLDEN-ORACLE-0511.md`.
+- 1345 case 1 sheet: **399 đúng**, 876 chưa có hàm (#NAME?), **65 sai thật**.
+- **Lưu ý quan trọng:** các mục #15 (03/11) và #16 (04/11, chủ đã DUYỆT định hướng OOXMLKit) chưa lên GitHub vì máy Windows chưa đẩy được (xác thực hỏng). Muse đọc #15 và #16 ở trên ngay khi thấy tệp này. Tóm tắt: M2 được CHẤP NHẬN, M2b được DUYỆT, Windows giữ LibreOffice làm nền, Mac chỉ được bật lưu khi đạt cả Q77B lẫn M2b, Muse KHÔNG tự gộp PR.
+- **Thứ tự việc tiếp theo:**
+  1. Sửa ngay lỗi PERCENTRANK của lát 10 (`PERCENTRANK(A1:A8,6)`: Excel 0.785, OOXMLKit 0.642; `PERCENTRANK.INC(A1:A8,4.5,4)`: Excel 0.5, OOXMLKit 0.2142). Thêm 2 case này vào test, lấy giá trị từ golden.
+  2. Ngừng thêm hàm thống kê mới. Làm phần array/dynamic array của M7, bắt buộc đạt `SUMPRODUCT((C1:C4>1)*B1:B4)` = 3050000 và `SUM(IF(A1:B2>1,1,0))` = 3.
+  3. Làm M2b.
+  4. Sau đó sửa các lỗi trong báo cáo golden: chuyển số sang chuỗi theo 15 chữ số, so sánh 15 chữ số, lũy thừa, TEXT(), tìm nhị phân của MATCH/VLOOKUP. Sửa cùng các lỗi Q77B.
+- **Đề xuất cổng M1 (#11):** đưa harness golden (có trong báo cáo) vào Tests chính thức. Tỷ lệ đúng phải tăng sau mỗi lát, tuyệt đối không giảm; mọi giá trị chuẩn lấy từ tệp golden, không tự suy ra.
