@@ -36,6 +36,25 @@ final class FormulaPercentRankTests: XCTestCase {
         ["D1": n(1), "D2": n(2), "D3": n(2), "D4": n(3)]
     }
 
+    /// Vùng golden Excel 2016 (tests/functions/cases-batch2-stats.json):
+    /// A1:A8 = 2, 4, 4, 4, 5, 5, 7, 9.
+    var goldenRange: [String: CellValue] {
+        ["A1": n(2), "A2": n(4), "A3": n(4), "A4": n(4),
+         "A5": n(5), "A6": n(5), "A7": n(7), "A8": n(9)]
+    }
+
+    /// Sửa 05/11 theo INBOX-MAC #17 / golden Excel 2016: nội suy khi x nằm
+    /// giữa hai giá trị của dãy có trùng phải neo ở lần xuất hiện CUỐI của
+    /// giá trị dưới. Trước sửa: PERCENTRANK(A1:A8,6) = 0.642,
+    /// PERCENTRANK.INC(A1:A8,4.5,4) = 0.2142 — đều sai so với golden.
+    func testPercentRankGoldenInterpolationWithDuplicates() {
+        XCTAssertEqual(num("PERCENTRANK(A1:A8,6)", goldenRange), 0.785, accuracy: 1e-9, "golden: 5.5/7 cắt 3 chữ số")
+        XCTAssertEqual(num("PERCENTRANK.INC(A1:A8,4.5,4)", goldenRange), 0.5, accuracy: 1e-9, "golden: 3.5/7")
+        XCTAssertEqual(num("PERCENTRANK.INC(A1:A8,5)", goldenRange), 0.571, accuracy: 1e-9, "golden: khớp đúng giá trị, hạng lần đầu 4/7")
+        XCTAssertEqual(num("PERCENTRANK.EXC(A1:A8,5)", goldenRange), 0.555, accuracy: 1e-9, "golden: (4+1)/9")
+        XCTAssertEqual(calc("PERCENTRANK.INC(A1:A8,100)", goldenRange), err("#N/A"), "golden: x lớn hơn max")
+    }
+
     func testPercentRankInc() {
         XCTAssertEqual(num("PERCENTRANK(A1:A5,3)", range), 0.5, accuracy: 1e-9)
         XCTAssertEqual(num("PERCENTRANK.INC(A1:A5,1)", range), 0, accuracy: 1e-9, "giá trị nhỏ nhất")

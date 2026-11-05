@@ -1046,7 +1046,14 @@ extension FormulaEvaluator {
     /// M7: PERCENTRANK.INC / PERCENTRANK.EXC — hạng phần trăm của x trong dãy.
     /// INC: hạng = vị trí (0-based, nội suy giữa hai giá trị kề) / (n − 1);
     /// EXC: hạng = (vị trí + 1) / (n + 1) nên kết quả không bao giờ chạm 0 hay 1.
-    /// Giá trị trùng: lấy hạng của lần xuất hiện đầu (số giá trị nhỏ hơn x).
+    /// Giá trị trùng: khi x khớp đúng một giá trị, lấy hạng của lần xuất hiện
+    /// đầu (số giá trị nhỏ hơn x) — golden Excel 2016: PERCENTRANK.INC(A1:A8,5)
+    /// = 0.571 với A1:A8 = 2,4,4,4,5,5,7,9. Nhưng khi x nằm GIỮA hai giá trị,
+    /// Excel nội suy theo vị trí neo ở lần xuất hiện CUỐI của giá trị dưới
+    /// (không phải lần đầu): PERCENTRANK(A1:A8,6) = 0.785 (= 5.5/7, vị trí 5
+    /// là lần cuối của 5, nội suy nửa đường tới 7) và
+    /// PERCENTRANK.INC(A1:A8,4.5,4) = 0.5 (= 3.5/7, lần cuối của 4 là vị trí 3).
+    /// Dùng lần đầu ở đây cho 0.642 và 0.2142 — sai theo golden, đã sửa 05/11.
     /// x ngoài [min, max], hoặc dãy rỗng, hoặc n = 1 → #N/A; significance < 1
     /// → #NUM!; significance mặc định 3 và kết quả bị CẮT (không làm tròn) về
     /// bấy nhiêu chữ số thập phân (Excel). PERCENTRANK (không hậu tố) là bí
@@ -1068,11 +1075,15 @@ extension FormulaEvaluator {
         } else {
             let lower = nums.filter { $0 < x }.max()!
             let upper = nums.filter { $0 > x }.min()!
-            let lessThanLower = Double(nums.filter { $0 < lower }.count)
+            // Nội suy Excel neo ở lần xuất hiện CUỐI của giá trị dưới và lần
+            // ĐẦU của giá trị trên (xem chú thích hàm): với dãy có trùng,
+            // vị trí = lastLowerIdx + frac * (firstUpperIdx - lastLowerIdx).
+            // Dãy không trùng: khoảng bằng 1 nên trùng công thức cũ.
+            let lastLowerIdx = Double(nums.filter { $0 <= lower }.count - 1)
+            let firstUpperIdx = Double(nums.filter { $0 < upper }.count)
             let frac = (x - lower) / (upper - lower)
-            rank = exclusive
-                ? (lessThanLower + frac + 1) / Double(n + 1)
-                : (lessThanLower + frac) / Double(n - 1)
+            let pos = lastLowerIdx + frac * (firstUpperIdx - lastLowerIdx)
+            rank = exclusive ? (pos + 1) / Double(n + 1) : pos / Double(n - 1)
         }
         guard sig <= 15 else { return .number(rank) }
         let scale = pow(10.0, sig)
