@@ -224,11 +224,15 @@ struct FormulaEvaluator {
 
     // MARK: Hàm mảng động (M7 lát 18, INBOX-MAC #17)
 
-    /// Hàm trả về mảng: TRANSPOSE, SEQUENCE. nil = không phải hàm mảng → đường scalar như cũ.
+    /// Hàm trả về mảng: TRANSPOSE, SEQUENCE, SORT, FILTER, UNIQUE.
+    /// nil = không phải hàm mảng → đường scalar như cũ.
     private func callArray(_ name: String, _ args: [FormulaExpr]) -> EvalValue? {
         switch name {
         case "TRANSPOSE": return transpose(args)
         case "SEQUENCE": return sequence(args)
+        case "SORT": return sortArray(args)
+        case "FILTER": return filterArray(args)
+        case "UNIQUE": return uniqueArray(args)
         default: return nil
         }
     }
@@ -282,6 +286,207 @@ struct FormulaEvaluator {
             out.append(line)
         }
         return .array(out)
+    }
+
+    // MARK: Hàm mảng động — SORT / FILTER / UNIQUE (M7 lát 19, INBOX-MAC #17)
+
+    /// Chuyển vị một lưới (dùng cho by_col của SORT/UNIQUE).
+    private static func transposeGrid(_ grid: [[CellValue]]) -> [[CellValue]] {
+        guard let cols = grid.first?.count, cols > 0 else { return grid }
+        var out: [[CellValue]] = Array(repeating: [], count: cols)
+        for j in 0..<cols {
+            var line: [CellValue] = []
+            line.reserveCapacity(grid.count)
+            for i in 0..<grid.count { line.append(grid[i][j]) }
+            out[j] = line
+        }
+        return out
+    }
+
+    /// Thứ tự sắp xếp của Excel: số < chuỗi < logic < lỗi < rỗng (rỗng luôn cuối,
+    /// cả khi giảm dần — thứ tự giảm chỉ đảo chiều các hạng còn lại).
+    private static func sortRank(_ v: CellValue) -> Int {
+        switch v {
+        case .number: return 0
+        case .string: return 1
+        case .bool: return 2
+        case .error: return 3
+        case .empty: return 4
+        }
+    }
+
+    /// So sánh hai khóa sắp xếp: <0 nếu a trước b, 0 nếu bằng, >0 nếu a sau b.
+    private static func compareSortKey(_ a: CellValue, _ b: CellValue, ascending: Bool) -> Int {
+        if case .empty = a, case .empty = b { return 0 }
+        if case .empty = a { return 1 }
+        if case .empty = b { return -1 }
+        let ra = sortRank(a), rb = sortRank(b)
+        var c: Int
+        if ra != rb { c = ra < rb ? -1 : 1 }
+        else if case (.error(let x), .error(let y)) = (a, b) {
+            c = x.compare(y, options: [.caseInsensitive]) == .orderedAscending ? -1
+                : (x.compare(y, options: [.caseInsensitive]) == .orderedDescending ? 1 : 0)
+        } else { c = compare(a, b) }
+        return ascending ? c : -c
+    }
+
+    /// Đọc một đối số logic (TRUE/FALSE, số ≠ 0 → TRUE như IF); trả .error nếu
+    /// đối số đã là lỗi hoặc không đổi được sang logic.
+    private func boolArg(_ expr: FormulaExpr) -> CellValue {
+        let v = scalar(eval(expr))
+        if case .error = v { return v }
+        guard let b = bool(v) else { return .error(FormulaErrors.value) }
+        return .bool(b)
+    }
+
+    /// SORT(mảng, [chỉ_mục_sắp=1], [thứ_tự=1], [theo_cột=FALSE]): sắp xếp hàng theo
+    /// cột khóa (hoặc cột theo hàng khóa khi theo_cột=TRUE), ổn định. Chỉ mục ngoài
+    /// phạm vi, không phải số nguyên ≥ 1, thứ tự khác ±1 → #VALUE!; lỗi trong đối
+    /// số lan truyền nguyên vẹn.
+    private func sortArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard (1...4).contains(args.count) else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        var sortIndex = 1.0, sortOrder = 1.0, byCol = false
+        if args.count >= 2 {
+            let v = scalar(eval(args[1]))
+            if case .error = v { return .scalar(v) }
+            guard let n = number(v), n.isFinite else { return bad }
+            sortIndex = n
+        }
+        if args.count >= 3 {
+            let v = scalar(eval(args[2]))
+            if case .error = v { return .scalar(v) }
+            guard let n = number(v), n.isFinite else { return bad }
+            sortOrder = n
+        }
+        if args.count >= 4 {
+            let bv = boolArg(args[3])
+            guard case .bool(let b) = bv else { return .scalar(bv) }
+            byCol = b
+        }
+        guard sortOrder == 1 || sortOrder == -1 else { return bad }
+        guard sortIndex == sortIndex.rounded(.towardZero), sortIndex >= 1 else { return bad }
+        var g = byCol ? Self.transposeGrid(grid) : grid
+        let keyIdx = Int(sortIndex) - 1
+        guard keyIdx < (g.first?.count ?? 0) else { return bad }
+        let ascending = sortOrder == 1
+        let sorted = g.enumerated().sorted { a, b in
+            let c = Self.compareSortKey(a.element[keyIdx], b.element[keyIdx], ascending: ascending)
+            return c != 0 ? c < 0 : a.offset < b.offset
+        }.map { $0.element }
+        g = sorted
+        if byCol { g = Self.transposeGrid(g) }
+        return .array(g)
+    }
+
+    /// FILTER(mảng, bao_gồm, [nếu_rỗng]): giữ hàng (bao_gồm là cột logic) hoặc giữ
+    /// cột (bao_gồm là hàng logic). Ô rỗng trong bao_gồm = FALSE; giá trị không
+    /// phải logic → #VALUE!; lỗi trong bao_gồm lan truyền; hình bao_gồm khác →
+    /// #VALUE!; không còn hàng/cột nào: trả nếu_rỗng nếu có, không thì #CALC!.
+    private func filterArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard (2...3).contains(args.count) else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        guard let inc = materialize(eval(args[1])), !inc.isEmpty,
+              let incCols = inc.first?.count, incCols > 0 else { return bad }
+        let rows = grid.count
+        let byColumn: Bool
+        var flags: [Bool] = []
+        if inc.count == rows, incCols == 1 {
+            byColumn = false
+            for i in 0..<rows {
+                switch inc[i][0] {
+                case .empty: flags.append(false)
+                case .bool(let b): flags.append(b)
+                case .error(let e): return .scalar(.error(e))
+                default: return bad
+                }
+            }
+        } else if inc.count == 1, incCols == cols {
+            byColumn = true
+            for j in 0..<cols {
+                switch inc[0][j] {
+                case .empty: flags.append(false)
+                case .bool(let b): flags.append(b)
+                case .error(let e): return .scalar(.error(e))
+                default: return bad
+                }
+            }
+        } else { return bad }
+        var out: [[CellValue]] = []
+        if byColumn {
+            let kept = (0..<cols).filter { flags[$0] }
+            for i in 0..<rows {
+                out.append(kept.map { grid[i][$0] })
+            }
+            if kept.isEmpty { out = [] }
+        } else {
+            for i in 0..<rows where flags[i] { out.append(grid[i]) }
+        }
+        if out.isEmpty {
+            if args.count == 3 {
+                guard let repl = materialize(eval(args[2])) else { return bad }
+                return .array(repl)
+            }
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        return .array(out)
+    }
+
+    /// Khóa so trùng của UNIQUE: số theo giá trị (-0 = 0), chuỗi không phân biệt
+    /// hoa/thường, logic, lỗi theo mã, rỗng riêng một hạng.
+    private static func uniqueKey(_ v: CellValue) -> String {
+        switch v {
+        case .empty: return "E"
+        case .number(let d): return "N\(d == 0 ? 0 : d)"
+        case .string(let s): return "S\(s.lowercased())"
+        case .bool(let b): return "B\(b)"
+        case .error(let e): return "X\(e)"
+        }
+    }
+
+    /// UNIQUE(mảng, [theo_cột=FALSE], [chỉ_một_lần=FALSE]): giữ hàng (hoặc cột)
+    /// phân biệt đầu tiên; chỉ_một_lần=TRUE chỉ giữ hạng xuất hiện đúng một lần.
+    private func uniqueArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard (1...3).contains(args.count) else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        var byCol = false, exactlyOnce = false
+        if args.count >= 2 {
+            let bv = boolArg(args[1])
+            guard case .bool(let b) = bv else { return .scalar(bv) }
+            byCol = b
+        }
+        if args.count >= 3 {
+            let bv = boolArg(args[2])
+            guard case .bool(let b) = bv else { return .scalar(bv) }
+            exactlyOnce = b
+        }
+        var g = byCol ? Self.transposeGrid(grid) : grid
+        var counts: [String: Int] = [:]
+        var keys: [String] = []
+        keys.reserveCapacity(g.count)
+        for row in g {
+            let k = row.map { Self.uniqueKey($0) }.joined(separator: "\u{1F}")
+            keys.append(k)
+            counts[k, default: 0] += 1
+        }
+        var kept: [[CellValue]] = []
+        var seen: Set<String> = []
+        for (i, row) in g.enumerated() {
+            if exactlyOnce {
+                if counts[keys[i]] == 1 { kept.append(row) }
+            } else if seen.insert(keys[i]).inserted {
+                kept.append(row)
+            }
+        }
+        g = kept
+        if byCol { g = Self.transposeGrid(g) }
+        return .array(g)
     }
 
     // MARK: Ép kiểu

@@ -2,8 +2,11 @@ import XCTest
 @testable import OOXMLSpreadsheet
 
 /// M7 lát 18: hàm mảng động TRANSPOSE + SEQUENCE (INBOX-MAC #17).
+/// M7 lát 19: SORT + FILTER + UNIQUE (INBOX-MAC #17).
 /// Giá trị kỳ vọng theo Excel: SEQUENCE cắt phần lẻ hàng/cột về nguyên,
-/// TRANSPOSE đổi hàng ↔ cột, ô lỗi đi qua nguyên vẹn.
+/// TRANSPOSE đổi hàng ↔ cột, ô lỗi đi qua nguyên vẹn; SORT ổn định, rỗng
+/// luôn cuối; FILTER cần bao_gồm logic đúng hình; UNIQUE so trùng không
+/// phân biệt hoa/thường với chuỗi, theo giá trị với số.
 final class FormulaDynamicArrayTests: XCTestCase {
     private func engine() -> FormulaEngine {
         let e = FormulaEngine()
@@ -156,5 +159,253 @@ final class FormulaDynamicArrayTests: XCTestCase {
     func testSequenceInsideSumWithTranspose() {
         XCTAssertEqual(calc(engine(), "=SUM(TRANSPOSE(SEQUENCE(3,2)))"), .number(21),
                        "1..6 = 21, không phụ thuộc thứ tự chuyển vị")
+    }
+
+    // MARK: SORT (lát 19)
+
+    /// Lưới 4x3 cho SORT/UNIQUE: hàng 1 và 3 trùng nhau hoàn toàn.
+    private func gridEngine() -> FormulaEngine {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        let rows: [(Double, String, Bool)] = [(3, "b", true), (1, "a", false), (3, "b", true), (2, "c", true)]
+        for (i, r) in rows.enumerated() {
+            let row = i + 1
+            e.setValue(.number(r.0), sheet: "Data", at: "A\(row)")
+            e.setValue(.string(r.1), sheet: "Data", at: "B\(row)")
+            e.setValue(.bool(r.2), sheet: "Data", at: "C\(row)")
+        }
+        return e
+    }
+
+    func testSortAscendingByFirstColumnStable() {
+        let e = gridEngine()
+        XCTAssertEqual(cse(e, "=SORT(A1:C4)", "E1:G4"),
+                       [.number(1), .string("a"), .bool(false),
+                        .number(2), .string("c"), .bool(true),
+                        .number(3), .string("b"), .bool(true),
+                        .number(3), .string("b"), .bool(true)],
+                       "tăng dần theo cột 1; hai hàng 3 giữ nguyên thứ tự (ổn định)")
+    }
+
+    func testSortDescendingByFirstColumn() {
+        let e = gridEngine()
+        XCTAssertEqual(cse(e, "=SORT(A1:C4,1,-1)", "E1:G4"),
+                       [.number(3), .string("b"), .bool(true),
+                        .number(3), .string("b"), .bool(true),
+                        .number(2), .string("c"), .bool(true),
+                        .number(1), .string("a"), .bool(false)])
+    }
+
+    func testSortByTextColumn() {
+        let e = gridEngine()
+        XCTAssertEqual(cse(e, "=SORT(A1:C4,2)", "E1:G4"),
+                       [.number(1), .string("a"), .bool(false),
+                        .number(3), .string("b"), .bool(true),
+                        .number(3), .string("b"), .bool(true),
+                        .number(2), .string("c"), .bool(true)],
+                       "sắp theo cột chuỗi: a < b < c")
+    }
+
+    func testSortByColumn() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        for (k, v) in ["A1": 3.0, "B1": 1.0, "C1": 2.0] {
+            e.setValue(.number(v), sheet: "Data", at: k)
+        }
+        for (k, v) in ["A2": "c", "B2": "a", "C2": "b"] {
+            e.setValue(.string(v), sheet: "Data", at: k)
+        }
+        XCTAssertEqual(cse(e, "=SORT(A1:C2,1,1,TRUE)", "E1:G2"),
+                       [.number(1), .number(2), .number(3), .string("a"), .string("b"), .string("c")],
+                       "theo_cột=TRUE: sắp cột theo hàng khóa 1 (đọc theo hàng: 1,2,3 / a,b,c)")
+    }
+
+    func testSortBlanksAlwaysLast() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        e.setValue(.number(2), sheet: "Data", at: "A1")
+        e.setValue(.string("x"), sheet: "Data", at: "B1")
+        e.setValue(.string("y"), sheet: "Data", at: "B2")
+        e.setValue(.number(1), sheet: "Data", at: "A3")
+        e.setValue(.string("z"), sheet: "Data", at: "B3")
+        XCTAssertEqual(cse(e, "=SORT(A1:B3)", "D1:E3"),
+                       [.number(1), .string("z"), .number(2), .string("x"), .empty, .string("y")],
+                       "tăng dần: rỗng cuối")
+        XCTAssertEqual(cse(e, "=SORT(A1:B3,1,-1)", "D1:E3"),
+                       [.number(2), .string("x"), .number(1), .string("z"), .empty, .string("y")],
+                       "giảm dần: rỗng vẫn cuối")
+    }
+
+    func testSortBadArgsAreValueError() {
+        let e = gridEngine()
+        XCTAssertEqual(calc(e, "=SORT(A1:C4,5)"), .error("#VALUE!"), "chỉ mục vượt số cột")
+        XCTAssertEqual(calc(e, "=SORT(A1:C4,0)"), .error("#VALUE!"), "chỉ mục 0")
+        XCTAssertEqual(calc(e, "=SORT(A1:C4,1,2)"), .error("#VALUE!"), "thứ tự khác ±1")
+        XCTAssertEqual(calc(e, "=SORT(A1:C4,1.5)"), .error("#VALUE!"), "chỉ mục không nguyên")
+        XCTAssertEqual(calc(e, "=SORT(A1:C4,\"x\")"), .error("#VALUE!"), "chỉ mục không phải số")
+    }
+
+    func testSortInsideSum() {
+        XCTAssertEqual(calc(engine(), "=SUM(SORT(A1:B2))"), .number(10), "1+2+3+4")
+    }
+
+    // MARK: FILTER (lát 19)
+
+    /// A1:B4 dữ liệu, D1:D4 cờ lọc.
+    private func filterEngine() -> FormulaEngine {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        for (i, v) in [(10.0, "a"), (20.0, "b"), (30.0, "c"), (40.0, "d")].enumerated() {
+            e.setValue(.number(v.0), sheet: "Data", at: "A\(i + 1)")
+            e.setValue(.string(v.1), sheet: "Data", at: "B\(i + 1)")
+        }
+        for (i, f) in [true, false, true, false].enumerated() {
+            e.setValue(.bool(f), sheet: "Data", at: "D\(i + 1)")
+        }
+        return e
+    }
+
+    func testFilterRowsByBooleanColumn() {
+        let e = filterEngine()
+        XCTAssertEqual(cse(e, "=FILTER(A1:B4,D1:D4)", "F1:G2"),
+                       [.number(10), .string("a"), .number(30), .string("c")])
+    }
+
+    func testFilterNoMatchIsCalcError() {
+        let e = filterEngine()
+        for i in 1...4 { e.setValue(.bool(false), sheet: "Data", at: "D\(i)") }
+        XCTAssertEqual(calc(e, "=FILTER(A1:B4,D1:D4)"), .error("#CALC!"),
+                       "không còn hàng nào và không có nếu_rỗng")
+    }
+
+    func testFilterNoMatchUsesIfEmpty() {
+        let e = filterEngine()
+        for i in 1...4 { e.setValue(.bool(false), sheet: "Data", at: "D\(i)") }
+        XCTAssertEqual(calc(e, "=FILTER(A1:B4,D1:D4,\"none\")"), .string("none"))
+    }
+
+    func testFilterColumnsByBooleanRow() {
+        let e = filterEngine()
+        e.setValue(.bool(true), sheet: "Data", at: "E1")
+        e.setValue(.bool(false), sheet: "Data", at: "F1")
+        XCTAssertEqual(cse(e, "=FILTER(A1:B2,E1:F1)", "H1:H2"),
+                       [.number(10), .number(20)],
+                       "bao_gồm là hàng logic → giữ cột A (10, 20)")
+    }
+
+    func testFilterNonBooleanIncludeIsValueError() {
+        let e = filterEngine()
+        e.setValue(.number(1), sheet: "Data", at: "D1")
+        XCTAssertEqual(calc(e, "=FILTER(A1:B4,D1:D4)"), .error("#VALUE!"))
+    }
+
+    func testFilterWrongShapeIncludeIsValueError() {
+        let e = filterEngine()
+        XCTAssertEqual(calc(e, "=FILTER(A1:B4,D1:D3)"), .error("#VALUE!"),
+                       "bao_gồm 3 hàng, mảng 4 hàng")
+        XCTAssertEqual(calc(e, "=FILTER(A1:B4,D1:E4)"), .error("#VALUE!"),
+                       "bao_gồm 2D cùng hình nhưng không phải 1 hàng/1 cột")
+    }
+
+    func testFilterErrorIncludePropagates() {
+        let e = filterEngine()
+        e.setFormula("=1/0", sheet: "Data", at: "D1")
+        XCTAssertEqual(calc(e, "=FILTER(A1:B4,D1:D4)"), .error("#DIV/0!"))
+    }
+
+    func testFilterKeepsErrorCells() {
+        let e = filterEngine()
+        e.setFormula("=1/0", sheet: "Data", at: "A1")
+        XCTAssertEqual(cse(e, "=FILTER(A1:B2,D1:D2)", "F1:G1"),
+                       [.error("#DIV/0!"), .string("a")],
+                       "ô lỗi trong mảng lọc đi qua nguyên vẹn")
+    }
+
+    func testFilterInsideSum() {
+        XCTAssertEqual(calc(filterEngine(), "=SUM(FILTER(A1:A4,D1:D4))"), .number(40), "10+30")
+    }
+
+    // MARK: UNIQUE (lát 19)
+
+    func testUniqueRowsKeepsFirstOccurrence() {
+        let e = gridEngine()
+        XCTAssertEqual(cse(e, "=UNIQUE(A1:C4)", "E1:G3"),
+                       [.number(3), .string("b"), .bool(true),
+                        .number(1), .string("a"), .bool(false),
+                        .number(2), .string("c"), .bool(true)],
+                       "hàng 3 trùng hàng 1 nên bị bỏ")
+    }
+
+    func testUniqueExactlyOnce() {
+        let e = gridEngine()
+        XCTAssertEqual(cse(e, "=UNIQUE(A1:C4,FALSE,TRUE)", "E1:G2"),
+                       [.number(1), .string("a"), .bool(false),
+                        .number(2), .string("c"), .bool(true)],
+                       "chỉ giữ hàng xuất hiện đúng một lần")
+    }
+
+    func testUniqueByColumn() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        for (k, v) in ["A1": 1.0, "B1": 2.0, "C1": 1.0] {
+            e.setValue(.number(v), sheet: "Data", at: k)
+        }
+        for (k, v) in ["A2": "x", "B2": "y", "C2": "x"] {
+            e.setValue(.string(v), sheet: "Data", at: k)
+        }
+        XCTAssertEqual(cse(e, "=UNIQUE(A1:C2,TRUE)", "E1:F2"),
+                       [.number(1), .number(2), .string("x"), .string("y")],
+                       "cột 3 trùng cột 1 nên bị bỏ (đọc theo hàng: 1,2 / x,y)")
+    }
+
+    func testUniqueTextCaseInsensitive() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        for (i, v) in ["An", "an", "Binh"].enumerated() {
+            e.setValue(.string(v), sheet: "Data", at: "A\(i + 1)")
+        }
+        XCTAssertEqual(cse(e, "=UNIQUE(A1:A3)", "C1:C2"),
+                       [.string("An"), .string("Binh")],
+                       "\"an\" trùng \"An\"")
+    }
+
+    func testUniqueNumbersAndEmpty() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        e.setValue(.number(1), sheet: "Data", at: "A2")
+        e.setValue(.number(0), sheet: "Data", at: "A4")
+        XCTAssertEqual(cse(e, "=UNIQUE(A1:A4)", "C1:C3"),
+                       [.empty, .number(1), .number(0)],
+                       "rỗng trùng rỗng; 0 khác rỗng nên giữ lại")
+        let e2 = FormulaEngine()
+        e2.addSheet("Data")
+        e2.setValue(.number(0), sheet: "Data", at: "A1")
+        e2.setValue(.number(-0.0), sheet: "Data", at: "A2")
+        e2.setValue(.number(1), sheet: "Data", at: "A3")
+        XCTAssertEqual(cse(e2, "=UNIQUE(A1:A3)", "C1:C2"),
+                       [.number(0), .number(1)], "-0 trùng 0")
+    }
+
+    func testUniqueBadArgsAreValueError() {
+        let e = gridEngine()
+        XCTAssertEqual(calc(e, "=UNIQUE(A1:C4,1,2,3)"), .error("#VALUE!"), "thừa đối số")
+        XCTAssertEqual(calc(e, "=UNIQUE(A1:C4,\"x\")"), .error("#VALUE!"), "theo_cột không phải logic")
+    }
+
+    // MARK: Kết hợp (lát 19)
+
+    func testSortOfUnique() {
+        let e = gridEngine()
+        XCTAssertEqual(cse(e, "=SORT(UNIQUE(A1:C4))", "E1:G3"),
+                       [.number(1), .string("a"), .bool(false),
+                        .number(2), .string("c"), .bool(true),
+                        .number(3), .string("b"), .bool(true)])
+    }
+
+    func testFilterOfSort() {
+        let e = filterEngine()
+        XCTAssertEqual(cse(e, "=FILTER(SORT(A1:B4,1,-1),D1:D4)", "F1:G2"),
+                       [.number(40), .string("d"), .number(20), .string("b")],
+                       "sắp giảm dần (40,30,20,10) rồi lọc theo cờ D1:D4: giữ vị trí 1 và 3")
     }
 }
