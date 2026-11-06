@@ -5,6 +5,8 @@ Behaviour is moved verbatim from the non-Windows branches of main.py (_user_data
 
 from __future__ import annotations
 
+import errno
+import logging
 import os
 import shutil
 import sys
@@ -62,5 +64,33 @@ class PortableLauncher:
         return ServiceResult.fail("not_supported", "Hệ điều hành này chưa hỗ trợ mở thư mục chứa tệp.")
 
 
+# The filesystem does not implement the request. Everything else (EIO, ENOSPC, EDQUOT, ...) is a real write failure.
+_FLUSH_REFUSED_ERRNOS = frozenset({errno.EINVAL, errno.ENOTSUP, errno.EOPNOTSUPP, errno.ENOSYS})
+# Opening or syncing a directory is also refused for plain permission reasons on some mounts.
+_DIRECTORY_FLUSH_REFUSED_ERRNOS = _FLUSH_REFUSED_ERRNOS | {errno.EACCES, errno.EPERM, errno.EBADF, errno.EISDIR}
+
+
+class PortableDurableFiles:
+    def flush_file(self, fd: int) -> None:
+        try:
+            os.fsync(fd)
+        except OSError as exc:
+            if exc.errno not in _FLUSH_REFUSED_ERRNOS:
+                raise
+            logging.getLogger("vnoffice.save").info("File flush refused by the filesystem: errno %s", exc.errno)
+
+    def flush_directory(self, path: Path) -> None:
+        try:
+            fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        except OSError as exc:
+            if exc.errno not in _DIRECTORY_FLUSH_REFUSED_ERRNOS:
+                raise
+            logging.getLogger("vnoffice.save").info("Directory flush refused by the filesystem: errno %s", exc.errno)
+
+
 def build_services() -> OSServices:
-    return OSServices(data_dirs=PortableDataDirs(), launcher=PortableLauncher())
+    return OSServices(data_dirs=PortableDataDirs(), launcher=PortableLauncher(), durable_files=PortableDurableFiles())

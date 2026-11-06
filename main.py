@@ -3129,9 +3129,32 @@ def _print_pdf_job(app_kind: str, pdf_path: str, printer: str, copies: int, page
     )
 
 
+def _durable_files():
+    services = _os_services()
+    return getattr(services, "durable_files", None) if services is not None else None
+
+
+def _write_durable_copy(src_path: str, staging_path: str) -> None:
+    """Copy src to staging and force it to disk, so a replace can never publish a partial or empty file."""
+    with open(src_path, "rb") as source, open(staging_path, "wb") as staging:
+        shutil.copyfileobj(source, staging, 1024 * 1024)
+        staging.flush()
+        durable = _durable_files()
+        if durable is not None:
+            durable.flush_file(staging.fileno())
+        else:
+            os.fsync(staging.fileno())
+        staged_bytes = os.fstat(staging.fileno()).st_size
+        source_bytes = os.fstat(source.fileno()).st_size
+    if staged_bytes <= 0 or staged_bytes != source_bytes:
+        raise DocumentEngineError("Không thể ghi tệp vào đĩa: bản ghi tạm không đầy đủ. Tệp gốc chưa bị thay đổi.")
+
+
 def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
     """Thay thế nguyên tử tệp đích bằng tệp tạm đã được tạo và hậu kỳ thành công.
     Nếu có lỗi xảy ra trong quá trình convert hoặc ghi đè, tệp gốc không bị ảnh hưởng.
+    Bản tạm được đẩy xuống đĩa trước khi thay thế; thư mục cha được đẩy xuống đĩa sau đó
+    (hệ thống tệp từ chối thao tác này thì bỏ qua, lỗi ghi thật vẫn được báo).
     """
     dest = Path(dest_path).resolve()
 
@@ -3151,9 +3174,12 @@ def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
         staging_path = dest.parent / staging_name
         staging_file = str(staging_path)
 
-        shutil.copyfile(src_temp_file, staging_file)
+        _write_durable_copy(src_temp_file, staging_file)
         os.replace(staging_file, str(dest))
         staging_file = None
+        durable = _durable_files()
+        if durable is not None:
+            durable.flush_directory(dest.parent)
     except PermissionError as exc:
         raise DocumentEngineError(
             f"Không thể ghi đè tệp: tệp đang được mở bởi ứng dụng khác hoặc bị khóa ({exc}). "
