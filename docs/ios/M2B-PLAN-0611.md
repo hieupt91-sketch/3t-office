@@ -1,6 +1,6 @@
 # M2b — Kế hoạch cổng (plan gate): mô hình lười cho sheet + sharedStrings
 
-Ngày: 06/11/2026 · Nhánh: `muse/m2b-0611` (từ `vn-main` `ac38df8c`) · Trạng thái: **kế hoạch, chưa code**
+Ngày: 06/11/2026 · Nhánh: `muse/m2b-0611` (từ `vn-main` `ac38df8c`) · Trạng thái: **A1 xong (06/11, lát `LazySharedStrings` + test, chưa nối vào `Workbook` — nối ở A2)**
 Nguồn chỉ đạo: INBOX-MAC #15 (M2b DUYỆT), #16 (thứ tự M7 → M2b → Q77B; Mac chỉ bật lưu khi Q77B + M2b), #17 (thứ tự M7), issue #10 (comment Windows 05/11).
 Cổng plan (AGENTS.md §6): thay đổi document model + đường mở/lưu → phải có kế hoạch trước khi code.
 
