@@ -3,6 +3,7 @@ import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js
 import { saveInPlaceCheckingExternalChange } from "../../adapters/libreoffice/common/save-conflict.js";
 import { showExternalChangeDialog } from "../../platform/ui-kit/dialogs.js";
 import { setLocale, getLocale, t } from "../../platform/i18n/i18n.js";
+import { getHelpEntryById } from "../../platform/help/help-catalog.js";
 
 const CONFLICT = { status: "external_change", path: "C:\\docs\\Báo cáo.docx", fingerprint: "11:22", message: "x" };
 
@@ -91,6 +92,16 @@ async function checkAll() {
 
   // No DOM (headless): the safe answer is cancel, never overwrite.
   assert.equal(await showExternalChangeDialog({ fileName: "a.docx" }), "cancel");
+
+  for (const app of ["writer", "sheet", "slides"]) {
+    const conflict = getHelpEntryById(`${app}.file.externalChange`);
+    const backup = getHelpEntryById(`${app}.file.saveBackup`);
+    assert.ok(conflict && backup, `${app}: help entries are registered`);
+    assert.equal(conflict.app, app);
+    const text = conflict.steps.join(" ");
+    for (const label of ["Lưu bản sao", "Ghi đè", "Hủy", "Esc"]) assert.ok(text.includes(label), `${app}: help names ${label}`);
+    assert.ok(backup.steps.join(" ").includes("save-backups"), `${app}: help gives the backup folder`);
+  }
 
   const previous = getLocale();
   try {

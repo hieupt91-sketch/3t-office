@@ -10,6 +10,8 @@ const profile = process.env.VNO_CDP_LOCALAPPDATA;
 if (!work || !profile) throw new Error("Cần thư mục làm việc và VNO_CDP_LOCALAPPDATA.");
 rmSync(work, { recursive: true, force: true });
 rmSync(path.join(profile, "VNOffice", "save-backups"), { recursive: true, force: true });
+// Bản khôi phục của lần chạy trước sẽ che hộp thoại cần chụp.
+rmSync(path.join(profile, "VNOffice", "recovery"), { recursive: true, force: true });
 mkdirSync(work, { recursive: true });
 const stub = path.join(work, "dialog-stub.json");
 process.env.VNO_CDP_FILE_DIALOG_STUB = stub;
@@ -206,6 +208,19 @@ try {
   await waitNoDialog(cdp);
   await cdp.evaluate(`import('/platform/i18n/i18n.js').then(m => m.setLocale('vi'))`, { awaitPromise: true });
   await cdp.evaluate(`window.__vnoAppInstance.adapter.isDirty = false`);
+
+  // Trợ giúp: F1, tìm theo tên hộp thoại, mở đúng bài.
+  await press(cdp, "F1", {}, 800);
+  await cdp.waitFor(`!!document.querySelector('.vno-help-search')`, { timeoutMilliseconds: 30000 });
+  await cdp.evaluate(`(() => { const input = document.querySelector('.vno-help-search'); input.value = 'tệp đã bị thay đổi'; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await sleep(800);
+  const helpList = await cdp.evaluate(`document.querySelector('.vno-help-list')?.textContent || ''`);
+  check("Trợ giúp: tìm thấy bài về hộp thoại", helpList.includes("Tệp đã bị thay đổi"), helpList.slice(0, 120));
+  await cdp.evaluate(`[...document.querySelectorAll('.vno-help-list button, .vno-help-list [role=option]')].find(item => item.textContent.includes('Tệp đã bị thay đổi'))?.click()`);
+  await sleep(500);
+  const helpArticle = await cdp.evaluate(`document.querySelector('.vno-help-article-content')?.textContent || ''`);
+  check("Trợ giúp: bài có đủ 3 lựa chọn", ["Lưu bản sao", "Ghi đè", "Hủy"].every(label => helpArticle.includes(label)));
+  await shoot(cdp, "writer-help-external-change-1366x768");
   await session.close();
 
   // 9. Sheet và Slide đi cùng một luồng.
