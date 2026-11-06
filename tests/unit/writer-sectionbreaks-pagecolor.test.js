@@ -305,5 +305,80 @@ export async function runWriterSectionBreaksPageColorTests() {
     assert(adapter.sectionPageSetups["section-1"]?.columns?.count === 3, "sectionPageSetups section-1 phải có 3 cột");
   });
 
+  await test("Writer Section Break: 1 ngắt continuous không tăng pageCount; 1 ngắt nextPage tăng 1", () => {
+    const adapter = new WriterAdapter(null);
+    adapter.pageSetup = {
+      size: "letter", orientation: "portrait",
+      margins: { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 },
+      headerDistanceMm: 12.7, footerDistanceMm: 12.7
+    };
+    adapter.headerDom = { innerText: "", offsetHeight: 0 };
+    adapter.footerDom = { innerText: "", offsetHeight: 0 };
+    adapter._getUsablePageHeight = () => 600;
+
+    const mkEl = (tag, top, h, isBreak = false, breakType = "nextPage") => {
+      const el = {
+        tagName: tag, offsetTop: top, offsetHeight: h,
+        textContent: isBreak ? `--- Ngắt mục (${breakType}) ---` : "Nội dung đoạn văn",
+        children: [],
+        getBoundingClientRect: () => ({ top, height: h }),
+        getAttribute: (attr) => {
+          if (attr === "data-vno-section-break") return isBreak ? breakType : "";
+          if (attr === "data-vno-section-id") return isBreak ? "section-2" : "";
+          return "";
+        },
+        classList: { contains: (cls) => cls === "vno-section-break" && isBreak },
+        querySelectorAll: () => [],
+        parentNode: null
+      };
+      return el;
+    };
+
+    const origDoc = globalThis.document;
+    const origWin = globalThis.window;
+    const gaps1 = [];
+    const gaps2 = [];
+    globalThis.document = {
+      createElement: () => ({ setAttribute() {}, className: "", appendChild() {} })
+    };
+    globalThis.window = { getComputedStyle: () => ({ marginTop: "0" }) };
+
+    try {
+      adapter._alignPageRelativeFloats = () => {};
+
+      // Case 1: Đoạn 1 + Ngắt continuous + Đoạn 2 (tổng chiều cao vừa 1 trang)
+      const p1 = mkEl("P", 0, 100);
+      const contBreak = mkEl("DIV", 100, 24, true, "continuous");
+      const p2 = mkEl("P", 124, 100);
+      const body1 = {
+        style: {}, children: [p1, contBreak, p2], querySelectorAll: () => [],
+        insertBefore: (gap) => gaps1.push(gap), dispatchEvent: () => {},
+        getBoundingClientRect: () => ({ top: 0 }), scrollTop: 0
+      };
+      p1.parentNode = body1; contBreak.parentNode = body1; p2.parentNode = body1;
+      adapter.bodyDom = body1;
+      adapter._recomputeLivePagination();
+      assert(adapter._livePageCount === 1, `1 ngắt continuous không được tăng pageCount (thực tế: ${adapter._livePageCount})`);
+      assert(gaps1.length === 0, `1 ngắt continuous không được chèn khoảng ngắt trang (thực tế: ${gaps1.length})`);
+
+      // Case 2: Đoạn 1 + Ngắt nextPage + Đoạn 2
+      const nextBreak = mkEl("DIV", 100, 24, true, "nextPage");
+      const p3 = mkEl("P", 124, 100);
+      const body2 = {
+        style: {}, children: [p1, nextBreak, p3], querySelectorAll: () => [],
+        insertBefore: (gap) => gaps2.push(gap), dispatchEvent: () => {},
+        getBoundingClientRect: () => ({ top: 0 }), scrollTop: 0
+      };
+      p1.parentNode = body2; nextBreak.parentNode = body2; p3.parentNode = body2;
+      adapter.bodyDom = body2;
+      adapter._recomputeLivePagination();
+      assert(adapter._livePageCount === 2, `1 ngắt nextPage phải tăng pageCount lên 2 (thực tế: ${adapter._livePageCount})`);
+      assert(gaps2.length === 1, `1 ngắt nextPage phải chèn đúng 1 khoảng ngắt trang (thực tế: ${gaps2.length})`);
+    } finally {
+      globalThis.document = origDoc;
+      globalThis.window = origWin;
+    }
+  });
+
   return results;
 }
