@@ -1384,6 +1384,15 @@ class DocumentEngineError(Exception):
     pass
 
 
+class ExternalFileChangeError(DocumentEngineError):
+    """The file on disk is no longer the version this window opened or last saved."""
+
+    def __init__(self, path: str, fingerprint: str):
+        super().__init__("Tệp đã được thay đổi bên ngoài 3T Office kể từ lần mở hoặc lưu gần nhất.")
+        self.path = path
+        self.fingerprint = fingerprint
+
+
 _CSV_DELIMITER_CODES = {",": 44, ";": 59, "\t": 9}
 _CSV_UTF8_CODE = 76
 _CSV_CP1258_CODE = 40
@@ -3130,6 +3139,15 @@ def _print_pdf_job(app_kind: str, pdf_path: str, printer: str, copies: int, page
     )
 
 
+def _file_fingerprint(path: str) -> str | None:
+    """mtime+size of a file as one opaque string (nanoseconds do not survive a JavaScript number)."""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+    return f"{stat.st_mtime_ns}:{stat.st_size}"
+
+
 def _durable_files():
     services = _os_services()
     return getattr(services, "durable_files", None) if services is not None else None
@@ -3718,6 +3736,8 @@ class VnOfficeApi:
         self._allow_window_close = False
         self._reporter = _ERROR_REPORTER
         self._current_file_path: str | None = None
+        # Version of each file this window last read or wrote; Save compares it with the disk.
+        self._disk_fingerprints: dict[str, str] = {}
         self._reporting_file_path: str | None = initial_file
         self._reporting_operation: str | None = None
         self._reporting_app_kind = app_kind if app_kind in VALID_APP_KINDS else None
@@ -4514,6 +4534,29 @@ class VnOfficeApi:
             content, app_kind, target_format, suggested_name, source_path,
         )
 
+    def acknowledge_external_change(self, target_path, fingerprint):
+        """The user chose to overwrite: accept exactly the on-disk version shown in the dialog, and no later one."""
+        if not isinstance(target_path, str) or not target_path or not isinstance(fingerprint, str) or not fingerprint:
+            return {"status": "error", "message": "Đường dẫn tệp không hợp lệ."}
+        self._disk_fingerprints[self._fingerprint_key(target_path)] = fingerprint
+        return {"status": "ok"}
+
+    @staticmethod
+    def _fingerprint_key(path: str) -> str:
+        return os.path.normcase(os.path.abspath(str(path)))
+
+    def _record_disk_fingerprint(self, path: str, fingerprint: str | None = None) -> None:
+        current = fingerprint or _file_fingerprint(path)
+        if current:
+            self._disk_fingerprints[self._fingerprint_key(path)] = current
+
+    def _raise_if_changed_on_disk(self, path: str) -> None:
+        """No record (never opened here) or no file (deleted, unreachable) means there is nothing to overwrite silently."""
+        recorded = self._disk_fingerprints.get(self._fingerprint_key(path))
+        current = _file_fingerprint(path)
+        if recorded and current and current != recorded:
+            raise ExternalFileChangeError(path, current)
+
     def set_document_password(self, password):
         """Keep the active document password in process memory only."""
         if password is not None and (not isinstance(password, str) or len(password) > 255):
@@ -5203,6 +5246,8 @@ class VnOfficeApi:
 
         self._reporting_file_path = src_path
         self._reporting_operation = f"open.{Path(src_path).suffix.lower().lstrip('.') or 'unknown'}"
+        # Taken before the read: a change made while the file loads must count as a change.
+        opened_fingerprint = _file_fingerprint(src_path)
         if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
             _notify_sheet_open_progress("Đã chọn tệp. Đang chuẩn bị mở bảng tính lớn…", True, self)
 
@@ -5466,6 +5511,7 @@ class VnOfficeApi:
         else:
             payload["content"] = content
         self._current_file_path = src_path
+        self._record_disk_fingerprint(src_path, opened_fingerprint)
         if app_kind == "writer":
             ooxml = (
                 writer_ooxml_metadata["ooxmlDocumentXml"]
@@ -5723,7 +5769,13 @@ class VnOfficeApi:
             except OSError:
                 pass
 
+        def before_replace(dest):
+            # Checked again here: conversion can take a long time on a large document.
+            self._raise_if_changed_on_disk(target_path)
+            _keep_save_backup(dest, self._document_password)
+
         try:
+            self._raise_if_changed_on_disk(target_path)
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
                 stage_started = time.perf_counter()
                 build_format = _template_build_format(target_format)
@@ -5742,10 +5794,7 @@ class VnOfficeApi:
                 if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
                     _run_ooxml_shadow(target_format, source_path, out_path)
                 stage_started = time.perf_counter()
-                _atomic_replace_file(
-                    out_path, target_path,
-                    before_replace=lambda dest: _keep_save_backup(dest, self._document_password),
-                )
+                _atomic_replace_file(out_path, target_path, before_replace=before_replace)
                 if audit_timings is not None:
                     audit_timings["atomicReplaceMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
                 stage_started = time.perf_counter()
@@ -5753,6 +5802,9 @@ class VnOfficeApi:
                 if audit_timings is not None:
                     audit_timings["verifyMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
                     audit_timings["outputBytes"] = os.path.getsize(target_path)
+        except ExternalFileChangeError as exc:
+            write_audit_timings("EXTERNAL_CHANGE")
+            return {"status": "external_change", "message": str(exc), "path": exc.path, "fingerprint": exc.fingerprint}
         except DocumentEngineError as exc:
             write_audit_timings("FAIL")
             return {"status": "error", "message": str(exc)}
@@ -5762,6 +5814,7 @@ class VnOfficeApi:
 
         write_audit_timings("PASS")
         self._current_file_path = target_path
+        self._record_disk_fingerprint(target_path)
         result = {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
         if audit_timings is not None:
             result["timings"] = audit_timings
@@ -5894,6 +5947,7 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
         self._current_file_path = dest_path
+        self._record_disk_fingerprint(dest_path)
         response = {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
         if target_format == "pdf":
             response["engine"] = pdf_engine or "LibreOffice"

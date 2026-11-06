@@ -4,6 +4,7 @@
  */
 
 import { runCommandBusTests } from "./unit/command-bus.test.js";
+import { runSaveExternalChangeTests } from "./unit/save-external-change.test.js";
 import { runWriterInteractiveRulerTests } from "./unit/writer-interactive-ruler.test.js";
 import { runWriterNavigationPaneTests } from "./unit/writer-nav-pane.test.js";
 import { runNumericDialogValidationTests } from "./unit/numeric-dialog-validation.test.js";
@@ -669,7 +670,8 @@ async function runAll() {
     { title: "273. Unit Tests — Writer Selection Pane, Group/Ungroup, Split Window, Table Styles, Table Formula (Word 2016 Parity Round 2)", runner: runWriterWord2016Parity2Tests },
     { title: "274. Unit Tests — FIX-SLIDES-2510 (D1 mở lại PPTX vẽ hai lần, D7 dấu đầu dòng, D8 chữ trong hình)", runner: runSlidesFix2510Tests },
     { title: "274. Unit Tests — Document Font Stacks & Calibri→Carlito Substitutes (FIX-D6-2510)", runner: runDocumentFontStackTests },
-    { title: "275. Unit Tests — SLIDES-2-3110 (a thanh nhấn sau mở lại, b vừa vùng nhìn, c hình dựng sẵn ở hình thu nhỏ/trình chiếu, d chữ hình căn giữa khi lưu)", runner: runSlides23110Tests }
+    { title: "275. Unit Tests — SLIDES-2-3110 (a thanh nhấn sau mở lại, b vừa vùng nhìn, c hình dựng sẵn ở hình thu nhỏ/trình chiếu, d chữ hình căn giữa khi lưu)", runner: runSlides23110Tests },
+    { title: "276. Unit Tests — Tệp bị thay đổi từ bên ngoài khi lưu (S1)", runner: runSaveExternalChangeTests }
   ];
 
   for (const suite of suites) {

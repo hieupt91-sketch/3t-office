@@ -4,6 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { saveInPlaceCheckingExternalChange } from "../common/save-conflict.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog, showHyperlinkDialog } from "../../../platform/ui-kit/dialogs.js";
 import { bindNumericDialogValidation } from "../../../platform/ui-kit/numeric-dialog-validation.js";
 import { createMatcher, nodeMatchesFormat } from "../../../platform/find/find-engine.js";
@@ -18702,13 +18703,15 @@ export class WriterAdapter {
     }
 
     this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
-    const result = await globalUnoBridge.saveRealFileInPlace(
+    const result = await saveInPlaceCheckingExternalChange(
       "writer",
       this._contentForExport(),
       this._sourcePath,
-      this._sourcePath
+      this._sourcePath,
+      () => this.saveAs()
     );
 
+    if (result.status === "saved_copy") return true;
     if (result.status === "ok") {
       if (this.isDirty) { this._wordCountSourceText = null; this._wordCountSourceTextInvalidated = true; }
       this.isDirty = false;
