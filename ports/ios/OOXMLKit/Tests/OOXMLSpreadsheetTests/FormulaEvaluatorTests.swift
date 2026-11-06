@@ -161,6 +161,81 @@ final class FormulaEvaluatorTests: XCTestCase {
         XCTAssertEqual(calc("WORKDAY(DATE(2024,1,1),\"x\")"), err("#VALUE!"), "days không phải số")
     }
 
+    func testFinancialPmtFvPvNpvIrrRateNperIpmtPpmt() {
+        // M7 lát 23: hàm tài chính. Giá trị đối chiếu tính độc lập bằng Python
+        // (cùng công thức Excel); sai số cho phép 0,005 (tiền) / 1e-5 (lãi suất).
+        func fin(_ formula: String, _ expected: Double, tol: Double = 0.005, cells: [String: CellValue] = [:], msg: String = "", _ file: StaticString = #filePath, _ line: UInt = #line) {
+            let v = calc(formula, cells)
+            guard case .number(let d) = v else {
+                XCTFail("\(formula) trả \(v), mong số ≈ \(expected) \(msg)", file: file, line: line)
+                return
+            }
+            XCTAssertEqual(d, expected, accuracy: tol, "\(formula) \(msg)", file: file, line: line)
+        }
+        let cash: [String: CellValue] = [
+            "A1": .number(100), "A2": .number(200), "A3": .number(300), "A4": .string("chữ"),
+            "B1": .number(-1000), "B2": .number(300), "B3": .number(400), "B4": .number(500),
+            "C1": .number(-100), "C2": .number(110),
+            "D1": .number(-100), "D2": .number(39), "D3": .number(59), "D4": .number(55), "D5": .number(20),
+            "E1": .number(100), "E2": .number(200),
+        ]
+        // PMT — trả góp 10.000 trong 12 tháng, 8%/năm
+        fin("PMT(0.08/12,12,10000)", -869.88)
+        fin("PMT(0.1,10,100000)", -16274.54)
+        fin("PMT(0,10,1000)", -100)
+        fin("PMT(0.1,10,100000,0,1)", -14795.04, msg: "type = 1: trả đầu kỳ")
+        fin("PMT(0.1,10,1000,0,)", -162.75, msg: "type trống -> 0")
+        XCTAssertEqual(calc("PMT(0.1,0,1000)"), err("#NUM!"), "nper = 0")
+        XCTAssertEqual(calc("PMT(-1,10,1000)"), err("#NUM!"), "rate = -1")
+        XCTAssertEqual(calc("PMT(0.1,10,1000,0,2)"), err("#NUM!"), "type ngoài miền")
+        XCTAssertEqual(calc("PMT(\"x\",10,1000)"), err("#VALUE!"), "rate không phải số")
+        // FV
+        fin("FV(0.05,10,-100,-1000)", 2886.68)
+        fin("FV(0,10,-100)", 1000)
+        fin("FV(0.05,10,-100)", 1257.79, "pv mặc định 0")
+        XCTAssertEqual(calc("FV(-1,10,-100)"), err("#NUM!"), "rate = -1")
+        // PV
+        fin("PV(0.08,20,-1000)", 9818.15)
+        fin("PV(0,10,-100)", 1000)
+        fin("PV(0.1,10,-16274.54)", 100000, tol: 0.05, msg: "nghịch đảo PMT (PMT đã làm tròn 2 chữ số)")
+        // NPV
+        fin("NPV(0.1,100,200,300)", 481.59)
+        fin("NPV(0.1,A1:A3)", 481.59, cells: cash, msg: "vùng")
+        fin("NPV(0.1,A1:A4)", 481.59, cells: cash, msg: "chữ trong vùng bị bỏ qua")
+        fin("NPV(0.1,-1000,300,400,500)", -19.12)
+        XCTAssertEqual(calc("NPV(-1,100)"), err("#DIV/0!"), "rate = -1")
+        XCTAssertEqual(calc("NPV(0.1,\"x\")"), err("#VALUE!"), "giá trị trực tiếp không phải số")
+        // IRR
+        fin("IRR(B1:B4)", 0.088963, tol: 0.00001, cells: cash)
+        fin("IRR(B1:B4,0.5)", 0.088963, tol: 0.00001, cells: cash, msg: "guess khác vẫn cùng nghiệm")
+        fin("IRR(C1:C2)", 0.1, tol: 0.000001, cells: cash, msg: "IRR(-100,110) = 10%")
+        fin("IRR(D1:D5)", 0.280948, tol: 0.00001, cells: cash)
+        XCTAssertEqual(calc("IRR(E1:E2)", cash), err("#NUM!"), "toàn dương: không có nghiệm")
+        XCTAssertEqual(calc("IRR(B1)", cash), err("#NUM!"), "một giá trị")
+        // RATE
+        fin("RATE(12,-100,1000)", 0.029229, tol: 0.00001)
+        fin("RATE(10,-16274.54,100000)", 0.1, tol: 0.00001, msg: "nghịch đảo PMT")
+        fin("RATE(12,-100,1000,0,0,0.5)", 0.029229, tol: 0.00001, msg: "guess khác vẫn cùng nghiệm")
+        XCTAssertEqual(calc("RATE(0,-100,1000)"), err("#NUM!"), "nper = 0")
+        // NPER
+        fin("NPER(0.1,-200,1000)", 7.27)
+        fin("NPER(0,-100,1000)", 10)
+        fin("NPER(0.05/12,-200,10000)", 56.18)
+        XCTAssertEqual(calc("NPER(0.1,-100,1000)"), err("#NUM!"), "trả đúng bằng lãi: không bao giờ hết nợ")
+        XCTAssertEqual(calc("NPER(0,0,1000)"), err("#NUM!"), "rate = 0, pmt = 0")
+        // IPMT / PPMT — khoản vay 1.000, 10%/năm, 3 kỳ: PMT = -402,11
+        fin("IPMT(0.1,1,3,1000)", -100)
+        fin("IPMT(0.1,2,3,1000)", -69.79)
+        fin("IPMT(0.1,3,3,1000)", -36.56)
+        fin("IPMT(0,1,3,1000)", 0, msg: "rate = 0: không có lãi")
+        XCTAssertEqual(calc("IPMT(0.1,0,3,1000)"), err("#NUM!"), "per = 0")
+        XCTAssertEqual(calc("IPMT(0.1,4,3,1000)"), err("#NUM!"), "per > nper")
+        fin("PPMT(0.1,1,3,1000)", -302.11)
+        fin("PPMT(0.1,2,3,1000)", -332.33)
+        fin("PPMT(0.1,3,3,1000)", -365.56)
+        fin("PPMT(0.1,2,3,1000)+IPMT(0.1,2,3,1000)", -402.11, msg: "gốc + lãi = PMT")
+    }
+
     func testEmptyArguments() {
         XCTAssertEqual(calc("SUM(1,,2)"), .number(3), "tham số trống ở giữa bị bỏ qua như Excel")
         XCTAssertEqual(calc("SUM(,1,2)"), .number(3), "tham số trống ở đầu")

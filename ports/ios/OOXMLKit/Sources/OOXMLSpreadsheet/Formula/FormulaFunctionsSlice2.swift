@@ -138,6 +138,16 @@ extension FormulaEvaluator {
         case "SUMPRODUCT": return try sumproduct(a)
         case "SUMIFS": return try sumifs(a)
         case "COUNTIFS": return try countifs(a)
+        // Tài chính
+        case "PMT": return try pmt(a)
+        case "FV": return try fv(a)
+        case "PV": return try pv(a)
+        case "NPV": return try npv(a)
+        case "IRR": return try irr(a)
+        case "RATE": return try rateFn(a)
+        case "NPER": return try nperFn(a)
+        case "IPMT": return try ipmt(a)
+        case "PPMT": return try ppmt(a)
         // Logic
         case "IFERROR", "IFNA": return try ifError(onlyNA: name == "IFNA", a)
         case "IFS": return try ifs(a)
@@ -1538,6 +1548,264 @@ extension FormulaEvaluator {
     }
 
     // MARK: Logic
+
+    // MARK: Tài chính (M7 lát 23: PMT/FV/PV/NPV/IRR/RATE/NPER/IPMT/PPMT)
+
+    /// Đối số số tùy chọn: thiếu hoặc rỗng → mặc định.
+    private func optNum(_ a: [FormulaExpr], _ i: Int, _ def: Double) throws -> Double {
+        guard i < a.count else { return def }
+        let v = try sc(a[i])
+        if v == .empty { return def }
+        guard let d = number(v) else { throw fail(FormulaErrors.value) }
+        return d
+    }
+
+    /// type: 0 cuối kỳ (mặc định), 1 đầu kỳ; khác → #NUM!.
+    private func payType(_ a: [FormulaExpr], _ i: Int) throws -> Double {
+        let t = try optNum(a, i, 0)
+        guard t == 0 || t == 1 else { throw fail(FormulaErrors.num) }
+        return t
+    }
+
+    /// Lãi kép (1 + rate)^nper; rate ≤ -1 hoặc tràn → #NUM!.
+    private func growth(_ rate: Double, _ nper: Double) throws -> Double {
+        guard rate > -1 else { throw fail(FormulaErrors.num) }
+        let g = pow(1 + rate, nper)
+        guard g.isFinite, g > 0 else { throw fail(FormulaErrors.num) }
+        return g
+    }
+
+    /// PMT dạng số thuần (dùng chung cho IPMT/PPMT).
+    private func pmtValue(rate: Double, nper: Double, pv: Double, fv: Double, type: Double) throws -> Double {
+        if rate == 0 { return -(pv + fv) / nper }
+        let g = try growth(rate, nper)
+        return -(pv * g + fv) * rate / (g - 1) / (1 + rate * type)
+    }
+
+    /// PMT(rate, nper, pv, [fv], [type]): khoản trả định kỳ (âm = tiền ra).
+    /// nper = 0, rate ≤ -1 hoặc type ngoài {0, 1} → #NUM!.
+    private func pmt(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 3...5)
+        let rate = try nm(a[0]), nper = try nm(a[1]), pv = try nm(a[2])
+        let fv = try optNum(a, 3, 0), type = try payType(a, 4)
+        guard nper != 0 else { throw fail(FormulaErrors.num) }
+        let res = try pmtValue(rate: rate, nper: nper, pv: pv, fv: fv, type: type)
+        guard res.isFinite else { throw fail(FormulaErrors.num) }
+        return .number(res)
+    }
+
+    /// FV(rate, nper, pmt, [pv], [type]): giá trị tương lai.
+    private func fv(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 3...5)
+        let rate = try nm(a[0]), nper = try nm(a[1]), pmt = try nm(a[2])
+        let pv = try optNum(a, 3, 0), type = try payType(a, 4)
+        let res: Double
+        if rate == 0 {
+            res = -(pv + pmt * nper)
+        } else {
+            let g = try growth(rate, nper)
+            res = -(pv * g + pmt * (1 + rate * type) * (g - 1) / rate)
+        }
+        guard res.isFinite else { throw fail(FormulaErrors.num) }
+        return .number(res)
+    }
+
+    /// PV(rate, nper, pmt, [fv], [type]): giá trị hiện tại.
+    private func pv(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 3...5)
+        let rate = try nm(a[0]), nper = try nm(a[1]), pmt = try nm(a[2])
+        let fv = try optNum(a, 3, 0), type = try payType(a, 4)
+        let res: Double
+        if rate == 0 {
+            res = -(fv + pmt * nper)
+        } else {
+            let g = try growth(rate, nper)
+            res = -(fv + pmt * (1 + rate * type) * (g - 1) / rate) / g
+        }
+        guard res.isFinite else { throw fail(FormulaErrors.num) }
+        return .number(res)
+    }
+
+    /// NPV(rate, value1, [value2...]): chiết khấu từng giá trị về hiện tại, giá trị
+    /// đầu tiên chiết khấu 1 kỳ. Chữ/logic trong vùng bị bỏ qua (như SUM); đối số
+    /// trực tiếp không phải số → #VALUE!; rate = -1 → #DIV/0!.
+    private func npv(_ a: [FormulaExpr]) throws -> CellValue {
+        guard a.count >= 2 else { throw fail(FormulaErrors.value) }
+        let rate = try nm(a[0])
+        guard rate != -1 else { throw fail(FormulaErrors.div0) }
+        let vals = try orderStatsNumbers(Array(a.dropFirst()))
+        var sum = 0.0
+        for (i, v) in vals.enumerated() { sum += v / pow(1 + rate, Double(i + 1)) }
+        guard sum.isFinite else { throw fail(FormulaErrors.num) }
+        return .number(sum)
+    }
+
+    /// IRR(values, [guess]): lãi suất nội bộ — nghiệm NPV(r) = 0. Cần ít nhất một
+    /// giá trị âm và một dương; Newton từ guess, dự phòng chia đôi khi Newton không
+    /// hội tụ; không tìm được nghiệm → #NUM!.
+    private func irr(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...2)
+        let vals = try orderStatsNumbers([a[0]])
+        let guess = try optNum(a, 1, 0.1)
+        guard vals.count >= 2, vals.contains(where: { $0 > 0 }), vals.contains(where: { $0 < 0 }) else {
+            throw fail(FormulaErrors.num)
+        }
+        guard guess > -1 else { throw fail(FormulaErrors.num) }
+        func npvAt(_ r: Double) -> Double {
+            vals.enumerated().reduce(0) { $0 + $1.element / pow(1 + r, Double($1.offset)) }
+        }
+        func dNpvAt(_ r: Double) -> Double {
+            vals.enumerated().reduce(0) { $0 - Double($1.offset) * $1.element / pow(1 + r, Double($1.offset + 1)) }
+        }
+        var r = guess
+        for _ in 0..<100 {
+            let f = npvAt(r), d = dNpvAt(r)
+            guard f.isFinite, d.isFinite, d != 0 else { break }
+            let next = r - f / d
+            guard next.isFinite, next > -1 else { break }
+            if abs(next - r) < 1e-10 { return .number(next) }
+            r = next
+        }
+        var lo = -0.999999, hi = 10.0
+        var flo = npvAt(lo)
+        if !flo.isFinite { throw fail(FormulaErrors.num) }
+        if flo == 0 { return .number(lo) }
+        var prevR = lo, prevF = flo, step = lo
+        var bracket: (Double, Double)? = nil
+        while step < hi {
+            let nextR = min(step + 0.5, hi)
+            let f = npvAt(nextR)
+            if f.isFinite {
+                if f == 0 { return .number(nextR) }
+                if prevF * f < 0 { bracket = (prevR, nextR); break }
+                prevR = nextR; prevF = f
+            }
+            step = nextR
+        }
+        guard let (a0, b0) = bracket else { throw fail(FormulaErrors.num) }
+        var x0 = a0, x1 = b0, f0 = npvAt(x0)
+        for _ in 0..<200 {
+            let mid = (x0 + x1) / 2
+            let fm = npvAt(mid)
+            guard fm.isFinite else { throw fail(FormulaErrors.num) }
+            if abs(fm) < 1e-12 || (x1 - x0) < 1e-12 { return .number(mid) }
+            if f0 * fm <= 0 { x1 = mid } else { x0 = mid; f0 = fm }
+        }
+        return .number((x0 + x1) / 2)
+    }
+
+    /// RATE(nper, pmt, pv, [fv], [type], [guess]): lãi suất mỗi kỳ — nghiệm của
+    /// phương trình giá trị tương lai bằng 0. Newton với đạo hàm số, dự phòng chia
+    /// đôi khi Newton không hội tụ; không tìm được nghiệm → #NUM!.
+    private func rateFn(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 3...6)
+        let nper = try nm(a[0]), pmt = try nm(a[1]), pv = try nm(a[2])
+        let fv = try optNum(a, 3, 0), type = try payType(a, 4)
+        let guess = try optNum(a, 5, 0.1)
+        guard nper != 0, guess > -1 else { throw fail(FormulaErrors.num) }
+        func f(_ r: Double) -> Double {
+            if r == 0 { return pv + pmt * nper + fv }
+            let g = pow(1 + r, nper)
+            return pv * g + pmt * (1 + r * type) * (g - 1) / r + fv
+        }
+        var r = guess
+        for _ in 0..<100 {
+            let fr = f(r)
+            guard fr.isFinite else { break }
+            let h = 1e-7 * max(1, abs(r))
+            let d = (f(r + h) - f(r - h)) / (2 * h)
+            guard d.isFinite, d != 0 else { break }
+            let next = r - fr / d
+            guard next.isFinite, next > -1 else { break }
+            if abs(next - r) < 1e-12 { return .number(next) }
+            r = next
+        }
+        var lo = -0.999999, hi = 10.0
+        var flo = f(lo)
+        if !flo.isFinite { throw fail(FormulaErrors.num) }
+        if flo == 0 { return .number(lo) }
+        var prevR = lo, prevF = flo, step = lo
+        var bracket: (Double, Double)? = nil
+        while step < hi {
+            let nextR = min(step + 0.5, hi)
+            let fv2 = f(nextR)
+            if fv2.isFinite {
+                if fv2 == 0 { return .number(nextR) }
+                if prevF * fv2 < 0 { bracket = (prevR, nextR); break }
+                prevR = nextR; prevF = fv2
+            }
+            step = nextR
+        }
+        guard let (a0, b0) = bracket else { throw fail(FormulaErrors.num) }
+        var x0 = a0, x1 = b0, f0 = f(x0)
+        for _ in 0..<200 {
+            let mid = (x0 + x1) / 2
+            let fm = f(mid)
+            guard fm.isFinite else { throw fail(FormulaErrors.num) }
+            if abs(fm) < 1e-9 || (x1 - x0) < 1e-12 { return .number(mid) }
+            if f0 * fm <= 0 { x1 = mid } else { x0 = mid; f0 = fm }
+        }
+        return .number((x0 + x1) / 2)
+    }
+
+    /// NPER(rate, pmt, pv, [fv], [type]): số kỳ. rate = 0 → -(pv+fv)/pmt; pmt = 0
+    /// hoặc tỉ số log không hợp lệ → #NUM!.
+    private func nperFn(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 3...5)
+        let rate = try nm(a[0]), pmt = try nm(a[1]), pv = try nm(a[2])
+        let fv = try optNum(a, 3, 0), type = try payType(a, 4)
+        guard rate > -1 else { throw fail(FormulaErrors.num) }
+        let res: Double
+        if rate == 0 {
+            guard pmt != 0 else { throw fail(FormulaErrors.num) }
+            res = -(pv + fv) / pmt
+        } else {
+            let num = pmt * (1 + rate * type) - fv * rate
+            let den = pmt * (1 + rate * type) + pv * rate
+            guard den != 0, num / den > 0 else { throw fail(FormulaErrors.num) }
+            res = log(num / den) / log(1 + rate)
+        }
+        guard res.isFinite else { throw fail(FormulaErrors.num) }
+        return .number(res)
+    }
+
+    /// Số dư nợ sau `per - 1` kỳ (dùng chung cho IPMT/PPMT).
+    private func loanBalance(rate: Double, per: Int, nper: Double, pv: Double, fv: Double, type: Double) throws -> Double {
+        let p = try pmtValue(rate: rate, nper: nper, pv: pv, fv: fv, type: type)
+        let g = pow(1 + rate, Double(per - 1))
+        return pv * g + p * (1 + rate * type) * (g - 1) / rate
+    }
+
+    /// IPMT(rate, per, nper, pv, [fv], [type]): phần lãi của kỳ `per`.
+    private func ipmt(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 4...6)
+        let rate = try nm(a[0])
+        let per = Int(try nm(a[1]).rounded(.towardZero))
+        let nper = try nm(a[2]), pv = try nm(a[3])
+        let fv = try optNum(a, 4, 0), type = try payType(a, 5)
+        guard nper != 0, per >= 1, Double(per) <= nper, rate > -1 else { throw fail(FormulaErrors.num) }
+        guard rate != 0 else { return .number(0) }
+        let bal = try loanBalance(rate: rate, per: per, nper: nper, pv: pv, fv: fv, type: type)
+        let res = -bal * rate
+        guard res.isFinite else { throw fail(FormulaErrors.num) }
+        return .number(res)
+    }
+
+    /// PPMT(rate, per, nper, pv, [fv], [type]): phần gốc của kỳ `per` = PMT - IPMT.
+    private func ppmt(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 4...6)
+        let rate = try nm(a[0])
+        let per = Int(try nm(a[1]).rounded(.towardZero))
+        let nper = try nm(a[2]), pv = try nm(a[3])
+        let fv = try optNum(a, 4, 0), type = try payType(a, 5)
+        guard nper != 0, per >= 1, Double(per) <= nper, rate > -1 else { throw fail(FormulaErrors.num) }
+        let p = try pmtValue(rate: rate, nper: nper, pv: pv, fv: fv, type: type)
+        guard rate != 0 else { return .number(p) }
+        let bal = try loanBalance(rate: rate, per: per, nper: nper, pv: pv, fv: fv, type: type)
+        let res = p + bal * rate
+        guard res.isFinite else { throw fail(FormulaErrors.num) }
+        return .number(res)
+    }
 
     private func ifError(onlyNA: Bool, _ a: [FormulaExpr]) throws -> CellValue {
         try need(a, 2...2)
