@@ -238,6 +238,10 @@ struct FormulaEvaluator {
         case "DROP": return dropArray(args)
         case "CHOOSEROWS": return chooseRowsArray(args)
         case "CHOOSECOLS": return chooseColsArray(args)
+        case "TOCOL": return tocolRow(args, asColumn: true)
+        case "TOROW": return tocolRow(args, asColumn: false)
+        case "HSTACK": return stackArrays(args, horizontal: true)
+        case "VSTACK": return stackArrays(args, horizontal: false)
         default: return nil
         }
     }
@@ -657,6 +661,106 @@ struct FormulaEvaluator {
         var out: [[CellValue]] = []
         out.reserveCapacity(rows)
         for i in 0..<rows { out.append(picked.map { grid[i][$0] }) }
+        return .array(out)
+    }
+
+    // MARK: Hàm mảng động — TOCOL / TOROW / HSTACK / VSTACK (M7 lát 25, INBOX-MAC #17)
+
+    /// TOCOL(mảng, [bỏ_qua], [quét_theo_cột]) / TOROW(...): trải mảng thành
+    /// một cột / một hàng. bỏ_qua: 0 giữ tất cả (mặc định), 1 bỏ ô trống,
+    /// 2 bỏ ô lỗi, 3 bỏ cả hai; ngoài 0...3 → #VALUE!. quét_theo_cột TRUE
+    /// = duyệt theo cột, FALSE (mặc định) = duyệt theo hàng; không ép được
+    /// sang logic → #VALUE!. Kết quả rỗng sau khi lọc → #CALC!; lỗi trong
+    /// đối số lan truyền; ô lỗi trong mảng chỉ bị bỏ khi bỏ_qua yêu cầu.
+    private func tocolRow(_ args: [FormulaExpr], asColumn: Bool) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard (1...3).contains(args.count) else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        var ignore = 0
+        if args.count >= 2, args[1] != .empty {
+            let v = scalar(eval(args[1]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = intFromScalar(v), (0...3).contains(n) else { return bad }
+            ignore = n
+        }
+        var byCol = false
+        if args.count == 3, args[2] != .empty {
+            let v = scalar(eval(args[2]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let b = bool(v) else { return bad }
+            byCol = b
+        }
+        let dropBlank = (ignore & 1) == 1, dropError = (ignore & 2) == 2
+        var flat: [CellValue] = []
+        flat.reserveCapacity(grid.count * cols)
+        func keep(_ c: CellValue) -> Bool {
+            if dropBlank, case .empty = c { return false }
+            if dropError, case .error = c { return false }
+            return true
+        }
+        if byCol {
+            for j in 0..<cols {
+                for i in 0..<grid.count where keep(grid[i][j]) { flat.append(grid[i][j]) }
+            }
+        } else {
+            for i in 0..<grid.count {
+                for j in 0..<cols where keep(grid[i][j]) { flat.append(grid[i][j]) }
+            }
+        }
+        guard !flat.isEmpty else { return .scalar(.error(FormulaErrors.calc)) }
+        return asColumn ? .array(flat.map { [$0] }) : .array([flat])
+    }
+
+    /// HSTACK(mảng1, [mảng2], ...) / VSTACK(...): xếp nhiều mảng theo chiều
+    /// ngang / dọc. Mảng ngắn hơn (ít hàng với HSTACK, ít cột với VSTACK)
+    /// được đệm #N/A. Ít nhất 1 đối số; đối số là lỗi scalar → lan truyền;
+    /// vùng vượt giới hạn phần tử → #VALUE!; tổng số ô vượt giới hạn → #CALC!.
+    private func stackArrays(_ args: [FormulaExpr], horizontal: Bool) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard !args.isEmpty else { return bad }
+        var grids: [[[CellValue]]] = []
+        grids.reserveCapacity(args.count)
+        for a in args {
+            let v = eval(a)
+            if case .scalar(let c) = v, case .error(let e) = c { return .scalar(.error(e)) }
+            guard let g = materialize(v), !g.isEmpty, (g.first?.count ?? 0) > 0 else { return bad }
+            grids.append(g)
+        }
+        let na = CellValue.error(FormulaErrors.na)
+        if horizontal {
+            let rows = grids.map { $0.count }.max() ?? 0
+            let totalCols = grids.reduce(0) { $0 + ($1.first?.count ?? 0) }
+            guard rows * totalCols <= Self.maxElementwiseCells else {
+                return .scalar(.error(FormulaErrors.calc))
+            }
+            var out: [[CellValue]] = []
+            out.reserveCapacity(rows)
+            for i in 0..<rows {
+                var line: [CellValue] = []
+                line.reserveCapacity(totalCols)
+                for g in grids {
+                    let cols = g.first?.count ?? 0
+                    if i < g.count { line.append(contentsOf: g[i]) }
+                    else { line.append(contentsOf: [CellValue](repeating: na, count: cols)) }
+                }
+                out.append(line)
+            }
+            return .array(out)
+        }
+        let cols = grids.map { $0.first?.count ?? 0 }.max() ?? 0
+        let totalRows = grids.reduce(0) { $0 + $1.count }
+        guard totalRows * cols <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(totalRows)
+        for g in grids {
+            let w = g.first?.count ?? 0
+            for line in g {
+                out.append(w == cols ? line : line + [CellValue](repeating: na, count: cols - w))
+            }
+        }
         return .array(out)
     }
 

@@ -4,6 +4,8 @@ import XCTest
 /// M7 lát 18: hàm mảng động TRANSPOSE + SEQUENCE (INBOX-MAC #17).
 /// M7 lát 19: SORT + FILTER + UNIQUE (INBOX-MAC #17).
 /// M7 lát 20: SORTBY (INBOX-MAC #17).
+/// M7 lát 24: TAKE / DROP / CHOOSEROWS / CHOOSECOLS (INBOX-MAC #17).
+/// M7 lát 25: TOCOL / TOROW / HSTACK / VSTACK (INBOX-MAC #17).
 /// Giá trị kỳ vọng theo Excel: SEQUENCE cắt phần lẻ hàng/cột về nguyên,
 /// TRANSPOSE đổi hàng ↔ cột, ô lỗi đi qua nguyên vẹn; SORT ổn định, rỗng
 /// luôn cuối; FILTER cần bao_gồm logic đúng hình; UNIQUE so trùng không
@@ -750,5 +752,220 @@ final class FormulaDynamicArrayTests: XCTestCase {
         XCTAssertEqual(cse(e, "=CHOOSEROWS(FILTER(A1:B4,D1:D4),2)", "F1:G1"),
                        [.number(30), .string("c")],
                        "lọc giữ (10,a),(30,c) rồi lấy hàng 2")
+    }
+
+    // MARK: TOCOL / TOROW (M7 lát 25, INBOX-MAC #17)
+
+    // TOCOL: trải thành một cột; mặc định duyệt theo hàng; bỏ_qua 0 giữ tất
+    // cả, 1 bỏ trống, 2 bỏ lỗi, 3 bỏ cả hai; quét_theo_cột TRUE duyệt theo cột.
+
+    func testTocolDefaultRowScan() {
+        XCTAssertEqual(cse(engine(), "=TOCOL(A1:B2)", "D1:D4"),
+                       [.number(1), .number(2), .number(3), .number(4)],
+                       "duyệt theo hàng: 1,2 rồi 3,4")
+    }
+
+    func testTocolScanByColumn() {
+        XCTAssertEqual(cse(engine(), "=TOCOL(A1:B2,,TRUE)", "D1:D4"),
+                       [.number(1), .number(3), .number(2), .number(4)],
+                       "duyệt theo cột: 1,3 rồi 2,4")
+    }
+
+    func testTocolIgnoreBlanks() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        e.setValue(.number(1), sheet: "Data", at: "A1")
+        e.setValue(.number(3), sheet: "Data", at: "A2")
+        e.setValue(.number(4), sheet: "Data", at: "B2")
+        XCTAssertEqual(cse(e, "=TOCOL(A1:B2,1)", "D1:D3"),
+                       [.number(1), .number(3), .number(4)], "B1 trống bị bỏ")
+        XCTAssertEqual(cse(e, "=TOCOL(A1:B2,1.9)", "D1:D3"),
+                       [.number(1), .number(3), .number(4)], "1.9 cắt về 1")
+    }
+
+    func testTocolIgnoreErrors() {
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "A1")
+        XCTAssertEqual(cse(e, "=TOCOL(A1:B2,2)", "D1:D3"),
+                       [.number(2), .number(3), .number(4)], "ô lỗi A1 bị bỏ")
+    }
+
+    func testTocolIgnoreBlanksAndErrors() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        e.setFormula("=1/0", sheet: "Data", at: "A1")
+        e.setValue(.number(3), sheet: "Data", at: "A2")
+        e.setValue(.number(4), sheet: "Data", at: "B2")
+        XCTAssertEqual(cse(e, "=TOCOL(A1:B2,3)", "D1:D2"),
+                       [.number(3), .number(4)], "B1 trống + A1 lỗi đều bị bỏ")
+    }
+
+    func testTocolKeepsErrorByDefault() {
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=SUM(TOCOL(A1:B2))"), .error("#DIV/0!"),
+                       "mặc định giữ ô lỗi, SUM lan lỗi")
+    }
+
+    func testTocolAllFilteredIsCalcError() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        XCTAssertEqual(calc(e, "=TOCOL(C1:C2,1)"), .error("#CALC!"),
+                       "toàn ô trống, lọc hết → mảng rỗng")
+        e.setFormula("=1/0", sheet: "Data", at: "C1")
+        XCTAssertEqual(calc(e, "=TOCOL(C1,2)"), .error("#CALC!"),
+                       "ô lỗi duy nhất bị lọc hết → mảng rỗng")
+    }
+
+    func testTocolBadIgnoreIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TOCOL(A1:B2,4)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=TOCOL(A1:B2,-1)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=TOCOL(A1:B2,\"x\")"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=TOCOL(A1:B2,,\"x\")"), .error("#VALUE!"),
+                       "quét_theo_cột không phải logic")
+    }
+
+    func testTocolWrongArgCount() {
+        XCTAssertEqual(calc(engine(), "=TOCOL()"), .error("#VALUE!"))
+        XCTAssertEqual(calc(engine(), "=TOCOL(A1:B2,1,TRUE,1)"), .error("#VALUE!"))
+    }
+
+    func testTocolErrorArgPropagates() {
+        XCTAssertEqual(calc(engine(), "=TOCOL(A1:B2,1/0)"), .error("#DIV/0!"))
+        XCTAssertEqual(calc(engine(), "=TOCOL(A1:B2,0,1/0)"), .error("#DIV/0!"))
+    }
+
+    func testTocolInSum() {
+        XCTAssertEqual(calc(engine(), "=SUM(TOCOL(A1:B2))"), .number(10), "1+2+3+4")
+        XCTAssertEqual(calc(engine(), "=SUM(TOCOL(A1:B2,,TRUE))"), .number(10))
+    }
+
+    func testTocolArrayConstant() {
+        XCTAssertEqual(cse(engine(), "=TOCOL({1,2;3,4},,TRUE)", "D1:D4"),
+                       [.number(1), .number(3), .number(2), .number(4)])
+    }
+
+    // TOROW: như TOCOL nhưng ra một hàng.
+
+    func testTorowDefaultRowScan() {
+        XCTAssertEqual(cse(engine(), "=TOROW(A1:B2)", "D1:G1"),
+                       [.number(1), .number(2), .number(3), .number(4)])
+    }
+
+    func testTorowScanByColumn() {
+        XCTAssertEqual(cse(engine(), "=TOROW(A1:B2,,TRUE)", "D1:G1"),
+                       [.number(1), .number(3), .number(2), .number(4)])
+    }
+
+    func testTorowIgnoreBlanks() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        e.setValue(.number(1), sheet: "Data", at: "A1")
+        e.setValue(.number(3), sheet: "Data", at: "A2")
+        e.setValue(.number(4), sheet: "Data", at: "B2")
+        XCTAssertEqual(cse(e, "=TOROW(A1:B2,1)", "D1:F1"),
+                       [.number(1), .number(3), .number(4)])
+    }
+
+    func testTorowAllFilteredIsCalcError() {
+        XCTAssertEqual(calc(engine(), "=TOROW(C1:C2,1)"), .error("#CALC!"))
+    }
+
+    func testTorowBadIgnoreIsValueError() {
+        XCTAssertEqual(calc(engine(), "=TOROW(A1:B2,5)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(engine(), "=TOROW()"), .error("#VALUE!"))
+    }
+
+    // MARK: HSTACK / VSTACK (M7 lát 25, INBOX-MAC #17)
+
+    // Xếp nhiều mảng; mảng ngắn/hẹp hơn được đệm #N/A; đối số đơn coi là 1x1.
+
+    func testHstackTwoRanges() {
+        XCTAssertEqual(cse(engine(), "=HSTACK(A1:A2,B1:B2)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)])
+    }
+
+    func testHstackPadsShorterWithNA() {
+        let e = engine()
+        e.setValue(.number(5), sheet: "Data", at: "C1")
+        XCTAssertEqual(cse(e, "=HSTACK(A1:B2,C1)", "D1:F2"),
+                       [.number(1), .number(2), .number(5),
+                        .number(3), .number(4), .error("#N/A")],
+                       "C1 chỉ 1 hàng nên hàng 2 đệm #N/A")
+    }
+
+    func testHstackScalarArg() {
+        XCTAssertEqual(cse(engine(), "=HSTACK(A1:B2,9)", "D1:F2"),
+                       [.number(1), .number(2), .number(9),
+                        .number(3), .number(4), .error("#N/A")])
+    }
+
+    func testHstackSingleArg() {
+        XCTAssertEqual(cse(engine(), "=HSTACK(A1:B2)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)])
+    }
+
+    func testHstackNoArgsIsValueError() {
+        XCTAssertEqual(calc(engine(), "=HSTACK()"), .error("#VALUE!"))
+    }
+
+    func testHstackErrorArgPropagates() {
+        XCTAssertEqual(calc(engine(), "=HSTACK(A1:B2,1/0)"), .error("#DIV/0!"))
+    }
+
+    func testHstackKeepsErrorCell() {
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=SUM(HSTACK(A1:B2))"), .error("#DIV/0!"))
+    }
+
+    func testVstackTwoRanges() {
+        XCTAssertEqual(cse(engine(), "=VSTACK(A1:B1,A2:B2)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)])
+    }
+
+    func testVstackPadsNarrowerWithNA() {
+        let e = engine()
+        e.setValue(.number(5), sheet: "Data", at: "C1")
+        XCTAssertEqual(cse(e, "=VSTACK(A1:B2,C1)", "D1:E3"),
+                       [.number(1), .number(2),
+                        .number(3), .number(4),
+                        .number(5), .error("#N/A")],
+                       "C1 chỉ 1 cột nên cột 2 đệm #N/A")
+    }
+
+    func testVstackScalarArg() {
+        XCTAssertEqual(cse(engine(), "=VSTACK(A1:B2,9)", "D1:E3"),
+                       [.number(1), .number(2),
+                        .number(3), .number(4),
+                        .number(9), .error("#N/A")])
+    }
+
+    func testVstackSingleArg() {
+        XCTAssertEqual(cse(engine(), "=VSTACK(A1:B2)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)])
+    }
+
+    func testVstackNoArgsIsValueError() {
+        XCTAssertEqual(calc(engine(), "=VSTACK()"), .error("#VALUE!"))
+    }
+
+    func testVstackErrorArgPropagates() {
+        XCTAssertEqual(calc(engine(), "=VSTACK(A1:B2,1/0)"), .error("#DIV/0!"))
+    }
+
+    // Kết hợp lát 25 với các lát trước.
+
+    func testTocolOfHstack() {
+        XCTAssertEqual(cse(engine(), "=TOCOL(HSTACK(A1:A2,B1:B2))", "D1:D4"),
+                       [.number(1), .number(2), .number(3), .number(4)],
+                       "HSTACK ra [[1,2],[3,4]] rồi TOCOL duyệt theo hàng")
+    }
+
+    func testVstackOfTorow() {
+        XCTAssertEqual(cse(engine(), "=VSTACK(TOROW(A1:B2),TOROW(A1:B2))", "D1:G2"),
+                       [.number(1), .number(2), .number(3), .number(4),
+                        .number(1), .number(2), .number(3), .number(4)])
     }
 }
