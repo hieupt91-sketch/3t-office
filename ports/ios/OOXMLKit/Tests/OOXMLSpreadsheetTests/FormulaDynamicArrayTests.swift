@@ -549,4 +549,206 @@ final class FormulaDynamicArrayTests: XCTestCase {
                        [.number(40), .string("d"), .number(20), .string("b")],
                        "sắp giảm dần (40,30,20,10) rồi lọc theo cờ D1:D4: giữ vị trí 1 và 3")
     }
+
+    // MARK: TAKE / DROP / CHOOSEROWS / CHOOSECOLS (M7 lát 24, INBOX-MAC #17)
+
+    // TAKE: lấy đầu/cuối; bỏ trống trục = lấy hết trục đó; 0 → #CALC!;
+    // vượt kích thước → kẹp về toàn bộ trục (không lỗi).
+
+    func testTakeFirstRow() {
+        XCTAssertEqual(cse(engine(), "=TAKE(A1:B2,1)", "D1:E1"),
+                       [.number(1), .number(2)])
+    }
+
+    func testTakeLastRow() {
+        XCTAssertEqual(cse(engine(), "=TAKE(A1:B2,-1)", "D1:E1"),
+                       [.number(3), .number(4)])
+    }
+
+    func testTakeFirstColumnOnly() {
+        XCTAssertEqual(cse(engine(), "=TAKE(A1:B2,,1)", "D1:D2"),
+                       [.number(1), .number(3)], "hàng bỏ trống = lấy hết hàng")
+    }
+
+    func testTakeLastColumnOnly() {
+        XCTAssertEqual(cse(engine(), "=TAKE(A1:B2,,-1)", "D1:D2"),
+                       [.number(2), .number(4)])
+    }
+
+    func testTakeRowsAndCols() {
+        XCTAssertEqual(cse(engine(), "=TAKE(A1:B2,-1,-1)", "D1"),
+                       [.number(4)], "hàng cuối + cột cuối = ô 4")
+    }
+
+    func testTakeClampsOversize() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=TAKE(A1:B2,5)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)],
+                       "xin 5 hàng trên 2 hàng có → trả hết, không lỗi")
+        XCTAssertEqual(cse(e, "=TAKE(A1:B2,-9,9)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)],
+                       "âm vượt và cột vượt đều kẹp về toàn bộ")
+    }
+
+    func testTakeTruncatesFraction() {
+        XCTAssertEqual(cse(engine(), "=TAKE(A1:B2,1.9)", "D1:E1"),
+                       [.number(1), .number(2)], "1.9 cắt về 1")
+    }
+
+    func testTakeZeroIsCalcError() {
+        XCTAssertEqual(calc(engine(), "=TAKE(A1:B2,0)"), .error("#CALC!"))
+        XCTAssertEqual(calc(engine(), "=TAKE(A1:B2,1,0)"), .error("#CALC!"))
+    }
+
+    func testTakeNoAxisIsValueError() {
+        XCTAssertEqual(calc(engine(), "=TAKE(A1:B2)"), .error("#VALUE!"),
+                       "phải cho ít nhất một trục")
+        XCTAssertEqual(calc(engine(), "=TAKE(A1:B2,,)"), .error("#VALUE!"))
+    }
+
+    func testTakeWrongArgCount() {
+        XCTAssertEqual(calc(engine(), "=TAKE(A1:B2,1,1,1)"), .error("#VALUE!"))
+    }
+
+    func testTakeNonNumericIsValueError() {
+        XCTAssertEqual(calc(engine(), "=TAKE(A1:B2,\"x\")"), .error("#VALUE!"))
+    }
+
+    func testTakeErrorArgPropagates() {
+        XCTAssertEqual(calc(engine(), "=TAKE(A1:B2,1/0)"), .error("#DIV/0!"))
+    }
+
+    func testTakeInsideSum() {
+        XCTAssertEqual(calc(engine(), "=SUM(TAKE(A1:B2,1))"), .number(3), "1+2")
+    }
+
+    func testTakeArrayConstant() {
+        XCTAssertEqual(cse(engine(), "=TAKE({1,2;3,4},-1)", "D1:E1"),
+                       [.number(3), .number(4)])
+    }
+
+    // DROP: bỏ đầu/cuối; không đối số = nguyên mảng; 0 tường minh hoặc bỏ
+    // hết/vượt kích thước → #CALC!.
+
+    func testDropFirstRow() {
+        XCTAssertEqual(cse(engine(), "=DROP(A1:B2,1)", "D1:E1"),
+                       [.number(3), .number(4)])
+    }
+
+    func testDropLastRow() {
+        XCTAssertEqual(cse(engine(), "=DROP(A1:B2,-1)", "D1:E1"),
+                       [.number(1), .number(2)])
+    }
+
+    func testDropFirstColumnOnly() {
+        XCTAssertEqual(cse(engine(), "=DROP(A1:B2,,1)", "D1:D2"),
+                       [.number(2), .number(4)], "hàng bỏ trống = giữ hết hàng")
+    }
+
+    func testDropRowsAndCols() {
+        XCTAssertEqual(cse(engine(), "=DROP(A1:B2,1,-1)", "D1"),
+                       [.number(3)], "bỏ hàng đầu + cột cuối = ô 3")
+    }
+
+    func testDropNoArgsReturnsWholeArray() {
+        XCTAssertEqual(cse(engine(), "=DROP(A1:B2)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)])
+    }
+
+    func testDropZeroIsCalcError() {
+        XCTAssertEqual(calc(engine(), "=DROP(A1:B2,0)"), .error("#CALC!"))
+        XCTAssertEqual(calc(engine(), "=DROP(A1:B2,1,0)"), .error("#CALC!"))
+    }
+
+    func testDropAllOrMoreIsCalcError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=DROP(A1:B2,2)"), .error("#CALC!"), "bỏ hết 2 hàng")
+        XCTAssertEqual(calc(e, "=DROP(A1:B2,3)"), .error("#CALC!"), "bỏ hơn số hàng có")
+        XCTAssertEqual(calc(e, "=DROP(A1:B2,0,2)"), .error("#CALC!"), "bỏ hết 2 cột")
+    }
+
+    func testDropNonNumericIsValueError() {
+        XCTAssertEqual(calc(engine(), "=DROP(A1:B2,\"x\")"), .error("#VALUE!"))
+    }
+
+    func testDropWrongArgCount() {
+        XCTAssertEqual(calc(engine(), "=DROP(A1:B2,1,1,1)"), .error("#VALUE!"))
+    }
+
+    func testDropErrorArgPropagates() {
+        XCTAssertEqual(calc(engine(), "=DROP(A1:B2,1/0)"), .error("#DIV/0!"))
+    }
+
+    func testDropTruncatesFraction() {
+        XCTAssertEqual(cse(engine(), "=DROP(A1:B2,1.9)", "D1:E1"),
+                       [.number(3), .number(4)], "1.9 cắt về 1")
+    }
+
+    // CHOOSEROWS / CHOOSECOLS: chỉ mục 1-based, âm đếm từ cuối; 0 hoặc
+    // vượt kích thước → #VALUE!; giữ thứ tự đối số, cho trùng.
+
+    func testChooseRowsReorders() {
+        XCTAssertEqual(cse(engine(), "=CHOOSEROWS(A1:B2,2,1)", "D1:E2"),
+                       [.number(3), .number(4), .number(1), .number(2)])
+    }
+
+    func testChooseRowsNegativeAndDuplicate() {
+        XCTAssertEqual(cse(engine(), "=CHOOSEROWS(A1:B2,-1,1,1)", "D1:E3"),
+                       [.number(3), .number(4), .number(1), .number(2),
+                        .number(1), .number(2)])
+    }
+
+    func testChooseRowsBadIndexIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=CHOOSEROWS(A1:B2,0)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=CHOOSEROWS(A1:B2,3)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=CHOOSEROWS(A1:B2,-3)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=CHOOSEROWS(A1:B2,1.9,0)"), .error("#VALUE!"),
+                       "1.9 cắt về 1 nhưng 0 vẫn lỗi")
+    }
+
+    func testChooseRowsNoIndexIsValueError() {
+        XCTAssertEqual(calc(engine(), "=CHOOSEROWS(A1:B2)"), .error("#VALUE!"))
+    }
+
+    func testChooseRowsErrorArgPropagates() {
+        XCTAssertEqual(calc(engine(), "=CHOOSEROWS(A1:B2,1/0)"), .error("#DIV/0!"))
+    }
+
+    func testChooseColsReorders() {
+        XCTAssertEqual(cse(engine(), "=CHOOSECOLS(A1:B2,2,1)", "D1:E2"),
+                       [.number(2), .number(1), .number(4), .number(3)])
+    }
+
+    func testChooseColsNegativeAndDuplicate() {
+        XCTAssertEqual(cse(engine(), "=CHOOSECOLS(A1:B2,-1,1,1)", "D1:F2"),
+                       [.number(2), .number(1), .number(1),
+                        .number(4), .number(3), .number(3)])
+    }
+
+    func testChooseColsBadIndexIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=CHOOSECOLS(A1:B2,0)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=CHOOSECOLS(A1:B2,3)"), .error("#VALUE!"))
+    }
+
+    func testChooseColsInsideSum() {
+        XCTAssertEqual(calc(engine(), "=SUM(CHOOSECOLS(A1:B2,2))"), .number(6), "2+4")
+    }
+
+    // Kết hợp lát 24 với lát 19/20.
+
+    func testTakeOfSort() {
+        let e = gridEngine()
+        XCTAssertEqual(cse(e, "=TAKE(SORT(A1:C4,1,1),2)", "E1:G2"),
+                       [.number(1), .string("a"), .bool(false),
+                        .number(2), .string("c"), .bool(true)])
+    }
+
+    func testChooseRowsOfFilter() {
+        let e = filterEngine()
+        XCTAssertEqual(cse(e, "=CHOOSEROWS(FILTER(A1:B4,D1:D4),2)", "F1:G1"),
+                       [.number(30), .string("c")],
+                       "lọc giữ (10,a),(30,c) rồi lấy hàng 2")
+    }
 }

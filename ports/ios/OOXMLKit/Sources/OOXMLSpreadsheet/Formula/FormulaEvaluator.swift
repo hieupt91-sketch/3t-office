@@ -234,6 +234,10 @@ struct FormulaEvaluator {
         case "FILTER": return filterArray(args)
         case "UNIQUE": return uniqueArray(args)
         case "SORTBY": return sortByArray(args)
+        case "TAKE": return takeArray(args)
+        case "DROP": return dropArray(args)
+        case "CHOOSEROWS": return chooseRowsArray(args)
+        case "CHOOSECOLS": return chooseColsArray(args)
         default: return nil
         }
     }
@@ -530,6 +534,130 @@ struct FormulaEvaluator {
             return a.offset < b.offset
         }.map { $0.element }
         return .array(sorted)
+    }
+
+    // MARK: Hàm mảng động — TAKE / DROP / CHOOSEROWS / CHOOSECOLS (M7 lát 24, INBOX-MAC #17)
+
+    /// Đọc một đối số số nguyên từ giá trị scalar đã tính (cắt phần lẻ về 0
+    /// như SEQUENCE): không phải số hoặc tràn → nil. Lỗi phải kiểm trước.
+    private func intFromScalar(_ v: CellValue) -> Int? {
+        guard let n = number(v), n.isFinite else { return nil }
+        let t = n.rounded(.towardZero)
+        guard t >= Double(Int.min), t <= Double(Int.max) else { return nil }
+        return Int(t)
+    }
+
+    /// TAKE(mảng, [hàng], [cột]): lấy N hàng/cột đầu (dương) hoặc cuối (âm).
+    /// Hàng/cột bỏ trống = lấy hết trục đó; phải cho ít nhất một trục nếu không
+    /// → #VALUE!. Hàng/cột = 0 → #CALC! (mảng rỗng); |N| vượt kích thước → kẹp
+    /// về toàn bộ trục đó (không lỗi); không phải số → #VALUE!; lỗi lan truyền.
+    private func takeArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        let empty = EvalValue.scalar(.error(FormulaErrors.calc))
+        guard (1...3).contains(args.count) else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        let rows = grid.count
+        var r: Int? = nil, c: Int? = nil
+        if args.count >= 2, args[1] != .empty {
+            let rv = scalar(eval(args[1]))
+            if case .error(let e) = rv { return .scalar(.error(e)) }
+            guard let n = intFromScalar(rv) else { return bad }
+            if n == 0 { return empty }
+            r = n
+        }
+        if args.count == 3, args[2] != .empty {
+            let cv = scalar(eval(args[2]))
+            if case .error(let e) = cv { return .scalar(.error(e)) }
+            guard let n = intFromScalar(cv) else { return bad }
+            if n == 0 { return empty }
+            c = n
+        }
+        guard r != nil || c != nil else { return bad }
+        let rn = min(abs(r ?? rows), rows), cn = min(abs(c ?? cols), cols)
+        let rowRange: Range<Int> = (r ?? rows) >= 0 ? 0..<rn : (rows - rn)..<rows
+        let colRange: Range<Int> = (c ?? cols) >= 0 ? 0..<cn : (cols - cn)..<cols
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rowRange.count)
+        for i in rowRange { out.append(Array(grid[i][colRange])) }
+        return .array(out)
+    }
+
+    /// DROP(mảng, [hàng], [cột]): bỏ N hàng/cột đầu (dương) hoặc cuối (âm).
+    /// Bỏ trống một trục = giữ nguyên trục đó; không đối số nào = trả nguyên mảng.
+    /// Đối số cho tường minh = 0, hoặc |N| ≥ kích thước trục (bỏ hết hoặc hơn)
+    /// → #CALC! (mảng rỗng); không phải số → #VALUE!; lỗi lan truyền.
+    private func dropArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        let empty = EvalValue.scalar(.error(FormulaErrors.calc))
+        guard (1...3).contains(args.count) else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        let rows = grid.count
+        var r = 0, c = 0
+        if args.count >= 2, args[1] != .empty {
+            let v = scalar(eval(args[1]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = intFromScalar(v) else { return bad }
+            if n == 0 || abs(n) >= rows { return empty }
+            r = n
+        }
+        if args.count == 3, args[2] != .empty {
+            let v = scalar(eval(args[2]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = intFromScalar(v) else { return bad }
+            if n == 0 || abs(n) >= cols { return empty }
+            c = n
+        }
+        if args.count == 1 { return .array(grid) }
+        let rowRange: Range<Int> = r >= 0 ? r..<rows : 0..<(rows + r)
+        let colRange: Range<Int> = c >= 0 ? c..<cols : 0..<(cols + c)
+        guard !rowRange.isEmpty, !colRange.isEmpty else { return empty }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rowRange.count)
+        for i in rowRange { out.append(Array(grid[i][colRange])) }
+        return .array(out)
+    }
+
+    /// CHOOSEROWS(mảng, hàng1, [hàng2], ...): lấy các hàng theo chỉ mục 1-based,
+    /// âm đếm từ cuối; giữ đúng thứ tự đối số, cho trùng. Chỉ mục 0 hoặc
+    /// |chỉ mục| > số hàng, không phải số → #VALUE!; lỗi lan truyền.
+    private func chooseRowsArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard args.count >= 2 else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        let rows = grid.count
+        var out: [[CellValue]] = []
+        out.reserveCapacity(args.count - 1)
+        for k in 1..<args.count {
+            let v = scalar(eval(args[k]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = intFromScalar(v), n != 0, abs(n) <= rows else { return bad }
+            out.append(grid[n > 0 ? n - 1 : rows + n])
+        }
+        return .array(out)
+    }
+
+    /// CHOOSECOLS(mảng, cột1, [cột2], ...): như CHOOSEROWS nhưng theo cột.
+    private func chooseColsArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard args.count >= 2 else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        let rows = grid.count
+        var picked: [Int] = []
+        picked.reserveCapacity(args.count - 1)
+        for k in 1..<args.count {
+            let v = scalar(eval(args[k]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = intFromScalar(v), n != 0, abs(n) <= cols else { return bad }
+            picked.append(n > 0 ? n - 1 : cols + n)
+        }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rows)
+        for i in 0..<rows { out.append(picked.map { grid[i][$0] }) }
+        return .array(out)
     }
 
     // MARK: Ép kiểu
