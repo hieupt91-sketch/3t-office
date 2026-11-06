@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import shutil
 import tempfile
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -346,6 +348,114 @@ class AutoRecoverStore:
             total_bytes -= size
 
 
+MAX_BACKUP_FILE_BYTES = 256 * 1024 * 1024
+MAX_BACKUP_COUNT = 20
+MAX_BACKUP_TOTAL_BYTES = 1024 * 1024 * 1024
+MAX_BACKUP_LOG_BYTES = 64 * 1024
+_STALE_BACKUP_TEMP_SECONDS = 3600
+
+
+class SaveBackupStore:
+    """Keeps the version a save is about to replace: one generation per document, in app data.
+
+    Living in app data keeps the user's folder clean and works when that folder is read-only or on a network share.
+    Bounded like AutoRecover: the least recently saved documents are dropped first.
+    """
+
+    _storage_lock = AutoRecoverStore._storage_lock
+
+    def __init__(self, app_data_dir: str | Path):
+        self.root = Path(app_data_dir) / "save-backups"
+        self.log_path = self.root / "backup-errors.log"
+
+    def folder_for(self, document_path: str | Path) -> Path:
+        key = os.path.normcase(os.path.abspath(str(document_path)))
+        return self.root / hashlib.sha256(key.encode("utf-8", "surrogatepass")).hexdigest()[:32]
+
+    def keep(self, document_path: str | Path) -> bool:
+        """Copy the current file into the store. Returns False when it is too large to keep. OSError means failure."""
+        source = Path(document_path)
+        if source.stat().st_size > MAX_BACKUP_FILE_BYTES:
+            self.discard(source)
+            return False
+        self.root.mkdir(parents=True, exist_ok=True)
+        self._remove_stale_temp_files()
+        # The copy runs outside the lock: a slow network read must not hold up other windows.
+        fd, temp_name = tempfile.mkstemp(prefix=".backup.", suffix=".tmp", dir=self.root)
+        try:
+            with os.fdopen(fd, "wb") as stream, open(source, "rb") as original:
+                shutil.copyfileobj(original, stream, 1024 * 1024)
+                stream.flush()
+                os.fsync(stream.fileno())
+            folder = self.folder_for(source)
+            with self._storage_lock():
+                folder.mkdir(parents=True, exist_ok=True)
+                for stale in folder.iterdir():
+                    if stale.name not in {source.name, "backup.json"}:
+                        stale.unlink(missing_ok=True)
+                os.replace(temp_name, folder / source.name)
+                manifest = {
+                    "original_path": str(source)[:4096],
+                    "file_name": source.name,
+                    "saved_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                }
+                _atomic_write(folder / "backup.json", json.dumps(manifest, ensure_ascii=False).encode("utf-8"))
+                self._enforce_limits(folder)
+        except BaseException:
+            try:
+                os.unlink(temp_name)
+            except OSError:
+                pass
+            raise
+        return True
+
+    def discard(self, document_path: str | Path) -> None:
+        folder = self.folder_for(document_path)
+        if not folder.is_dir():
+            return
+        with self._storage_lock():
+            shutil.rmtree(folder)
+
+    def record_failure(self, reason: str) -> None:
+        """Local record of a failed backup, without document names. The app has no log file for warnings otherwise."""
+        self.root.mkdir(parents=True, exist_ok=True)
+        if self.log_path.is_file() and self.log_path.stat().st_size > MAX_BACKUP_LOG_BYTES:
+            self.log_path.unlink()
+        with self.log_path.open("a", encoding="utf-8") as stream:
+            stream.write(f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} {reason}\n")
+
+    def _remove_stale_temp_files(self) -> None:
+        cutoff = time.time() - _STALE_BACKUP_TEMP_SECONDS
+        for path in self.root.glob(".backup.*.tmp"):
+            try:
+                if path.stat().st_mtime < cutoff:
+                    path.unlink()
+            except OSError:
+                continue  # Held by another window, or already gone.
+
+    def _enforce_limits(self, newest: Path) -> None:
+        entries: list[tuple[float, int, Path]] = []
+        total_bytes = 0
+        for manifest_path in self.root.glob("*/backup.json"):
+            folder = manifest_path.parent
+            try:
+                modified = manifest_path.stat().st_mtime
+                size = sum(path.stat().st_size for path in folder.iterdir())
+            except OSError:
+                continue
+            total_bytes += size
+            if folder != newest:
+                entries.append((modified, size, folder))
+        entries.sort(key=lambda item: item[0])
+        count = len(entries) + 1
+        while entries and (count > MAX_BACKUP_COUNT or total_bytes > MAX_BACKUP_TOTAL_BYTES):
+            _modified, size, folder = entries.pop(0)
+            shutil.rmtree(folder, ignore_errors=True)
+            total_bytes -= size
+            count -= 1
+
+
 __all__ = [
     "AutoRecoverStore", "DEFAULT_SETTINGS", "MAX_SNAPSHOT_BYTES", "MAX_SNAPSHOT_COUNT", "MAX_TOTAL_BYTES",
+    "MAX_BACKUP_COUNT", "MAX_BACKUP_FILE_BYTES", "MAX_BACKUP_TOTAL_BYTES", "SaveBackupStore",
 ]

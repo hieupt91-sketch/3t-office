@@ -139,6 +139,7 @@ _AUTORECOVER_STORE_MODULE = importlib.util.module_from_spec(_AUTORECOVER_STORE_S
 sys.modules[_AUTORECOVER_STORE_SPEC.name] = _AUTORECOVER_STORE_MODULE
 _AUTORECOVER_STORE_SPEC.loader.exec_module(_AUTORECOVER_STORE_MODULE)
 AutoRecoverStore = _AUTORECOVER_STORE_MODULE.AutoRecoverStore
+SaveBackupStore = _AUTORECOVER_STORE_MODULE.SaveBackupStore
 
 _PROCESS_TRACKER_PATH = Path(__file__).resolve().parent / "platform" / "process_lifecycle" / "process_tracker.py"
 _PROCESS_TRACKER_SPEC = importlib.util.spec_from_file_location("_vno_process_tracker", _PROCESS_TRACKER_PATH)
@@ -3150,11 +3151,12 @@ def _write_durable_copy(src_path: str, staging_path: str) -> None:
         raise DocumentEngineError("Không thể ghi tệp vào đĩa: bản ghi tạm không đầy đủ. Tệp gốc chưa bị thay đổi.")
 
 
-def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
+def _atomic_replace_file(src_temp_file: str, dest_path: str, *, before_replace=None) -> None:
     """Thay thế nguyên tử tệp đích bằng tệp tạm đã được tạo và hậu kỳ thành công.
     Nếu có lỗi xảy ra trong quá trình convert hoặc ghi đè, tệp gốc không bị ảnh hưởng.
     Bản tạm được đẩy xuống đĩa trước khi thay thế; thư mục cha được đẩy xuống đĩa sau đó
     (hệ thống tệp từ chối thao tác này thì bỏ qua, lỗi ghi thật vẫn được báo).
+    before_replace(dest) chạy khi bản tạm đã an toàn trên đĩa, ngay trước khi thay thế.
     """
     dest = Path(dest_path).resolve()
 
@@ -3175,6 +3177,8 @@ def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
         staging_file = str(staging_path)
 
         _write_durable_copy(src_temp_file, staging_file)
+        if before_replace is not None:
+            before_replace(str(dest))
         os.replace(staging_file, str(dest))
         staging_file = None
         durable = _durable_files()
@@ -3193,6 +3197,26 @@ def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
                 os.remove(staging_file)
             except OSError:
                 pass
+
+
+def _keep_save_backup(dest_path: str, document_password: str | None) -> None:
+    """Keep the version a save is about to replace. A backup failure is logged and never blocks the save."""
+    if not os.path.isfile(dest_path):
+        return
+    store = SaveBackupStore(_user_data_dir())
+    try:
+        if document_password and not _is_encrypted_package(dest_path):
+            # A password is being added: no readable copy of the document may stay behind.
+            store.discard(dest_path)
+        elif not store.keep(dest_path):
+            logging.getLogger("vnoffice.save").info("Save backup skipped: the file is over the size limit")
+    except Exception as exc:
+        reason = f"{type(exc).__name__} errno={getattr(exc, 'errno', None)} winerror={getattr(exc, 'winerror', None)}"
+        logging.getLogger("vnoffice.save").warning("Save backup failed: %s", reason)
+        try:
+            store.record_failure(reason)
+        except OSError as log_exc:
+            logging.getLogger("vnoffice.save").warning("Save backup log unavailable: %s", type(log_exc).__name__)
 
 
 def _verify_saved_file(dest_path: str) -> None:
@@ -5718,7 +5742,10 @@ class VnOfficeApi:
                 if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
                     _run_ooxml_shadow(target_format, source_path, out_path)
                 stage_started = time.perf_counter()
-                _atomic_replace_file(out_path, target_path)
+                _atomic_replace_file(
+                    out_path, target_path,
+                    before_replace=lambda dest: _keep_save_backup(dest, self._document_password),
+                )
                 if audit_timings is not None:
                     audit_timings["atomicReplaceMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
                 stage_started = time.perf_counter()
@@ -5856,7 +5883,10 @@ class VnOfficeApi:
                     out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
                     if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
                         _run_ooxml_shadow(target_format, source_path, out_path)
-                _atomic_replace_file(out_path, dest_path)
+                _atomic_replace_file(
+                    out_path, dest_path,
+                    before_replace=lambda dest: _keep_save_backup(dest, self._document_password),
+                )
                 _verify_saved_file(dest_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
