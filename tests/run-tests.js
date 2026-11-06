@@ -38,6 +38,7 @@ import { runI18nTests } from "./unit/i18n.test.js";
 import { run3TDisplayNameTests } from "./unit/3t-display-name.test.js";
 import { runI18nHardcodedEnglishTests } from "./unit/i18n-hardcoded-english.test.js";
 import { runSyntaxCheckTests } from "./unit/syntax-check.test.js";
+import { runLicenseGateTests } from "./unit/license-gate.test.js";
 import { runHtmlSmokeTests } from "./smoke/html-smoke.test.js";
 import { runAiServiceTests } from "./unit/ai-service.test.js";
 import { runApiKeyManagerTests } from "./unit/api-key-manager.test.js";
@@ -669,7 +670,8 @@ async function runAll() {
     { title: "273. Unit Tests — Writer Selection Pane, Group/Ungroup, Split Window, Table Styles, Table Formula (Word 2016 Parity Round 2)", runner: runWriterWord2016Parity2Tests },
     { title: "274. Unit Tests — FIX-SLIDES-2510 (D1 mở lại PPTX vẽ hai lần, D7 dấu đầu dòng, D8 chữ trong hình)", runner: runSlidesFix2510Tests },
     { title: "274. Unit Tests — Document Font Stacks & Calibri→Carlito Substitutes (FIX-D6-2510)", runner: runDocumentFontStackTests },
-    { title: "275. Unit Tests — SLIDES-2-3110 (a thanh nhấn sau mở lại, b vừa vùng nhìn, c hình dựng sẵn ở hình thu nhỏ/trình chiếu, d chữ hình căn giữa khi lưu)", runner: runSlides23110Tests }
+    { title: "275. Unit Tests — SLIDES-2-3110 (a thanh nhấn sau mở lại, b vừa vùng nhìn, c hình dựng sẵn ở hình thu nhỏ/trình chiếu, d chữ hình căn giữa khi lưu)", runner: runSlides23110Tests },
+    { title: "276. Unit Tests — G1 Cổng giấy phép dependency (lớp riêng, INBOX-MAC #18)", runner: runLicenseGateTests }
   ];
 
   for (const suite of suites) {
