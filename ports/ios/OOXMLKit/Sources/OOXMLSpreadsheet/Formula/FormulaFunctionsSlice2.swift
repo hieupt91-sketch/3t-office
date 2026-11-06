@@ -77,6 +77,10 @@ extension FormulaEvaluator {
         case "NOW": try need(a, 0...0); return .number(context.nowSerial)
         case "EDATE", "EOMONTH": return try monthShift(name == "EOMONTH", a)
         case "DATEDIF": return try datedif(a)
+        case "WEEKDAY": return try weekday(a)
+        case "WEEKNUM": return try weeknum(a)
+        case "NETWORKDAYS": return try networkdays(a)
+        case "WORKDAY": return try workday(a)
         // Toán
         case "ROUNDUP", "ROUNDDOWN": return try roundDir(name == "ROUNDUP", a)
         case "INT": try need(a, 1...1); return .number((try nm(a[0])).rounded(.down))
@@ -650,6 +654,120 @@ extension FormulaEvaluator {
         guard s <= e else { throw fail(FormulaErrors.num) }
         guard let r = ExcelDate.datedif(start: s, end: e, unit: unit) else { throw fail(FormulaErrors.num) }
         return .number(Double(r))
+    }
+
+    /// M7: WEEKDAY(serial, [return_type]): 1 = Chủ nhật 1..Thứ bảy 7 (mặc định),
+    /// 2 = Thứ hai 1..Chủ nhật 7, 3 = Thứ hai 0..Chủ nhật 6; loại khác → #NUM!.
+    /// Serial 0 → 7 (thứ Bảy theo cách đếm của Excel); serial âm → #NUM! (dateArg).
+    private func weekday(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...2)
+        let s = try dateArg(a[0])
+        var type = 1
+        if a.count == 2 { type = Int(try nm(a[1]).rounded(.towardZero)) }
+        let w = ExcelDate.weekday(s) // 1 = Chủ nhật … 7 = Thứ bảy
+        switch type {
+        case 1: return .number(Double(w))
+        case 2: return .number(Double(((w + 5) % 7) + 1))
+        case 3: return .number(Double((w + 5) % 7))
+        default: throw fail(FormulaErrors.num)
+        }
+    }
+
+    /// M7: WEEKNUM(serial, [return_type]): tuần 1 là tuần chứa 1/1, trừ loại 21 (ISO 8601:
+    /// tuần 1 là tuần chứa thứ Năm đầu tiên). Loại hợp lệ: 1 (tuần bắt đầu Chủ nhật),
+    /// 2 (Thứ hai), 11–17 (tuần bắt đầu Thứ hai…Chủ nhật), 21 (ISO). Loại khác → #NUM!;
+    /// serial 0 → #NUM! (Excel không có tuần của ngày 1900-01-00).
+    private func weeknum(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...2)
+        let s = try dateArg(a[0])
+        var type = 1
+        if a.count == 2 { type = Int(try nm(a[1]).rounded(.towardZero)) }
+        guard s >= 1, let c = ExcelDate.civil(fromSerial: s),
+              let jan1 = ExcelDate.serial(year: c.year, month: 1, day: 1) else {
+            throw fail(FormulaErrors.num)
+        }
+        let doy = s - jan1 + 1
+        /// Thứ trong tuần theo cách đếm Thứ hai 1 … Chủ nhật 7.
+        func dowMon1(_ serial: Int) -> Int { ((ExcelDate.weekday(serial) + 5) % 7) + 1 }
+        switch type {
+        case 1:
+            return .number(Double((doy + ExcelDate.weekday(jan1) - 2) / 7 + 1))
+        case 2:
+            return .number(Double((doy + dowMon1(jan1) - 2) / 7 + 1))
+        case 11...17:
+            let startDow = type - 10 // 11 = Thứ hai … 17 = Chủ nhật
+            let offset = (dowMon1(jan1) - startDow + 7) % 7
+            return .number(Double((doy + offset - 1) / 7 + 1))
+        case 21:
+            let thursday = s + (4 - dowMon1(s))
+            guard let tc = ExcelDate.civil(fromSerial: thursday),
+                  let jan1Thu = ExcelDate.serial(year: tc.year, month: 1, day: 1) else {
+                throw fail(FormulaErrors.num)
+            }
+            return .number(Double((thursday - jan1Thu) / 7 + 1))
+        default:
+            throw fail(FormulaErrors.num)
+        }
+    }
+
+    /// Ngày lễ cho NETWORKDAYS/WORKDAY: số/chuỗi ngày hợp lệ → serial; ô trống, chữ
+    /// không phải ngày, TRUE/FALSE → bỏ qua; ô lỗi → lan truyền; số ngoài miền ngày → bỏ qua.
+    private func holidaySet(_ e: FormulaExpr) throws -> Set<Int> {
+        var out = Set<Int>()
+        for v in try grid(e).flat {
+            switch v {
+            case .empty: continue
+            case .number(let n):
+                guard n >= 0, n < 2_958_466 else { continue }
+                out.insert(Int(n.rounded(.down)))
+            case .string(let s):
+                if let p = ExcelDate.parse(s) { out.insert(Int(p.rounded(.down))) }
+            case .bool: continue
+            case .error(let er): throw Abort(value: .error(er))
+            }
+        }
+        return out
+    }
+
+    /// Thứ hai–Thứ sáu và không nằm trong danh sách ngày lễ.
+    private func isWorkday(_ s: Int, _ holidays: Set<Int>) -> Bool {
+        let w = ExcelDate.weekday(s)
+        if w == 1 || w == 7 { return false }
+        return !holidays.contains(s)
+    }
+
+    /// M7: NETWORKDAYS(start, end, [holidays]): số ngày làm việc kể cả hai đầu;
+    /// start > end → đếm âm (Excel trả số âm).
+    private func networkdays(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...3)
+        let s = try dateArg(a[0]), e = try dateArg(a[1])
+        let holidays = a.count == 3 ? try holidaySet(a[2]) : Set<Int>()
+        let lo = min(s, e), hi = max(s, e)
+        var count = 0
+        var d = lo
+        while d <= hi {
+            if isWorkday(d, holidays) { count += 1 }
+            d += 1
+        }
+        return .number(Double(s <= e ? count : -count))
+    }
+
+    /// M7: WORKDAY(start, days, [holidays]): ngày làm việc thứ `days` sau/trước start
+    /// (bản thân start không tính; days = 0 → giữ nguyên start, kể cả cuối tuần — theo Excel).
+    private func workday(_ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...3)
+        let s = try dateArg(a[0])
+        let days = Int(try nm(a[1]).rounded(.towardZero))
+        let holidays = a.count == 3 ? try holidaySet(a[2]) : Set<Int>()
+        var d = s
+        var remaining = abs(days)
+        let step = days >= 0 ? 1 : -1
+        while remaining > 0 {
+            d += step
+            guard d >= 0, d < 2_958_466 else { throw fail(FormulaErrors.num) }
+            if isWorkday(d, holidays) { remaining -= 1 }
+        }
+        return .number(Double(d))
     }
 
     // MARK: Toán

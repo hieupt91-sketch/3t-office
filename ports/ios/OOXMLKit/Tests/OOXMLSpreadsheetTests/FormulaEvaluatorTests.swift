@@ -99,6 +99,68 @@ final class FormulaEvaluatorTests: XCTestCase {
         XCTAssertEqual(calc("XMATCH(2,A1:A3,,)", d), err("#VALUE!"), "search_mode trống -> 0, ngoài miền (quy ước: đối số trống ép về 0 như XLOOKUP)")
     }
 
+    func testWeekdayWeeknumNetworkdaysWorkday() {
+        // Golden Excel 2016: batch13-common D1=45000 (2023-03-15 Thứ Tư), D2=45100;
+        // batch4-misc: WEEKNUM các loại return_type.
+        let d: [String: CellValue] = [
+            "D1": .number(45000), "D2": .number(45100),
+            "H1": .number(45293), "H2": .number(45294), // 2024-01-02, 2024-01-03
+            "H3": .string("không phải ngày"), "H4": .empty,
+        ]
+        // WEEKDAY — golden: WEEKDAY(D1)=4, WEEKDAY(D1,2)=3
+        XCTAssertEqual(calc("WEEKDAY(D1)", d), .number(4), "golden batch13: Thứ Tư, loại 1")
+        XCTAssertEqual(calc("WEEKDAY(D1,2)", d), .number(3), "golden batch13: Thứ Tư, loại 2")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,1))"), .number(2), "2024-01-01 Thứ Hai, loại 1")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,1),2)"), .number(1), "loại 2: Thứ Hai = 1")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,1),3)"), .number(0), "loại 3: Thứ Hai = 0")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,7))"), .number(1), "Chủ nhật, loại 1")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,7),2)"), .number(7), "Chủ nhật, loại 2 = 7")
+        XCTAssertEqual(calc("WEEKDAY(45000.9)", d), .number(4), "serial lẻ cắt phần thập phân")
+        XCTAssertEqual(calc("WEEKDAY(0)"), .number(7), "serial 0 = Thứ Bảy theo cách đếm Excel")
+        XCTAssertEqual(calc("WEEKDAY(60)"), .number(4), "serial 60 (29/02/1900 giả) = Thứ Tư")
+        XCTAssertEqual(calc("WEEKDAY(\"2024-03-05\")"), .number(3), "chuỗi ngày hợp lệ")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,1),4)"), err("#NUM!"), "return_type ngoài miền")
+        XCTAssertEqual(calc("WEEKDAY(\"không phải ngày\")"), err("#VALUE!"), "chuỗi không phải ngày")
+        XCTAssertEqual(calc("WEEKDAY(-1)"), err("#NUM!"), "serial âm")
+        // WEEKNUM — golden batch4
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,1,1))"), .number(1), "golden: 2024-01-01 loại 1")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,1,1),2)"), .number(1), "golden: 2024-01-01 loại 2")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,12,31))"), .number(53), "golden: 2024-12-31 loại 1")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,12,31),2)"), .number(53), "golden: 2024-12-31 loại 2")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2023,1,1),2)"), .number(1), "golden: 2023-01-01 loại 2")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),11)"), .number(10), "golden: loại 11 (tuần bắt đầu Thứ Hai)")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),12)"), .number(11), "golden: loại 12 (Thứ Ba)")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),16)"), .number(10), "golden: loại 16 (Thứ Bảy)")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),17)"), .number(10), "golden: loại 17 (Chủ nhật)")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),21)"), .number(10), "golden: loại 21 (ISO)")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),3)"), err("#NUM!"), "golden: loại 3 ngoài miền")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),0)"), err("#NUM!"), "golden: loại 0 ngoài miền")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2023,1,1),21)"), .number(52), "ISO: 2023-01-01 thuộc tuần 52 của 2022")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,12,29),21)"), .number(52), "ISO: 2024-12-29 Chủ nhật = tuần 52")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,12,30),21)"), .number(1), "ISO: 2024-12-30 Thứ Hai = tuần 1 của 2025")
+        XCTAssertEqual(calc("WEEKNUM(0)"), err("#NUM!"), "serial 0 không có tuần")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),22)"), err("#NUM!"), "loại 22 ngoài miền")
+        // NETWORKDAYS — golden: NETWORKDAYS(D1,D2)=73
+        XCTAssertEqual(calc("NETWORKDAYS(D1,D2)", d), .number(73), "golden batch13")
+        XCTAssertEqual(calc("NETWORKDAYS(D2,D1)", d), .number(-73), "đảo đầu: đếm âm")
+        XCTAssertEqual(calc("NETWORKDAYS(DATE(2024,1,1),DATE(2024,1,1))"), .number(1), "cùng ngày làm việc = 1")
+        XCTAssertEqual(calc("NETWORKDAYS(DATE(2024,1,6),DATE(2024,1,6))"), .number(0), "cùng ngày Thứ Bảy = 0")
+        XCTAssertEqual(calc("NETWORKDAYS(DATE(2024,1,1),DATE(2024,1,5),DATE(2024,1,1))"), .number(4), "lễ rơi vào ngày làm việc thì trừ")
+        XCTAssertEqual(calc("NETWORKDAYS(DATE(2024,1,1),DATE(2024,1,5),H1:H2)", d), .number(3), "lễ theo vùng: trừ 2 ngày")
+        XCTAssertEqual(calc("NETWORKDAYS(DATE(2024,1,1),DATE(2024,1,5),H3:H4)", d), .number(5), "lễ là chữ/rỗng: bỏ qua")
+        // WORKDAY — golden: WORKDAY(D1,10)=45014
+        XCTAssertEqual(calc("WORKDAY(D1,10)", d), .number(45014), "golden batch13")
+        XCTAssertEqual(calc("WORKDAY(D1,0)", d), .number(45000), "days = 0: giữ nguyên start")
+        XCTAssertEqual(calc("WORKDAY(D1,-1)", d), .number(44999), "lùi 1 ngày làm việc")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,6),1)"), .number(45299), "Thứ Bảy +1 = Thứ Hai 2024-01-08")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,6),0)"), .number(45297), "Thứ Bảy +0 = giữ nguyên Thứ Bảy")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,1),1,DATE(2024,1,2))"), .number(45294), "bỏ qua lễ 2024-01-02")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,1),2,H1:H2)", d), .number(45296), "lễ theo vùng: 01-01 +2 = 01-05")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,1),10.9)"), .number(45306), "days lẻ cắt phần thập phân")
+        XCTAssertEqual(calc("WORKDAY(\"không phải ngày\",1)"), err("#VALUE!"), "start không phải ngày")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,1),\"x\")"), err("#VALUE!"), "days không phải số")
+    }
+
     func testEmptyArguments() {
         XCTAssertEqual(calc("SUM(1,,2)"), .number(3), "tham số trống ở giữa bị bỏ qua như Excel")
         XCTAssertEqual(calc("SUM(,1,2)"), .number(3), "tham số trống ở đầu")
