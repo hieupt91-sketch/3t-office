@@ -3736,8 +3736,6 @@ class VnOfficeApi:
         self._allow_window_close = False
         self._reporter = _ERROR_REPORTER
         self._current_file_path: str | None = None
-        # Version of each file this window last read or wrote; Save compares it with the disk.
-        self._disk_fingerprints: dict[str, str] = {}
         self._reporting_file_path: str | None = initial_file
         self._reporting_operation: str | None = None
         self._reporting_app_kind = app_kind if app_kind in VALID_APP_KINDS else None
@@ -4538,8 +4536,12 @@ class VnOfficeApi:
         """The user chose to overwrite: accept exactly the on-disk version shown in the dialog, and no later one."""
         if not isinstance(target_path, str) or not target_path or not isinstance(fingerprint, str) or not fingerprint:
             return {"status": "error", "message": "Đường dẫn tệp không hợp lệ."}
-        self._disk_fingerprints[self._fingerprint_key(target_path)] = fingerprint
+        self._fingerprint_store()[self._fingerprint_key(target_path)] = fingerprint
         return {"status": "ok"}
+
+    def _fingerprint_store(self) -> dict[str, str]:
+        """Version of each file this window last read or wrote; Save compares it with the disk."""
+        return self.__dict__.setdefault("_disk_fingerprints", {})
 
     @staticmethod
     def _fingerprint_key(path: str) -> str:
@@ -4548,11 +4550,11 @@ class VnOfficeApi:
     def _record_disk_fingerprint(self, path: str, fingerprint: str | None = None) -> None:
         current = fingerprint or _file_fingerprint(path)
         if current:
-            self._disk_fingerprints[self._fingerprint_key(path)] = current
+            self._fingerprint_store()[self._fingerprint_key(path)] = current
 
     def _raise_if_changed_on_disk(self, path: str) -> None:
         """No record (never opened here) or no file (deleted, unreachable) means there is nothing to overwrite silently."""
-        recorded = self._disk_fingerprints.get(self._fingerprint_key(path))
+        recorded = self._fingerprint_store().get(self._fingerprint_key(path))
         current = _file_fingerprint(path)
         if recorded and current and current != recorded:
             raise ExternalFileChangeError(path, current)
