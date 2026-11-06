@@ -1,4 +1,151 @@
 # Agent Handoff
+TASK: AGY-Q83 — WordprocessingML list numbering oracle parity & doubt resolution
+AGENT/ROLE: Antigravity / VN Writer
+BRANCH: agy/q83-numbering
+WORKTREE: E:\VNOffice-agy-q83
+OBJECTIVE: Đo và giải quyết 2 nghi vấn đánh số danh sách WordprocessingML trong VN Writer theo BRIEF-AGY-Q83-NUMBERING-ORACLE.md:
+  1. `start` nằm trong `w:lvl` của `w:lvlOverride` ([MS-OI29500] §17.9).
+  2. `lvlRestart` nằm trong `w:lvl` của `w:lvlOverride` ([MS-OI29500] §17.9).
+FINDINGS:
+  - Đo lường thực tế trên Word 2016 COM ẩn (`Visible=False`) xác nhận:
+    1. Nghi vấn 1: Word 2016 hoàn toàn BỎ QUA `w:start` nằm trong `w:lvlOverride/w:lvl`. Word chỉ nhận `w:startOverride` trực tiếp dưới `w:lvlOverride`.
+    2. Nghi vấn 2: Word 2016 hoàn toàn BỎ QUA `w:lvlRestart` nằm trong `w:lvlOverride/w:lvl`. Word chỉ nhận `w:lvlRestart` khi được định nghĩa trong `w:abstractNum/w:lvl`.
+    3. Tổ hợp nhiều w:num cùng trỏ về một abstractNum: Word dùng chung chuỗi bộ đếm cho tất cả các w:num cùng abstractNumId (`abs:${abstractNumId}`). Khi một w:num có `w:startOverride` xuất hiện, giá trị đếm của cấp đó được đặt lại theo `startOverride` và các đoạn tiếp theo (kể cả từ w:num khác) tiếp tục chuỗi đếm từ giá trị đó.
+    4. Cấp sâu xuất hiện sau cấp nông (ví dụ cấp 2 xuất hiện sau cấp 0 mà không có cấp 1): Word ngầm kích hoạt các cấp trung gian bị thiếu (cấp 1) về giá trị `start` (1), nên khi cấp 1 xuất hiện sau đó, nó tăng tiếp lên 2.
+IMPLEMENTATION SUMMARY:
+  - Cập nhật `adapters/libreoffice/writer/writer-adapter.js`:
+    - Trong `resolveLvl`: `start: base?.start`, `startOverride: over.startOverride`, `lvlRestart: base?.lvlRestart` (bỏ qua `over.start` và `over.lvlRestart`).
+    - Trong `nextValue`: chuyển key bộ đếm sang `abs:${abstractNumId}`, theo dõi `appliedStartOverrides` để áp dụng `startOverride` ngay lần đầu `numId:level` xuất hiện trên chuỗi đếm chung, và ngầm khởi tạo các cấp tổ tiên bị thiếu $j < level$ về giá trị bắt đầu.
+  - Tạo 10 tệp DOCX tổng hợp trong `tests/fixtures/q83-numbering/` qua script `tests/scripts/generate_q83_fixtures.py`.
+  - Đo Word 2016 COM qua `tests/scripts/measure_q83_word.ps1`, lưu kết quả vào `tests/fixtures/q83-numbering/word_oracle_results.json`.
+  - Đo và so sánh VN Writer qua CDP `tests/scripts/measure_q83_cdp.mjs`: ĐẠT 55/55 MATCH (100%).
+  - Thêm 10 unit test trong `tests/unit/writer-numbering-oracle-q83.test.js` kiểm tra giá trị oracle từ Word 2016 và gắn vào runner `tests/run-tests.js`.
+FILES CHANGED:
+  - `adapters/libreoffice/writer/writer-adapter.js`
+  - `tests/run-tests.js`
+  - `tests/unit/writer-numbering-oracle-q83.test.js`
+  - `tests/scripts/generate_q83_fixtures.py`
+  - `tests/scripts/measure_q83_word.ps1`
+  - `tests/scripts/measure_q83_cdp.mjs`
+  - `tests/fixtures/q83-numbering/*.docx` (10 tệp tổng hợp)
+  - `tests/fixtures/q83-numbering/word_oracle_results.json`
+  - `tests/fixtures/q83-numbering/vn_writer_cdp_results.json`
+  - `09-templates/AGENT-HANDOFF.md`
+COMMANDS RUN:
+  - `python tests/scripts/generate_q83_fixtures.py`
+  - `powershell -ExecutionPolicy Bypass -File tests/scripts/measure_q83_word.ps1`
+  - `node --experimental-websocket tests/scripts/measure_q83_cdp.mjs` (55/55 MATCH)
+  - `npm test` (3896/3896 PASS | 0 FAIL)
+  - `node scripts/audit-0610/i18n_parity.mjs` (missingVI=0, missingEN=0)
+  - `python scripts/layout-audit/batch_document_audit.py docx E:\VNOffice-agy-q83 "E:\VN OFice\file test\landocx" E:\VNOffice-briefs\tmp\q83\docx d01.docx d02.docx d03.docx d06.docx d07.docx d13.docx d20.docx d24.docx` (8/8 PASS, delta=0)
+BUILD RESULT: NOT RUN — không đổi build system; monorepo JS/desktop bundle.
+TEST RESULTS: PASS — npm test 3896/3896 (0 FAIL); i18n parity missing 0; CDP so sánh Word 2016 vs VN Writer: 55/55 MATCH; batch layout audit DOCX 8/8 PASS (d01, d02, d03, d06, d07, d13, d20, d24 đều page delta = 0).
+KNOWN FAILURES: None.
+RISKS: None.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review và merge nhánh `agy/q83-numbering`.
+
+### BẢNG ĐỐI CHIẾU CHI TIẾT WORD 2016 COM vs VN WRITER (CDP)
+
+File: case1_start_override.docx
+| Index | Paragraph Text | Word ListString | Word Value | Writer ListString | Writer Value | Match? |
+|-------|----------------|-----------------|------------|-------------------|--------------|--------|
+| 1 | Muc mot bat dau tu nam | '5.' | 5 | '5.' | 5 | MATCH |
+| 2 | Muc hai tiep theo | '6.' | 6 | '6.' | 6 | MATCH |
+| 3 | Muc ba tiep theo | '7.' | 7 | '7.' | 7 | MATCH |
+
+File: case2_lvl_start_override.docx
+| Index | Paragraph Text | Word ListString | Word Value | Writer ListString | Writer Value | Match? |
+|-------|----------------|-----------------|------------|-------------------|--------------|--------|
+| 1 | Doan mot cua lvl start override | '1.' | 1 | '1.' | 1 | MATCH |
+| 2 | Doan hai cua lvl start override | '2.' | 2 | '2.' | 2 | MATCH |
+| 3 | Doan ba cua lvl start override | '3.' | 3 | '3.' | 3 | MATCH |
+
+File: case3_lvl_restart_0.docx
+| Index | Paragraph Text | Word ListString | Word Value | Writer ListString | Writer Value | Match? |
+|-------|----------------|-----------------|------------|-------------------|--------------|--------|
+| 1 | Phan mot | '1.' | 1 | '1.' | 1 | MATCH |
+| 2 | Muc con a | 'a)' | 1 | 'a)' | 1 | MATCH |
+| 3 | Muc con b | 'b)' | 2 | 'b)' | 2 | MATCH |
+| 4 | Phan hai | '2.' | 2 | '2.' | 2 | MATCH |
+| 5 | Muc con sau phan hai | 'a)' | 1 | 'a)' | 1 | MATCH |
+
+File: case3b_abstract_lvl_restart_0.docx
+| Index | Paragraph Text | Word ListString | Word Value | Writer ListString | Writer Value | Match? |
+|-------|----------------|-----------------|------------|-------------------|--------------|--------|
+| 1 | Phan mot | '1.' | 1 | '1.' | 1 | MATCH |
+| 2 | Muc con a | 'a)' | 1 | 'a)' | 1 | MATCH |
+| 3 | Muc con b | 'b)' | 2 | 'b)' | 2 | MATCH |
+| 4 | Phan hai | '2.' | 2 | '2.' | 2 | MATCH |
+| 5 | Muc con tiep tuc sau phan hai | 'c)' | 3 | 'c)' | 3 | MATCH |
+
+File: case4_lvl_restart_n.docx
+| Index | Paragraph Text | Word ListString | Word Value | Writer ListString | Writer Value | Match? |
+|-------|----------------|-----------------|------------|-------------------|--------------|--------|
+| 1 | Cap khong dot mot | '1.' | 1 | '1.' | 1 | MATCH |
+| 2 | Cap mot dot mot | 'a)' | 1 | 'a)' | 1 | MATCH |
+| 3 | Cap hai muc mot | 'i.' | 1 | 'i.' | 1 | MATCH |
+| 4 | Cap mot dot hai | 'b)' | 2 | 'b)' | 2 | MATCH |
+| 5 | Cap hai muc hai | 'i.' | 1 | 'i.' | 1 | MATCH |
+| 6 | Cap khong dot hai | '2.' | 2 | '2.' | 2 | MATCH |
+| 7 | Cap mot dot ba | 'a)' | 1 | 'a)' | 1 | MATCH |
+| 8 | Cap hai muc ba | 'i.' | 1 | 'i.' | 1 | MATCH |
+
+File: case4b_abstract_lvl_restart_n.docx
+| Index | Paragraph Text | Word ListString | Word Value | Writer ListString | Writer Value | Match? |
+|-------|----------------|-----------------|------------|-------------------|--------------|--------|
+| 1 | Cap khong dot mot | '1.' | 1 | '1.' | 1 | MATCH |
+| 2 | Cap mot dot mot | 'a)' | 1 | 'a)' | 1 | MATCH |
+| 3 | Cap hai muc mot | 'i.' | 1 | 'i.' | 1 | MATCH |
+| 4 | Cap mot dot hai | 'b)' | 2 | 'b)' | 2 | MATCH |
+| 5 | Cap hai muc hai | 'ii.' | 2 | 'ii.' | 2 | MATCH |
+| 6 | Cap khong dot hai | '2.' | 2 | '2.' | 2 | MATCH |
+| 7 | Cap mot dot ba | 'a)' | 1 | 'a)' | 1 | MATCH |
+| 8 | Cap hai muc ba | 'i.' | 1 | 'i.' | 1 | MATCH |
+
+File: case5_multi_numid_same_abstract.docx
+| Index | Paragraph Text | Word ListString | Word Value | Writer ListString | Writer Value | Match? |
+|-------|----------------|-----------------|------------|-------------------|--------------|--------|
+| 1 | Danh sach A muc mot | '1.' | 1 | '1.' | 1 | MATCH |
+| 2 | Danh sach A muc hai | '2.' | 2 | '2.' | 2 | MATCH |
+| 3 | Danh sach B muc mot | '3.' | 3 | '3.' | 3 | MATCH |
+| 4 | Danh sach B muc hai | '4.' | 4 | '4.' | 4 | MATCH |
+| 5 | Danh sach A muc ba | '5.' | 5 | '5.' | 5 | MATCH |
+
+File: case5b_multi_numid_with_start_override.docx
+| Index | Paragraph Text | Word ListString | Word Value | Writer ListString | Writer Value | Match? |
+|-------|----------------|-----------------|------------|-------------------|--------------|--------|
+| 1 | Danh sach 1 muc mot | '1.' | 1 | '1.' | 1 | MATCH |
+| 2 | Danh sach 1 muc hai | '2.' | 2 | '2.' | 2 | MATCH |
+| 3 | Danh sach 2 muc mot | '10.' | 10 | '10.' | 10 | MATCH |
+| 4 | Danh sach 2 muc hai | '11.' | 11 | '11.' | 11 | MATCH |
+| 5 | Danh sach 1 muc ba | '12.' | 12 | '12.' | 12 | MATCH |
+
+File: case6_deep_then_shallow.docx
+| Index | Paragraph Text | Word ListString | Word Value | Writer ListString | Writer Value | Match? |
+|-------|----------------|-----------------|------------|-------------------|--------------|--------|
+| 1 | Cap nong mot | '1.' | 1 | '1.' | 1 | MATCH |
+| 2 | Cap trung a | 'a)' | 1 | 'a)' | 1 | MATCH |
+| 3 | Cap sau mot | 'i.' | 1 | 'i.' | 1 | MATCH |
+| 4 | Cap sau hai | 'ii.' | 2 | 'ii.' | 2 | MATCH |
+| 5 | Cap nong hai | '2.' | 2 | '2.' | 2 | MATCH |
+| 6 | Cap sau sau cap nong hai | 'i.' | 1 | 'i.' | 1 | MATCH |
+| 7 | Cap trung sau cap sau | 'b)' | 2 | 'b)' | 2 | MATCH |
+| 8 | Cap sau tiep theo | 'i.' | 1 | 'i.' | 1 | MATCH |
+
+File: case7_control_no_override.docx
+| Index | Paragraph Text | Word ListString | Word Value | Writer ListString | Writer Value | Match? |
+|-------|----------------|-----------------|------------|-------------------|--------------|--------|
+| 1 | Doi chung phan mot | '1.' | 1 | '1.' | 1 | MATCH |
+| 2 | Doi chung muc a | 'a)' | 1 | 'a)' | 1 | MATCH |
+| 3 | Doi chung muc b | 'b)' | 2 | 'b)' | 2 | MATCH |
+| 4 | Doi chung phan hai | '2.' | 2 | '2.' | 2 | MATCH |
+| 5 | Doi chung muc a sau phan hai | 'a)' | 1 | 'a)' | 1 | MATCH |
+
+---
+
+# Agent Handoff
 TASK: MAC-3 — bộ lọc mẫu bảng tính và UTI macOS
 AGENT/ROLE: Codex / macOS file registration
 BRANCH: mac/filetypes-1910

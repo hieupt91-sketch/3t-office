@@ -6280,19 +6280,23 @@ export class WriterAdapter {
         lvlText: over.lvlText !== undefined ? over.lvlText : base?.lvlText,
         font: over.font || base?.font || null,
         ind: mergeInd(base?.ind || null, over.ind),
-        start: over.start !== undefined ? over.start : base?.start,
+        start: base?.start,
         startOverride: over.startOverride,
-        lvlRestart: over.lvlRestart !== undefined ? over.lvlRestart : base?.lvlRestart
+        lvlRestart: base?.lvlRestart
       };
     };
-    // W33: bộ đếm số thứ tự như Word — theo abstractNum + cấp; cấp cao hơn (chỉ số nhỏ) xuất hiện thì cấp sâu hơn
-    // đặt lại, trừ khi cấp sâu có `w:lvlRestart` (0 = không bao giờ; N = chỉ đặt lại khi gặp cấp < N — d20 lvl 1
-    // lvlRestart=0 nên "14. Têntàu" tiếp tục sau tiêu đề cấp 0); w:num có startOverride thì numId ấy đếm riêng.
+    // W33/Q83: bộ đếm số thứ tự theo chuẩn Word (xác nhận qua Word 2016 COM Oracle):
+    // - Các w:num cùng trỏ về một abstractNumId dùng chung chuỗi đếm `abs:${abstractNumId}`.
+    // - Cấp cao hơn (chỉ số nhỏ) xuất hiện thì cấp sâu hơn đặt lại, trừ khi cấp sâu có `w:lvlRestart` trong abstractNum
+    //   (0 = không bao giờ; N = chỉ đặt lại khi gặp cấp < N — ví dụ d20 lvl 1 lvlRestart=0).
+    // - Khi nhảy thẳng vào cấp sâu (ví dụ từ cấp 0 sang cấp 2), Word ngầm khởi tạo các cấp trung gian (cấp 1) về giá trị start.
+    // - `w:startOverride` trên w:num đặt lại giá trị bắt đầu cho cấp đó trong chuỗi đếm chung ngay lần đầu numId ấy xuất hiện.
     const counters = new Map(); // key -> Map(level -> count)
+    const appliedStartOverrides = new Set();
     const nextValue = (nid, ilvl, lvl) => {
       const numEntry = nums.get(String(nid));
       if (!numEntry) return null;
-      const key = lvl?.startOverride !== undefined ? `num:${nid}` : `abs:${numEntry.abstractNumId}`;
+      const key = `abs:${numEntry.abstractNumId !== undefined ? numEntry.abstractNumId : nid}`;
       if (!counters.has(key)) counters.set(key, new Map());
       const levels = counters.get(key);
       const level = Number(ilvl) || 0;
@@ -6302,9 +6306,31 @@ export class WriterAdapter {
         if (restart === 0) continue;
         if (restart !== undefined && level >= restart) continue;
         levels.delete(k);
+        for (const overrideKey of appliedStartOverrides) {
+          if (overrideKey.endsWith(`:${k}`)) appliedStartOverrides.delete(overrideKey);
+        }
       }
-      const startAt = lvl?.startOverride !== undefined ? lvl.startOverride : (lvl?.start !== undefined ? lvl.start : 1);
-      const value = levels.has(level) ? levels.get(level) + 1 : startAt;
+      for (let j = 0; j < level; j++) {
+        if (!levels.has(j)) {
+          const ancestorLvl = resolveLvl(nid, String(j));
+          const jStart = ancestorLvl?.startOverride !== undefined
+            ? ancestorLvl.startOverride
+            : (ancestorLvl?.start !== undefined ? ancestorLvl.start : 1);
+          levels.set(j, jStart);
+        }
+      }
+      const overrideKey = `${nid}:${level}`;
+      const hasAppliedOverride = appliedStartOverrides.has(overrideKey);
+      let value;
+      if (lvl?.startOverride !== undefined && !hasAppliedOverride) {
+        appliedStartOverrides.add(overrideKey);
+        value = lvl.startOverride;
+      } else if (levels.has(level)) {
+        value = levels.get(level) + 1;
+      } else {
+        value = lvl?.startOverride !== undefined ? lvl.startOverride : (lvl?.start !== undefined ? lvl.start : 1);
+        if (lvl?.startOverride !== undefined) appliedStartOverrides.add(overrideKey);
+      }
       levels.set(level, value);
       return value;
     };
