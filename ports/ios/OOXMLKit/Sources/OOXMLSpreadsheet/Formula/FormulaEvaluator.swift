@@ -242,6 +242,9 @@ struct FormulaEvaluator {
         case "TOROW": return tocolRow(args, asColumn: false)
         case "HSTACK": return stackArrays(args, horizontal: true)
         case "VSTACK": return stackArrays(args, horizontal: false)
+        case "RANDARRAY": return randArray(args)
+        case "WRAPROWS": return wrapVector(args, byRow: true)
+        case "WRAPCOLS": return wrapVector(args, byRow: false)
         default: return nil
         }
     }
@@ -760,6 +763,126 @@ struct FormulaEvaluator {
             for line in g {
                 out.append(w == cols ? line : line + [CellValue](repeating: na, count: cols - w))
             }
+        }
+        return .array(out)
+    }
+
+    // MARK: Hàm mảng động — RANDARRAY / WRAPROWS / WRAPCOLS (M7 lát 26, INBOX-MAC #17)
+
+    /// RANDARRAY([hàng=1], [cột=1], [nhỏ_nhất=0], [lớn_nhất=1], [nguyên=FALSE]):
+    /// sinh lưới số ngẫu nhiên. Hàng/cột cắt phần lẻ về nguyên, phải ≥ 1 nếu
+    /// không → #VALUE!; nhỏ_nhất/lớn_nhất phải là số hữu hạn, nhỏ_nhất >
+    /// lớn_nhất → #VALUE!; nguyên=TRUE → số nguyên trong [nhỏ_nhất, lớn_nhất]
+    /// (cận cắt phần lẻ về nguyên trước), FALSE → số thập phân trong
+    /// [nhỏ_nhất, lớn_nhất); nhỏ_nhất == lớn_nhất → toàn bộ bằng giá trị đó
+    /// ở cả hai chế độ; lưới vượt giới hạn phần tử → #CALC!; lỗi trong đối
+    /// số lan truyền nguyên vẹn. (Hàm biến thiên: mỗi lần tính lại sinh số mới.)
+    private func randArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard args.count <= 5 else { return bad }
+        var nums: [Double] = [1, 1, 0, 1]
+        for i in 0..<min(args.count, 4) {
+            guard args[i] != .empty else { continue }
+            let v = scalar(eval(args[i]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = number(v), n.isFinite else { return bad }
+            nums[i] = n
+        }
+        var integer = false
+        if args.count == 5, args[4] != .empty {
+            let v = scalar(eval(args[4]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let b = bool(v) else { return bad }
+            integer = b
+        }
+        let r0 = nums[0].rounded(.towardZero), c0 = nums[1].rounded(.towardZero)
+        guard r0 >= 1, c0 >= 1, r0 <= Double(Self.maxElementwiseCells),
+              c0 <= Double(Self.maxElementwiseCells) else { return bad }
+        let rows = Int(r0), cols = Int(c0)
+        let lo = nums[2], hi = nums[3]
+        guard lo <= hi else { return bad }
+        guard rows * cols <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        if integer {
+            let a = lo.rounded(.towardZero), b = hi.rounded(.towardZero)
+            guard a <= b, a >= Double(Int.min), b <= Double(Int.max) else { return bad }
+            let loI = Int(a), hiI = Int(b)
+            var out: [[CellValue]] = []
+            out.reserveCapacity(rows)
+            for _ in 0..<rows {
+                var line: [CellValue] = []
+                line.reserveCapacity(cols)
+                for _ in 0..<cols { line.append(.number(Double(Int.random(in: loI...hiI)))) }
+                out.append(line)
+            }
+            return .array(out)
+        }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rows)
+        for _ in 0..<rows {
+            var line: [CellValue] = []
+            line.reserveCapacity(cols)
+            for _ in 0..<cols {
+                line.append(.number(lo == hi ? lo : Double.random(in: lo..<hi)))
+            }
+            out.append(line)
+        }
+        return .array(out)
+    }
+
+    /// WRAPROWS(vectơ, số_gói, [đệm]) / WRAPCOLS(...): gói một vectơ một chiều
+    /// thành nhiều hàng / cột, mỗi hàng/cột dài số_gói ô; nhóm cuối thiếu được
+    /// đệm bằng đệm (mặc định #N/A). Vectơ phải là đúng một hàng hoặc một cột,
+    /// nếu không → #VALUE!; số_gói cắt phần lẻ về nguyên, phải ≥ 1 nếu không
+    /// → #VALUE!; tổng số ô vượt giới hạn → #CALC!; đệm là lỗi → lỗi đó lan
+    /// truyền làm kết quả; ô trống trong vectơ đi qua nguyên vẹn như các hàm
+    /// mảng khác của engine.
+    private func wrapVector(_ args: [FormulaExpr], byRow: Bool) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard (2...3).contains(args.count) else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        let rows = grid.count
+        guard rows == 1 || cols == 1 else { return bad }
+        let flat = grid.flatMap { $0 }
+        let wv = scalar(eval(args[1]))
+        if case .error(let e) = wv { return .scalar(.error(e)) }
+        guard let w = intFromScalar(wv), w >= 1 else { return bad }
+        var pad: CellValue = .error(FormulaErrors.na)
+        if args.count == 3, args[2] != .empty {
+            let pv = scalar(eval(args[2]))
+            if case .error(let e) = pv { return .scalar(.error(e)) }
+            pad = pv
+        }
+        let n = flat.count
+        let groups = (n + w - 1) / w
+        guard groups * w <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        if byRow {
+            var out: [[CellValue]] = []
+            out.reserveCapacity(groups)
+            for g in 0..<groups {
+                var line: [CellValue] = []
+                line.reserveCapacity(w)
+                for j in 0..<w {
+                    let idx = g * w + j
+                    line.append(idx < n ? flat[idx] : pad)
+                }
+                out.append(line)
+            }
+            return .array(out)
+        }
+        var out: [[CellValue]] = Array(repeating: [], count: w)
+        for r in 0..<w {
+            var line: [CellValue] = []
+            line.reserveCapacity(groups)
+            for g in 0..<groups {
+                let idx = g * w + r
+                line.append(idx < n ? flat[idx] : pad)
+            }
+            out[r] = line
         }
         return .array(out)
     }

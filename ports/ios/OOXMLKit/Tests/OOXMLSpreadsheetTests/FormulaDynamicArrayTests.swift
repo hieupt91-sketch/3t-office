@@ -6,6 +6,7 @@ import XCTest
 /// M7 lát 20: SORTBY (INBOX-MAC #17).
 /// M7 lát 24: TAKE / DROP / CHOOSEROWS / CHOOSECOLS (INBOX-MAC #17).
 /// M7 lát 25: TOCOL / TOROW / HSTACK / VSTACK (INBOX-MAC #17).
+/// M7 lát 26: RANDARRAY / WRAPROWS / WRAPCOLS (INBOX-MAC #17).
 /// Giá trị kỳ vọng theo Excel: SEQUENCE cắt phần lẻ hàng/cột về nguyên,
 /// TRANSPOSE đổi hàng ↔ cột, ô lỗi đi qua nguyên vẹn; SORT ổn định, rỗng
 /// luôn cuối; FILTER cần bao_gồm logic đúng hình; UNIQUE so trùng không
@@ -967,5 +968,211 @@ final class FormulaDynamicArrayTests: XCTestCase {
         XCTAssertEqual(cse(engine(), "=VSTACK(TOROW(A1:B2),TOROW(A1:B2))", "D1:G2"),
                        [.number(1), .number(2), .number(3), .number(4),
                         .number(1), .number(2), .number(3), .number(4)])
+    }
+
+    // MARK: RANDARRAY (M7 lát 26, INBOX-MAC #17)
+
+    /// RANDARRAY sinh số ngẫu nhiên nên chỉ kiểm hình, khoảng giá trị và
+    /// tính nguyên — không kiểm giá trị cụ thể (trừ khi nhỏ_nhất == lớn_nhất).
+    private func numbersInRange(_ values: [CellValue], _ lo: Double, _ hi: Double, hiInclusive: Bool = false) -> Bool {
+        values.allSatisfy {
+            guard case .number(let d) = $0 else { return false }
+            return hiInclusive ? (d >= lo && d <= hi) : (d >= lo && d < hi)
+        }
+    }
+
+    private func allIntegers(_ values: [CellValue]) -> Bool {
+        values.allSatisfy {
+            guard case .number(let d) = $0 else { return false }
+            return d == d.rounded()
+        }
+    }
+
+    func testRandArrayDefaultSingleCell() {
+        let v = calc(engine(), "=RANDARRAY()")
+        XCTAssertTrue(numbersInRange([v], 0, 1), "mặc định 1 ô trong [0,1): \(v)")
+    }
+
+    func testRandArrayShapeAndBounds() {
+        let v = cse(engine(), "=RANDARRAY(2,3)", "D1:F2")
+        XCTAssertEqual(v.count, 6)
+        XCTAssertTrue(numbersInRange(v, 0, 1), "2x3, mọi ô trong [0,1)")
+    }
+
+    func testRandArrayMinMax() {
+        let v = cse(engine(), "=RANDARRAY(2,2,5,10)", "D1:E2")
+        XCTAssertTrue(numbersInRange(v, 5, 10), "mọi ô trong [5,10)")
+    }
+
+    func testRandArrayMinEqualsMaxDecimal() {
+        XCTAssertEqual(cse(engine(), "=RANDARRAY(2,2,5,5)", "D1:E2"),
+                       [.number(5), .number(5), .number(5), .number(5)],
+                       "nhỏ_nhất == lớn_nhất → toàn bộ bằng 5")
+    }
+
+    func testRandArrayInteger() {
+        let v = cse(engine(), "=RANDARRAY(3,3,1,10,TRUE)", "D1:F3")
+        XCTAssertTrue(allIntegers(v), "nguyên=TRUE → toàn số nguyên")
+        XCTAssertTrue(numbersInRange(v, 1, 10, hiInclusive: true), "mọi ô trong [1,10]")
+    }
+
+    func testRandArrayIntegerMinEqualsMax() {
+        XCTAssertEqual(calc(engine(), "=SUM(RANDARRAY(2,2,7,7,TRUE))"), .number(28),
+                       "nguyên, nhỏ_nhất == lớn_nhất = 7 → tổng 4x7")
+    }
+
+    func testRandArrayIntegerNegativeRange() {
+        let v = cse(engine(), "=RANDARRAY(2,2,-5,-1,TRUE)", "D1:E2")
+        XCTAssertTrue(allIntegers(v))
+        XCTAssertTrue(numbersInRange(v, -5, -1, hiInclusive: true), "mọi ô trong [-5,-1]")
+    }
+
+    func testRandArrayTruncatesFractionalRows() {
+        XCTAssertEqual(calc(engine(), "=SUM(RANDARRAY(2.9,1,5,5))"), .number(10),
+                       "2.9 hàng cắt về 2, mỗi ô = 5")
+    }
+
+    func testRandArrayZeroOrNegativeIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=RANDARRAY(0)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=RANDARRAY(2,0)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=RANDARRAY(-3)"), .error("#VALUE!"))
+    }
+
+    func testRandArrayMinGreaterThanMaxIsValueError() {
+        XCTAssertEqual(calc(engine(), "=RANDARRAY(1,1,10,5)"), .error("#VALUE!"))
+    }
+
+    func testRandArrayNonNumericIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=RANDARRAY(\"x\")"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=RANDARRAY(1,1,\"x\",2)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=RANDARRAY(1,1,0,1,\"x\")"), .error("#VALUE!"))
+    }
+
+    func testRandArrayErrorArgPropagates() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=RANDARRAY(1/0)"), .error("#DIV/0!"))
+        XCTAssertEqual(calc(e, "=RANDARRAY(1,1,1/0,2)"), .error("#DIV/0!"))
+        XCTAssertEqual(calc(e, "=RANDARRAY(1,1,0,1,1/0)"), .error("#DIV/0!"))
+    }
+
+    func testRandArrayWrongArgCount() {
+        XCTAssertEqual(calc(engine(), "=RANDARRAY(1,1,0,1,TRUE,2)"), .error("#VALUE!"))
+    }
+
+    func testRandArrayInSum() {
+        XCTAssertEqual(calc(engine(), "=SUM(RANDARRAY(2,2,5,5))"), .number(20))
+    }
+
+    // MARK: WRAPROWS (M7 lát 26, INBOX-MAC #17)
+
+    func testWrapRowsBasic() {
+        XCTAssertEqual(cse(engine(), "=WRAPROWS({1,2,3,4,5},2)", "D1:E3"),
+                       [.number(1), .number(2), .number(3), .number(4), .number(5), .error("#N/A")],
+                       "nhóm cuối thiếu 1 ô đệm #N/A")
+    }
+
+    func testWrapRowsColumnVector() {
+        XCTAssertEqual(cse(engine(), "=WRAPROWS({1;2;3;4;5},2)", "D1:E3"),
+                       [.number(1), .number(2), .number(3), .number(4), .number(5), .error("#N/A")],
+                       "vectơ cột gói giống vectơ hàng")
+    }
+
+    func testWrapRowsPadWith() {
+        XCTAssertEqual(cse(engine(), "=WRAPROWS({1,2,3},2,\"x\")", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .string("x")])
+    }
+
+    func testWrapRowsExactFit() {
+        XCTAssertEqual(cse(engine(), "=WRAPROWS({1,2,3,4},2)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)])
+    }
+
+    func testWrapRowsWrapOne() {
+        XCTAssertEqual(cse(engine(), "=WRAPROWS({1,2,3},1)", "D1:D3"),
+                       [.number(1), .number(2), .number(3)],
+                       "số_gói = 1 → thành cột")
+    }
+
+    func testWrapRowsWrapMoreThanLength() {
+        XCTAssertEqual(cse(engine(), "=WRAPROWS({1,2},5)", "D1:H1"),
+                       [.number(1), .number(2), .error("#N/A"), .error("#N/A"), .error("#N/A")])
+    }
+
+    func testWrapRowsTwoDimensionalIsValueError() {
+        XCTAssertEqual(calc(engine(), "=WRAPROWS(A1:B2,2)"), .error("#VALUE!"))
+    }
+
+    func testWrapRowsBadWrapIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=WRAPROWS({1,2},0)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=WRAPROWS({1,2},-1)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=WRAPROWS({1,2},\"x\")"), .error("#VALUE!"))
+    }
+
+    func testWrapRowsErrorArgPropagates() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=WRAPROWS(1/0,2)", "D1:E1"),
+                       [.error("#DIV/0!"), .error("#N/A")],
+                       "ô lỗi trong vectơ đi vào mảng kết quả (ô đơn đọc mảng nhiều ô → #VALUE! theo quy ước scalar())")
+        XCTAssertEqual(calc(e, "=WRAPROWS({1,2},1/0)"), .error("#DIV/0!"),
+                       "lỗi ở đối số số_gói lan truyền dạng scalar")
+    }
+
+    func testWrapRowsPadErrorPropagates() {
+        XCTAssertEqual(calc(engine(), "=WRAPROWS({1,2,3},2,1/0)"), .error("#DIV/0!"))
+    }
+
+    func testWrapRowsWrongArgCount() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=WRAPROWS({1,2})"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=WRAPROWS({1,2},2,0,1)"), .error("#VALUE!"))
+    }
+
+    func testWrapRowsInSum() {
+        XCTAssertEqual(calc(engine(), "=SUM(WRAPROWS({1,2,3,4},2))"), .number(10))
+    }
+
+    // MARK: WRAPCOLS (M7 lát 26, INBOX-MAC #17)
+
+    func testWrapColsBasic() {
+        XCTAssertEqual(cse(engine(), "=WRAPCOLS({1,2,3,4,5},2)", "D1:F2"),
+                       [.number(1), .number(3), .number(5),
+                        .number(2), .number(4), .error("#N/A")],
+                       "gói theo cột: cột 1 = 1,2; cột 2 = 3,4; cột 3 = 5,#N/A")
+    }
+
+    func testWrapColsPadWith() {
+        XCTAssertEqual(cse(engine(), "=WRAPCOLS({1,2,3},2,\"x\")", "D1:E2"),
+                       [.number(1), .number(3), .number(2), .string("x")])
+    }
+
+    func testWrapColsExactFit() {
+        XCTAssertEqual(cse(engine(), "=WRAPCOLS({1,2,3,4},2)", "D1:E2"),
+                       [.number(1), .number(3), .number(2), .number(4)])
+    }
+
+    func testWrapColsTwoDimensionalIsValueError() {
+        XCTAssertEqual(calc(engine(), "=WRAPCOLS(A1:B2,2)"), .error("#VALUE!"))
+    }
+
+    func testWrapColsBadWrapIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=WRAPCOLS({1,2},0)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=WRAPCOLS({1,2},-1)"), .error("#VALUE!"))
+    }
+
+    func testWrapColsInSum() {
+        XCTAssertEqual(calc(engine(), "=SUM(WRAPCOLS({1,2,3,4},2))"), .number(10))
+    }
+
+
+    func testWrapColsOfWrapRows() {
+        XCTAssertEqual(calc(engine(), "=WRAPCOLS(WRAPROWS({1,2,3,4},2),2)"), .error("#VALUE!"),
+                       "WRAPROWS trả mảng 2 chiều nên WRAPCOLS từ chối đúng")
+        XCTAssertEqual(cse(engine(), "=WRAPCOLS(TOCOL({1,2;3,4}),2)", "D1:E2"),
+                       [.number(1), .number(3), .number(2), .number(4)],
+                       "TOCOL thành vectơ cột rồi WRAPCOLS gói lại")
     }
 }
