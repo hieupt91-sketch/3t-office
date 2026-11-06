@@ -4,6 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { saveInPlaceCheckingExternalChange } from "../common/save-conflict.js";
 import { showAlertDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
@@ -5673,12 +5674,14 @@ export class SlidesAdapter {
   async save() {
     if (!this.sourceFilePath) return await this.saveAs();
     const fodpContent = this.serializeToFodp();
-    const result = await globalUnoBridge.saveRealFileInPlace(
+    const result = await saveInPlaceCheckingExternalChange(
       "slides",
       fodpContent,
       this.sourceFilePath,
-      this.sourceFilePath
+      this.sourceFilePath,
+      () => this.saveAs()
     );
+    if (result.status === "saved_copy") return true;
     if (result.status === "ok") {
       this.isDirty = false;
       const savedPath = result.path || this.sourceFilePath;

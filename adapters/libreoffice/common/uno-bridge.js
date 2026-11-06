@@ -341,6 +341,12 @@ export class UnoBridge {
     return await this.desktopApi.save_document_in_place(payload, appKind, targetPath, sourcePath || targetPath);
   }
 
+  /** Người dùng chọn ghi đè: chấp nhận đúng phiên bản trên đĩa đã báo trong hộp thoại. */
+  async acknowledgeExternalChange(targetPath, fingerprint) {
+    if (!this.desktopApi) return { status: "error", message: "Cầu nối Python của ứng dụng chưa sẵn sàng." };
+    return await this.desktopApi.acknowledge_external_change(targetPath, fingerprint);
+  }
+
   /**
    * Xuất PDF thật từ nội dung hiện tại qua hộp thoại native.
    * @param {"writer"|"sheet"|"slides"} appKind

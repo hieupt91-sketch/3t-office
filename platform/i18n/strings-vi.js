@@ -265,6 +265,13 @@ export const viStrings = {
     location: "Vị trí",
     stepsHeading: "Cách dùng"
   },
+  saveConflict: {
+    title: "Tệp đã bị thay đổi",
+    message: "Tệp «{fileName}» đã được thay đổi bên ngoài 3T Office kể từ lần bạn mở hoặc lưu gần nhất, có thể do người khác trên mạng. Nếu ghi đè, các thay đổi đó sẽ mất. Bạn muốn làm gì?",
+    saveCopy: "Lưu bản sao",
+    overwrite: "Ghi đè",
+    cancel: "Hủy"
+  },
   autoRecover: {
     settingsTitle: "Tùy chọn · Tự động khôi phục",
     enabled: "Bật lưu khôi phục tự động",

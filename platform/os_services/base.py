@@ -242,6 +242,17 @@ class DocumentFonts(Protocol):
     def sources(self) -> DocumentFontSources: ...
 
 
+class DurableFiles(Protocol):
+    """Push written data to stable storage (save path).
+
+    A filesystem that refuses the request (network shares, some FUSE mounts) is not an error and returns normally.
+    Anything else, such as a failing disk or a dropped connection, raises OSError: the caller must not report success.
+    """
+
+    def flush_file(self, fd: int) -> None: ...
+    def flush_directory(self, path: Path) -> None: ...
+
+
 class OfficeAutomation(Protocol):
     def availability(self, app_kind: str) -> ServiceResult[OfficeEngineInfo]: ...
     def export_pdf(self, request: OfficeExportRequest) -> ServiceResult[Path]: ...
@@ -269,6 +280,8 @@ class OSServices:
     # Optional extra (MAC-3-2610): what the OS's native Open/Save dialogs already do (file_dialogs.FileDialogPolicy).
     # None keeps main.py's previous dialog code path (Windows, Linux).
     file_dialogs: object | None = None
+    # Optional extra (S1 save safety): None makes main.py fall back to a plain os.fsync of the staged file.
+    durable_files: DurableFiles | None = None
 
 
 SERVICE_FIELDS = (

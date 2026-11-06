@@ -139,6 +139,7 @@ _AUTORECOVER_STORE_MODULE = importlib.util.module_from_spec(_AUTORECOVER_STORE_S
 sys.modules[_AUTORECOVER_STORE_SPEC.name] = _AUTORECOVER_STORE_MODULE
 _AUTORECOVER_STORE_SPEC.loader.exec_module(_AUTORECOVER_STORE_MODULE)
 AutoRecoverStore = _AUTORECOVER_STORE_MODULE.AutoRecoverStore
+SaveBackupStore = _AUTORECOVER_STORE_MODULE.SaveBackupStore
 
 _PROCESS_TRACKER_PATH = Path(__file__).resolve().parent / "platform" / "process_lifecycle" / "process_tracker.py"
 _PROCESS_TRACKER_SPEC = importlib.util.spec_from_file_location("_vno_process_tracker", _PROCESS_TRACKER_PATH)
@@ -1381,6 +1382,15 @@ _PERSISTENT_SOFFICE = _PersistentSofficeManager()
 
 class DocumentEngineError(Exception):
     pass
+
+
+class ExternalFileChangeError(DocumentEngineError):
+    """The file on disk is no longer the version this window opened or last saved."""
+
+    def __init__(self, path: str, fingerprint: str):
+        super().__init__("Tệp đã được thay đổi bên ngoài 3T Office kể từ lần mở hoặc lưu gần nhất.")
+        self.path = path
+        self.fingerprint = fingerprint
 
 
 _CSV_DELIMITER_CODES = {",": 44, ";": 59, "\t": 9}
@@ -3129,9 +3139,42 @@ def _print_pdf_job(app_kind: str, pdf_path: str, printer: str, copies: int, page
     )
 
 
-def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
+def _file_fingerprint(path: str) -> str | None:
+    """mtime+size of a file as one opaque string (nanoseconds do not survive a JavaScript number)."""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+    return f"{stat.st_mtime_ns}:{stat.st_size}"
+
+
+def _durable_files():
+    services = _os_services()
+    return getattr(services, "durable_files", None) if services is not None else None
+
+
+def _write_durable_copy(src_path: str, staging_path: str) -> None:
+    """Copy src to staging and force it to disk, so a replace can never publish a partial or empty file."""
+    with open(src_path, "rb") as source, open(staging_path, "wb") as staging:
+        shutil.copyfileobj(source, staging, 1024 * 1024)
+        staging.flush()
+        durable = _durable_files()
+        if durable is not None:
+            durable.flush_file(staging.fileno())
+        else:
+            os.fsync(staging.fileno())
+        staged_bytes = os.fstat(staging.fileno()).st_size
+        source_bytes = os.fstat(source.fileno()).st_size
+    if staged_bytes <= 0 or staged_bytes != source_bytes:
+        raise DocumentEngineError("Không thể ghi tệp vào đĩa: bản ghi tạm không đầy đủ. Tệp gốc chưa bị thay đổi.")
+
+
+def _atomic_replace_file(src_temp_file: str, dest_path: str, *, before_replace=None) -> None:
     """Thay thế nguyên tử tệp đích bằng tệp tạm đã được tạo và hậu kỳ thành công.
     Nếu có lỗi xảy ra trong quá trình convert hoặc ghi đè, tệp gốc không bị ảnh hưởng.
+    Bản tạm được đẩy xuống đĩa trước khi thay thế; thư mục cha được đẩy xuống đĩa sau đó
+    (hệ thống tệp từ chối thao tác này thì bỏ qua, lỗi ghi thật vẫn được báo).
+    before_replace(dest) chạy khi bản tạm đã an toàn trên đĩa, ngay trước khi thay thế.
     """
     dest = Path(dest_path).resolve()
 
@@ -3151,9 +3194,14 @@ def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
         staging_path = dest.parent / staging_name
         staging_file = str(staging_path)
 
-        shutil.copyfile(src_temp_file, staging_file)
+        _write_durable_copy(src_temp_file, staging_file)
+        if before_replace is not None:
+            before_replace(str(dest))
         os.replace(staging_file, str(dest))
         staging_file = None
+        durable = _durable_files()
+        if durable is not None:
+            durable.flush_directory(dest.parent)
     except PermissionError as exc:
         raise DocumentEngineError(
             f"Không thể ghi đè tệp: tệp đang được mở bởi ứng dụng khác hoặc bị khóa ({exc}). "
@@ -3167,6 +3215,26 @@ def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
                 os.remove(staging_file)
             except OSError:
                 pass
+
+
+def _keep_save_backup(dest_path: str, document_password: str | None) -> None:
+    """Keep the version a save is about to replace. A backup failure is logged and never blocks the save."""
+    if not os.path.isfile(dest_path):
+        return
+    store = SaveBackupStore(_user_data_dir())
+    try:
+        if document_password and not _is_encrypted_package(dest_path):
+            # A password is being added: no readable copy of the document may stay behind.
+            store.discard(dest_path)
+        elif not store.keep(dest_path):
+            logging.getLogger("vnoffice.save").info("Save backup skipped: the file is over the size limit")
+    except Exception as exc:
+        reason = f"{type(exc).__name__} errno={getattr(exc, 'errno', None)} winerror={getattr(exc, 'winerror', None)}"
+        logging.getLogger("vnoffice.save").warning("Save backup failed: %s", reason)
+        try:
+            store.record_failure(reason)
+        except OSError as log_exc:
+            logging.getLogger("vnoffice.save").warning("Save backup log unavailable: %s", type(log_exc).__name__)
 
 
 def _verify_saved_file(dest_path: str) -> None:
@@ -4464,6 +4532,33 @@ class VnOfficeApi:
             content, app_kind, target_format, suggested_name, source_path,
         )
 
+    def acknowledge_external_change(self, target_path, fingerprint):
+        """The user chose to overwrite: accept exactly the on-disk version shown in the dialog, and no later one."""
+        if not isinstance(target_path, str) or not target_path or not isinstance(fingerprint, str) or not fingerprint:
+            return {"status": "error", "message": "Đường dẫn tệp không hợp lệ."}
+        self._fingerprint_store()[self._fingerprint_key(target_path)] = fingerprint
+        return {"status": "ok"}
+
+    def _fingerprint_store(self) -> dict[str, str]:
+        """Version of each file this window last read or wrote; Save compares it with the disk."""
+        return self.__dict__.setdefault("_disk_fingerprints", {})
+
+    @staticmethod
+    def _fingerprint_key(path: str) -> str:
+        return os.path.normcase(os.path.abspath(str(path)))
+
+    def _record_disk_fingerprint(self, path: str, fingerprint: str | None = None) -> None:
+        current = fingerprint or _file_fingerprint(path)
+        if current:
+            self._fingerprint_store()[self._fingerprint_key(path)] = current
+
+    def _raise_if_changed_on_disk(self, path: str) -> None:
+        """No record (never opened here) or no file (deleted, unreachable) means there is nothing to overwrite silently."""
+        recorded = self._fingerprint_store().get(self._fingerprint_key(path))
+        current = _file_fingerprint(path)
+        if recorded and current and current != recorded:
+            raise ExternalFileChangeError(path, current)
+
     def set_document_password(self, password):
         """Keep the active document password in process memory only."""
         if password is not None and (not isinstance(password, str) or len(password) > 255):
@@ -5153,6 +5248,8 @@ class VnOfficeApi:
 
         self._reporting_file_path = src_path
         self._reporting_operation = f"open.{Path(src_path).suffix.lower().lstrip('.') or 'unknown'}"
+        # Taken before the read: a change made while the file loads must count as a change.
+        opened_fingerprint = _file_fingerprint(src_path)
         if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
             _notify_sheet_open_progress("Đã chọn tệp. Đang chuẩn bị mở bảng tính lớn…", True, self)
 
@@ -5416,6 +5513,7 @@ class VnOfficeApi:
         else:
             payload["content"] = content
         self._current_file_path = src_path
+        self._record_disk_fingerprint(src_path, opened_fingerprint)
         if app_kind == "writer":
             ooxml = (
                 writer_ooxml_metadata["ooxmlDocumentXml"]
@@ -5673,7 +5771,13 @@ class VnOfficeApi:
             except OSError:
                 pass
 
+        def before_replace(dest):
+            # Checked again here: conversion can take a long time on a large document.
+            self._raise_if_changed_on_disk(target_path)
+            _keep_save_backup(dest, self._document_password)
+
         try:
+            self._raise_if_changed_on_disk(target_path)
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
                 stage_started = time.perf_counter()
                 build_format = _template_build_format(target_format)
@@ -5692,7 +5796,7 @@ class VnOfficeApi:
                 if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
                     _run_ooxml_shadow(target_format, source_path, out_path)
                 stage_started = time.perf_counter()
-                _atomic_replace_file(out_path, target_path)
+                _atomic_replace_file(out_path, target_path, before_replace=before_replace)
                 if audit_timings is not None:
                     audit_timings["atomicReplaceMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
                 stage_started = time.perf_counter()
@@ -5700,6 +5804,9 @@ class VnOfficeApi:
                 if audit_timings is not None:
                     audit_timings["verifyMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
                     audit_timings["outputBytes"] = os.path.getsize(target_path)
+        except ExternalFileChangeError as exc:
+            write_audit_timings("EXTERNAL_CHANGE")
+            return {"status": "external_change", "message": str(exc), "path": exc.path, "fingerprint": exc.fingerprint}
         except DocumentEngineError as exc:
             write_audit_timings("FAIL")
             return {"status": "error", "message": str(exc)}
@@ -5709,6 +5816,7 @@ class VnOfficeApi:
 
         write_audit_timings("PASS")
         self._current_file_path = target_path
+        self._record_disk_fingerprint(target_path)
         result = {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
         if audit_timings is not None:
             result["timings"] = audit_timings
@@ -5830,7 +5938,10 @@ class VnOfficeApi:
                     out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
                     if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
                         _run_ooxml_shadow(target_format, source_path, out_path)
-                _atomic_replace_file(out_path, dest_path)
+                _atomic_replace_file(
+                    out_path, dest_path,
+                    before_replace=lambda dest: _keep_save_backup(dest, self._document_password),
+                )
                 _verify_saved_file(dest_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
@@ -5838,6 +5949,7 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
         self._current_file_path = dest_path
+        self._record_disk_fingerprint(dest_path)
         response = {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
         if target_format == "pdf":
             response["engine"] = pdf_engine or "LibreOffice"

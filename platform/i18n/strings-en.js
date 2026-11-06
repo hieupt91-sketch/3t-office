@@ -266,6 +266,13 @@ export const enStrings = {
     location: "Location",
     stepsHeading: "How to use"
   },
+  saveConflict: {
+    title: "File has changed",
+    message: "The file “{fileName}” was changed outside 3T Office since you last opened or saved it, possibly by someone else on the network. If you overwrite it, those changes will be lost. What would you like to do?",
+    saveCopy: "Save a copy",
+    overwrite: "Overwrite",
+    cancel: "Cancel"
+  },
   autoRecover: {
     settingsTitle: "AutoRecover",
     enabled: "Save recovery copies automatically",

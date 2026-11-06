@@ -316,6 +316,23 @@ export function showUnsavedChangesDialog({
 }
 
 /**
+ * Tệp trên đĩa đã bị thay đổi từ bên ngoài: hỏi trước khi lưu. Mặc định là lưu bản sao, lựa chọn không mất dữ liệu của ai.
+ * @param {{ fileName: string }} options
+ * @returns {Promise<"copy"|"overwrite"|"cancel">}
+ */
+export async function showExternalChangeDialog({ fileName = "" } = {}) {
+  const safeName = String(fileName).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+  const choice = await showUnsavedChangesDialog({
+    title: t("saveConflict.title"),
+    message: t("saveConflict.message", { fileName: safeName }),
+    saveText: t("saveConflict.saveCopy"),
+    discardText: t("saveConflict.overwrite"),
+    cancelText: t("saveConflict.cancel")
+  });
+  return { save: "copy", discard: "overwrite" }[choice] || "cancel";
+}
+
+/**
  * Hiển thị Hộp thoại Nhập liệu (thay thế prompt)
  * @param {Object} options
  * @param {string} [options.title="Nhập dữ liệu"]

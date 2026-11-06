@@ -23085,6 +23085,53 @@ def _writer_apply_view_mode_to_settings(settings_xml: str, source_html: str | No
     return settings_xml
 
 
+# CT_Settings children that come before w:evenAndOddHeaders (ECMA-376 Part 1, wml.xsd). The sequence is strict:
+# Word and validators reject the flag anywhere else. Anything not listed, extensions included, comes after it.
+_SETTINGS_BEFORE_EVEN_AND_ODD_HEADERS = frozenset(
+    "w:" + name for name in (
+        "writeProtection", "view", "zoom", "removePersonalInformation", "removeDateAndTime",
+        "doNotDisplayPageBoundaries", "displayBackgroundShape", "printPostScriptOverText",
+        "printFractionalCharacterWidth", "printFormsData", "embedTrueTypeFonts", "embedSystemFonts",
+        "saveSubsetFonts", "saveFormsData", "mirrorMargins", "alignBordersAndEdges", "bordersDoNotSurroundHeader",
+        "bordersDoNotSurroundFooter", "gutterAtTop", "hideSpellingErrors", "hideGrammaticalErrors",
+        "activeWritingStyle", "proofState", "formsDesign", "attachedTemplate", "linkStyles",
+        "stylePaneFormatFilter", "stylePaneSortMethod", "documentType", "mailMerge", "revisionView",
+        "trackRevisions", "doNotTrackMoves", "doNotTrackFormatting", "documentProtection", "autoFormatOverride",
+        "styleLockTheme", "styleLockQFSet", "defaultTabStop", "autoHyphenation", "consecutiveHyphenLimit",
+        "hyphenationZone", "doNotHyphenateCaps", "showEnvelope", "summaryLength", "clickAndTypeStyle",
+        "defaultTableStyle",
+    )
+)
+_SETTINGS_XML_TOKEN = re.compile(
+    r"""<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<(/?)([A-Za-z_][\w:.\-]*)(?:[^>"'/]|"[^"]*"|'[^']*'|/(?!>))*(/?)>"""
+)
+
+
+def _insert_even_and_odd_headers(settings_xml: str, element: str = "<w:evenAndOddHeaders/>") -> str:
+    """Insert the flag at its schema position in word/settings.xml. Unusable XML is returned unchanged."""
+    depth = 0
+    for token in _SETTINGS_XML_TOKEN.finditer(settings_xml):
+        name = token.group(2)
+        if name is None:
+            continue  # Comment or processing instruction.
+        closing, self_closing = bool(token.group(1)), bool(token.group(3))
+        if depth == 0:
+            if name != "w:settings" or closing or self_closing:
+                return settings_xml
+            depth = 1
+            continue
+        if closing:
+            depth -= 1
+            if depth == 0:
+                return settings_xml[:token.start()] + element + settings_xml[token.start():]
+            continue
+        if depth == 1 and name not in _SETTINGS_BEFORE_EVEN_AND_ODD_HEADERS:
+            return settings_xml[:token.start()] + element + settings_xml[token.start():]
+        if not self_closing:
+            depth += 1
+    return settings_xml
+
+
 def postprocess_writer_docx(
     docx_bytes: bytes,
     *,
@@ -23410,7 +23457,10 @@ def postprocess_writer_docx(
                 if dst_re.search(new_settings):
                     new_settings = dst_re.sub(lambda _m, v=src_tag.group(0): v, new_settings, count=1)
                 elif "<w:compat>" in new_settings:
-                    new_settings = new_settings.replace("<w:compat>", src_tag.group(0) + "<w:compat>", 1)
+                    if tag == "evenAndOddHeaders":
+                        new_settings = _insert_even_and_odd_headers(new_settings, src_tag.group(0))
+                    else:
+                        new_settings = new_settings.replace("<w:compat>", src_tag.group(0) + "<w:compat>", 1)
             elif tag in ("autoHyphenation", "evenAndOddHeaders", "mirrorMargins"):
                 new_settings = dst_re.sub("", new_settings)
         if new_settings != settings_xml:
@@ -26851,9 +26901,7 @@ def postprocess_writer_section_metadata(
         )
         flag = re.search(r"<w:evenAndOddHeaders\b[^>]*/>", settings_xml, re.IGNORECASE)
         if different_odd_even and not flag:
-            settings_xml = settings_xml.replace(
-                "</w:settings>", "<w:evenAndOddHeaders/></w:settings>", 1
-            )
+            settings_xml = _insert_even_and_odd_headers(settings_xml)
         elif not different_odd_even and flag:
             settings_xml = re.sub(
                 r"<w:evenAndOddHeaders\b[^>]*/>", "", settings_xml, flags=re.IGNORECASE
@@ -27761,7 +27809,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                     if re.search(r'\bw:val=["\'](?:0|false|off)["\']', flag_xml, re.IGNORECASE):
                         settings_xml = settings_xml[:flag.start()] + "<w:evenAndOddHeaders/>" + settings_xml[flag.end():]
                 elif "</w:settings>" in settings_xml:
-                    settings_xml = settings_xml.replace("</w:settings>", "<w:evenAndOddHeaders/></w:settings>", 1)
+                    settings_xml = _insert_even_and_odd_headers(settings_xml)
             else:
                 settings_xml = re.sub(r"<w:evenAndOddHeaders\b[^>]*/>", "", settings_xml, flags=re.IGNORECASE)
             replacements["word/settings.xml"] = settings_xml.encode("utf-8")

@@ -15,7 +15,7 @@ from typing import Callable
 
 from .base import DocumentFontSources, FontSubstitution, OSServices, ServiceResult
 from .file_dialogs import FileDialogPolicy
-from .portable import APP_DATA_DIR_NAME, VALID_APP_KINDS, PortableLauncher
+from .portable import APP_DATA_DIR_NAME, VALID_APP_KINDS, PortableDurableFiles, PortableLauncher
 
 # A startup error box must not keep a helper process alive forever if nobody is at the screen.
 ERROR_DIALOG_GIVE_UP_SECONDS = 300
@@ -185,8 +185,21 @@ def mac_file_dialog_policy(home: Path | None = None) -> FileDialogPolicy:
     )
 
 
+class MacDurableFiles(PortableDurableFiles):
+    """On macOS fsync only reaches the drive's cache; F_FULLFSYNC reaches the medium where the volume supports it."""
+
+    def flush_file(self, fd: int) -> None:
+        import fcntl
+
+        try:
+            fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
+        except OSError:
+            # SMB and some other volumes refuse F_FULLFSYNC. fsync then decides whether this is a real write error.
+            super().flush_file(fd)
+
+
 def build_services() -> OSServices:
     return OSServices(
         data_dirs=MacDataDirs(), launcher=MacLauncher(), document_fonts=MacDocumentFonts(),
-        file_dialogs=mac_file_dialog_policy(),
+        file_dialogs=mac_file_dialog_policy(), durable_files=MacDurableFiles(),
     )

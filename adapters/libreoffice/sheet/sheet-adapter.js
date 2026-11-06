@@ -4,6 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { saveInPlaceCheckingExternalChange } from "../common/save-conflict.js";
 import { documentFontStack } from "../../../platform/fonts/font-stack.js";
 import { showAlertDialog, showPromptDialog, showFindReplaceDialog, showHyperlinkDialog, showSymbolPicker } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
@@ -6662,13 +6663,15 @@ ${pristineXlsxMarker}${docPropsMarker}
     }
 
     const fodsContent = this.serializeToFods();
-    const result = await globalUnoBridge.saveRealFileInPlace(
+    const result = await saveInPlaceCheckingExternalChange(
       "sheet",
       fodsContent,
       this.sourceFilePath,
-      this.sourceFilePath
+      this.sourceFilePath,
+      () => this.saveAs()
     );
 
+    if (result.status === "saved_copy") return true;
     if (result.status === "ok") {
       this.isDirty = false;
       const savedPath = result.path || this.sourceFilePath;
