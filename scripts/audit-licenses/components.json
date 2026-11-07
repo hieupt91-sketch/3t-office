@@ -27,7 +27,7 @@
       "kind": "engine",
       "license": "MPL-2.0",
       "name": "LibreOffice",
-      "note": "Phan phoi nguyen ban, khong sua ma loi. Cac extension dict-* (mot so theo GPL) KHONG dong goi theo mac dinh; chi dong goi khi dat VNO_KEEP_LO_DICTS=1, luc do manifest nay phai duoc cap nhat truoc.",
+      "note": "Phan phoi nguyen ban, khong sua ma loi. Cac extension dict-* (mot so theo GPL) KHONG dong goi trong ban phat hanh; VNO_KEEP_LO_DICTS=1 bi cam (INBOX-MAC #22) — build-pilot.ps1 va cong G1 deu FAIL khi bien nay bang 1.",
       "source": "https://www.libreoffice.org/",
       "version": "26.2.6.3",
       "via": "Sao chep nguyen thu muc cai dat LibreOffice vao app/tools/libreoffice (build-pilot.ps1 muc 3)"

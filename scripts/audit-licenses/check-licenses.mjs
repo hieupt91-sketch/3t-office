@@ -11,6 +11,8 @@
  * Thoát 0 = PASS (kể cả khi có ngoại lệ đã khai báo — chúng được in ra đầy đủ,
  * không che); thoát 1 = FAIL, kèm danh sách thành phần vi phạm.
  * CẤM bọc lệnh này bằng `|| echo warning` hay bất cứ cách nào làm cổng vô nghĩa.
+ * INBOX-MAC #22: cổng FAIL khi VNO_KEEP_LO_DICTS=1 (bản phát hành không được
+ * giữ các extension dict-* của LibreOffice, một số theo GPL).
  */
 
 import fs from "fs";
@@ -76,11 +78,17 @@ export function parseRequirements(text) {
  * requirements.txt và package.json đã parse. Dùng cho test với fixture.
  * @returns {{pass: boolean, components: Array, failures: string[], exceptions: Array}}
  */
-export function auditLicenses({ manifest, requirementsText = "", packageJson = {} }) {
+export function auditLicenses({ manifest, requirementsText = "", packageJson = {}, keepLoDicts = false }) {
   const failures = [];
   const exceptions = [];
   const checked = [];
   const components = Array.isArray(manifest?.components) ? manifest.components : [];
+
+  // INBOX-MAC #22: VNO_KEEP_LO_DICTS=1 giữ các extension dict-* của LibreOffice
+  // (một số theo GPL) trong bản phát hành — bị cấm, cổng phải FAIL.
+  if (keepLoDicts) {
+    failures.push("VNO_KEEP_LO_DICTS=1: ban phat hanh khong duoc giu cac extension dict-* cua LibreOffice (mot so theo GPL); tat bien nay truoc khi dong goi (INBOX-MAC #22).");
+  }
 
   if (!Array.isArray(manifest?.components)) {
     failures.push("Manifest không có trường 'components' là mảng.");
@@ -198,7 +206,7 @@ export function runLicenseCheck({ rootDir = ROOT_DIR } = {}) {
     packageJson = {};
   }
 
-  const audit = auditLicenses({ manifest, requirementsText, packageJson });
+  const audit = auditLicenses({ manifest, requirementsText, packageJson, keepLoDicts: process.env.VNO_KEEP_LO_DICTS === "1" });
 
   results.push({
     name: `G1: manifest hợp lệ (${audit.components.length} thành phần, không trùng tên, đủ name/version/source)`,
@@ -219,6 +227,11 @@ export function runLicenseCheck({ rootDir = ROOT_DIR } = {}) {
     name: "G1: package.json không có dependency npm chưa khai báo",
     pass: !audit.failures.some((f) => f.includes("package.json")),
     error: audit.failures.filter((f) => f.includes("package.json")).join(" | ") || undefined,
+  });
+  results.push({
+    name: "G1: VNO_KEEP_LO_DICTS=1 bị cấm trong bản phát hành (INBOX-MAC #22)",
+    pass: !audit.failures.some((f) => f.includes("VNO_KEEP_LO_DICTS")),
+    error: audit.failures.filter((f) => f.includes("VNO_KEEP_LO_DICTS")).join(" | ") || undefined,
   });
   if (audit.failures.length > 0) {
     results.push({
@@ -261,7 +274,7 @@ if (isMain) {
   const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
   const requirementsText = fs.existsSync(REQUIREMENTS_PATH) ? fs.readFileSync(REQUIREMENTS_PATH, "utf8") : "";
   const packageJson = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, "utf8"));
-  const audit = auditLicenses({ manifest, requirementsText, packageJson });
+  const audit = auditLicenses({ manifest, requirementsText, packageJson, keepLoDicts: process.env.VNO_KEEP_LO_DICTS === "1" });
   printReport(audit);
   process.exit(audit.pass ? 0 : 1);
 }

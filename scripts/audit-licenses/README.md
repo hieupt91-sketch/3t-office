@@ -57,13 +57,15 @@ Chỉ thành phần **đóng gói/phân phối cùng sản phẩm** (gói pilot 
 nằm trong manifest.
 
 Lưu ý: `build-pilot.ps1` loại các extension `dict-*` của LibreOffice (một số
-theo GPL) khỏi gói theo mặc định. Nếu đóng gói với `VNO_KEEP_LO_DICTS=1`
-(giữ nguyên các từ điển đó) thì manifest này phải được cập nhật trước — cổng
-không thể kiểm chứng các giấy phép GPL đó từ repo.
+theo GPL) khỏi gói. `VNO_KEEP_LO_DICTS=1` (giữ nguyên các từ điển đó) bị CẤM
+trong bản phát hành (INBOX-MAC #22): `build-pilot.ps1` FAIL ngay khi biến này
+bằng `1`, và cổng này cũng FAIL khi chạy với biến đó — không còn đường nào
+đóng gói các từ điển GPL vào bản phát hành.
 
 ## Test
 
-`tests/unit/license-gate.test.js` — chạy qua `npm test` (suite 276). Ngoài
+`tests/unit/license-gate.test.js` — chạy qua `npm test` (suite 278). Ngoài
 kiểm tra manifest thật, test còn có fixture âm bản: một gói GPL giả, một thành
-phần thiếu giấy phép, một ngoại lệ thiếu người duyệt, và một gói trong
-`requirements.txt` chưa khai báo — tất cả đều phải bị cổng chặn (FAIL).
+phần thiếu giấy phép, một ngoại lệ thiếu người duyệt, một gói trong
+`requirements.txt` chưa khai báo, và `VNO_KEEP_LO_DICTS=1` — tất cả đều phải
+bị cổng chặn (FAIL).
