@@ -5,9 +5,9 @@ fixture (FODT → soffice, never VN Office serialize). Optional integration
 opens the same file through VnOfficeApi.open_document_dialog() when soffice
 is available.
 
-Unlike Track Changes / Comments, main.py does NOT need an OOXML sidecar:
-filter HTML (StarWriter) already emits a.sdfootnoteanc / a.sdendnoteanc and
-div#sdfootnoteN / #sdendnoteN. The Writer adapter maps those to VN markup.
+StarWriter HTML emits a.sdfootnoteanc / a.sdendnoteanc and div#sdfootnoteN /
+#sdendnoteN for rendering. main.py also forwards word/footnotes.xml so Writer's
+round-trip Word Count can include the same footnote bodies after reopening.
 """
 
 from __future__ import annotations
@@ -76,9 +76,11 @@ class WriterFootnotesImportTests(unittest.TestCase):
         self.assertIn(FN2_BODY, collapsed)
         self.assertIn(EN1_BODY, collapsed)
         self.assertIn(BODY_KENH, collapsed)
-        # Adapter maps StarWriter → VN markup; main.py does not need a sidecar.
-        self.assertNotIn("ooxmlFootnotesXml", result)
-        self.assertNotIn("ooxmlEndnotesXml", result)
+        # Adapter maps StarWriter → VN markup; the sidecar is used for consistent word counts.
+        self.assertIn("<w:footnotes", result.get("ooxmlFootnotesXml", ""))
+        self.assertIn(FN1_BODY, result.get("ooxmlFootnotesXml", ""))
+        self.assertIn("<w:endnotes", result.get("ooxmlEndnotesXml", ""))
+        self.assertIn(EN1_BODY, result.get("ooxmlEndnotesXml", ""))
 
 
 if __name__ == "__main__":

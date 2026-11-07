@@ -44,6 +44,46 @@ export async function runSheetLocaleInputTests() {
     eq(NumberFormatter.formatValue(parsed.value, parsed.style.numberFormat, locale).text, "1,250.75", "en-US display");
   });
 
+  test("Vietnamese formula bar and TEXTJOIN use the decimal comma for numeric values", () => {
+    const locale = { locale: "vi-VN", decimalSeparator: ",", thousandsSeparator: "." };
+    const grid = gridFor(locale);
+    grid.selectedCoord = { c: "A", r: 1 };
+    grid.referenceStyle = "A1";
+    grid._columnNumber = () => 1;
+    eq(SheetGridController.prototype._formulaBarTextFor.call(grid, { val: 0.5 }), "0,5", "formula bar number");
+    const engine = new FormulaEngine(() => new Map());
+    engine.numberLocale = locale;
+    eq(engine.evaluate('=TEXTJOIN("|",TRUE,0.5,1234.5)'), "0,5|1234,5", "TEXTJOIN numbers");
+    const gridEngine = new SheetGridController(null, { numberLocale: locale }).formulaEngine;
+    eq(gridEngine.evaluate('=TEXTJOIN("|",TRUE,0.5,1234.5)'), "0,5|1234,5", "grid TEXTJOIN numbers");
+  });
+
+  test("en-US input follows US grouping and dates, preserving ambiguous comma decimals as text", () => {
+    const locale = { locale: "en-US", decimalSeparator: ".", thousandsSeparator: "," };
+    const grid = gridFor(locale);
+    const badGroups = ["0,5", "1234,5", "1234567,891", "1.234,5"];
+    for (const value of badGroups) {
+      const parsed = grid._normalizeCellInput(value);
+      eq(parsed.value, value, `${value} remains text`);
+    }
+    eq(grid._normalizeCellInput("1,234.5").value, 1234.5, "US grouped decimal");
+    const usDate = NumberFormatter.inferUserInput("12/31/2026", null, locale);
+    eq(usDate.value, 46387, "US month/day date serial");
+    eq(usDate.numberFormat.category, "date", "US date format");
+    eq(usDate.numberFormat.dateFormat, "mm/dd/yyyy", "US date display order");
+    const dateCell = grid._normalizeCellInput("12/31/2026", { numberFormat: { category: "date", dateFormat: "dd/mm/yyyy" } });
+    eq(dateCell.value, 46387, "US date entered into a preformatted date cell");
+    eq(dateCell.style.numberFormat.dateFormat, "mm/dd/yyyy", "US date cell display order");
+    eq(NumberFormatter.formatValue(dateCell.value, dateCell.style.numberFormat, locale).text, "12/31/2026", "US date cell display");
+  });
+
+  test("English TEXTJOIN preserves unformatted text containing a comma", () => {
+    const cells = new Map([["A1", { val: "1234567,891" }]]);
+    const engine = new FormulaEngine(cells);
+    engine.numberLocale = { locale: "en-US", decimalSeparator: ".", thousandsSeparator: "," };
+    eq(engine.evaluate('=TEXTJOIN("",TRUE,A1)'), "1234567,891", "text cell value");
+  });
+
   test("Sheet formulas accept the regional semicolon argument separator", () => {
     const engine = new FormulaEngine(() => new Map());
     eq(engine.evaluate("=SUM(1;2)+3"), 6, "formula result");

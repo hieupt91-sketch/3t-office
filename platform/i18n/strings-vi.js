@@ -215,6 +215,8 @@ export const viStrings = {
     print: "In tài liệu",
     exportPdf: "Xuất tệp PDF",
     ready: "Sẵn sàng",
+    interfaceLocale: "Tiếng Việt (Việt Nam)",
+    characterEncoding: "Bảng mã: Unicode dựng sẵn (NFC)",
     ok: "Đồng ý",
     cancel: "Hủy bỏ",
     close: "Đóng",
@@ -262,6 +264,13 @@ export const viStrings = {
     pickTopic: "Chọn một tính năng ở danh sách trên để xem hướng dẫn.",
     location: "Vị trí",
     stepsHeading: "Cách dùng"
+  },
+  saveConflict: {
+    title: "Tệp đã bị thay đổi",
+    message: "Tệp «{fileName}» đã được thay đổi bên ngoài 3T Office kể từ lần bạn mở hoặc lưu gần nhất, có thể do người khác trên mạng. Nếu ghi đè, các thay đổi đó sẽ mất. Bạn muốn làm gì?",
+    saveCopy: "Lưu bản sao",
+    overwrite: "Ghi đè",
+    cancel: "Hủy"
   },
   autoRecover: {
     settingsTitle: "Tùy chọn · Tự động khôi phục",
@@ -503,7 +512,17 @@ export const viStrings = {
     status: { enter: "Nhập", edit: "Sửa", point: "Trỏ" },
     referenceHint: "Chọn hoặc kéo qua ô để chèn tham chiếu; F2 chuyển giữa Sửa và Trỏ.",
     formulaBarLabel: "Thanh công thức Sheet",
+    legacyFunctionWarningOne: "Hàm {function} chỉ có từ phiên bản 2019/365; ứng dụng bảng tính phiên bản cũ có thể hiện #NAME?.",
     legacyFunctionWarning: "Các hàm {functions} chỉ có từ phiên bản 2019/365; ứng dụng bảng tính phiên bản cũ có thể hiện #NAME?.",
+    formulaBarPlaceholder: "Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)",
+    statusStatCount: "Đếm số", statusStatCountShort: "ĐẾM",
+    statusStatCounta: "Đếm ô có dữ liệu", statusStatCountaShort: "ĐẾM Ô",
+    statusStatMin: "Nhỏ nhất", statusStatMinShort: "NHỎ NHẤT",
+    statusStatMax: "Lớn nhất", statusStatMaxShort: "LỚN NHẤT",
+    statusStatAverage: "Trung bình", statusStatAverageShort: "TRUNG BÌNH",
+    statusStatSum: "Tổng cộng", statusStatSumShort: "TỔNG CỘNG",
+    statusReady: "SẴN SÀNG",
+    statusCell: "Ô: {coord}",
     disableLegacyFunctionWarning: "Tắt cảnh báo trong phiên này"
   },
   sheetTableStyles: {
@@ -1919,7 +1938,10 @@ export const viStrings = {
       replyPlaceholder: "Nhập nội dung trả lời...",
       replyBtn: "Gửi trả lời",
       panelLabel: "Nhận xét tài liệu",
-      openCommentAria: "Mở ghi chú cho: {text}",
+      revisionsLabel: "Bản sửa",
+      deleteCommentAria: "Xóa nhận xét cho: {text}",
+      deleteCommentButton: "Xóa",
+      openCommentAria: "Mở nhận xét cho: {text}",
       placeholderHeader: "Nhấp để nhập tiêu đề đầu trang...",
       placeholderFooter: "Nhấp để nhập tiêu đề chân trang..."
     },

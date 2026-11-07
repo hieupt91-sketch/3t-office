@@ -1,0 +1,462 @@
+{
+  "case1_start_override.docx": [
+    {
+      "Index": 1,
+      "Text": "Muc mot bat dau tu nam",
+      "ListValue": 5,
+      "ListString": "5.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 2,
+      "Text": "Muc hai tiep theo",
+      "ListValue": 6,
+      "ListString": "6.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 3,
+      "Text": "Muc ba tiep theo",
+      "ListValue": 7,
+      "ListString": "7.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    }
+  ],
+  "case2_lvl_start_override.docx": [
+    {
+      "Index": 1,
+      "Text": "Doan mot cua lvl start override",
+      "ListValue": 1,
+      "ListString": "1.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 2,
+      "Text": "Doan hai cua lvl start override",
+      "ListValue": 2,
+      "ListString": "2.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 3,
+      "Text": "Doan ba cua lvl start override",
+      "ListValue": 3,
+      "ListString": "3.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    }
+  ],
+  "case3_lvl_restart_0.docx": [
+    {
+      "Index": 1,
+      "Text": "Phan mot",
+      "ListValue": 1,
+      "ListString": "1.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 2,
+      "Text": "Muc con a",
+      "ListValue": 1,
+      "ListString": "a)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 3,
+      "Text": "Muc con b",
+      "ListValue": 2,
+      "ListString": "b)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 4,
+      "Text": "Phan hai",
+      "ListValue": 2,
+      "ListString": "2.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 5,
+      "Text": "Muc con sau phan hai",
+      "ListValue": 1,
+      "ListString": "a)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    }
+  ],
+  "case3b_abstract_lvl_restart_0.docx": [
+    {
+      "Index": 1,
+      "Text": "Phan mot",
+      "ListValue": 1,
+      "ListString": "1.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 2,
+      "Text": "Muc con a",
+      "ListValue": 1,
+      "ListString": "a)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 3,
+      "Text": "Muc con b",
+      "ListValue": 2,
+      "ListString": "b)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 4,
+      "Text": "Phan hai",
+      "ListValue": 2,
+      "ListString": "2.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 5,
+      "Text": "Muc con tiep tuc sau phan hai",
+      "ListValue": 3,
+      "ListString": "c)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    }
+  ],
+  "case4_lvl_restart_n.docx": [
+    {
+      "Index": 1,
+      "Text": "Cap khong dot mot",
+      "ListValue": 1,
+      "ListString": "1.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 2,
+      "Text": "Cap mot dot mot",
+      "ListValue": 1,
+      "ListString": "a)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 3,
+      "Text": "Cap hai muc mot",
+      "ListValue": 1,
+      "ListString": "i.",
+      "ListStyleType": "lower-roman",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 4,
+      "Text": "Cap mot dot hai",
+      "ListValue": 2,
+      "ListString": "b)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 5,
+      "Text": "Cap hai muc hai",
+      "ListValue": 1,
+      "ListString": "i.",
+      "ListStyleType": "lower-roman",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 6,
+      "Text": "Cap khong dot hai",
+      "ListValue": 2,
+      "ListString": "2.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 7,
+      "Text": "Cap mot dot ba",
+      "ListValue": 1,
+      "ListString": "a)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 8,
+      "Text": "Cap hai muc ba",
+      "ListValue": 1,
+      "ListString": "i.",
+      "ListStyleType": "lower-roman",
+      "HasParenSuffix": false
+    }
+  ],
+  "case4b_abstract_lvl_restart_n.docx": [
+    {
+      "Index": 1,
+      "Text": "Cap khong dot mot",
+      "ListValue": 1,
+      "ListString": "1.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 2,
+      "Text": "Cap mot dot mot",
+      "ListValue": 1,
+      "ListString": "a)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 3,
+      "Text": "Cap hai muc mot",
+      "ListValue": 1,
+      "ListString": "i.",
+      "ListStyleType": "lower-roman",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 4,
+      "Text": "Cap mot dot hai",
+      "ListValue": 2,
+      "ListString": "b)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 5,
+      "Text": "Cap hai muc hai",
+      "ListValue": 2,
+      "ListString": "ii.",
+      "ListStyleType": "lower-roman",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 6,
+      "Text": "Cap khong dot hai",
+      "ListValue": 2,
+      "ListString": "2.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 7,
+      "Text": "Cap mot dot ba",
+      "ListValue": 1,
+      "ListString": "a)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 8,
+      "Text": "Cap hai muc ba",
+      "ListValue": 1,
+      "ListString": "i.",
+      "ListStyleType": "lower-roman",
+      "HasParenSuffix": false
+    }
+  ],
+  "case5_multi_numid_same_abstract.docx": [
+    {
+      "Index": 1,
+      "Text": "Danh sach A muc mot",
+      "ListValue": 1,
+      "ListString": "1.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 2,
+      "Text": "Danh sach A muc hai",
+      "ListValue": 2,
+      "ListString": "2.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 3,
+      "Text": "Danh sach B muc mot",
+      "ListValue": 3,
+      "ListString": "3.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 4,
+      "Text": "Danh sach B muc hai",
+      "ListValue": 4,
+      "ListString": "4.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 5,
+      "Text": "Danh sach A muc ba",
+      "ListValue": 5,
+      "ListString": "5.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    }
+  ],
+  "case5b_multi_numid_with_start_override.docx": [
+    {
+      "Index": 1,
+      "Text": "Danh sach 1 muc mot",
+      "ListValue": 1,
+      "ListString": "1.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 2,
+      "Text": "Danh sach 1 muc hai",
+      "ListValue": 2,
+      "ListString": "2.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 3,
+      "Text": "Danh sach 2 muc mot",
+      "ListValue": 10,
+      "ListString": "10.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 4,
+      "Text": "Danh sach 2 muc hai",
+      "ListValue": 11,
+      "ListString": "11.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 5,
+      "Text": "Danh sach 1 muc ba",
+      "ListValue": 12,
+      "ListString": "12.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    }
+  ],
+  "case6_deep_then_shallow.docx": [
+    {
+      "Index": 1,
+      "Text": "Cap nong mot",
+      "ListValue": 1,
+      "ListString": "1.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 2,
+      "Text": "Cap trung a",
+      "ListValue": 1,
+      "ListString": "a)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 3,
+      "Text": "Cap sau mot",
+      "ListValue": 1,
+      "ListString": "i.",
+      "ListStyleType": "lower-roman",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 4,
+      "Text": "Cap sau hai",
+      "ListValue": 2,
+      "ListString": "ii.",
+      "ListStyleType": "lower-roman",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 5,
+      "Text": "Cap nong hai",
+      "ListValue": 2,
+      "ListString": "2.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 6,
+      "Text": "Cap sau sau cap nong hai",
+      "ListValue": 1,
+      "ListString": "i.",
+      "ListStyleType": "lower-roman",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 7,
+      "Text": "Cap trung sau cap sau",
+      "ListValue": 2,
+      "ListString": "b)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 8,
+      "Text": "Cap sau tiep theo",
+      "ListValue": 1,
+      "ListString": "i.",
+      "ListStyleType": "lower-roman",
+      "HasParenSuffix": false
+    }
+  ],
+  "case7_control_no_override.docx": [
+    {
+      "Index": 1,
+      "Text": "Doi chung phan mot",
+      "ListValue": 1,
+      "ListString": "1.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 2,
+      "Text": "Doi chung muc a",
+      "ListValue": 1,
+      "ListString": "a)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 3,
+      "Text": "Doi chung muc b",
+      "ListValue": 2,
+      "ListString": "b)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    },
+    {
+      "Index": 4,
+      "Text": "Doi chung phan hai",
+      "ListValue": 2,
+      "ListString": "2.",
+      "ListStyleType": "decimal",
+      "HasParenSuffix": false
+    },
+    {
+      "Index": 5,
+      "Text": "Doi chung muc a sau phan hai",
+      "ListValue": 1,
+      "ListString": "a)",
+      "ListStyleType": "lower-alpha",
+      "HasParenSuffix": true
+    }
+  ]
+}

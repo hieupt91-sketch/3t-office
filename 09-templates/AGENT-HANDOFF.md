@@ -1711,6 +1711,228 @@ CORE PATCH ID (if any): None.
 UI REVIEW: Viewed screenshots at 1366x768: Slides Backstage template card — badge absent, card layout intact; Sheet vi-VN light/dark — values and result visible, no clipping/overlap; Sheet legacy-function warning light/dark — warning text and disable button fit, readable, no overlap. No visible issue found.
 NEXT ACTION: Review the five commits. Q66.DONE created after the completed gates and handoff.
 
+
+## Q67 handoff - 26/10/2026
+TASK: Q67 — Sửa Writer D2-D5, D12, D13 theo tái hiện Windows.
+AGENT/ROLE: Codex / Writer adapter and round-trip.
+BRANCH: codex/q67.
+WORKTREE: E:\VNOffice-codex-q67.
+OBJECTIVE: Xác minh từng lỗi trên app thật bằng CDP và Word COM ẩn trước khi sửa; giữ DOCX/legacy tương thích và commit từng mục riêng.
+FINDINGS: D2 mất border và độ rộng bảng sau mở lại; D3 không ghi mặc định ND30 ra DOCX; D4 trường PAGE/NUMPAGES phức bị dựng thành chữ; D5 canvas dùng vùng liên tục nhưng ngắt trang đúng trong DOCX; D12 cần cộng cả footnote lẫn endnote để khớp Word Count có chú thích; D13 panel/help dùng lẫn “Ghi chú” và “Nhận xét”.
+IMPLEMENTATION SUMMARY: D2 đánh dấu/định dạng bảng mới để export giữ width 100% và border; D3 xuất font Times New Roman 14pt, line-height 150%; D4 hydrate lại complex PAGE/NUMPAGES; D5 chỉ thêm bài đo round-trip, giữ thiết kế canvas hiện có; D12 chuyển sidecar footnote/endnote tới word counter; D13 chuẩn hóa nhãn Nhận xét, bổ sung i18n VI/EN và đồng bộ Help.
+COMMITS: cdbf6484 D2; 0b5a4b92 D3; 4742784e D4; 7122d973 D5 diagnostic; b7a34d10 D12; b914989e D13.
+COMMANDS RUN: `git merge main`; CDP D2-D5/D12/D13 (đỏ trước, xanh sau với từng sửa); `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; ba `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; pytest liên quan; batch DOCX d01,d02,d03,d06,d07,d13,d20,d24; legacy DOC CDP 4 mẫu.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: Node PASS 3848/3848; CDP D2 4/4, D3 4/4, D4 5/5, D5 3/3, D12 3/3, D13 5/5; pytest PASS 7, 1206 deselected; DOCX batch PASS 8/8 (lưu/chỉnh sửa và số trang khớp Word); legacy PASS 4/4 (3/1/15/1); i18n VI=3211, EN=3211, missing=0; checklist evidence 0 dòng hạ. Hidden Word COM: D2 border 12/12, 9355 dxa; D3 TNR 14pt/1.5; D4 hai trường; D12 Word body=62, có chú thích=123 và Writer=123.
+KNOWN FAILURES: Ảnh tối của legacy DOC cho thấy chữ đen/màu nhúng và một số ô bảng thiếu tương phản trên nền tối; đã lưu ảnh, vấn đề hiển thị cần phiếu riêng. Lần gọi legacy đầu thiếu cờ `--experimental-websocket` nên CDP không kết nối; chạy lại đúng cờ và đạt 4/4.
+RISKS: D5 vẫn trình bày như canvas cuộn liên tục dù DOCX có page break chuẩn; đây là mô hình hiển thị hiện tại. Word COM chỉ dùng ẩn và readback; không dùng Excel COM.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: D2 trước/sau — bảng có viền và vừa khổ; D3 trước/sau — nội dung rõ; D4 trước/sau — footer không cắt; D5 trước/sau — hai canvas cards, break đúng; D12 sau — 123 từ và ghi chú cuối trang rõ; D13 VI/EN — tiêu đề và thao tác xóa đúng ngôn ngữ, không tràn; legacy06, legacy13, legacy14, legacy20 sáng/tối ở 1366×768 — trang/bố cục không tràn viewport, tương phản tối kém ở DOC cũ (q57-screenshots).
+NEXT ACTION: Không còn việc Q67 chưa hoàn tất; Q67.DONE được tạo sau handoff.
+## Q69 handoff - 26/10/2026
+TASK: Q69 — Cache-Control cho máy chủ tĩnh và sửa sáu lỗi Sheet VI/EN.
+AGENT/ROLE: Codex / Windows Sheet + app runtime.
+BRANCH: codex/q69.
+WORKTREE: E:\VNOffice-codex-q69.
+OBJECTIVE: Buộc WebView kiểm tra lại tài nguyên giao diện sau cập nhật; sửa cách nhận/hiện số, ngày, TEXTJOIN, cảnh báo số ít/số nhiều và chuỗi UI EN; không đổi semantics XLSX.
+FINDINGS: Trước sửa, `HEAD /index.html` không có Cache-Control; WebView2/CDP cũng nhận JavaScript không có chính sách cache. UI đã nhận nội dung mới khi tải lại; không tái hiện được nội dung JS cũ trong profile sạch, nên chưa xác nhận được lỗi cache cũ là lỗi thực tế. Bộ test trước sửa ghi nhận sai locale ở formula bar/TEXTJOIN, cách đọc kiểu số EN, thứ tự ngày và ngữ pháp cảnh báo; ảnh CDP sau đó phát hiện nhãn thống kê thanh trạng thái EN còn tiếng Việt.
+IMPLEMENTATION SUMMARY: `main.py` gửi `Cache-Control: no-cache` cho HTML/JS/CSS/JSON và cache dài 30 ngày cho font/ảnh lớn; test HEAD/304. Sheet định dạng số theo ngôn ngữ app, giữ văn bản có dấu phẩy ở EN, nhận ngày mm/dd ở EN, hiện công thức đúng locale, dùng nhãn trạng thái VI/EN và cảnh báo đúng số ít/số nhiều. Không đổi cách lưu XLSX.
+FILES CHANGED: main.py; tests/test_static_server_cache_headers.py; apps/sheet/formula-engine.js; apps/sheet/number-formatter.js; apps/sheet/sheet-app.js; apps/sheet/sheet-grid.js; platform/i18n/strings-vi.js; platform/i18n/strings-en.js; platform/shell/app-shell.js; tests/unit/sheet-locale-input.test.js; tests/unit/sheet-formula-bar-display.test.js; tests/unit/sheet-legacy-function-warning.test.js; tests/live/cdp/q69-sheet-locale.desktop.mjs; docs/EXCEL2016-FEATURE-CHECKLIST.md; docs/screenshots/q69-sheet-*.png.
+COMMITS: eb1ec7d1 `fix: revalidate embedded UI assets`; 02bc5123 `fix: honor sheet number locale in display and text`.
+COMMANDS RUN: `python -m pytest tests/test_static_server_cache_headers.py tests/test_static_server_backlog.py -q`; 180 focused JS unit checks; `node tests/run-tests.js`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; all three gen_*_checklist.py scripts; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "static_server or sheet_locale or legacy_function_warning"`; CDP on fresh unique local profiles; XLSX round-trip with `VNO_AUDIT_MARK_DIRTY=1`; DOCX batch round-trip and hidden Word page-count checks; `git diff --check`.
+BUILD RESULT: NOT RUN — no build-system change.
+TEST RESULTS: PASS — Node 3855/3855; npm test 3855/3855; targeted pytest 3 passed, 1211 deselected; focused JS 180/180; i18n VI=3226 / EN=3226 / missing=0; checklist verification 0 rows demoted (279 Word, 217 Sheet, 269 Slides). CDP PASS all locale/cache/warning checks. XLSX 27/27 saved, diffs=0, lint=clean; Excel COM BLOCKED and was not launched. DOCX PASS 8/8, Word page count unchanged, edit PASS.
+KNOWN FAILURES: Excel COM BLOCKED per task policy; no remaining test failures.
+RISKS: `no-cache` causes revalidation for small UI files; fresh-profile startup measured 1803 ms before and 1773 ms after (one run each; no observed slowdown). Font and large image resources retain a 30-day cache.
+DEPENDENCIES/BLOCKERS: None for source work. Excel COM reference validation remains blocked by instruction.
+CORE PATCH ID (if any): None.
+UI REVIEW: Viewed six screenshots at 1366x768: Sheet VI light (`q69-sheet-vi-light.png`) and dark (`q69-sheet-vi-dark.png`); Sheet EN light (`q69-sheet-en-light.png`) and dark (`q69-sheet-en-dark.png`); EN entered values/status (`q69-sheet-en-values.png`); EN singular warning (`q69-sheet-en-warning.png`). Text, ribbon, grid, warning and status are readable; no clipping, overlap, obscured controls, weak contrast or mixed-language status labels found.
+NEXT ACTION: Q69 implementation committed; Q69.DONE created after this handoff.
+## CODEX R0912 — 26/10/2026
+
+TASK: Kiểm bản đóng gói VN Office 0.9.12 chưa phát hành.
+AGENT/ROLE: Codex / kiểm build Windows + runtime.
+BRANCH: codex/r0912.
+WORKTREE: E:\VNOffice-codex-r0912; `git merge main` fast-forward tới `4c7da4c8`.
+OBJECTIVE: Đặt version theo build process, dựng package/installer, xác minh runtime offline, mở/lưu mẫu, mã hóa và PDF handout; không phát hành.
+FINDINGS: `build-pilot.ps1 -Version 0.9.12` đặt phiên bản chỉ trong package (`APP_VERSION`, `VERSION.txt`); source giữ `0.9.0-pilot1`. Bundle có cryptography 50.0.2 và pypdf 6.21.1. Update source rỗng, updater disabled. Installer per-user vẫn ghi HKCU và thao tác shortcut chung.
+IMPLEMENTATION SUMMARY: Không đổi source/build scripts. Dựng package 1,188,553,548 byte và installer 409,560,493 byte; package mở/lưu d03/lan05/sample-3, mã hóa DOCX và xuất handout PDF. Đã khôi phục HKCU về cài đặt 0.9.10 sau migration tự động trong lần chạy package.
+FILES CHANGED: `09-templates/AGENT-HANDOFF.md` (handoff); báo cáo/evidence ngoài repo tại `D:\VNOffice-briefs\runs\R0912`.
+COMMITS: Không có thay đổi code/build; handoff tài liệu được commit riêng.
+COMMANDS RUN: `git merge main`; build-pilot 0.9.12; build-installer; CDP password/open-save/handout; `node tests/run-tests.js`; i18n parity; verify checklist evidence; pytest selector updater/encryption/print/handout/build.
+BUILD RESULT: PASS package + installer build; actual installer run BLOCKED vì ghi HKCU và thao tác shortcut Desktop/Start Menu; không phát hành/tag.
+TEST RESULTS: PASS Node 3852/3852; i18n VI=EN=3208, missing 0; checklist 0 dòng hạ; pytest 67 passed/1146 deselected. CDP: d03/lan05/sample-3 open/save PASS; mật khẩu CFB round-trip PASS; handout 3/6/9-up + notes 11/11 PASS; process-proxy offline open/save PASS, updater disabled không lỗi.
+KNOWN FAILURES: Tên máy in mặc định dạng URL mạng bị cắt trong dropdown của hộp thoại In. System-wide offline/firewall test BLOCKED vì không có quyền Administrator. Installer không chạy để tránh thay đổi shell tích hợp của bản hiện hữu.
+RISKS: Kết quả runtime là từ package chạy trong thư mục build, không phải installer; không chứng minh cài đặt end-to-end. Offline kiểm bằng proxy tiến trình, không ngắt adapter mạng. Bản 0.9.12 chưa phát hành.
+DEPENDENCIES/BLOCKERS: Cần phương thức cài thử cô lập HKCU/shortcut hoặc môi trường Windows dùng riêng; quyền admin nếu cần kiểm tra ngắt mạng toàn hệ thống.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: 1366×768 package — Writer d03 sáng/tối, Sheet lan05 sáng/tối, Slides sample-3 sáng/tối: đạt. Writer Tệp > Thông tin và hộp thoại mật khẩu trống/sai: đạt. Slides In mặc định/ghi chú/handout 3/6/9 và trạng thái ổn định: nội dung/nút trong khung; tên máy in dài bị cắt trong ô chọn. Ảnh tại `D:\VNOffice-briefs\runs\R0912\ui-shots`, `password-test`, `handout-exact`.
+NEXT ACTION: Chủ cân nhắc tạo môi trường cài thử cô lập; xử lý truncation máy in trong phiếu UI riêng nếu cần. Chưa phát hành 0.9.12.
+
+
+## CODEX Q70 — Khôi phục đoạn rỗng khi lưu DOC sang DOCX (31/10/2026)
+TASK: Q70 — DOC cũ mất đoạn rỗng khi lưu thành DOCX; tập trung legacy10, legacy14, legacy15.
+AGENT/ROLE: Codex / Windows Writer.
+BRANCH: codex/q70.
+WORKTREE: E:\VNOffice-codex-q70; đã `git merge main` fast-forward tại đầu phiếu.
+OBJECTIVE: Đo bằng app/CDP và Word COM ẩn, lần theo .doc → StarWriter HTML → DOM/export HTML → FODT → soffice → OOXML zip patch; chỉ phục hồi khi marker nguồn ánh xạ đầy đủ, bảo toàn corpus và page count.
+FINDINGS: Trước sửa, Word COM nguồn→DOCX: legacy10 91→86 đoạn (450 từ, 2→2 trang); legacy14 1034→1020 (5209 từ, 15→15); legacy15 91→86 (418 từ, 2→2). legacy10/15: marker đủ 87/87 và mọi đoạn có chữ khớp, nên vị trí đoạn rỗng xác định được. legacy14: DOCX trung gian từ chuyển đổi có 943 đoạn/405 rỗng nhưng StarWriter HTML và DOM chỉ còn 897 marker/359 rỗng; thiếu 46 đoạn rỗng trước DOM. Dãy đoạn có chữ vẫn khớp; không có marker ổn định cho 46 đoạn thiếu nên mapping theo thứ tự đoán vị trí và không an toàn.
+IMPLEMENTATION SUMMARY: Thêm phục hồi có điều kiện trong OOXML patch: yêu cầu đủ marker tuần tự, đoạn có chữ trùng chính xác, tệp không bị chỉnh; phục hồi đoạn rỗng ở đúng marker, xử lý marker bị LibreOffice gộp, và fail-close khi thiếu marker. Khôi phục chính xác legacy10/15. legacy14 vẫn 1020/1034; không chèn ước lượng. Đề xuất bước tiếp theo: truyền định danh đoạn nguồn bền qua DOCX→StarWriter HTML cho cả đoạn rỗng rồi mới xử lý legacy14.
+FILES CHANGED: `tests/live/cdp/q70-legacy-empty-paragraphs.desktop.mjs`; `tests/test_writer_empty_paragraph_restore.py`; `adapters/libreoffice/common/ooxml_zip_patch.py`; `09-templates/AGENT-HANDOFF.md`. Artifact/ảnh/đầu ra đo nằm ngoài repo trong `E:\VNOffice-briefs\logs\Q70-work`.
+COMMITS: `4bb6b46e` test trước sửa; `adf90d9d` phục hồi theo marker và test.
+COMMANDS RUN: `git merge main`; CDP mở/lưu 3 DOC; Word COM ẩn nguồn và DOCX lưu; CDP pagination legacy06/13/14/20; CDP lưu DOCX d01/d02/d03/d06/d07/d13/d20/d24; Word COM ẩn 8 cặp; `node tests/run-tests.js`; `python -m pytest tests -q -k "writer and (empty or legacy or import or ooxml)"`; i18n parity; ba `gen_*_checklist.py`; checklist verify; `git diff --check`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — Node 3859/3859; pytest 72 passed, 1147 deselected; test khôi phục 5/5. i18n VI=3229, EN=3229, missing=0; checklist 0 dòng bị hạ. DOCX regression 8/8: Word COM đoạn/trang/từ nguồn và DOCX lưu khớp lần lượt d01 709/19/8154, d02 199/11/4625, d03 49/1/304, d06 65/3/236, d07 594/23/6157, d13 398/10/2764, d20 401/3/1354, d24 18/16/0; cả 8 lần lưu app trả `ok`. Legacy mục tiêu: Word COM 10 91/91 đoạn, 2/2 trang; 15 91/91, 2/2; 14 1020/1034, 15/15 (BLOCKED). CDP pagination mẫu 06/13/14/20 đạt 4/4 trang canvas 3/3, 1/1, 15/15, 1/1; Q70 canvas legacy 20/20 khớp số trang Word theo corpus: legacy01–20 lần lượt 5,4,4,11,7,3,4,7,1,2,1,4,1,15,2,4,3,3,3,1 trang.
+KNOWN FAILURES: legacy14 thiếu 14 đoạn ở DOCX lưu cuối; mất 46 marker đoạn rỗng xảy ra trước DOM, nên chưa sửa. Khác biệt trang canvas d03 (3 trang) so với Word (1 trang) là baseline hiển thị, còn DOCX Word page count sau lưu vẫn 1/1.
+RISKS: Ảnh 1366×768 cho thấy lỗi tương phản chế độ tối ở legacy06/10/13/14/15/20 và DOCX d06/d07/d13/d20; d03 có tiêu đề hai cột chồng lấn; d24 tiêu đề đè logo. Đây là lỗi hiển thị có sẵn, ngoài sửa đổi lưu đoạn rỗng, đã lưu ảnh để phiếu riêng xử lý.
+DEPENDENCIES/BLOCKERS: legacy14 cần marker paragraph-source ổn định qua bước chuyển DOCX sang HTML. Đã chạy canvas đủ 20 DOC và xem 40 ảnh; Word COM đoạn/trang/từ đo chi tiết trên ba DOC mục tiêu cùng 8 DOCX regression.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Q70 legacy01–20 sáng+tối, 1366×768 (`E:\VNOffice-profiles\q70-legacy20-20261031\q57-screenshots`): canvas/page vừa viewport đa số; legacy07 có thanh cuộn ngang. Chế độ tối có chữ đen/chữ tối chìm hoặc nền trắng trong legacy02/03/05/06/07/10/11/12/13/14/15/16/17/18/20; bảng legacy14 và nội dung legacy07 rất khó đọc. Ba tài liệu mục tiêu legacy10/14/15 cũng có ảnh sáng+tối riêng tại `Q70-work/final-shots`. DOCX d01/d02/d03/d06/d07/d13/d20/d24 sáng+tối (`Q70-work/docx-shots-verified`): d01/d02/d06/d07/d13/d20 nội dung nằm trong khung; d03 tiêu đề chồng lấn; d24 tiêu đề đè logo; chế độ tối d06/d07/d13/d20 tương phản yếu hoặc mất chữ trên nền trắng. Các màn hình thử harness ban đầu d01/d02 còn trạng thái “Đang mở tài liệu”, đã xem, loại khỏi kết quả và chạy lại với điều kiện đợi đúng tài liệu.
+NEXT ACTION: BLOCKED riêng legacy14; cần thiết kế marker nguồn qua HTML, sau đó chạy lại Word COM 10/14/15 và xác nhận 20/20 page canvas, DOCX regression 8/8, rồi xem ảnh trước/sau. Không dùng heuristic theo số đoạn hiện có.
+
+
+# Agent Handoff
+TASK: CODEX-R0912 — Dựng và kiểm bản cài thử VN Office 0.9.12
+AGENT/ROLE: Codex / Windows release validation
+BRANCH: codex/r0912
+WORKTREE: E:\VNOffice-codex-r0912
+OBJECTIVE: Dựng ứng viên 0.9.12 từ main mới nhất, kiểm package portable đầy đủ, luồng mở/lưu, mã hóa, handout, updater khi mất nguồn và giao diện; không cài lên máy chính, phát hành, push hoặc tag.
+FINDINGS: main đã ở cf44363d (Q70) và git merge main báo Already up to date. Quy trình phiên bản: build-pilot.ps1 -Version 0.9.12 chỉ thay APP_VERSION trong bản đóng gói và ghi VERSION.txt; build-installer.ps1 đọc VERSION.txt. main.py trong repo giữ APP_VERSION=0.9.0-pilot1. Không có thao tác release/tag.
+IMPLEMENTATION SUMMARY: Chỉ thêm handoff này. Dựng portable 1134 MB, ZIP 424017002 byte, installer 409624007 byte (390.65 MiB; SHA256 9149DFF6CC43682158CB632A203F75C3ABA1F912328765AAED4AB912E96228CD). Đầu ra: E:\VNOffice-briefs\runs\R0912-20261031\dist\VNOffice-0.9.12; ZIP cùng thư mục; installer tại E:\VNOffice-briefs\runs\R0912-20261031\installer-out\VNOffice-Setup-0.9.12.exe. Runtime Python nhúng 3.12.10 import cryptography 50.0.2 và pypdf 6.21.1 thành công. Build NSIS lần đầu không tự dò được do thư mục NSIS\Bin; truyền -MakensisPath tường minh thì build thành công.
+FILES CHANGED: 09-templates/AGENT-HANDOFF.md (handoff tài liệu; không đổi mã nguồn).
+COMMANDS RUN: git merge main; scripts/build-pilot.ps1 -Version 0.9.12 -OutDir E:\VNOffice-briefs\runs\R0912-20261031\dist -Zip; scripts/build-installer.ps1 -PackageDir ... -OutDir ... -MakensisPath ...; kiểm import Python nhúng; CDP mở/lưu DOCX d03, XLSX lan05, PPTX sample-3; mã hóa và mở lại DOCX bằng mật khẩu; in handout PDF; node tests/run-tests.js; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; pytest cách ly và pytest tập trung. TMP/TEMP và LOCALAPPDATA/VNO_CDP_LOCALAPPDATA đặt trong E:\VNOffice-briefs\runs\R0912-20261031 cho các lần chạy cuối.
+BUILD RESULT: PASS — portable và installer được dựng. NOT RUN — chạy installer/cài đặt, theo chỉ thị chờ chủ duyệt. Không sửa registry, không tạo tag/release, không push. Build report/log ở E:\VNOffice-briefs\runs\R0912-20261031\logs.
+TEST RESULTS: PASS Node 3859/3859; PASS i18n VI=EN=3229, missingVI=0, missingEN=0; PASS checklist 0 dòng bị hạ; PASS kiểm package cryptography/pypdf; PASS CDP mở/lưu ba tệp (DOCX 19025 B, XLSX 49281 B, PPTX 18896486 B); PASS encryption round-trip (tệp 23040 B, đúng mật khẩu mở lại); PASS handout 3 slide/tờ, PDF 4 trang/4635325 B; PASS pytest liên quan 47/47. Full pytest: FAIL 1, PASS 1213, SKIP 5 (729.91s), xem known failures. Update probe với nguồn localhost không hoạt động trả trạng thái unavailable và app tiếp tục chạy. NOT RUN — ngắt Internet thật/kiểm offline toàn diện; không có phương thức cô lập mạng theo PID không cần quyền quản trị. Excel COM BLOCKED theo quy tắc chủ; không chạy Office COM.
+KNOWN FAILURES: tests/test_process_tracker_ps.py::ZombieTests.test_ps_identity_treats_a_zombie_as_gone_and_a_live_process_as_its_start_time — test ép /proc không có rồi kỳ vọng fallback ps; trên Windows process_identity dùng Win32 API nên PID giả 77 không tồn tại và trả None. Đây là test không phù hợp nền tảng Windows, không được sửa expected trong phiếu này.
+RISKS: Chưa cài thử installer do chờ duyệt; chưa xác nhận app khi adapter mạng Windows thật sự ngắt. Không có thay đổi APP_VERSION trong source hoặc nội dung update channel; chỉ dựng ứng viên, chưa phát hành. Package size lớn: 1134 MB portable / 404 MB ZIP / 390.65 MiB installer.
+DEPENDENCIES/BLOCKERS: Chủ duyệt cài installer trên thư mục riêng; chạy test offline sau khi có phương thức chặn mạng theo PID không cần admin; QA xử lý/đánh dấu đúng scope cho test process tracker trên Windows; full pytest phải xanh trước khi gate release được coi là đạt.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: Đã mở và xem ảnh 1366×768 thực tế cho Writer d03, Sheet lan05, Slides sample-3 ở Sáng và Tối (6 ảnh trong E:\VNOffice-briefs\runs\R0912-20261031\ui-shots\package-<app>-<theme>-1366x768.png): cả sáu màn hình đã tải đủ; ribbon, canvas/bảng và trạng thái ứng dụng nhìn được, không thấy chữ bị cắt/chồng lấn hay thành phần khuất. Đã xem hộp thoại mật khẩu DOCX và màn hình sau mở thành công (encrypted-open-dialog.png, encrypted-open-result.png); dialog nằm gọn, nút Mở tệp thấy rõ, tài liệu mở lại bình thường.
+PERFORMANCE: App khởi chạy + nạp dữ liệu lần đầu (candidate): Writer 3.637s, Sheet 5.236s, Slides 9.921s; mở lại cùng profile: 3.706s, 4.929s, 9.905s. Source trên cùng bộ file/profile riêng: 24.462s, 22.795s, 30.419s. Một lần đo cho mỗi trường hợp; log `performance-compare.log` và `performance-warm.log`.
+NEXT ACTION: Chờ chủ duyệt mới cài installer vào thư mục riêng; khắc phục/đánh dấu test tracker sai scope Windows rồi chạy lại full pytest; kiểm thử trên môi trường mạng thực sự ngắt. Chưa kết luận release-ready.
+
+
+## CODEX Q71 — Windows pytest process_tracker_ps (31/10/2026)
+TASK: Q71 — Phân loại lỗi pytest Windows ở process_tracker_ps.
+AGENT/ROLE: Codex / Windows test triage.
+BRANCH: codex/q71.
+WORKTREE: E:\VNOffice-codex-q71; `git merge main` báo Already up to date.
+OBJECTIVE: Xác định lỗi test hay sản phẩm; giữ nguyên hành vi macOS và xác minh full pytest Windows.
+FINDINGS: Trước sửa, `python -m pytest tests/test_process_tracker_ps.py -q` FAIL: 1 failed, 6 passed, 1 skipped. Test zombie giả lập macOS `ps` nhưng trên Windows `process_identity()` đi vào nhánh kernel32; PID giả 77 không tồn tại. Không phải lỗi sản phẩm.
+IMPLEMENTATION SUMMARY: Thêm `skipIf(os.name == "nt")` chỉ cho test identity fallback `ps`, với lý do Windows dùng kernel32. Test parsing dùng chung tiếp tục chạy; hành vi macOS/Linux không đổi.
+FILES CHANGED: `tests/test_process_tracker_ps.py`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; pytest target trước/sau; full pytest với TMP/TEMP=`E:\VNOffice-briefs\tmp`; `npm test`; i18n parity; checklist evidence verifier.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS target sau sửa 6 passed, 2 skipped; PASS full pytest 1213 passed, 6 skipped, 0 failed (708.30s); PASS Node via `npm test` 3859/3859; PASS i18n VI=3229, EN=3229, missing=0; PASS checklist verifier 0 dòng bị hạ. Hai lượt Node chạy đồng thời trước đó mỗi lượt 3858/3859; chạy tuần tự đạt 3859/3859.
+KNOWN FAILURES: Không còn lỗi liên quan. Skip mới là kiểm thử POSIX/macOS fallback không áp dụng trên Windows; zombie integration POSIX cũng skip theo điều kiện có sẵn.
+RISKS: Không có thay đổi runtime; không chạy COM hay CDP vì task chỉ sửa scope pytest nền tảng.
+CORE PATCH ID (if any): None.
+GIAO DIEN DA XEM: NOT APPLICABLE — không thay đổi UI và không chạy app.
+NEXT ACTION: Review commit Q71; có thể chuyển phiếu tiếp theo.
+
+
+## CODEX Q72 — Đồng bộ test backoff báo lỗi nền (31/10/2026)
+TASK: Q72 — Làm xác định test_error_reporting backoff khi có report mới.
+AGENT/ROLE: Codex / Windows Python tests.
+BRANCH: codex/q72; `git merge main` fast-forward từ 9bf0bfb9 lên 975bcf2e.
+WORKTREE: E:\VNOffice-codex-q72.
+OBJECTIVE: Loại phụ thuộc sleep/thời gian thực khỏi kiểm tra sender backoff mà vẫn chứng minh report mới không gửi sớm.
+FINDINGS: Test cũ polling list thread và `sleep(0.2)` nên chịu trễ lịch chạy CPU; lượt baseline hiện tại pass 1/1, phù hợp tính flaky được báo trước (không tái hiện FAIL trong lượt baseline này). Không quan sát được race khiến sender bỏ qua backoff.
+IMPLEMENTATION SUMMARY: Thêm seam `_monotonic()` cho đồng hồ retry có thể giả lập. Test chạy sender loop với `ManualWake`, đồng hồ giả, và Events: chờ send đầu, xác nhận vào backoff, thêm report mới và xác nhận chưa retry, sau đó tăng đồng hồ và xác nhận retry xảy ra.
+FILES CHANGED: `adapters/error_reporting/reporter.py`; `tests/test_error_reporting.py`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: pytest target trước/sau; target 30 lượt tuần tự; bốn tiến trình pytest target đồng thời; full pytest tuần tự với TMP/TEMP=`E:\VNOffice-briefs\tmp`; `node tests/run-tests.js`; `npm test`; i18n parity; checklist evidence verifier; diff stat/check.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS target baseline 1/1; PASS target after 1/1; PASS stress 30/30 lượt, 0 fail; PASS 4 tiến trình đồng thời, 0 fail; PASS full pytest 1213 passed, 6 skipped, 0 failed (680.57s); PASS Node `npm test` 3886/3886; PASS `node tests/run-tests.js` 3886/3886; PASS i18n VI=EN=3229, missing=0; PASS checklist evidence 0 dòng hạ.
+KNOWN FAILURES: Hai full pytest chạy đồng thời ban đầu có 15 lỗi LibreOffice chuyển đổi do đụng tài nguyên/profile; chạy lại một full pytest tuần tự đạt 1213/1213. `npm test` chạy đồng thời với cùng runner có một lượt 3885/3886; lượt tuần tự PASS 3886/3886. Baseline test target không FAIL trong lượt đã chạy trước sửa.
+RISKS: Chưa tìm thấy lỗi runtime sản phẩm tái hiện được; thay đổi runtime chỉ bọc `time.monotonic()` qua hàm riêng để test kiểm soát clock.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: NOT APPLICABLE — test backoff không có UI và không khởi chạy app.
+NEXT ACTION: Commit riêng Q72; sau đó tạo `E:\VNOffice-briefs\logs\Q72.DONE`.
+
+
+## CODEX LIBPLAN — Kế hoạch hoàn thiện OOXMLKit (01/11/2026)
+TASK: LIBPLAN — Kiểm tra trạng thái OOXMLKit và giao việc hoàn thiện thư viện.
+AGENT/ROLE: Codex / OOXMLKit library planning.
+BRANCH: codex/libplan; `git merge main` Already up to date tại `11b736bf`.
+WORKTREE: `E:\VNOffice-codex-libplan`.
+OBJECTIVE: Viết kế hoạch tiếng Việt có năng lực theo XLSX/DOCX/PPTX, khoảng trống sản phẩm, gói việc theo owner, test/acceptance, phụ thuộc, thứ tự, rủi ro và rollback; không sửa source.
+FINDINGS: Suite tại snapshot main hiện tại chạy 204/204; review snapshot Muse `1354d7ec` ghi 232/232; báo cáo 244/244 tại `9f9f061` chưa xác minh vì ref không có sau `git fetch origin`. Mapping 217 hàm có sai lệch 37 API groups so với 47 patch-function rows (21 Sheet, 18 Writer, 8 Slides). Review 31/10 ghi finding CONFIRMED show settings sai schema và 3 finding PLAUSIBLE về section inheritance, numbering đa cấp, field safety; ZipLimits 1 GiB/4 GiB cần xác minh/chốt.
+IMPLEMENTATION SUMMARY: Thêm `docs/ooxml/PLAN-HOAN-THIEN-OOXMLKIT-01-11.md` với ma trận capability, số liệu, L1-L9, chỉ thị Muse/Windows/Mac, gates, rollback; không sửa mã nguồn.
+FILES CHANGED: `docs/ooxml/PLAN-HOAN-THIEN-OOXMLKIT-01-11.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; `git fetch origin`; `powershell -NoProfile -File E:\VNOffice-briefs\run-swift-wsl.ps1 E:\VNOffice-codex-libplan`; kiểm tra trạng thái refs, mapping, source và review liên quan.
+BUILD RESULT: NOT RUN — task chỉ lập kế hoạch.
+TEST RESULTS: PASS merge/fetch; PASS Swift 204 tests, 0 failures (43.763s, WSL Ubuntu, exit 0). Compiler warning audit NOT RUN vì script lọc output.
+KNOWN FAILURES: Không có lỗi test trong suite đã chạy. Excel COM BLOCKED theo chỉ thị chung; Office COM/W1/CDP không chạy trong task này.
+RISKS: Số 244/244 chưa xác minh; không dùng làm baseline. Handoff yêu cầu có branch/ref thật trước khi Muse bắt đầu.
+DEPENDENCIES/BLOCKERS: W1 Windows build; Excel COM oracle; owner chốt ngưỡng ZipLimits và quyết định W6 PDF/định dạng cũ.
+CORE PATCH ID (if any): None.
+GIAO DIEN DA XEM: NOT APPLICABLE — không chạy app hoặc sửa UI.
+NEXT ACTION: Review kế hoạch, sau đó giao Q-LIBPLAN-01 cho Codex Windows khi L1/L2 có snapshot ổn định; Muse làm L1 trên branch/worktree riêng.
+
+---
+
+# Agent Handoff
+TASK: CODEX Q76 — fixture PPTX media lặp cho Muse L6 / STT 84
+AGENT/ROLE: Codex / OOXML fixture
+BRANCH: codex/q76
+WORKTREE: E:\VNOffice-codex-q76
+OBJECTIVE: Tạo fixture PowerPoint-authored có media timing đọc lại được qua PowerPoint COM; bàn giao XML evidence cho Muse.
+FINDINGS: PowerPoint 16.0 COM lưu/mở lại được audio `LoopUntilStopped` và `StopAfterSlides=2`; máy không có ffmpeg hay thư viện encoder video khả dụng nên chưa thể tạo video. VN Slides giữ overlay “Đang mở tài liệu...” khi mở PPTX này.
+IMPLEMENTATION SUMMARY: Thêm script tái tạo WAV sin 2 giây, ba slide, audio lặp ở slide 1 và audio chạy qua slide 2–3; PowerPoint COM mở lại và đọc thuộc tính. README trích timing/relationships. Ghi handoff ngắn cho Muse trong INBOX-MAC.
+FILES CHANGED: `scripts/fixtures/make_pptx_media_loop.py`; `tests/fixtures/ooxml/pptx/media-loop/powerpoint-media-loop.pptx`; `tests/fixtures/ooxml/pptx/media-loop/tone-2s.wav`; `tests/fixtures/ooxml/pptx/media-loop/README.md`; `docs/sync/INBOX-MAC.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; `python scripts/fixtures/make_pptx_media_loop.py`; `python -m pytest tests -q -k media_loop`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; VN Slides CDP open/screenshot.
+BUILD RESULT: NOT RUN — chỉ thêm fixture, script và tài liệu.
+TEST RESULTS: PASS — PowerPoint COM 16.0 reopen, 3 slides, 54,759-byte PPTX; audio readback `LoopUntilStopped=-1`, `HideWhileNotPlaying=-1`, `StopAfterSlides=2`; pytest 4/4; npm 3886/3886; i18n VI/EN missing 0; checklist rows downgraded 0.
+KNOWN FAILURES: Video BLOCKED (không có ffmpeg/encoder, chưa có `<p:video>`). CDP mở fixture không xong sau 15 giây; overlay loading và slide canvas trống.
+RISKS: Fixture hiện chỉ có audio, chưa đáp ứng phần video của Muse L6; khi có ffmpeg, chạy script để tạo MP4 và PPTX đầy đủ.
+DEPENDENCIES/BLOCKERS: Máy Windows có PowerPoint để tạo lại; ffmpeg/encoder để bổ sung video. VN Slides import hang cần phiếu sửa riêng.
+CORE PATCH ID (if any): None.
+GIAO DIEN DA XEM: VN Slides editor 1366×706 — ảnh `E:\VNOffice-briefs\logs\Q76-slides.png`; ribbon hiển thị, không thấy thông báo lỗi, nhưng overlay “Đang mở tài liệu...” che canvas suốt 15 giây; ghi nhận lỗi mở tệp, không sửa theo phạm vi Q76.
+NEXT ACTION: Muse dùng audio fixture/XML evidence hiện có và bổ sung video từ máy có encoder; giao lỗi VN Slides import sang phiếu riêng.
+
+## CODEX Q73 — Sửa ba lỗi hiển thị Writer đã tái hiện (01/11/2026)
+
+TASK: Q73 — Khắc phục tương phản tối trên tài liệu nhập, cuộn ngang legacy07.doc và tiêu đề bìa d24.docx; kiểm tra d03.docx, số trang và round-trip.
+AGENT/ROLE: Codex / Windows Writer UI.
+BRANCH: codex/q73; `git merge main` — Already up to date.
+WORKTREE: E:\VNOffice-codex-q73.
+OBJECTIVE: Tái hiện bằng CDP app thật ở 1366×768, chụp/xem Sáng và Tối, sửa ở CSS/adapter, giữ nguyên dữ liệu nguồn và kết quả DOCX.
+FINDINGS: legacy07 tối có chữ đen/nền #1e1e1e, contrast 1.26:1 (min sample 1.10:1); nội dung FONT dài làm trang scrollWidth=4497px/794px. d24 bìa có hai tiêu đề trắng trong dải logo: y=228–313px theo trang. d03: CDP đo các range chữ trang đầu không có cặp giao nhau; Word COM nguồn=1 trang, app canvas=3 trang. Ảnh hiện tại không tái hiện chồng chữ.
+IMPLEMENTATION SUMMARY: (1) CSS tài liệu nhập giữ giấy trắng ở giao diện tối, chữ legacy07 min contrast sau sửa 8.59:1. (2) `overflow-wrap:anywhere` cho font runs nhập loại bỏ cuộn ngang trang legacy07. (3) Hai tiêu đề bìa trắng 24pt được dịch lên 150px, ra khỏi dải logo mà không đổi luồng lưu. Không sửa d03 vì lỗi chồng chữ không tái hiện; không đổi fixture.
+FILES CHANGED: `apps/writer/writer.css`; `tests/live/cdp/q73-writer-display-regressions.desktop.mjs`; handoff này.
+COMMITS: `9d2537ab` tương phản trang nhập; `bf93e9ea` ngắt chuỗi legacy; `153e31da` đặt lại tiêu đề bìa. Handoff commit riêng sau ba commit lỗi.
+COMMANDS RUN: CDP regression mỗi lỗi trước/sau; CDP pagination legacy06/13/14/20; Word COM ẩn đọc số trang và hình d24; `node tests/run-tests.js`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; ba `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer and (import or page or layout or legacy)"`; `git diff --check`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS Node 3886/3886 qua cả hai lệnh; PASS i18n VI=3229, EN=3229, missing=0; PASS verifier 0 dòng hạ; PASS pytest 65 passed, 1154 deselected. CDP dark baseline FAIL contrast 1.10:1 → PASS 8.59:1; legacy07 baseline FAIL page scrollWidth 4497/794 → PASS 794/794; d24 baseline FAIL tiêu đề giao dải logo y=228–313 → PASS y=78–163. CDP d03 baseline và sau đều PASS kiểm tra giao nhau (0 cặp), không sửa.
+ROUND-TRIP: PASS 5/5 bản sao DOCX lưu ra thư mục ngoài repo, Word COM khớp: d01 19/19, d02 11/11, d03 1/1, d07 23/23, d13 10/10. Word COM đọc nguồn đủ 8/8 trang đúng kỳ vọng, gồm d06=3, d20=3, d24=16; các lượt lưu thử d06/d20/d24 không hoàn tất vì app báo “Hết thời gian chờ khi chuyển đổi tài liệu”, nên không tính là lưu PASS. Nguồn không bị ghi đè. CDP legacy06/13/14/20 sau CSS PASS 4/4 trang: 3/3, 1/1, 15/15, 1/1. Q70 trước task đã đo 20/20 legacy; toàn bộ corpus 20 tệp chưa chạy lại sau CSS.
+KNOWN FAILURES: d03 issue “nội dung chồng lấn” không tái hiện ở ảnh/CDP hiện tại; chênh lệch app canvas 3 trang và Word 1 trang vẫn còn. Không tuyên bố đã sửa chồng chữ. d06/d20/d24 round-trip mới BLOCKED do timeout chuyển đổi; d24 đã mở được trong phiên app_session_server dùng để sửa bìa. Full legacy01–20 canvas regression sau thay đổi NOT RUN.
+RISKS: CSS nền trắng áp dụng cho mọi trang nhập khi ở giao diện tối; đây là lựa chọn được brief cho phép để giữ màu chữ tự động dễ đọc. Ngắt wrap ảnh hưởng trường FONT dài không có khoảng trắng; legacy07 vẫn 4 trang app trong ảnh trước/sau. Hình chữ nhật xanh bị cắt ở mép phải trong ảnh d24 sau sửa là nội dung nguồn/đối tượng khác, ghi nhận ngoài scope.
+DEPENDENCIES/BLOCKERS: Cần ảnh/fixture hoặc cách tái hiện hiện hành nếu d03 còn chồng chữ ở môi trường người dùng; cần lượt app chuyển đổi DOCX ổn định để lưu lại d06/d20/d24; cần chạy lại corpus legacy20 trước khi xác nhận gate 20/20 sau thay đổi.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: 1366×768, Sáng/Tối: legacy07 trước/sau (trước: chữ chìm + cuộn ngang; sau: chữ đọc được, trang vừa khung); d03 trước/sau (không thấy range chồng nhau, canvas vẫn 3 trang); d24 trước/sau (tiêu đề tách khỏi logo; hai hình chữ nhật xanh còn bị cắt mép phải); legacy06/13/14/20 sau (đếm trang đúng, không thấy lỗi che/cắt mới); d07/d13 sau (nội dung tải đủ, bố cục đọc được); dialog timeout d06/d20/d24 (nằm gọn, nút Đồng ý thấy rõ). Ảnh nằm dưới `E:\VNOffice-briefs\runs\Q73\ui-shots` và `E:\VNOffice-briefs\runs\Q73\q57-regression\q57-screenshots`.
+NEXT ACTION: Tạo `E:\VNOffice-briefs\logs\Q73.DONE` ghi trạng thái PARTIAL/BLOCKED; không chuyển phiếu kế tiếp trước khi xử lý quyết định d03, chạy lại DOCX bị timeout và xác nhận corpus legacy20 sau CSS.
+
+## CODEX Q78 — Kiểm chứng cập nhật 0.9.11 lên 0.9.12 và in thật qua worker riêng.
+TASK: Q78 — Kiểm chứng cập nhật 0.9.11 lên 0.9.12 và in thật qua worker riêng.
+AGENT/ROLE: Codex / Windows package E2E.
+BRANCH: codex/q78; `git merge main` fast-forward từ f1d22bea lên 9ba714a5.
+WORKTREE: E:\VNOffice-codex-Q78.
+OBJECTIVE: Chạy bản 0.9.11 đã sao chép trong E:\VNOffice-e2e-0912, cập nhật từ staging cục bộ, kiểm tra tài liệu sau cập nhật, thời gian mở d03 với profile ấm và lệnh in qua worker có quyền truy cập máy in.
+FINDINGS: Nguồn cập nhật là E:/VNOffice-dist/updates-staging. Manifest có chữ ký hợp lệ; 0.9.12 sẵn sàng với 1.185 tệp thay đổi, 306 tệp gỡ, 46.311.283 byte. Helper cập nhật ghi version-verified và health-check-passed. Lệnh in PDF 2 bản được gửi hàng đợi; WMI tìm PID worker 13436, môi trường đã đọc thành công và không có SAL_DISABLE_PRINTERLIST/SAL_DISABLE_DEFAULTPRINTER.
+IMPLEMENTATION SUMMARY: Không thay mã sản phẩm. Tạo bản sao 0.9.11 cách ly, sửa cấu hình bản sao trỏ staging cục bộ, áp dụng bản cập nhật qua luồng cập nhật của ứng dụng, rồi mở d03.docx, lan05.xlsx và after-update-sample.pptx qua CDP. Lần mở d03 sau lần làm ấm mất 14.153 ms.
+FILES CHANGED: `09-templates/AGENT-HANDOFF.md` (handoff Q78); bằng chứng ngoài repo tại `E:\VNOffice-e2e-0912`.
+COMMANDS RUN: `git merge main`; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "updater or print or desktop_launch"`; cập nhật và in thật qua CDP.
+BUILD RESULT: NOT RUN — không đổi mã hay build.
+TEST RESULTS: PASS Node 3886/3886; PASS i18n VI=3229, EN=3229, missing=0 (21 giá trị giống/để nguyên được báo là nghi ngờ dịch); PASS checklist 0 dòng hạ; PASS pytest 99 passed, 1123 deselected. PASS E2E cập nhật, health-check và mở đủ 3 tài liệu. PASS in 2 bản: trạng thái “Đã gửi tài liệu đến hàng đợi máy in”; worker PID 13436 không có SAL_DISABLE_*.
+KNOWN FAILURES: d03 hiển thị 3 trang trong trình soạn thảo nhưng hộp thoại xem trước In báo 1 trang và co nội dung vào một trang. Ảnh lan05 có nhãn “Tên người nộp” sát/chồng với nội dung ô kế bên. Ghi nhận để phân tích riêng; không sửa trong phiếu kiểm chứng này.
+RISKS: Kết quả in báo đã gửi hàng đợi, không xác nhận hoàn tất lưu ra file vì luồng thử không chọn đích lưu PDF. Không dùng hộp thoại hệ điều hành.
+DEPENDENCIES/BLOCKERS: Không.
+CORE PATCH ID (if any): None.
+GIAO DIỆN ĐÃ XEM: `01-0.9.11-start.png` 1366x705 — ribbon/trang trắng khởi động, không thấy chữ cắt/chồng. `05-d03-after-update.png` 1366x705 — d03 nạp đủ, 303 từ, 3 trang; bố cục mở được. `06-lan05.png` 1366x705 — dữ liệu nạp 100%, thấy nhãn đầu bảng sát/chồng chữ ô bên cạnh. `07-after-update-sample.png` 1366x705 — 17 slide, nội dung hiện đủ; thanh cuộn và ribbon hiển thị. `08-print-dialog.png` 1366x705 — hộp thoại gọn, nút Hủy/In hiện; preview báo 1 trang. `10-print-dialog-1366x768.png` và `11-print-sent-1366x768.png` — hộp thoại cao 722px nằm trong viewport 768px, không tràn; nút In/In lại hiện rõ, không có hộp thoại chọn tệp hệ điều hành. Ảnh ở `E:\VNOffice-e2e-0912`.
+NEXT ACTION: Chuyển chênh lệch phân trang d03 sang phiếu in/render riêng; đánh giá ảnh lan05 theo dữ liệu và cột của nguồn. Q78 hoàn tất kiểm chứng cập nhật và đường gửi lệnh in.
+
 ---
 
 # Agent Handoff

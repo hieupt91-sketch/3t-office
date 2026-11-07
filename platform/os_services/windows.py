@@ -6,6 +6,7 @@ the other Launcher methods (worker command, child processes) and the remaining s
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import sys
@@ -76,5 +77,70 @@ class WindowsLauncher:
             return ServiceResult.fail("not_available", "Không hiện được hộp thông báo lỗi.")
 
 
+# ERROR_INVALID_FUNCTION, ERROR_NOT_SUPPORTED, ERROR_INVALID_PARAMETER, ERROR_CALL_NOT_IMPLEMENTED: the file system
+# or redirector does not implement the flush. Disk full, device, and network errors are real failures.
+_FLUSH_REFUSED_WINERRORS = frozenset({1, 50, 87, 120})
+# A directory handle needs write access, which some shares deny (ERROR_ACCESS_DENIED, ERROR_SHARING_VIOLATION).
+_DIRECTORY_FLUSH_REFUSED_WINERRORS = _FLUSH_REFUSED_WINERRORS | {5, 32}
+_GENERIC_WRITE = 0x40000000
+_FILE_SHARE_ALL = 0x7
+_OPEN_EXISTING = 3
+_FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+
+
+class WindowsDurableFiles:
+    """Uses FlushFileBuffers directly: os.fsync reports every failure as EBADF, so its cause cannot be told apart."""
+
+    @staticmethod
+    def _kernel32():
+        import ctypes
+        from ctypes import wintypes
+
+        # A private instance, so these prototypes cannot affect other ctypes users of kernel32 in this process.
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateFileW.argtypes = [
+            wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+            wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+        ]
+        kernel32.CreateFileW.restype = wintypes.HANDLE
+        kernel32.FlushFileBuffers.argtypes = [wintypes.HANDLE]
+        kernel32.FlushFileBuffers.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+        return kernel32
+
+    def flush_file(self, fd: int) -> None:
+        import ctypes
+        import msvcrt
+
+        if not self._kernel32().FlushFileBuffers(msvcrt.get_osfhandle(fd)):
+            self._handle_failure(ctypes.get_last_error(), _FLUSH_REFUSED_WINERRORS, "File")
+
+    def flush_directory(self, path: Path) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = self._kernel32()
+        handle = kernel32.CreateFileW(
+            str(path), _GENERIC_WRITE, _FILE_SHARE_ALL, None, _OPEN_EXISTING, _FILE_FLAG_BACKUP_SEMANTICS, None,
+        )
+        if handle in (None, wintypes.HANDLE(-1).value):
+            self._handle_failure(ctypes.get_last_error(), _DIRECTORY_FLUSH_REFUSED_WINERRORS, "Directory")
+            return
+        try:
+            if not kernel32.FlushFileBuffers(handle):
+                self._handle_failure(ctypes.get_last_error(), _DIRECTORY_FLUSH_REFUSED_WINERRORS, "Directory")
+        finally:
+            kernel32.CloseHandle(handle)
+
+    @staticmethod
+    def _handle_failure(code: int, refused: frozenset[int], what: str) -> None:
+        import ctypes
+
+        if code not in refused:
+            raise ctypes.WinError(code)
+        logging.getLogger("vnoffice.save").info("%s flush refused by the filesystem: error %s", what, code)
+
+
 def build_services() -> OSServices:
-    return OSServices(data_dirs=WindowsDataDirs(), launcher=WindowsLauncher())
+    return OSServices(data_dirs=WindowsDataDirs(), launcher=WindowsLauncher(), durable_files=WindowsDurableFiles())

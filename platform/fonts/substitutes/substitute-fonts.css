@@ -1,0 +1,20 @@
+/* FIX-D6-2510 — metric-compatible substitute fonts for the web view (SIL OFL 1.1, see OFL.txt / SOURCES.json).
+   Carlito 1.104 is shipped UNMODIFIED (Reserved Font Name "Carlito" kept as is).
+   1) Carlito by its own name.
+   2) Aliases keyed by the font name a document asks for. local() keeps an installed real font first (Windows
+      normally has Calibri, so nothing changes there); only when it is missing does Carlito load. The keys are
+      mapping keys only — no other product's font file is shipped or referenced.
+   Calibri Light: Carlito has no light weight, so it shows in Carlito Regular (same widths, slightly darker
+   strokes). Only 400 faces are declared for it, so bold Calibri Light is synthesised as with the real font.
+   Each file downloads only when text actually uses it. Same table as platform/os_services/<os>.py (engine). */
+@font-face { font-family: "Carlito"; font-weight: 400; font-style: normal; font-display: swap; src: local("Carlito"), local("Carlito-Regular"), url("Carlito-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Carlito"; font-weight: 700; font-style: normal; font-display: swap; src: local("Carlito Bold"), local("Carlito-Bold"), url("Carlito-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Carlito"; font-weight: 400; font-style: italic; font-display: swap; src: local("Carlito Italic"), local("Carlito-Italic"), url("Carlito-Italic.ttf") format("truetype"); }
+@font-face { font-family: "Carlito"; font-weight: 700; font-style: italic; font-display: swap; src: local("Carlito Bold Italic"), local("Carlito-BoldItalic"), url("Carlito-BoldItalic.ttf") format("truetype"); }
+
+@font-face { font-family: "Calibri"; font-weight: 400; font-style: normal; font-display: swap; src: local("Calibri"), local("Calibri Regular"), url("Carlito-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Calibri"; font-weight: 700; font-style: normal; font-display: swap; src: local("Calibri Bold"), local("Calibri-Bold"), url("Carlito-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Calibri"; font-weight: 400; font-style: italic; font-display: swap; src: local("Calibri Italic"), local("Calibri-Italic"), url("Carlito-Italic.ttf") format("truetype"); }
+@font-face { font-family: "Calibri"; font-weight: 700; font-style: italic; font-display: swap; src: local("Calibri Bold Italic"), local("Calibri-BoldItalic"), url("Carlito-BoldItalic.ttf") format("truetype"); }
+@font-face { font-family: "Calibri Light"; font-weight: 400; font-style: normal; font-display: swap; src: local("Calibri Light"), local("Calibri-Light"), url("Carlito-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Calibri Light"; font-weight: 400; font-style: italic; font-display: swap; src: local("Calibri Light Italic"), local("Calibri-LightItalic"), url("Carlito-Italic.ttf") format("truetype"); }
