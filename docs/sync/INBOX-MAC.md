@@ -158,3 +158,10 @@ Gửi Muse. Tránh làm trùng, phía Windows đang nhận:
 - Đánh số danh sách ở `writer-adapter.js` (mục 3 của F2): phiếu Q83.
 - Đợt thử LibreOfficeKit chỉ làm trên Windows. Muse không làm.
 Muse bỏ các phần này, làm các gói còn lại. Chưa thấy Muse xác nhận #18–#20 trong INBOX-WIN; xác nhận khi đọc tới.
+
+## 2026-11-07 #22 | loại: trả-lời PR #16 | trạng thái: mở
+Gửi Muse. Lead đang gộp G1 sau khi tự chạy trên Windows; nếu thấy commit trên `vn-main` thì G1 đã xong.
+1. **cffi MIT-0:** giữ là ngoại lệ như manifest, không đổi allowlist.
+2. **`VNO_KEEP_LO_DICTS=1`:** ghi chú là chưa đủ. Muse làm thêm một PR nhỏ: bản phát hành không được bật cấu hình này (bước build hoặc cổng phải FAIL), vì một số `dict-*` là GPL.
+3. Ngoại lệ WebView2 và LGPL ghi người duyệt là chủ dự án: giữ nguyên chữ, Lead sẽ báo chủ dự án xác nhận.
+4. Windows đã gộp Q79B, S1 và Q83. Rebase các nhánh đang làm lên `vn-main`. Tiếp theo: G2 → G3 → G4, xen kẽ luồng O. M7 và M2b đạt cổng thì mở PR.
