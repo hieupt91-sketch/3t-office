@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Callable
 
 from .base import DocumentFontSources, FontSubstitution, OSServices, ServiceResult
-from .portable import APP_DATA_DIR_NAME, VALID_APP_KINDS, PortableLauncher
+from .file_dialogs import FileDialogPolicy
+from .portable import APP_DATA_DIR_NAME, VALID_APP_KINDS, PortableDurableFiles, PortableLauncher
 
 # A startup error box must not keep a helper process alive forever if nobody is at the screen.
 ERROR_DIALOG_GIVE_UP_SECONDS = 300
@@ -169,5 +170,36 @@ class MacDocumentFonts:
         )
 
 
+# MAC-3-2610 — native Open/Save panels (NSOpenPanel/NSSavePanel, also behind Qt's QFileDialog on macOS).
+# pywebview passes no file-type menu to the Save panel (Cocoa and Qt), so the default name carries its extension and
+# the app fixes a missing/foreign extension itself. The panel already asks before replacing a file. Open allows
+# choosing several files, like Office for Mac. File names from macOS are often decomposed (NFD); the app shows and
+# remembers them composed (NFC), which APFS and HFS+ resolve to the same file.
+def mac_file_dialog_policy(home: Path | None = None) -> FileDialogPolicy:
+    return FileDialogPolicy(
+        save_dialog_has_type_menu=False,
+        save_dialog_confirms_overwrite=True,
+        open_allows_multiple=True,
+        path_unicode_form="NFC",
+        default_directory=(Path(home) if home is not None else Path.home()) / "Documents",
+    )
+
+
+class MacDurableFiles(PortableDurableFiles):
+    """On macOS fsync only reaches the drive's cache; F_FULLFSYNC reaches the medium where the volume supports it."""
+
+    def flush_file(self, fd: int) -> None:
+        import fcntl
+
+        try:
+            fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
+        except OSError:
+            # SMB and some other volumes refuse F_FULLFSYNC. fsync then decides whether this is a real write error.
+            super().flush_file(fd)
+
+
 def build_services() -> OSServices:
-    return OSServices(data_dirs=MacDataDirs(), launcher=MacLauncher(), document_fonts=MacDocumentFonts())
+    return OSServices(
+        data_dirs=MacDataDirs(), launcher=MacLauncher(), document_fonts=MacDocumentFonts(),
+        file_dialogs=mac_file_dialog_policy(), durable_files=MacDurableFiles(),
+    )

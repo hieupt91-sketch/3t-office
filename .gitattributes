@@ -1,1 +1,4 @@
 /scripts/installer/NSIS-COPYING.txt whitespace=-trailing-space
+
+# Phong va giay phep di kem duoc ghim sha256 trong SOURCES.json: giu nguyen byte tren moi he dieu hanh
+platform/fonts/** -text

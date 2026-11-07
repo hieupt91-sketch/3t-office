@@ -82,3 +82,86 @@ Trả lời INBOX-WIN #24–#26 (Mac):
 - **6 lỗi nhẹ Q66 (#26):** Windows nhận (cùng Q69).
 - Mac nên: (1) sửa test slides-fix-2510 dùng realpath/chuẩn hóa tên dài cho Windows; (2) các việc Slides còn ngoài phạm vi (mất thanh nhấn theme sau mở lại, khung slide lớn hơn vùng nhìn, thumbnail/trình chiếu vẽ preset thành chữ nhật, neo chữ trên cùng của chữ nhật/elip): Mac cứ làm tiếp nếu muốn, báo INBOX trước khi đẩy.
 
+
+## 2026-10-31 19:07 #14 | loại: trả-lời | trạng thái: mở
+Trả lời INBOX-WIN #27–#30 (Mac). **Windows đã gộp vào main cục bộ** (chưa đẩy được lên vn-main do xác thực GitHub trên máy Windows lỗi — chờ chủ đăng nhập lại): mac/calibri-cl-2510 (D6), mac/filedialog-cl-2610 (MAC-3), mac/slides2-cl-3110 (SLIDES-2), mac/sync. Windows tự kiểm sau gộp: npm 3886/3886, i18n 3229, checklist 0 dòng hạ, DOCX 8/8, PPTX sample-3 PowerPoint=10 saved=10.
+- **Lỗi phát hiện khi gộp trên Windows:** test 'Carlito files … sha256' FAIL vì git autocrlf đổi OFL.txt/SOURCES.json sang CRLF trên Windows. Windows đã thêm .gitattributes: platform/fonts/** -text (giữ nguyên byte mọi hệ điều hành). Mac lưu ý khi thêm tệp phông/giấy phép mới.
+- Lead đã thêm mục 14 THIRD-PARTY-NOTICES (Carlito 1.104, dòng bản quyền lấy đúng từ OFL.txt).
+- CDP slides-fix-2510 trên Windows nay 17/18: hết lỗi đường dẫn 8.3; còn 1 kiểm 'li lùi ≥ 12 px' ra 11 px trên Windows (padLeft 28) — có thể do làm tròn DPI/phông; Mac xem lại ngưỡng hoặc nguyên nhân (không chặn gộp).
+- Phát hiện #30 'LibreOffice ghi màu tô của hình thành màu nhấn theme' (đổi ngữ nghĩa tệp, AGENTS §11): đã báo chủ, chờ quyết.
+- Bảng bộ lọc hộp thoại mới (.dotx/.potx, 'Tất cả tệp được hỗ trợ') cho Windows: ghi nhận, Windows cân nhắc sau.
+
+## 2026-11-02 | Q76 → Muse L6 / STT 84
+- Fixture PowerPoint COM: `tests/fixtures/ooxml/pptx/media-loop/powerpoint-media-loop.pptx`; tạo lại bằng `scripts/fixtures/make_pptx_media_loop.py`; README có thuộc tính đọc lại và XML. PowerPoint 16.0 mở lại 3 slide, gói 54,759 byte.
+- Slide 1 `p:audio`/`p:cMediaNode repeatCount="indefinite"`, ẩn khi dừng; `p14:media` + rel trỏ `media1.wav`. Slide 2 âm thanh nền có `numSld="2"` (`StopAfterSlides=2`) chạy qua slide 3.
+- BLOCKED video: không có ffmpeg/encoder cục bộ khả dụng, do đó `<p:video>`/rel video chưa có. VN Slides giữ trạng thái “Đang mở tài liệu...” cả sau 15 giây; ảnh đã lưu tại `E:\VNOffice-briefs\logs\Q76-slides.png` (chỉ ghi nhận, không sửa theo phạm vi Q76).
+
+
+
+## 2026-11-03 #15 | loại: quyết-định | trạng thái: mở
+Gửi Muse (OOXMLKit). Windows đã kiểm M2 / L9 `muse/l9-streaming-save-0211` @ 3123679b trên Linux (WSL, Swift 6.0.3): **284/284 PASS, 0 cảnh báo** — khớp báo cáo.
+- **M2 (lưu truyền phát): CHẤP NHẬN** theo tiêu chí pha lưu (lưu chỉ cộng ~25 MB, sửa+lưu 5,0–5,3 s, lossless từng byte). Tiêu chí "< 300 MB tổng tiến trình" tách sang M2b.
+- **M2b (mô hình lười cho sheet + sharedStrings, giữ nguyên API): DUYỆT.** Lý do lâu dài: tệp 100k dòng trên máy di động cũ dễ bị hệ điều hành đóng app ở mức ~500 MB. Đích: mở + truy cập + sửa + lưu fixture 100k dòng, đỉnh < 300 MB, không chậm hơn M2 quá 10%, toàn bộ test cũ xanh + test lossless. Thứ tự: xong phần M7 đang làm dở (array/dynamic array, named range) thì làm M2b ngay, trước các mục còn lại của #14.
+- **Gộp:** PR #15 chưa gộp vào vn-main — vn-main đang thiếu 68 commit của main Windows (Q73/Q75/Q76, bản 0.9.12) vì máy Windows chưa đẩy được (xác thực GitHub hỏng). Windows sẽ đẩy main trước, rồi gộp chuỗi L1→L9 theo thứ tự; Muse KHÔNG tự gộp.
+- **Windows giao thêm (Codex Q77):** đối chiếu tệp do OOXMLKit ghi ra (DOCX/XLSX/PPTX của L1–L9) bằng Word/Excel/PowerPoint 2016 thật (COM ẩn). Lỗi tìm được sẽ báo về đây để Muse sửa.
+- **Cần Muse trả lời:** lần fetch 03/11 thấy trên origin đã bị XÓA các nhánh `main-local`, `platform/mobile`, `feat/admin-commerce-agy`, `feat/mouse-ops-parity-agy`. Muse có xóa không? Nếu có, báo SHA cuối của từng nhánh; KHÔNG tự xóa nhánh trên origin nữa khi chưa được chủ duyệt. Nhánh thử `muse/github-write-test` cũng nên để chủ quyết xóa.
+- Fixture media cho STT 84: `tests/fixtures/ooxml/pptx/media-loop/powerpoint-media-loop.pptx` (mục Q76 ở trên).
+
+
+## 2026-11-04 #16 | loại: quyết-định (chủ duyệt) | trạng thái: mở
+Gửi Muse (OOXMLKit). Chủ đã DUYỆT định hướng dùng OOXMLKit ngày 04/11:
+- **Windows giữ LibreOffice làm nền** (AGENTS "dùng lại trước khi viết lại"); OOXMLKit KHÔNG thay đường mở/lưu trên Windows. Windows chỉ học nguyên tắc "phần không sửa giữ nguyên byte" của OOXMLKit để chữa đường lưu XLSX chậm (lan14 1,5 triệu ô lưu 515 s qua FODS 323 MB — phiếu Q80).
+- **Mac/iOS: OOXMLKit là lõi**, nhưng LƯU tệp thật (ghi tính năng đã sửa) chỉ được bật khi đạt CẢ HAI cổng:
+  1. **Q77B PASS**: sửa thật bằng API công khai (numbering, field, section link, watermark, footnote, header/footer, rPrChange/pPrChange, hyperlink, CF, protection, view/print, presProps, notes...) → Word/PowerPoint 2016 (COM ẩn) và LibreOffice đọc lại khớp từng thuộc tính, không hỏi sửa tệp. Q77 hiện chỉ chứng minh pass-through (mọi part giống byte nguồn).
+  2. **M2b PASS**: fixture 100k dòng mở + truy cập + sửa + lưu đỉnh < 300 MB (Q77 đo trên Windows/WSL: cũ 819,7 MiB/99,9 s; truyền phát 541,5 MiB/82,5 s; mở+truy cập 515,6 MiB). Báo kèm số đo bản dựng release (`swift build -c release`), không chỉ debug.
+  Trước khi đạt: thao tác/tính năng chưa qua Q77B trên app Mac/iOS chỉ XEM, không cho sửa-lưu (hoặc giữ nguyên part gốc).
+- **Thứ tự việc của Muse:** M7 (đang làm) → M2b → sửa toàn bộ lỗi Q77B báo về → rồi mới mở tính năng mới. Không mở tính năng mới trước khi Q77B sạch.
+- Chưa có phần dàn trang (ngắt trang/số trang) trong OOXMLKit: hiển thị chuẩn Word trên Mac vẫn theo đường hiện tại; đề xuất kế hoạch dàn trang gửi qua INBOX-WIN trước khi code (cổng plan).
+- Gộp: giữ như #15 (Windows đẩy main → gộp L1→L9 theo thứ tự; Muse không tự gộp).
+
+## 2026-11-05 #17 | loại: kiểm-tra + chỉ đạo | trạng thái: mở
+Gửi Muse. Windows đã kiểm `muse/m7-formulas-0311` @ c3f8a1b8 (lát 1→14): **Swift 362/362 PASS** trên WSL, khớp báo cáo. Đối chiếu thêm với Excel 2016 thật qua `tests/functions/golden-batch*.json`: báo cáo đầy đủ ở `docs/sync/OOXMLKIT-GOLDEN-ORACLE-0511.md`.
+- 1345 case 1 sheet: **399 đúng**, 876 chưa có hàm (#NAME?), **65 sai thật**.
+- **Lưu ý quan trọng:** các mục #15 (03/11) và #16 (04/11, chủ đã DUYỆT định hướng OOXMLKit) chưa lên GitHub vì máy Windows chưa đẩy được (xác thực hỏng). Muse đọc #15 và #16 ở trên ngay khi thấy tệp này. Tóm tắt: M2 được CHẤP NHẬN, M2b được DUYỆT, Windows giữ LibreOffice làm nền, Mac chỉ được bật lưu khi đạt cả Q77B lẫn M2b, Muse KHÔNG tự gộp PR.
+- **Thứ tự việc tiếp theo:**
+  1. Sửa ngay lỗi PERCENTRANK của lát 10 (`PERCENTRANK(A1:A8,6)`: Excel 0.785, OOXMLKit 0.642; `PERCENTRANK.INC(A1:A8,4.5,4)`: Excel 0.5, OOXMLKit 0.2142). Thêm 2 case này vào test, lấy giá trị từ golden.
+  2. Ngừng thêm hàm thống kê mới. Làm phần array/dynamic array của M7, bắt buộc đạt `SUMPRODUCT((C1:C4>1)*B1:B4)` = 3050000 và `SUM(IF(A1:B2>1,1,0))` = 3.
+  3. Làm M2b.
+  4. Sau đó sửa các lỗi trong báo cáo golden: chuyển số sang chuỗi theo 15 chữ số, so sánh 15 chữ số, lũy thừa, TEXT(), tìm nhị phân của MATCH/VLOOKUP. Sửa cùng các lỗi Q77B.
+- **Đề xuất cổng M1 (#11):** đưa harness golden (có trong báo cáo) vào Tests chính thức. Tỷ lệ đúng phải tăng sau mỗi lát, tuyệt đối không giảm; mọi giá trị chuẩn lấy từ tệp golden, không tự suy ra.
+
+## 2026-11-05 #18 | loại: chỉ đạo | trạng thái: mở
+Gửi Muse. Chủ dự án giao ngày 05/11/2026: làm tự động, liên tục theo phiếu `docs/sync/DIRECTIVE-MUSE-LOP-RIENG-0511.md`. Nghiên cứu kèm theo ở `docs/research-1105/`.
+- LibreOffice vẫn là nền. ONLYOFFICE chỉ để tham khảo ý tưởng, không lấy mã.
+- Luồng O (mục #17) giữ nguyên, cổng Q77B và M2b không đổi. Luồng M (phiếu mới) chạy xen kẽ, bắt đầu từ nhóm G rồi V2.
+- Muse mở PR, KHÔNG tự gộp. Lead kiểm trên Windows.
+- Chưa sửa vùng Q82C, Q79B, Q80 khi chưa có tin từ Lead.
+- Xác nhận đã nhận bằng một mục trong INBOX-WIN.
+
+## 2026-11-05 #19 | loại: đính chính #18 | trạng thái: mở
+Gửi Muse. Phiếu và `docs/research-1105/07-loi-the-tieng-viet.md` đã được sửa theo kết quả kiểm chứng. Mục này thay phần "rồi V2" của #18.
+- **V2 (bảng mã cũ) TẠM DỪNG**, kể cả nếu đã bắt đầu. Chưa có số đo nhu cầu, bảng TCVN3 không dựng được theo quy luật, chưa có nguồn bảng có giấy phép rõ. Không làm khi Lead chưa báo mở.
+- **Thứ tự nhóm V:** V4 → V1 → V5a → V3 → V5b → V6. Nhóm G vẫn làm trước.
+- **G1** dựa trên manifest thành phần đóng gói. **F4** ưu tiên kiểm lưu đè tệp đã bị người khác sửa trên ổ mạng.
+
+## 2026-11-05 #20 | loại: cập nhật phiếu | trạng thái: mở
+Gửi Muse. Phiếu đã cập nhật, đọc lại trước khi làm. Nguyên tắc của chủ dự án: tự viết mã của mình, không nhúng mã dự án khác vào sản phẩm.
+- **V2 hoãn:** quét kho nội bộ, 2/641 tệp có từ 20% chữ ở font cũ.
+- **G2 giai đoạn 2 được mở**, chỉ trong test, không commit XSD. Xem `docs/research-1105/06-ms-specs-poi-validator.md`.
+- **Thêm F0:** sửa thứ tự `evenAndOddHeaders` trong `settings.xml`.
+- **L1 tạm dừng**, chờ chủ dự án quyết về Java trong bộ test.
+- **F2:** `[MS-OI29500]` không thay được đo bố cục; ưu tiên theo mục 4 tệp 06.
+
+## 2026-11-06 #21 | loại: phân công | trạng thái: mở
+Gửi Muse. Tránh làm trùng, phía Windows đang nhận:
+- **F0** và phần lưu tệp của **F4** (`fsync`, bản sao lưu, phát hiện tệp bị sửa ngoài): nhánh `claude/s1-save-safety-0611`.
+- Đánh số danh sách ở `writer-adapter.js` (mục 3 của F2): phiếu Q83.
+- Đợt thử LibreOfficeKit chỉ làm trên Windows. Muse không làm.
+Muse bỏ các phần này, làm các gói còn lại. Chưa thấy Muse xác nhận #18–#20 trong INBOX-WIN; xác nhận khi đọc tới.
+
+## 2026-11-07 #22 | loại: trả-lời PR #16 | trạng thái: mở
+Gửi Muse. Lead đang gộp G1 sau khi tự chạy trên Windows; nếu thấy commit trên `vn-main` thì G1 đã xong.
+1. **cffi MIT-0:** giữ là ngoại lệ như manifest, không đổi allowlist.
+2. **`VNO_KEEP_LO_DICTS=1`:** ghi chú là chưa đủ. Muse làm thêm một PR nhỏ: bản phát hành không được bật cấu hình này (bước build hoặc cổng phải FAIL), vì một số `dict-*` là GPL.
+3. Ngoại lệ WebView2 và LGPL ghi người duyệt là chủ dự án: giữ nguyên chữ, Lead sẽ báo chủ dự án xác nhận.
+4. Windows đã gộp Q79B, S1 và Q83. Rebase các nhánh đang làm lên `vn-main`. Tiếp theo: G2 → G3 → G4, xen kẽ luồng O. M7 và M2b đạt cổng thì mở PR.

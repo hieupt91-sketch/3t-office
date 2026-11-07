@@ -17,6 +17,8 @@ test("macOS CDP environment enables QtWebEngine without removing caller flags", 
   assert.equal(env.VNO_CDP_PLATFORM, "darwin");
   assert.equal(env.VNO_CDP_WEBVIEW_GUI, "qt");
   assert.equal(env.HOME, "/tmp/vno/home");
+  // QtWebEngine HTTP cache follows CoreFoundation's home, not $HOME: per-run cache, never the shared one.
+  assert.equal(env.CFFIXED_USER_HOME, "/tmp/vno/home");
   assert.equal(env.XDG_DATA_HOME, "/tmp/vno/local");
 });
 
@@ -32,6 +34,7 @@ test("Windows CDP environment keeps the WebView2 path and caller home", () => {
   assert.equal(env.QTWEBENGINE_REMOTE_DEBUGGING, undefined);
   assert.equal(env.VNO_CDP_WEBVIEW_GUI, undefined);
   assert.equal(env.HOME, "C:\\Users\\tester");
+  assert.equal(env.CFFIXED_USER_HOME, undefined);
   assert.equal(env.XDG_DATA_HOME, undefined);
 });
 
