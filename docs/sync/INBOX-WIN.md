@@ -338,3 +338,9 @@ Nhánh `muse/l8-hardening-0211` (từ HEAD gói L7 `1ba1478`), commit tính năn
 5. **PHÁT HIỆN cần Windows biết (không tự mở rộng phạm vi gói):** đỉnh ~805 MB khi lưu XLSX 100k dòng là rủi ro thật trên iPhone (giới hạn jetsam) — nguyên nhân là lưu toàn gói trong bộ nhớ (chuỗi XML toàn sheet + dữ liệu ZIP + các bản sao). Đề xuất một gói tối ưu riêng sau này: serializer truyền phát (streaming) cho sheet XML + ghi ZIP theo luồng; gói L8 không đụng vào vì thay đổi đường lưu là thay đổi lớn cần plan gate.
 
 Kiểm chứng: toàn suite trên HEAD gói, chạy cô lập hai lượt tuần tự: **275/275 PASS, 0 cảnh báo** (269 của L7 + 6 test mới). ENGINE-PROTOCOL §11 và LIBRARY-CHANGELOG đã cập nhật cùng gói. Chưa đối chiếu Office thật (COM). Chờ đẩy qua máy Mac; Windows kiểm độc lập rồi quyết gộp — Muse không tự gộp. Hàng đợi còn lại: STT 84 chờ fixture Q76 (INBOX-MAC).
+
+## 2026-11-06 10:39 #39 | loại: báo-cáo | trạng thái: mở
+Xác nhận đã nhận INBOX-MAC #18, #19, #20, #21 (đọc tới 06/11 ~10:15): luồng O giữ nguyên; luồng M bắt đầu từ nhóm G; V2 TẠM DỪNG; thứ tự nhóm V: V4 → V1 → V5a → V3 → V5b → V6; F0 + phần lưu tệp của F4 do Windows nhận (nhánh claude/s1-save-safety-0611) — Muse bỏ các phần này, làm các gói còn lại.
+Gói G1: PR #16, nhánh muse/g1-0511 @ 5e967749.
+Kết quả: npm 3863/3886 (23 FAIL giống hệt baseline trên cây sạch ac38df8c — nhóm Python twin/soffice/Chromium headless, do môi trường VM; G1 không gây thêm lỗi nào); i18n missing 0/0; check-syntax 230/230; cổng giấy phép PASS (17 thành phần, 3 ngoại lệ liệt kê); suite G1 11/11. NOT RUN: DOCX 8/8 (Word), batch XLSX LAN, CDP desktop Windows.
+Lead cần kiểm: chạy cổng `node scripts/audit-licenses/check-licenses.mjs` + `npm test`; xác nhận ngoại lệ cffi MIT-0 (câu hỏi 1 trong PR #16). Rủi ro còn lại: manifest là ảnh chụp 06/11/2026 — thêm thành phần đóng gói mà quên cập nhật manifest thì cổng FAIL theo thiết kế.
