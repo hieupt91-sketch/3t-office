@@ -7,6 +7,7 @@ import XCTest
 /// M7 lát 24: TAKE / DROP / CHOOSEROWS / CHOOSECOLS (INBOX-MAC #17).
 /// M7 lát 25: TOCOL / TOROW / HSTACK / VSTACK (INBOX-MAC #17).
 /// M7 lát 26: RANDARRAY / WRAPROWS / WRAPCOLS (INBOX-MAC #17).
+/// M7 lát 27: TEXTSPLIT / TEXTBEFORE / TEXTAFTER (INBOX-MAC #17).
 /// Giá trị kỳ vọng theo Excel: SEQUENCE cắt phần lẻ hàng/cột về nguyên,
 /// TRANSPOSE đổi hàng ↔ cột, ô lỗi đi qua nguyên vẹn; SORT ổn định, rỗng
 /// luôn cuối; FILTER cần bao_gồm logic đúng hình; UNIQUE so trùng không
@@ -1174,5 +1175,194 @@ final class FormulaDynamicArrayTests: XCTestCase {
         XCTAssertEqual(cse(engine(), "=WRAPCOLS(TOCOL({1,2;3,4}),2)", "D1:E2"),
                        [.number(1), .number(3), .number(2), .number(4)],
                        "TOCOL thành vectơ cột rồi WRAPCOLS gói lại")
+    }
+
+    // MARK: TEXTBEFORE / TEXTAFTER (M7 lát 27, INBOX-MAC #17)
+
+    func testTextBeforeBasic() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b,c\",\",\")"), .string("a"))
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b,c\",\",\",2)"), .string("a,b"))
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b,c\",\",\",-1)"), .string("a,b"))
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b,c\",\",\",-2)"), .string("a"))
+    }
+
+    func testTextAfterBasic() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"a,b,c\",\",\")"), .string("b,c"))
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"a,b,c\",\",\",2)"), .string("c"))
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"a,b,c\",\",\",-1)"), .string("c"))
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"a,b,c\",\",\",-2)"), .string("b,c"))
+    }
+
+    func testTextBeforeAfterMultiCharDelimiter() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"hello world\",\"o w\")"), .string("hell"))
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"hello world\",\"o w\")"), .string("orld"))
+    }
+
+    func testTextBeforeAfterNotFound() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"abc\",\",\")"), .error("#N/A"))
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"abc\",\",\")"), .error("#N/A"))
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"abc\",\",\",1,0,0,\"none\")"), .string("none"))
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"abc\",\",\",1,0,0,42)"), .number(42),
+                       "nếu_không_tìm_thấy nhận cả số")
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b\",\",\",5)"), .error("#N/A"),
+                       "lần vượt số lần xuất hiện → #N/A")
+    }
+
+    func testTextBeforeAfterMatchEnd() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b\",\",\",2,0,1)"), .string("a,b"),
+                       "khớp_cuối=1: cuối văn bản tính như lần thứ 2")
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"a,b\",\",\",2,0,1)"), .string(""),
+                       "sau cuối văn bản là chuỗi rỗng")
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b\",\",\",2)"), .error("#N/A"),
+                       "không khớp_cuối → #N/A")
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"a,b\",\",\",-2,0,1)"), .string("a,b"),
+                       "lần âm + khớp_cuối=1: đầu văn bản tính như một lần xuất hiện")
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b\",\",\",-2,0,1)"), .string(""),
+                       "trước đầu văn bản là chuỗi rỗng")
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b\",\",\",3,0,1)"), .error("#N/A"),
+                       "khớp_cuối chỉ thêm đúng một lần xuất hiện")
+    }
+
+    func testTextBeforeAfterCaseMode() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"aXbXc\",\"x\")"), .error("#N/A"),
+                       "mặc định phân biệt hoa/thường")
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"aXbXc\",\"x\",1,1)"), .string("a"))
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"aXbXc\",\"x\",1,1)"), .string("bXc"))
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"aXbXc\",\"x\",2,1)"), .string("c"))
+    }
+
+    func testTextBeforeAfterBadArgs() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b\",\",\",0)"), .error("#VALUE!"), "lần = 0")
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"a,b\",\",\",0)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b\",\",\",1,2)"), .error("#VALUE!"), "chế_độ_khớp khác 0/1")
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b\",\",\",1,0,2)"), .error("#VALUE!"), "khớp_cuối khác 0/1")
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"abc\",\"\")"), .error("#VALUE!"), "phân_cách rỗng")
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a\")"), .error("#VALUE!"), "thiếu đối số")
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"\",\",\")"), .error("#N/A"), "văn_bản rỗng → không tìm thấy")
+    }
+
+    func testTextBeforeAfterNumberText() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(12345,\"3\")"), .string("12"), "số ép sang chuỗi")
+        XCTAssertEqual(calc(e, "=TEXTAFTER(12345,\"3\")"), .string("45"))
+    }
+
+    func testTextBeforeAfterErrorArgPropagates() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(1/0,\",\")"), .error("#DIV/0!"))
+        XCTAssertEqual(calc(e, "=TEXTBEFORE(\"a,b\",1/0)"), .error("#DIV/0!"))
+        XCTAssertEqual(calc(e, "=TEXTAFTER(\"a,b\",\",\",1/0)"), .error("#DIV/0!"))
+    }
+
+    func testTextBeforeAfterTruncatesInstance() {
+        XCTAssertEqual(calc(engine(), "=TEXTBEFORE(\"a,b,c\",\",\",1.9)"), .string("a"),
+                       "lần 1.9 cắt về 1")
+    }
+
+    // MARK: TEXTSPLIT (M7 lát 27, INBOX-MAC #17)
+
+    func testTextSplitBasicColumns() {
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\"a,b,c\",\",\")", "D1:F1"),
+                       [.string("a"), .string("b"), .string("c")])
+    }
+
+    func testTextSplitRowsOnly() {
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\"a;b;c\",,\";\")", "D1:D3"),
+                       [.string("a"), .string("b"), .string("c")],
+                       "chỉ phân_cách_hàng → một cột")
+    }
+
+    func testTextSplitGrid() {
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\"a,b;c,d\",\",\",\";\")", "D1:E2"),
+                       [.string("a"), .string("b"), .string("c"), .string("d")])
+    }
+
+    func testTextSplitKeepsEmptyByDefault() {
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\"a,,b\",\",\")", "D1:F1"),
+                       [.string("a"), .string(""), .string("b")])
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\",a,\",\",\")", "D1:F1"),
+                       [.string(""), .string("a"), .string("")],
+                       "phân cách ở đầu/cuối tạo đoạn rỗng")
+    }
+
+    func testTextSplitIgnoreEmpty() {
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\"a,,b\",\",\",,TRUE)", "D1:E1"),
+                       [.string("a"), .string("b")])
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\"a,,b;c\",\",\",\";\",TRUE)", "D1:E2"),
+                       [.string("a"), .string("b"), .string("c"), .error("#N/A")],
+                       "hàng 2 ngắn hơn → đệm #N/A mặc định")
+    }
+
+    func testTextSplitMultipleDelimiters() {
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\"a,b;c\",{\",\",\";\"})", "D1:F1"),
+                       [.string("a"), .string("b"), .string("c")],
+                       "phân_cách là hằng mảng nhiều phân cách")
+    }
+
+    func testTextSplitMatchMode() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=TEXTSPLIT(\"aXbYc\",\"x\",,FALSE,1)", "D1:E1"),
+                       [.string("a"), .string("bYc")],
+                       "chế_độ_khớp=1: x khớp X")
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"aXbYc\",\"x\")"), .string("aXbYc"),
+                       "phân biệt hoa/thường: không tách, mảng 1x1")
+    }
+
+    func testTextSplitPadWith() {
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\"a,b;c,d,e\",\",\",\";\")", "D1:F2"),
+                       [.string("a"), .string("b"), .error("#N/A"),
+                        .string("c"), .string("d"), .string("e")],
+                       "mặc định đệm #N/A")
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\"a,b;c,d,e\",\",\",\";\",FALSE,0,\"-\")", "D1:F2"),
+                       [.string("a"), .string("b"), .string("-"),
+                        .string("c"), .string("d"), .string("e")])
+    }
+
+    func testTextSplitSingleCell() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"abc\",\",\")"), .string("abc"), "mảng 1x1")
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"a,b\",\",\")"), .error("#VALUE!"),
+                       "mảng nhiều ô trong ô đơn → #VALUE! như SEQUENCE")
+    }
+
+    func testTextSplitBadArgs() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"\",\",\")"), .error("#VALUE!"), "văn_bản rỗng")
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"abc\")"), .error("#VALUE!"), "không có phân cách nào")
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"abc\",,)"), .error("#VALUE!"), "cả hai phân cách đều bỏ trống")
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"a,b\",\"\")"), .error("#VALUE!"), "phân_cách rỗng")
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"a,b\",\",\",,FALSE,2)"), .error("#VALUE!"), "chế_độ_khớp khác 0/1")
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"a,b\",\",\",,\"x\")"), .error("#VALUE!"), "bỏ_rỗng không phải logic")
+    }
+
+    func testTextSplitNumberArgs() {
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(123,\"2\")", "D1:E1"),
+                       [.string("1"), .string("3")], "văn_bản là số")
+        XCTAssertEqual(cse(engine(), "=TEXTSPLIT(\"a1b2c\",1)", "D1:E1"),
+                       [.string("a"), .string("b2c")], "phân_cách là số")
+    }
+
+    func testTextSplitErrorArgPropagates() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(1/0,\",\")"), .error("#DIV/0!"))
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"a,b\",1/0)"), .error("#DIV/0!"))
+        XCTAssertEqual(calc(e, "=TEXTSPLIT(\"a,b;c,d,e\",\",\",\";\",FALSE,0,1/0)"), .error("#DIV/0!"),
+                       "lỗi ở đệm lan truyền")
+    }
+
+    func testTextSplitIgnoreEmptyAllEmptyIsValueError() {
+        XCTAssertEqual(calc(engine(), "=TEXTSPLIT(\",,,\",\",\",,TRUE)"), .error("#VALUE!"),
+                       "bỏ rỗng hết → không còn kết quả")
+    }
+
+    func testTextSplitInSum() {
+        XCTAssertEqual(calc(engine(), "=SUM(TEXTSPLIT(\"1,2,3\",\",\"))"), .number(6))
     }
 }

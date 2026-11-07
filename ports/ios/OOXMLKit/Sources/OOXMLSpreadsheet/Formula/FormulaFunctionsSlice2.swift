@@ -70,6 +70,8 @@ extension FormulaEvaluator {
         case "VALUE": return try value(a)
         case "CONCAT": return try concat(a)
         case "TEXTJOIN": return try textjoin(a)
+        case "TEXTBEFORE": return try textBeforeAfter(before: true, a)
+        case "TEXTAFTER": return try textBeforeAfter(before: false, a)
         // Ngày giờ
         case "DATE": return try date(a)
         case "YEAR", "MONTH", "DAY": return try ymd(name, a)
@@ -612,6 +614,63 @@ extension FormulaEvaluator {
             parts.append(s)
         }
         return .string(parts.joined(separator: delim))
+    }
+
+    /// Giá trị khi TEXTBEFORE/TEXTAFTER không tìm thấy phân_cách: đối số thứ 6
+    /// nếu có (ô trống → 0 như XLOOKUP), không thì #N/A.
+    private func textNotFound(_ a: [FormulaExpr]) throws -> CellValue {
+        if a.count == 6, a[5] != .empty {
+            let v = try sc(a[5])
+            return v == .empty ? .number(0) : v
+        }
+        throw fail(FormulaErrors.na)
+    }
+
+    /// M7 lát 27: TEXTBEFORE/TEXTAFTER(văn_bản, phân_cách, [lần=1],
+    /// [chế_độ_khớp=0], [khớp_cuối=0], [nếu_không_tìm_thấy]): phần trước/sau
+    /// lần xuất hiện thứ `lần` của phân_cách. lần dương đếm từ đầu, lần âm
+    /// đếm từ cuối; lần = 0 → #VALUE!; chế_độ_khớp chỉ 0 (phân biệt hoa/thường)
+    /// hoặc 1, khớp_cuối chỉ 0/1, ngoài ra → #VALUE!; phân_cách rỗng → #VALUE!;
+    /// không tìm thấy: trả nếu_không_tìm_thấy nếu có, không thì #N/A;
+    /// khớp_cuối = 1 coi đầu/cuối văn bản như một lần xuất hiện nữa (cuối văn
+    /// bản khi lần dương, đầu văn bản khi lần âm); lỗi trong đối số lan truyền.
+    private func textBeforeAfter(before: Bool, _ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 2...6)
+        let text = us(try tx(a[0]))
+        let delim = us(try tx(a[1]))
+        guard !delim.isEmpty else { throw fail(FormulaErrors.value) }
+        var instance = 1
+        if a.count >= 3, a[2] != .empty {
+            let n = try nm(a[2]).rounded(.towardZero)
+            guard n.isFinite, n != 0 else { throw fail(FormulaErrors.value) }
+            guard abs(n) <= 1_000_000 else { return try textNotFound(a) }
+            instance = Int(n)
+        }
+        var caseInsensitive = false
+        if a.count >= 4, a[3] != .empty {
+            let m = try nm(a[3]).rounded(.towardZero)
+            guard m == 0 || m == 1 else { throw fail(FormulaErrors.value) }
+            caseInsensitive = m == 1
+        }
+        var matchEnd = false
+        if a.count >= 5, a[4] != .empty {
+            let m = try nm(a[4]).rounded(.towardZero)
+            guard m == 0 || m == 1 else { throw fail(FormulaErrors.value) }
+            matchEnd = m == 1
+        }
+        let occ = FormulaEvaluator.findOccurrences(in: text, delimiter: delim, caseInsensitive: caseInsensitive)
+        let n = occ.count
+        var start: Int? = nil, end: Int? = nil
+        if instance > 0 {
+            if instance <= n { start = occ[instance - 1]; end = start! + delim.count }
+            else if matchEnd, instance == n + 1 { start = text.count; end = text.count }
+        } else {
+            let k = -instance
+            if k <= n { start = occ[n - k]; end = start! + delim.count }
+            else if matchEnd, k == n + 1 { start = 0; end = 0 }
+        }
+        guard let ms = start, let me = end else { return try textNotFound(a) }
+        return .string(str(before ? text[..<ms] : text[me...]))
     }
 
     // MARK: Ngày giờ

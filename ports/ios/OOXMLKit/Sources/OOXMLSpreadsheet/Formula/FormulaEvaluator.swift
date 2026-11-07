@@ -245,6 +245,7 @@ struct FormulaEvaluator {
         case "RANDARRAY": return randArray(args)
         case "WRAPROWS": return wrapVector(args, byRow: true)
         case "WRAPCOLS": return wrapVector(args, byRow: false)
+        case "TEXTSPLIT": return textSplit(args)
         default: return nil
         }
     }
@@ -883,6 +884,162 @@ struct FormulaEvaluator {
                 line.append(idx < n ? flat[idx] : pad)
             }
             out[r] = line
+        }
+        return .array(out)
+    }
+
+    // MARK: Hàm mảng động — TEXTSPLIT (M7 lát 27, INBOX-MAC #17)
+
+    /// Chuỗi từ một dãy scalar (dùng chung cho TEXTSPLIT).
+    static func stringFromScalars(_ s: [Unicode.Scalar]) -> String {
+        var v = String.UnicodeScalarView()
+        v.append(contentsOf: s)
+        return String(v)
+    }
+
+    /// So sánh hai dãy scalar; caseInsensitive = so không phân biệt hoa/thường
+    /// theo từng scalar (tránh lỗi lệch chỉ số khi lowercased() đổi độ dài chuỗi).
+    static func scalarsEqual(_ a: [Unicode.Scalar], _ b: [Unicode.Scalar], caseInsensitive: Bool) -> Bool {
+        guard a.count == b.count else { return false }
+        if !caseInsensitive { return a == b }
+        for (x, y) in zip(a, b) {
+            if x == y { continue }
+            if Self.stringFromScalars([x]).lowercased() != Self.stringFromScalars([y]).lowercased() { return false }
+        }
+        return true
+    }
+
+    /// Vị trí bắt đầu (chỉ số scalar) của mọi lần xuất hiện KHÔNG chồng lấp của
+    /// delimiter trong text; [] nếu delimiter rỗng hoặc dài hơn text. Dùng chung
+    /// cho TEXTBEFORE/TEXTAFTER (slice-2).
+    static func findOccurrences(in text: [Unicode.Scalar], delimiter: [Unicode.Scalar], caseInsensitive: Bool) -> [Int] {
+        guard !delimiter.isEmpty, delimiter.count <= text.count else { return [] }
+        var out: [Int] = []
+        var i = 0
+        while i + delimiter.count <= text.count {
+            if scalarsEqual(Array(text[i..<(i + delimiter.count)]), delimiter, caseInsensitive: caseInsensitive) {
+                out.append(i)
+                i += delimiter.count
+            } else { i += 1 }
+        }
+        return out
+    }
+
+    /// Tách một dãy scalar theo danh sách phân cách (không chồng lấp; tại mỗi vị
+    /// trí thử các phân cách theo thứ tự danh sách, phân cách đầu khớp sẽ thắng).
+    /// Không có phân cách → nguyên dãy. Đoạn rỗng được giữ (bỏ rỗng do tầng trên).
+    private static func splitSegments(_ s: [Unicode.Scalar], by delims: [[Unicode.Scalar]], caseInsensitive: Bool) -> [[Unicode.Scalar]] {
+        guard !delims.isEmpty else { return [s] }
+        var out: [[Unicode.Scalar]] = []
+        var start = 0, i = 0
+        while i < s.count {
+            var matched: Int? = nil
+            for d in delims where i + d.count <= s.count {
+                if scalarsEqual(Array(s[i..<(i + d.count)]), d, caseInsensitive: caseInsensitive) { matched = d.count; break }
+            }
+            if let len = matched {
+                out.append(Array(s[start..<i]))
+                i += len; start = i
+            } else { i += 1 }
+        }
+        out.append(Array(s[start...]))
+        return out
+    }
+
+    /// Đọc một đối số phân cách của TEXTSPLIT: nil = bỏ trống (đối số .empty,
+    /// hoặc vùng phân cách toàn ô trống); lỗi → (nil, lỗi). Mỗi phần tử ép sang
+    /// chuỗi (số → chuỗi như Excel); phần tử chuỗi rỗng → #VALUE! (phân cách
+    /// rỗng không hợp lệ); ô lỗi trong vùng → lan truyền.
+    private func splitDelimiters(_ expr: FormulaExpr) -> ([[Unicode.Scalar]]?, CellValue?) {
+        if expr == .empty { return (nil, nil) }
+        let v = eval(expr)
+        if case .scalar(let c) = v, case .error(let e) = c { return (nil, .error(e)) }
+        guard let grid = materialize(v), !grid.isEmpty else { return (nil, .error(FormulaErrors.value)) }
+        var out: [[Unicode.Scalar]] = []
+        for cell in grid.flatMap({ $0 }) {
+            switch cell {
+            case .empty: continue
+            case .error(let e): return (nil, .error(e))
+            default:
+                let s = Array(FormulaEvaluator.text(cell).unicodeScalars)
+                guard !s.isEmpty else { return (nil, .error(FormulaErrors.value)) }
+                out.append(s)
+            }
+        }
+        return (out.isEmpty ? nil : out, nil)
+    }
+
+    /// TEXTSPLIT(văn_bản, [phân_cách_cột], [phân_cách_hàng], [bỏ_rỗng=FALSE],
+    /// [chế_độ_khớp=0], [đệm]): tách văn bản thành mảng. Tách hàng trước bằng
+    /// phân_cách_hàng, rồi từng hàng tách cột bằng phân_cách_cột; phân cách là
+    /// chuỗi đơn, hằng mảng hoặc vùng (mỗi phần tử một phân cách). Ít nhất một
+    /// trục phải có phân cách, nếu không → #VALUE!; văn_bản rỗng → #VALUE!;
+    /// bỏ_rỗng=TRUE bỏ đoạn rỗng (hàng thành toàn rỗng thì bỏ cả hàng), kết
+    /// quả rỗng sau lọc → #VALUE!; hàng ngắn được đệm bằng đệm (mặc định #N/A);
+    /// chế_độ_khớp chỉ 0/1 (1 = không phân biệt hoa/thường); tổng số ô vượt
+    /// giới hạn → #CALC!; lỗi trong đối số lan truyền nguyên vẹn.
+    private func textSplit(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard (2...6).contains(args.count) else { return bad }
+        let tv = scalar(eval(args[0]))
+        if case .error(let e) = tv { return .scalar(.error(e)) }
+        let textScalars = Array(FormulaEvaluator.text(tv).unicodeScalars)
+        guard !textScalars.isEmpty else { return bad }
+        let (colDelims, colErr) = splitDelimiters(args[1])
+        if let e = colErr { return .scalar(e) }
+        var rowDelims: [[Unicode.Scalar]]? = nil
+        if args.count >= 3 {
+            let (rd, rErr) = splitDelimiters(args[2])
+            if let e = rErr { return .scalar(e) }
+            rowDelims = rd
+        }
+        guard colDelims != nil || rowDelims != nil else { return bad }
+        var ignoreEmpty = false
+        if args.count >= 4, args[3] != .empty {
+            let v = scalar(eval(args[3]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let b = bool(v) else { return bad }
+            ignoreEmpty = b
+        }
+        var caseInsensitive = false
+        if args.count >= 5, args[4] != .empty {
+            let v = scalar(eval(args[4]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = number(v), n.isFinite else { return bad }
+            let m = n.rounded(.towardZero)
+            guard m == 0 || m == 1 else { return bad }
+            caseInsensitive = m == 1
+        }
+        var pad: CellValue = .error(FormulaErrors.na)
+        if args.count == 6, args[5] != .empty {
+            let v = scalar(eval(args[5]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            pad = v
+        }
+        let rowStrings: [[Unicode.Scalar]] = rowDelims.map {
+            Self.splitSegments(textScalars, by: $0, caseInsensitive: caseInsensitive)
+        } ?? [textScalars]
+        var rows: [[[Unicode.Scalar]]] = []
+        rows.reserveCapacity(rowStrings.count)
+        for rs in rowStrings {
+            rows.append(colDelims.map {
+                Self.splitSegments(rs, by: $0, caseInsensitive: caseInsensitive)
+            } ?? [rs])
+        }
+        if ignoreEmpty {
+            rows = rows.map { $0.filter { !$0.isEmpty } }.filter { !$0.isEmpty }
+        }
+        guard !rows.isEmpty else { return bad }
+        let maxCols = rows.map { $0.count }.max() ?? 0
+        guard rows.count * maxCols <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rows.count)
+        for r in rows {
+            var line: [CellValue] = r.map { .string(Self.stringFromScalars($0)) }
+            while line.count < maxCols { line.append(pad) }
+            out.append(line)
         }
         return .array(out)
     }
