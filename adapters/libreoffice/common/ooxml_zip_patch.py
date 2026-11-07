@@ -20157,6 +20157,173 @@ def _writer_unique_marked_texts(xml: str) -> set[str]:
     }
 
 
+def restore_writer_missing_empty_paragraphs_by_source_markers(
+    source_xml: str, converted_xml: str, source_html: str,
+) -> str:
+    """Restore empty source paragraphs only when untouched indexes prove their slots.
+
+    Writer adds a unique ``vno-untouched-N`` bookmark to each unchanged editor
+    paragraph before LibreOffice imports the export HTML. Every non-empty source
+    paragraph must keep its matching bookmark and exact text, and the HTML must
+    carry the complete source index set. Empty paragraphs dropped by the HTML
+    filter can then be reinserted at their indexed position without a text guess.
+    """
+    if not source_xml or not converted_xml or not source_html:
+        return converted_xml
+    source_ranges = _document_paragraph_ranges(source_xml)
+    converted_ranges = _document_paragraph_ranges(converted_xml)
+    if not source_ranges or not converted_ranges:
+        return converted_xml
+    source_paragraphs = [source_xml[start:end] for start, end in source_ranges]
+    converted_paragraphs = [converted_xml[start:end] for start, end in converted_ranges]
+    count = len(source_paragraphs)
+    html_markers = {
+        int(value) for value in re.findall(
+            r"(?:\bid|\bname)=[\"']vno-untouched-(\d+)[\"']", source_html, re.IGNORECASE,
+        )
+    }
+    if html_markers != set(range(count)):
+        return converted_xml
+
+    source_texts = [_paragraph_plain_text(paragraph).strip() for paragraph in source_paragraphs]
+    marker_to_target: dict[int, int] = {}
+    target_markers: list[tuple[int, int]] = []
+    for target_index, paragraph in enumerate(converted_paragraphs):
+        names = re.findall(
+            r"<w:bookmarkStart\b[^>]*\bw:name=[\"']vno-untouched-(\d+)[\"'][^>]*/?>",
+            paragraph, re.IGNORECASE,
+        )
+        for value in names:
+            marker = int(value)
+            if marker >= count or marker in marker_to_target:
+                return converted_xml
+            marker_to_target[marker] = target_index
+            target_markers.append((marker, target_index))
+    if any(left[0] >= right[0] or left[1] > right[1]
+           for left, right in zip(target_markers, target_markers[1:])):
+        return converted_xml
+    for source_index, text in enumerate(source_texts):
+        if not text:
+            continue
+        target_index = marker_to_target.get(source_index)
+        if target_index is None or _paragraph_plain_text(converted_paragraphs[target_index]).strip() != text:
+            return converted_xml
+
+    def is_recoverable_blank(paragraph: str) -> bool:
+        # A tab plus spaces has no visible text but still owns a Word paragraph.
+        # Keep it eligible by exact source XML; drawings, breaks and fields are
+        # content carriers and remain outside this narrowly scoped repair.
+        return not _paragraph_plain_text(paragraph).strip() and not re.search(
+            r"<w:(?:drawing|pict|object|br|fldChar|fldSimple|instrText|sym|sectPr)\b"
+            r"|<mc:AlternateContent\b|<w:bookmarkStart\b",
+            paragraph, re.IGNORECASE,
+        )
+
+    # LibreOffice can keep both source bookmarks while collapsing consecutive
+    # empty paragraphs into one target paragraph. Split that carrier only when
+    # its complete, consecutive source marker group contains at most one text
+    # paragraph and that text still matches exactly.
+    grouped: dict[int, list[int]] = {}
+    for marker, target_index in target_markers:
+        grouped.setdefault(target_index, []).append(marker)
+    collapsed_replacements: list[tuple[int, int, str, set[int]]] = []
+    for target_index, markers in grouped.items():
+        if len(markers) < 2:
+            continue
+        source_indexes = sorted(markers)
+        if source_indexes != list(range(source_indexes[0], source_indexes[-1] + 1)):
+            continue
+        nonempty = [index for index in source_indexes if source_texts[index]]
+        target_paragraph = converted_paragraphs[target_index]
+        target_text = _paragraph_plain_text(target_paragraph).strip()
+        if len(nonempty) > 1:
+            continue
+        if nonempty:
+            text_index = nonempty[0]
+            if target_text != source_texts[text_index]:
+                continue
+            if any(not is_recoverable_blank(source_paragraphs[index]) for index in source_indexes if index != text_index):
+                continue
+            replacement = "".join(source_paragraphs[index] for index in source_indexes if index < text_index)
+            replacement += target_paragraph
+            replacement += "".join(source_paragraphs[index] for index in source_indexes if index > text_index)
+        else:
+            if target_text or any(not is_recoverable_blank(source_paragraphs[index]) for index in source_indexes):
+                continue
+            replacement = "".join(source_paragraphs[index] for index in source_indexes)
+        start, end = converted_ranges[target_index]
+        collapsed_replacements.append((start, end, replacement, set(source_indexes)))
+
+    restored_indexes: set[int] = set()
+    result = converted_xml
+    for start, end, replacement, indexes in sorted(collapsed_replacements, reverse=True):
+        result = result[:start] + replacement + result[end:]
+        restored_indexes.update(indexes)
+    if collapsed_replacements:
+        converted_ranges = _document_paragraph_ranges(result)
+        converted_paragraphs = [result[start:end] for start, end in converted_ranges]
+        marker_to_target = {}
+        for target_index, paragraph in enumerate(converted_paragraphs):
+            for value in re.findall(
+                r"<w:bookmarkStart\b[^>]*\bw:name=[\"']vno-untouched-(\d+)[\"'][^>]*/?>",
+                paragraph, re.IGNORECASE,
+            ):
+                marker_to_target[int(value)] = target_index
+
+    def owner(cells: list[tuple[int, int]], position: int) -> int | None:
+        for cell_index, (start, end) in enumerate(cells):
+            if start < position < end:
+                return cell_index
+        return None
+
+    source_cells = _xml_element_ranges(source_xml, "w:tc")
+    target_cells = _xml_element_ranges(result, "w:tc")
+
+    missing = [
+        index for index, paragraph in enumerate(source_paragraphs)
+        if index not in marker_to_target and index not in restored_indexes
+        and not source_texts[index] and is_recoverable_blank(paragraph)
+    ]
+    if not missing:
+        return result
+
+    insertions: dict[int, list[tuple[int, str]]] = {}
+    for source_index in missing:
+        source_position = source_ranges[source_index][0]
+        source_owner = owner(source_cells, source_position)
+        next_marked = next(
+            ((index, target_index) for index, target_index in sorted(marker_to_target.items())
+             if index > source_index),
+            None,
+        )
+        if next_marked:
+            next_source_index, target_index = next_marked
+            target_position = converted_ranges[target_index][0]
+            if owner(source_cells, source_ranges[next_source_index][0]) != source_owner:
+                continue
+            if owner(target_cells, target_position) != source_owner:
+                continue
+            position = target_position
+        elif source_owner is None:
+            body_end = re.search(r"</w:body\s*>", converted_xml, re.IGNORECASE)
+            if not body_end:
+                continue
+            position = body_end.start()
+        else:
+            if source_owner >= len(target_cells):
+                continue
+            cell_start, cell_end = target_cells[source_owner]
+            if not re.search(r"</w:tc\s*>", converted_xml[cell_start:cell_end], re.IGNORECASE):
+                continue
+            position = re.search(r"</w:tc\s*>", converted_xml[cell_start:cell_end], re.IGNORECASE).start() + cell_start
+        insertions.setdefault(position, []).append((source_index, source_paragraphs[source_index]))
+
+    for position in sorted(insertions, reverse=True):
+        paragraphs = "".join(paragraph for _index, paragraph in sorted(insertions[position]))
+        result = result[:position] + paragraphs + result[position:]
+    return result
+
+
 def _restore_writer_matched_formatting(
     converted_xml: str, original_xml: str,
     trusted_untouched_texts: set[str] | None = None,
@@ -22918,6 +23085,53 @@ def _writer_apply_view_mode_to_settings(settings_xml: str, source_html: str | No
     return settings_xml
 
 
+# CT_Settings children that come before w:evenAndOddHeaders (ECMA-376 Part 1, wml.xsd). The sequence is strict:
+# Word and validators reject the flag anywhere else. Anything not listed, extensions included, comes after it.
+_SETTINGS_BEFORE_EVEN_AND_ODD_HEADERS = frozenset(
+    "w:" + name for name in (
+        "writeProtection", "view", "zoom", "removePersonalInformation", "removeDateAndTime",
+        "doNotDisplayPageBoundaries", "displayBackgroundShape", "printPostScriptOverText",
+        "printFractionalCharacterWidth", "printFormsData", "embedTrueTypeFonts", "embedSystemFonts",
+        "saveSubsetFonts", "saveFormsData", "mirrorMargins", "alignBordersAndEdges", "bordersDoNotSurroundHeader",
+        "bordersDoNotSurroundFooter", "gutterAtTop", "hideSpellingErrors", "hideGrammaticalErrors",
+        "activeWritingStyle", "proofState", "formsDesign", "attachedTemplate", "linkStyles",
+        "stylePaneFormatFilter", "stylePaneSortMethod", "documentType", "mailMerge", "revisionView",
+        "trackRevisions", "doNotTrackMoves", "doNotTrackFormatting", "documentProtection", "autoFormatOverride",
+        "styleLockTheme", "styleLockQFSet", "defaultTabStop", "autoHyphenation", "consecutiveHyphenLimit",
+        "hyphenationZone", "doNotHyphenateCaps", "showEnvelope", "summaryLength", "clickAndTypeStyle",
+        "defaultTableStyle",
+    )
+)
+_SETTINGS_XML_TOKEN = re.compile(
+    r"""<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<(/?)([A-Za-z_][\w:.\-]*)(?:[^>"'/]|"[^"]*"|'[^']*'|/(?!>))*(/?)>"""
+)
+
+
+def _insert_even_and_odd_headers(settings_xml: str, element: str = "<w:evenAndOddHeaders/>") -> str:
+    """Insert the flag at its schema position in word/settings.xml. Unusable XML is returned unchanged."""
+    depth = 0
+    for token in _SETTINGS_XML_TOKEN.finditer(settings_xml):
+        name = token.group(2)
+        if name is None:
+            continue  # Comment or processing instruction.
+        closing, self_closing = bool(token.group(1)), bool(token.group(3))
+        if depth == 0:
+            if name != "w:settings" or closing or self_closing:
+                return settings_xml
+            depth = 1
+            continue
+        if closing:
+            depth -= 1
+            if depth == 0:
+                return settings_xml[:token.start()] + element + settings_xml[token.start():]
+            continue
+        if depth == 1 and name not in _SETTINGS_BEFORE_EVEN_AND_ODD_HEADERS:
+            return settings_xml[:token.start()] + element + settings_xml[token.start():]
+        if not self_closing:
+            depth += 1
+    return settings_xml
+
+
 def postprocess_writer_docx(
     docx_bytes: bytes,
     *,
@@ -23153,6 +23367,9 @@ def postprocess_writer_docx(
             new_xml, original_xml, trusted_untouched_texts=untouched_texts,
             table_paragraphs_only=True,
         )
+    new_xml = restore_writer_missing_empty_paragraphs_by_source_markers(
+        original_xml, new_xml, source_html or "",
+    )
     new_xml = _writer_patch_edited_paragraphs(new_xml, original_xml)
     new_xml = _restore_untouched_writer_equations(new_xml, original_xml)
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
@@ -23240,7 +23457,10 @@ def postprocess_writer_docx(
                 if dst_re.search(new_settings):
                     new_settings = dst_re.sub(lambda _m, v=src_tag.group(0): v, new_settings, count=1)
                 elif "<w:compat>" in new_settings:
-                    new_settings = new_settings.replace("<w:compat>", src_tag.group(0) + "<w:compat>", 1)
+                    if tag == "evenAndOddHeaders":
+                        new_settings = _insert_even_and_odd_headers(new_settings, src_tag.group(0))
+                    else:
+                        new_settings = new_settings.replace("<w:compat>", src_tag.group(0) + "<w:compat>", 1)
             elif tag in ("autoHyphenation", "evenAndOddHeaders", "mirrorMargins"):
                 new_settings = dst_re.sub("", new_settings)
         if new_settings != settings_xml:
@@ -26681,9 +26901,7 @@ def postprocess_writer_section_metadata(
         )
         flag = re.search(r"<w:evenAndOddHeaders\b[^>]*/>", settings_xml, re.IGNORECASE)
         if different_odd_even and not flag:
-            settings_xml = settings_xml.replace(
-                "</w:settings>", "<w:evenAndOddHeaders/></w:settings>", 1
-            )
+            settings_xml = _insert_even_and_odd_headers(settings_xml)
         elif not different_odd_even and flag:
             settings_xml = re.sub(
                 r"<w:evenAndOddHeaders\b[^>]*/>", "", settings_xml, flags=re.IGNORECASE
@@ -27591,7 +27809,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                     if re.search(r'\bw:val=["\'](?:0|false|off)["\']', flag_xml, re.IGNORECASE):
                         settings_xml = settings_xml[:flag.start()] + "<w:evenAndOddHeaders/>" + settings_xml[flag.end():]
                 elif "</w:settings>" in settings_xml:
-                    settings_xml = settings_xml.replace("</w:settings>", "<w:evenAndOddHeaders/></w:settings>", 1)
+                    settings_xml = _insert_even_and_odd_headers(settings_xml)
             else:
                 settings_xml = re.sub(r"<w:evenAndOddHeaders\b[^>]*/>", "", settings_xml, flags=re.IGNORECASE)
             replacements["word/settings.xml"] = settings_xml.encode("utf-8")
