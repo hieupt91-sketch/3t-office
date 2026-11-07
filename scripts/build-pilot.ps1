@@ -1,7 +1,7 @@
 # Build a portable 3T Office pilot package (Windows x64).
 # Output: <OutDir>\VNOffice-<Version>\ (app + bundled Python + bundled LibreOffice, Doc/Sheet/Slide launchers) and, with -Zip, a .zip next to it.
 # No new build dependency: copies the local CPython install (PSF), the runtime packages pywebview needs
-# (pywebview BSD, pythonnet MIT, clr_loader MIT, cffi MIT, pycparser BSD, bottle MIT, proxy_tools MIT,
+# (pywebview BSD, pythonnet MIT, clr_loader MIT, cffi MIT-0, pycparser BSD, bottle MIT, proxy_tools MIT,
 # typing_extensions PSF, cryptography Apache-2.0/BSD-3-Clause, pypdf BSD-3-Clause) and a LibreOffice install (MPL-2.0).
 # Never packages tests, docs, sample or real documents.
 # ASCII only: Windows PowerShell 5.1 reads BOM-less scripts in the ANSI code page.
