@@ -4,6 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { saveInPlaceCheckingExternalChange } from "../common/save-conflict.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog, showHyperlinkDialog } from "../../../platform/ui-kit/dialogs.js";
 import { bindNumericDialogValidation } from "../../../platform/ui-kit/numeric-dialog-validation.js";
 import { createMatcher, nodeMatchesFormat } from "../../../platform/find/find-engine.js";
@@ -73,7 +74,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractOoxmlEndnoteText, extractOoxmlFootnoteText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 import { showChangeCaseDialog } from "../../../apps/writer/change-case-dialog.js";
 import { applyChangeCaseToSelection } from "../../../platform/text/change-case.js";
@@ -6280,19 +6281,23 @@ export class WriterAdapter {
         lvlText: over.lvlText !== undefined ? over.lvlText : base?.lvlText,
         font: over.font || base?.font || null,
         ind: mergeInd(base?.ind || null, over.ind),
-        start: over.start !== undefined ? over.start : base?.start,
+        start: base?.start,
         startOverride: over.startOverride,
-        lvlRestart: over.lvlRestart !== undefined ? over.lvlRestart : base?.lvlRestart
+        lvlRestart: base?.lvlRestart
       };
     };
-    // W33: bộ đếm số thứ tự như Word — theo abstractNum + cấp; cấp cao hơn (chỉ số nhỏ) xuất hiện thì cấp sâu hơn
-    // đặt lại, trừ khi cấp sâu có `w:lvlRestart` (0 = không bao giờ; N = chỉ đặt lại khi gặp cấp < N — d20 lvl 1
-    // lvlRestart=0 nên "14. Têntàu" tiếp tục sau tiêu đề cấp 0); w:num có startOverride thì numId ấy đếm riêng.
+    // W33/Q83: bộ đếm số thứ tự theo chuẩn Word (xác nhận qua Word 2016 COM Oracle):
+    // - Các w:num cùng trỏ về một abstractNumId dùng chung chuỗi đếm `abs:${abstractNumId}`.
+    // - Cấp cao hơn (chỉ số nhỏ) xuất hiện thì cấp sâu hơn đặt lại, trừ khi cấp sâu có `w:lvlRestart` trong abstractNum
+    //   (0 = không bao giờ; N = chỉ đặt lại khi gặp cấp < N — ví dụ d20 lvl 1 lvlRestart=0).
+    // - Khi nhảy thẳng vào cấp sâu (ví dụ từ cấp 0 sang cấp 2), Word ngầm khởi tạo các cấp trung gian (cấp 1) về giá trị start.
+    // - `w:startOverride` trên w:num đặt lại giá trị bắt đầu cho cấp đó trong chuỗi đếm chung ngay lần đầu numId ấy xuất hiện.
     const counters = new Map(); // key -> Map(level -> count)
+    const appliedStartOverrides = new Set();
     const nextValue = (nid, ilvl, lvl) => {
       const numEntry = nums.get(String(nid));
       if (!numEntry) return null;
-      const key = lvl?.startOverride !== undefined ? `num:${nid}` : `abs:${numEntry.abstractNumId}`;
+      const key = `abs:${numEntry.abstractNumId !== undefined ? numEntry.abstractNumId : nid}`;
       if (!counters.has(key)) counters.set(key, new Map());
       const levels = counters.get(key);
       const level = Number(ilvl) || 0;
@@ -6302,9 +6307,31 @@ export class WriterAdapter {
         if (restart === 0) continue;
         if (restart !== undefined && level >= restart) continue;
         levels.delete(k);
+        for (const overrideKey of appliedStartOverrides) {
+          if (overrideKey.endsWith(`:${k}`)) appliedStartOverrides.delete(overrideKey);
+        }
       }
-      const startAt = lvl?.startOverride !== undefined ? lvl.startOverride : (lvl?.start !== undefined ? lvl.start : 1);
-      const value = levels.has(level) ? levels.get(level) + 1 : startAt;
+      for (let j = 0; j < level; j++) {
+        if (!levels.has(j)) {
+          const ancestorLvl = resolveLvl(nid, String(j));
+          const jStart = ancestorLvl?.startOverride !== undefined
+            ? ancestorLvl.startOverride
+            : (ancestorLvl?.start !== undefined ? ancestorLvl.start : 1);
+          levels.set(j, jStart);
+        }
+      }
+      const overrideKey = `${nid}:${level}`;
+      const hasAppliedOverride = appliedStartOverrides.has(overrideKey);
+      let value;
+      if (lvl?.startOverride !== undefined && !hasAppliedOverride) {
+        appliedStartOverrides.add(overrideKey);
+        value = lvl.startOverride;
+      } else if (levels.has(level)) {
+        value = levels.get(level) + 1;
+      } else {
+        value = lvl?.startOverride !== undefined ? lvl.startOverride : (lvl?.start !== undefined ? lvl.start : 1);
+        if (lvl?.startOverride !== undefined) appliedStartOverrides.add(overrideKey);
+      }
       levels.set(level, value);
       return value;
     };
@@ -9682,7 +9709,7 @@ export class WriterAdapter {
           : "Chưa chọn văn bản";
         const noSelMsg = (typeof t === "function" && t("writerDialogs.comments.noSelectionMsg") !== "writerDialogs.comments.noSelectionMsg")
           ? t("writerDialogs.comments.noSelectionMsg")
-          : "Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.";
+          : "Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm nhận xét.";
         await showAlertDialog({
           title: noSelTitle,
           message: noSelMsg,
@@ -9694,16 +9721,16 @@ export class WriterAdapter {
 
     const addTitle = (typeof t === "function" && t("writerDialogs.comments.addCommentTitle") !== "writerDialogs.comments.addCommentTitle")
       ? t("writerDialogs.comments.addCommentTitle")
-      : "Thêm ghi chú";
+      : "Thêm nhận xét";
     const addPlaceholder = (typeof t === "function" && t("writerDialogs.comments.addCommentPlaceholder") !== "writerDialogs.comments.addCommentPlaceholder")
       ? t("writerDialogs.comments.addCommentPlaceholder")
-      : "Nhập nội dung ghi chú...";
+      : "Nhập nội dung nhận xét...";
     const addConfirm = (typeof t === "function" && t("writerDialogs.comments.addCommentBtn") !== "writerDialogs.comments.addCommentBtn")
       ? t("writerDialogs.comments.addCommentBtn")
-      : "Thêm ghi chú";
+      : "Thêm nhận xét";
     const notePrefix = (typeof t === "function" && t("writerRibbon.group.comments") !== "writerRibbon.group.comments")
       ? t("writerRibbon.group.comments")
-      : "Ghi chú";
+      : "Nhận xét";
 
     const content = args && Object.prototype.hasOwnProperty.call(args, "content")
       ? args.content
@@ -9724,7 +9751,7 @@ export class WriterAdapter {
     mark.setAttribute("role", "button");
     const openCommentPattern = (typeof t === "function" && t("writerDialogs.comments.openCommentAria") !== "writerDialogs.comments.openCommentAria")
       ? t("writerDialogs.comments.openCommentAria")
-      : "Mở ghi chú cho: {text}";
+      : "Mở nhận xét cho: {text}";
     mark.setAttribute("aria-label", openCommentPattern.replace("{text}", anchorText.slice(0, 80)));
 
     try {
@@ -9852,12 +9879,13 @@ export class WriterAdapter {
       return;
     }
     this.commentsPanel.hidden = false;
+    this.commentsPanel.setAttribute?.("aria-label", t("writerDialogs.comments.panelLabel", "Nhận xét tài liệu"));
 
     const title = document.createElement("h2");
     title.className = "vno-comments-title";
     const titleParts = [];
-    if (hasComments) titleParts.push(`Ghi chú (${this.comments.length})`);
-    if (hasRevisions) titleParts.push(`Bản sửa (${trackChanges.length})`);
+    if (hasComments) titleParts.push(`${t("writerDialogs.comments.panelLabel", "Nhận xét tài liệu")} (${this.comments.length})`);
+    if (hasRevisions) titleParts.push(`${t("writerDialogs.comments.revisionsLabel", "Bản sửa")} (${trackChanges.length})`);
     title.textContent = titleParts.join(" • ") || "Đánh dấu";
     this.commentsPanel.appendChild(title);
 
@@ -9892,8 +9920,9 @@ export class WriterAdapter {
       remove.type = "button";
       remove.className = "vno-comment-delete";
       remove.dataset.commentDelete = comment.id;
-      remove.setAttribute("aria-label", `Xóa ghi chú cho ${comment.anchorText}`);
-      remove.textContent = "Xóa";
+      const deletePattern = t("writerDialogs.comments.deleteCommentAria", "Xóa nhận xét cho: {text}");
+      remove.setAttribute("aria-label", deletePattern.replace("{text}", comment.anchorText));
+      remove.textContent = t("writerDialogs.comments.deleteCommentButton", "Xóa");
       meta.append(info, remove);
       card.append(preview, content, meta);
       for (const reply of comment.replies || []) {
@@ -10006,6 +10035,19 @@ export class WriterAdapter {
       targetDom.innerHTML = (targetDom.innerHTML || "") + html;
     }
     const table = targetDom?.querySelectorAll?.("table")?.[tablesBefore] || targetDom?.querySelector?.("table:last-of-type");
+    if (table) {
+      // contenteditable's insertHTML drops presentation CSS on some WebView2 builds.
+      // Persist the same geometry and grid styling as attributes so LibreOffice's
+      // HTML importer writes a full-width bordered table into DOCX.
+      table.setAttribute?.("width", "100%");
+      if (table.style) table.style.width = "100%";
+      for (const cell of Array.from(table.querySelectorAll?.("td,th") || [])) {
+        const borders = "border: 1px solid #94a3b8";
+        cell.style?.setProperty?.("border", "1px solid #94a3b8");
+        cell.style?.setProperty?.("padding", "6pt 10pt");
+        cell.setAttribute?.("data-vno-borders", borders);
+      }
+    }
     const firstCell = table?.rows?.[0]?.cells?.[0];
     if (firstCell) {
       firstCell.focus?.();
@@ -12627,10 +12669,43 @@ export class WriterAdapter {
       const runRegex = /<(?:w:r\b|w:fldSimple\b)([^>]*)>([\s\S]*?)<\/(?:w:r|w:fldSimple)>/gi;
       let rMatch;
       let foundRun = false;
+      let fieldInstruction = "";
+      let inComplexField = false;
+      let readingFieldResult = false;
       while ((rMatch = runRegex.exec(pContent)) !== null) {
         foundRun = true;
         const rAttrs = rMatch[1];
         const rInner = rMatch[2];
+        if (/^<w:fldSimple\b/i.test(rMatch[0])) {
+          const instruction = rAttrs.match(/\bw:instr=["']([^"']*)["']/i)?.[1] || "";
+          const type = /\bNUMPAGES\b/i.test(instruction) ? "NUMPAGES" : /\bPAGE\b/i.test(instruction) ? "PAGE" : "";
+          if (type) pText += `<span data-vno-field="${type}">1</span>`;
+          else pText += rInner.replace(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi, "$1");
+          continue;
+        }
+        if (/<w:fldChar\b[^>]*w:fldCharType=["']begin["']/i.test(rInner)) {
+          inComplexField = true;
+          readingFieldResult = false;
+          fieldInstruction = "";
+          continue;
+        }
+        if (inComplexField && /<w:instrText\b/i.test(rInner)) {
+          fieldInstruction += [...rInner.matchAll(/<w:instrText\b[^>]*>([\s\S]*?)<\/w:instrText>/gi)].map(match => match[1]).join("");
+          continue;
+        }
+        if (inComplexField && /<w:fldChar\b[^>]*w:fldCharType=["']separate["']/i.test(rInner)) {
+          const type = /\bNUMPAGES\b/i.test(fieldInstruction) ? "NUMPAGES" : /\bPAGE\b/i.test(fieldInstruction) ? "PAGE" : "";
+          if (type) pText += `<span data-vno-field="${type}">1</span>`;
+          readingFieldResult = true;
+          continue;
+        }
+        if (inComplexField && /<w:fldChar\b[^>]*w:fldCharType=["']end["']/i.test(rInner)) {
+          inComplexField = false;
+          readingFieldResult = false;
+          fieldInstruction = "";
+          continue;
+        }
+        if (readingFieldResult) continue;
         if (rAttrs.includes("NUMPAGES")) {
           pText += `<span data-vno-field="NUMPAGES">1</span>`;
           continue;
@@ -15364,7 +15439,9 @@ export class WriterAdapter {
             if (segments.at(-1).length) segments.push([]);
             continue;
           }
-          if (child.getAttribute?.("data-vno-page-break") === "true" || child.classList?.contains("vno-section-break")) {
+          const isSectionBreak = child.classList?.contains("vno-section-break");
+          const isPageSectionBreak = isSectionBreak && child.getAttribute?.("data-vno-section-break") !== "continuous";
+          if (child.getAttribute?.("data-vno-page-break") === "true" || isPageSectionBreak) {
             if (segments.at(-1).length) segments.push([]);
             continue;
           }
@@ -18143,6 +18220,15 @@ export class WriterAdapter {
       if (this.isNewApplicationDocument && /^h[1-3]$/i.test(String(source.tagName || "")) && !source.hasAttribute?.("style")) {
         continue;
       }
+      if (this.isNewApplicationDocument) {
+        const fontFamily = String(visible.fontFamily || "").split(",")[0].trim().replace(/^['"]|['"]$/g, "");
+        const fontSize = toPt(visible.fontSize);
+        if (fontFamily) target.style.setProperty("font-family", fontFamily);
+        if (fontSize) target.style.setProperty("font-size", fontSize);
+        // New documents use 1.5 line spacing; writer.css adds font metrics for
+        // screen rendering, so serialize the Office-compatible ratio itself.
+        target.style.setProperty("line-height", "150%");
+      }
       if (["left", "right", "center", "justify"].includes(visible.textAlign)) {
         target.style.setProperty("text-align", visible.textAlign);
       }
@@ -18645,13 +18731,15 @@ export class WriterAdapter {
     }
 
     this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
-    const result = await globalUnoBridge.saveRealFileInPlace(
+    const result = await saveInPlaceCheckingExternalChange(
       "writer",
       this._contentForExport(),
       this._sourcePath,
-      this._sourcePath
+      this._sourcePath,
+      () => this.saveAs()
     );
 
+    if (result.status === "saved_copy") return true;
     if (result.status === "ok") {
       if (this.isDirty) { this._wordCountSourceText = null; this._wordCountSourceTextInvalidated = true; }
       this.isDirty = false;
@@ -18793,7 +18881,10 @@ export class WriterAdapter {
       } else {
         this.isFinal = false;
       }
-      this._wordCountSourceText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
+      const mainText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
+      const footnoteText = extractOoxmlFootnoteText(result.ooxmlFootnotesXml);
+      const endnoteText = extractOoxmlEndnoteText(result.ooxmlEndnotesXml);
+      this._wordCountSourceText = [mainText, footnoteText, endnoteText].filter(value => typeof value === "string" && value.trim()).join("\n");
       this._wordCountSourceListItems = this._ooxmlListParagraphs(result.ooxmlDocumentXml, result.ooxmlStylesXml, result.ooxmlNumberingXml);
       this.isNewApplicationDocument = false;
       this.bodyDom?.classList?.remove("vno-new-application-document");
@@ -20333,7 +20424,10 @@ export class WriterAdapter {
         const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : "") || "";
         const textContent = el.textContent || "";
         const isSectionBreak = el.classList?.contains("vno-section-break");
-        const isManualBreak = isSectionBreak || styleStr.includes("page-break-before") || styleStr.includes("break-before") || textContent.includes("Phân tách trang");
+        const sectionBreakType = isSectionBreak ? el.getAttribute?.("data-vno-section-break") : null;
+        const isContinuousBreak = isSectionBreak && sectionBreakType === "continuous";
+        const isPageSectionBreak = isSectionBreak && !isContinuousBreak;
+        const isManualBreak = isPageSectionBreak || (!isSectionBreak && (styleStr.includes("page-break-before") || styleStr.includes("break-before"))) || textContent.includes("Phân tách trang");
 
         const h = heightOf(el);
         const top = topOf(el);
@@ -20346,7 +20440,7 @@ export class WriterAdapter {
           // Ngắt trang thủ công / page-break-before nhập từ DOCX cũng phải hiện
           // thành một tờ mới trong khung soạn thảo (Word tách trang thật), nếu
           // không mọi float neo theo trang của các trang sau sẽ đè lên trang 1.
-          const sectionAlreadyHasSoftBreak = isSectionBreak && gapBeforeEls.some((gap) => gap.el === el);
+          const sectionAlreadyHasSoftBreak = isPageSectionBreak && gapBeforeEls.some((gap) => gap.el === el);
           if (el !== children[0] && !sectionAlreadyHasSoftBreak) {
             gapBeforeEls.push({ el, soft: false, kind: "block" });
             pageCount++;
@@ -20354,10 +20448,10 @@ export class WriterAdapter {
           // Hidden section markers have a zero top in the canvas. Let the next
           // real block establish the new page origin instead of counting its
           // document offset as overflow from the marker.
-          pageStartTop = isSectionBreak
+          pageStartTop = isPageSectionBreak
             ? null
             : top - marginTopOf(el);
-          if (isSectionBreak) {
+          if (isPageSectionBreak) {
             const sectionSetup = this.sectionPageSetups?.[el.getAttribute?.("data-vno-section-id")];
             if (sectionSetup) {
               this.pageSetup = sectionSetup;
@@ -20366,6 +20460,16 @@ export class WriterAdapter {
             }
           }
           continue;
+        }
+
+        if (isContinuousBreak) {
+          const sectionSetup = this.sectionPageSetups?.[el.getAttribute?.("data-vno-section-id")];
+          if (sectionSetup) {
+            this.pageSetup = sectionSetup;
+          }
+          if (h === 0) {
+            continue;
+          }
         }
 
         if (pageStartTop === null) {

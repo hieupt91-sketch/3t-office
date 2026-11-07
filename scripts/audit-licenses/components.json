@@ -1,0 +1,175 @@
+{
+  "allowlist_source": "Phieu DIRECTIVE-MUSE-LOP-RIENG-0511.md, muc G1. Danh sach cho phep nam trong scripts/audit-licenses/check-licenses.mjs, khong nam trong manifest.",
+  "components": [
+    {
+      "kind": "runtime",
+      "license": "PSF-2.0",
+      "name": "Python",
+      "note": "Chi lay interpreter + stdlib (bo test/IDLE/tkinter/pip). Giay phep day du trong Python-LICENSE.txt cua goi.",
+      "source": "https://www.python.org/",
+      "version": "3.12",
+      "via": "Ban cai CPython duoc sao chep vao goi (build-pilot.ps1 muc 2); macOS: runtime theo ports/macos/requirements-runtime-macos.lock"
+    },
+    {
+      "bundled_sublicenses": [
+        "LGPL-2.1",
+        "LGPL-3.0",
+        "Apache-2.0",
+        "MIT",
+        "BSD-3-Clause",
+        "Unicode-3.0"
+      ],
+      "bundled_sublicenses_source": "tools/libreoffice/license.txt, NOTICE, CREDITS.fodt trong goi (xem THIRD-PARTY-NOTICES muc 10)",
+      "exception": {
+        "approved_by": "chu du an (LibreOffice lam nen da chot — INBOX-MAC #16)",
+        "reason": "Thư viện con của LibreOffice có giấy phép riêng, trong đó LGPL-2.1/3.0 không nằm trong allowlist G1; các thư viện LGPL được dùng ở dạng thư viện động có thể thay thế; giấy phép đầy đủ đi kèm trong gói."
+      },
+      "kind": "engine",
+      "license": "MPL-2.0",
+      "name": "LibreOffice",
+      "note": "Phan phoi nguyen ban, khong sua ma loi. Cac extension dict-* (mot so theo GPL) KHONG dong goi theo mac dinh; chi dong goi khi dat VNO_KEEP_LO_DICTS=1, luc do manifest nay phai duoc cap nhat truoc.",
+      "source": "https://www.libreoffice.org/",
+      "version": "26.2.6.3",
+      "via": "Sao chep nguyen thu muc cai dat LibreOffice vao app/tools/libreoffice (build-pilot.ps1 muc 3)"
+    },
+    {
+      "kind": "python-package",
+      "license": "BSD-3-Clause",
+      "name": "pywebview",
+      "source": "https://pywebview.flowrl.com/",
+      "version": "6.2.1",
+      "via": "Cai san trong Python he thong khi dong goi (build-pilot.ps1 muc 2: goi webview)"
+    },
+    {
+      "kind": "python-package",
+      "license": "MIT",
+      "name": "pythonnet",
+      "source": "https://pythonnet.github.io/",
+      "version": "3.1.0",
+      "via": "Cai san trong Python he thong khi dong goi (build-pilot.ps1 muc 2)"
+    },
+    {
+      "kind": "python-package",
+      "license": "MIT",
+      "name": "clr_loader",
+      "source": "https://github.com/pythonnet/clr-loader",
+      "version": "0.3.1",
+      "via": "Cai san trong Python he thong khi dong goi (build-pilot.ps1 muc 2)"
+    },
+    {
+      "exception": {
+        "approved_by": "Lead (xac nhan khi duyet PR G1)",
+        "reason": "MIT-0 (MIT No Attribution): SPDX MIT-0, cho phep rong hon MIT (khong yeu cau giu thong bao ban quyen); da doi chieu license_expression tren PyPI (MIT-0)."
+      },
+      "kind": "python-package",
+      "license": "MIT-0",
+      "name": "cffi",
+      "note": "THIRD-PARTY-NOTICES muc 5 ghi MIT-0 (dung); ghi chu trong build-pilot.ps1 ghi 'cffi MIT' la chua chinh xac — da sua thanh MIT-0 trong PR G1.",
+      "source": "https://pypi.org/project/cffi/",
+      "version": "2.1.1",
+      "via": "Cai san trong Python he thong khi dong goi (build-pilot.ps1 muc 2); phu thuoc bat buoc cua cryptography; macOS: ports/macos/requirements-runtime-macos.lock (cffi==2.1.1)"
+    },
+    {
+      "kind": "python-package",
+      "license": "BSD-3-Clause",
+      "name": "pycparser",
+      "note": "Ban macOS trong lock la 3.12, ban Windows trong THIRD-PARTY-NOTICES muc 9 la 3.0; giay phep giong nhau (BSD-3-Clause).",
+      "source": "https://github.com/eliben/pycparser",
+      "version": "3.0",
+      "via": "Cai san trong Python he thong khi dong goi (build-pilot.ps1 muc 2); macOS: lock pycparser==3.12"
+    },
+    {
+      "kind": "python-package",
+      "license": "MIT",
+      "name": "bottle",
+      "source": "https://bottlepy.org/",
+      "version": "0.13.4",
+      "via": "Cai san trong Python he thong khi dong goi (build-pilot.ps1 muc 2)"
+    },
+    {
+      "kind": "python-package",
+      "license": "MIT",
+      "name": "proxy_tools",
+      "source": "https://pypi.org/project/proxy-tools/",
+      "version": "0.1.0",
+      "via": "Cai san trong Python he thong khi dong goi (build-pilot.ps1 muc 2)"
+    },
+    {
+      "kind": "python-package",
+      "license": "PSF-2.0",
+      "name": "typing_extensions",
+      "source": "https://pypi.org/project/typing-extensions/",
+      "version": "4.16.0",
+      "via": "Cai san trong Python he thong khi dong goi (build-pilot.ps1 muc 2, copy file don)"
+    },
+    {
+      "kind": "python-package",
+      "license": "Apache-2.0 OR BSD-3-Clause",
+      "name": "cryptography",
+      "note": "macOS lock giu cryptography==44.0.2 do ABI Python/OpenSSL cua ban pilot; giay phep giong nhau.",
+      "source": "https://pypi.org/project/cryptography/",
+      "version": "50.0.2",
+      "via": "requirements.txt (cryptography>=44.0.0,<51.0.0)"
+    },
+    {
+      "kind": "python-package",
+      "license": "BSD-3-Clause",
+      "name": "pypdf",
+      "note": "macOS lock: pypdf==6.21.2; giay phep giong nhau.",
+      "source": "https://pypi.org/project/pypdf/",
+      "version": "6.21.1",
+      "via": "requirements.txt (pypdf>=6.21,<7)"
+    },
+    {
+      "kind": "font",
+      "license": "OFL-1.1",
+      "name": "Be Vietnam Pro",
+      "source": "https://github.com/bettertype/BeVietnamPro",
+      "version": "khong ro (theo platform/theme/fonts/)",
+      "via": "Dong goi cung platform/theme/fonts/ (build-pilot.ps1 muc 4, copy OFL.txt vao THIRD-PARTY-NOTICES)"
+    },
+    {
+      "kind": "font",
+      "license": "OFL-1.1",
+      "name": "Phông VN (VN Sans UI, VN Sans, VN Mono, VN Song)",
+      "note": "Phông do 3T Office dung lai (Modified Version theo OFL-1.1) tu Selawik 1.01, Open Sans 3.003, Inconsolata 3.001, Noto Serif SC 2.003; OFL.txt, FONTLOG.txt, SOURCES.json di kem.",
+      "source": "platform/fonts/document/SOURCES.json",
+      "version": "VN-FONTS-1 (dung lai theo OFL-1.1)",
+      "via": "Dong goi cung platform/fonts/document/ (nam trong thu muc platform duoc copy nguyen)"
+    },
+    {
+      "kind": "font",
+      "license": "OFL-1.1",
+      "name": "Carlito",
+      "note": "Khong sua doi; thay the tuong thich so do cho Calibri (FIX-D6-2510); OFL.txt, SOURCES.json di kem.",
+      "source": "https://github.com/googlefonts/carlito",
+      "version": "1.104",
+      "via": "Dong goi cung platform/fonts/substitutes/ (nam trong thu muc platform duoc copy nguyen)"
+    },
+    {
+      "kind": "data",
+      "license": "CC0-1.0",
+      "name": "Tu dien chinh ta tieng Viet",
+      "note": "Bien soan tu kho cau Mozilla Common Voice (CC0 1.0), 2.798 tu; khong dung du lieu tu dien Hunspell/LibreOffice.",
+      "source": "platform/text/dictionaries/LICENSES-vi.txt",
+      "version": "snapshot Common Voice 2022-12-14 (commit 154dda17)",
+      "via": "Dong goi cung platform/text/dictionaries/ (nam trong thu muc platform duoc copy nguyen)"
+    },
+    {
+      "exception": {
+        "approved_by": "chu du an (kien truc WebView2 chot tu dau du an)",
+        "reason": "Runtime doc quyen cua Microsoft theo Microsoft Software License Terms for WebView2 Runtime; khong co phuong an thay the nguon mo trong goi nay; nguoi dung cuoi chap nhan dieu khoan cua Microsoft khi cai dat."
+      },
+      "kind": "runtime",
+      "license": "Microsoft-WebView2-Terms",
+      "name": "Microsoft Edge WebView2 Runtime",
+      "note": "Thanh phan cua Microsoft, KHONG phai ma nguon mo; toan bo giao dien desktop chay tren WebView2.",
+      "source": "https://developer.microsoft.com/microsoft-edge/webview2/",
+      "version": "154.x",
+      "via": "Khong dong goi trong goi pilot; cai san tren Windows 11 hoac cai kem bo cai"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Thanh phan DONG GOI / phan phoi cung san pham 3T Office: goi pilot Windows (scripts/build-pilot.ps1) + runtime macOS (ports/macos/requirements-runtime-macos.lock). Chi liet ke thanh phan co trong goi phan phoi; cong cu chi dung luc build (vi du fontTools khi dung phông VN) KHONG nam o day.",
+  "updated": "2026-11-06"
+}

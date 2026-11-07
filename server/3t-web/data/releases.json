@@ -1,16 +1,16 @@
 {
   "product": "3T Office",
-  "current_version": "0.9.11",
+  "current_version": "0.9.12",
   "version_family": "0.9.x",
   "channel": "pilot",
-  "release_date": "2026-10-13",
+  "release_date": "2026-11-03",
   "download": {
-    "file_name": "VNOffice-Setup-0.9.11.exe",
-    "alias_file_name": "Setup-0.9.11.exe",
-    "file_size_bytes": 401718681,
-    "file_size_formatted": "383 MB",
-    "sha256": "41CC7DB664203D8A15A2E9F030F50A6F28E09F17B6DE139C194B9114D7A274BE",
-    "url": "https://office.3tcomputer.com/downloads/VNOffice-Setup-0.9.11.exe",
+    "file_name": "VNOffice-Setup-0.9.12.exe",
+    "alias_file_name": "Setup-0.9.12.exe",
+    "file_size_bytes": 410768148,
+    "file_size_formatted": "392 MB",
+    "sha256": "05CEE8963C2E542561E4F427735649785F7D847A25F3362C4AB78564EB7853A6",
+    "url": "https://office.3tcomputer.com/downloads/VNOffice-Setup-0.9.12.exe",
     "status": "ready",
     "public_download_status": "Sẵn sàng tải về từ hạ tầng phân phối máy chủ 3T Cloud",
     "requirements": {
@@ -21,6 +21,19 @@
     }
   },
   "releases": [
+    {
+      "version": "0.9.12",
+      "channel": "pilot",
+      "date": "2026-11-03",
+      "summary": "Mở và lưu không còn treo khi máy in mạng tắt, sửa hiển thị văn bản cũ, biểu đồ và trình chiếu",
+      "highlights": [
+        "Chung: Mở, lưu và xem trước khi in không còn chậm hoặc treo khi máy in mặc định là máy in mạng đang tắt; lệnh In vẫn dùng máy in bạn chọn.",
+        "Doc: Tài liệu .doc cũ không tràn chữ ra ngoài trang, giữ đoạn trống của bản gốc; tiêu đề trang bìa không đè logo; chế độ tối đọc rõ chữ.",
+        "Doc: Giữ đúng trường ở chân trang, viền và độ rộng bảng; phông thay thế đi kèm hiển thị đúng dấu tiếng Việt.",
+        "Sheet: Biểu đồ giữ đúng vị trí và tiêu đề chuỗi khi mở lại; chế độ tối đọc rõ nội dung ô; tên trang tính dài không tràn.",
+        "Slide: Mở lại giữ màu nhấn chủ đề, chữ trong hình căn giữa, mũi tên và dấu đầu dòng hiển thị đúng; ghi chú diễn giả được lưu đúng."
+      ]
+    },
     {
       "version": "0.9.10",
       "channel": "pilot",

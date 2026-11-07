@@ -19,6 +19,14 @@ export async function runWriterReviewExportTests() {
   const footerFields = adapter._htmlFromHeaderFooterXml('<w:ftr><w:p><w:fldSimple w:instr=" PAGE "><w:r><w:t>1</w:t></w:r></w:fldSimple><w:fldSimple w:instr=" NUMPAGES "><w:r><w:t>2</w:t></w:r></w:fldSimple></w:p></w:ftr>');
   assert.equal((footerFields.match(/data-vno-field="PAGE"/g) || []).length, 1);
   assert.equal((footerFields.match(/data-vno-field="NUMPAGES"/g) || []).length, 1);
+  const complexFooterFields = adapter._htmlFromHeaderFooterXml('<w:ftr><w:p><w:r><w:t>Trang </w:t></w:r>'
+    + '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>'
+    + '<w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>'
+    + '<w:r><w:t> / </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+    + '<w:r><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+    + '<w:r><w:t>2</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>');
+  assert.match(complexFooterFields, /Trang <span data-vno-field="PAGE">1<\/span> \/ <span data-vno-field="NUMPAGES">1<\/span>/,
+    "Complex PAGE and NUMPAGES fields must return to live Writer fields instead of cached result text");
   adapter.trackChangesEnabled = true;
   adapter.comments = [{
     id: "comment-1",

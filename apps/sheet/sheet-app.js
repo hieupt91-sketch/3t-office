@@ -202,7 +202,7 @@ export class SheetApp {
         if (!this.helpPanel && this.workspace) {
           this.helpPanel = new HelpPanel({ app: "sheet" });
           this.helpPanel.mount(this.workspace);
-          this.shell?.setStatus?.("Sẵn sàng");
+          this.shell?.setStatus?.(t("common.ready", "Sẵn sàng"));
         }
         return this.helpPanel;
       }).catch((error) => {
@@ -226,12 +226,12 @@ export class SheetApp {
   /** Các số liệu hiện ở thanh trạng thái: bật/tắt bằng chuột phải lên thanh (lưu theo máy). */
   static get STATUS_STAT_ITEMS() {
     return [
-      { key: "count", label: "Đếm số", short: "ĐẾM" },
-      { key: "counta", label: "Đếm ô có dữ liệu", short: "ĐẾM Ô" },
-      { key: "min", label: "Nhỏ nhất", short: "NHỎ NHẤT" },
-      { key: "max", label: "Lớn nhất", short: "LỚN NHẤT" },
-      { key: "avg", label: "Trung bình", short: "TRUNG BÌNH" },
-      { key: "sum", label: "Tổng cộng", short: "TỔNG CỘNG" }
+      { key: "count", label: t("sheetFormulaEntry.statusStatCount", "Đếm số"), short: t("sheetFormulaEntry.statusStatCountShort", "ĐẾM") },
+      { key: "counta", label: t("sheetFormulaEntry.statusStatCounta", "Đếm ô có dữ liệu"), short: t("sheetFormulaEntry.statusStatCountaShort", "ĐẾM Ô") },
+      { key: "min", label: t("sheetFormulaEntry.statusStatMin", "Nhỏ nhất"), short: t("sheetFormulaEntry.statusStatMinShort", "NHỎ NHẤT") },
+      { key: "max", label: t("sheetFormulaEntry.statusStatMax", "Lớn nhất"), short: t("sheetFormulaEntry.statusStatMaxShort", "LỚN NHẤT") },
+      { key: "avg", label: t("sheetFormulaEntry.statusStatAverage", "Trung bình"), short: t("sheetFormulaEntry.statusStatAverageShort", "TRUNG BÌNH") },
+      { key: "sum", label: t("sheetFormulaEntry.statusStatSum", "Tổng cộng"), short: t("sheetFormulaEntry.statusStatSumShort", "TỔNG CỘNG") }
     ];
   }
 
@@ -250,7 +250,7 @@ export class SheetApp {
     const prefs = this._statusStatPrefs();
     const parts = SheetApp.STATUS_STAT_ITEMS.filter(item => prefs[item.key] && info.stats?.[item.key] !== undefined)
       .map(item => `${item.short}: ${info.stats[item.key]}`);
-    this.shell.setStatus(["SẴN SÀNG", `Ô: ${info.coord}`, ...parts].join("  |  "));
+    this.shell.setStatus([t("sheetFormulaEntry.statusReady", "SẴN SÀNG"), t("sheetFormulaEntry.statusCell", { coord: info.coord }), ...parts].join("  |  "));
   }
 
   _bindStatusBarCustomization() {
