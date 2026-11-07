@@ -69,6 +69,7 @@ class ZombieTests(unittest.TestCase):
         self.assertFalse(tracker.parse_ps_is_zombie("R+"))
         self.assertFalse(tracker.parse_ps_is_zombie(""))
 
+    @unittest.skipIf(os.name == "nt", "macOS ps fallback is unavailable on Windows; Windows identity uses kernel32")
     def test_ps_identity_treats_a_zombie_as_gone_and_a_live_process_as_its_start_time(self):
         outputs = {("-o", "lstart=", "-p", "77"): "Sat Oct 24 23:32:21 2026\n"}
         with mock.patch.object(tracker.Path, "is_file", return_value=False), \

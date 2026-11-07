@@ -76,9 +76,9 @@ def _early_forward_if_running(argv: list[str]) -> bool:
     app_kind = None
     file_path = None
     app_by_extension = {
-        ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
+        ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer", ".dotx": "writer",
         ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet", ".xltx": "sheet", ".xlt": "sheet",
-        ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
+        ".pptx": "slides", ".ppt": "slides", ".odp": "slides", ".potx": "slides",
     }
     for arg in argv:
         if arg.startswith("--app="):
@@ -139,6 +139,7 @@ _AUTORECOVER_STORE_MODULE = importlib.util.module_from_spec(_AUTORECOVER_STORE_S
 sys.modules[_AUTORECOVER_STORE_SPEC.name] = _AUTORECOVER_STORE_MODULE
 _AUTORECOVER_STORE_SPEC.loader.exec_module(_AUTORECOVER_STORE_MODULE)
 AutoRecoverStore = _AUTORECOVER_STORE_MODULE.AutoRecoverStore
+SaveBackupStore = _AUTORECOVER_STORE_MODULE.SaveBackupStore
 
 _PROCESS_TRACKER_PATH = Path(__file__).resolve().parent / "platform" / "process_lifecycle" / "process_tracker.py"
 _PROCESS_TRACKER_SPEC = importlib.util.spec_from_file_location("_vno_process_tracker", _PROCESS_TRACKER_PATH)
@@ -523,6 +524,9 @@ _SHEET_OPEN_SESSION_TTL_SECONDS = 600
 class _StaticFileHandler(http.server.SimpleHTTPRequestHandler):
     """Serve files from ROOT_DIR with correct MIME types for JS/CSS."""
 
+    _REVALIDATE_SUFFIXES = {".html", ".htm", ".js", ".mjs", ".css", ".json"}
+    _LONG_CACHE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".woff", ".woff2", ".ttf", ".otf"}
+
     def __init__(self, *args, directory=None, **kwargs):
         super().__init__(*args, directory=directory or ROOT_DIR, **kwargs)
 
@@ -531,6 +535,16 @@ class _StaticFileHandler(http.server.SimpleHTTPRequestHandler):
         if ext in _STATIC_MIME_OVERRIDES:
             return _STATIC_MIME_OVERRIDES[ext]
         return super().guess_type(path)
+
+    def end_headers(self):
+        ext = os.path.splitext(self.path.split("?", 1)[0])[1].lower()
+        if ext in self._REVALIDATE_SUFFIXES:
+            self.send_header("Cache-Control", "no-cache")
+        elif ext in self._LONG_CACHE_SUFFIXES:
+            self.send_header("Cache-Control", "public, max-age=2592000")
+        else:
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
 
     def log_message(self, fmt, *args):
         pass  # quiet — do not spam console on every request
@@ -592,9 +606,9 @@ TASKBAR_RELAUNCH_DISPLAY_NAMES = {"writer": "Doc", "sheet": "Sheet", "slides": "
 TASKBAR_LAUNCHER_EXES = {"writer": "Doc.exe", "sheet": "Sheet.exe", "slides": "Slide.exe"}
 SUITE_TITLE = "3T Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
-    ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
+    ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer", ".dotx": "writer",
     ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet", ".xltx": "sheet", ".xlt": "sheet",
-    ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
+    ".pptx": "slides", ".ppt": "slides", ".odp": "slides", ".potx": "slides",
 }
 
 
@@ -755,6 +769,57 @@ def _os_services():
     return _OS_SERVICES
 
 
+def _file_dialog_policy():
+    """MAC-3-2610: what this OS's native Open/Save dialogs do (platform/os_services/file_dialogs.py).
+
+    None (Windows, Linux, legacy mode) keeps the previous dialog code path below unchanged.
+    """
+    services = _os_services()
+    return getattr(services, "file_dialogs", None) if services is not None else None
+
+
+def _create_file_dialog(window, dialog_type, **kwargs):
+    """Single entry point for the document Open/Save dialogs (pywebview create_file_dialog)."""
+    stub_path = os.environ.get("VNO_CDP_FILE_DIALOG_STUB")
+    if stub_path and os.environ.get("VNO_CDP_DEBUG_PORT"):
+        # Test-only: native panels cannot be driven over CDP. Production never sets these variables.
+        return _cdp_file_dialog_stub(stub_path, dialog_type, kwargs)
+    return window.create_file_dialog(dialog_type, **kwargs)
+
+
+def _cdp_file_dialog_stub(stub_path, dialog_type, kwargs):
+    """Answer a dialog from a JSON queue written by a CDP test and log the arguments the app passed."""
+    try:
+        from webview.util import parse_file_type
+        for item in kwargs.get("file_types") or ():
+            parse_file_type(item)  # same validation pywebview applies before any backend
+    except ImportError:
+        pass
+    with open(stub_path, "r", encoding="utf-8") as handle:
+        state = json.load(handle)
+    responses = state.get("responses") or []
+    response = responses.pop(0) if responses else None
+    state["responses"] = responses
+    with open(stub_path, "w", encoding="utf-8") as handle:
+        json.dump(state, handle, ensure_ascii=False)
+    with open(stub_path + ".calls.jsonl", "a", encoding="utf-8") as handle:
+        handle.write(json.dumps({"type": "save" if dialog_type == webview.SAVE_DIALOG else "open",
+                                 **{key: (list(value) if isinstance(value, tuple) else value)
+                                    for key, value in kwargs.items()}}, ensure_ascii=False) + "\n")
+    if isinstance(response, list):
+        return tuple(response)
+    return response
+
+
+def _dialog_paths(result) -> list[str]:
+    """pywebview returns None (cancel), a string (Cocoa Save) or a tuple of paths; empty strings mean cancel."""
+    if not result:
+        return []
+    if isinstance(result, (str, os.PathLike)):
+        return [str(result)] if str(result) else []
+    return [str(item) for item in result if item]
+
+
 def _user_data_dir() -> Path:
     services = _os_services()
     if services is not None and services.data_dirs is not None:
@@ -829,6 +894,22 @@ def _legacy_find_soffice() -> str | None:
 
 SOFFICE_PATH = find_soffice()
 
+
+def _libreoffice_child_environment(printer_access: bool = False) -> dict[str, str]:
+    """Avoid printer discovery during document processing without changing Windows settings.
+
+    A physical print job needs LibreOffice's printer list to resolve the printer by
+    name, so that helper is started with printer_access=True (no SAL_* overrides).
+    """
+    env = os.environ.copy()
+    if printer_access:
+        env.pop("SAL_DISABLE_DEFAULTPRINTER", None)
+        env.pop("SAL_DISABLE_PRINTERLIST", None)
+        return env
+    env["SAL_DISABLE_DEFAULTPRINTER"] = "1"
+    env["SAL_DISABLE_PRINTERLIST"] = "1"
+    return env
+
 # Filter LibreOffice chính thức tương ứng định dạng Microsoft Office / ODF
 FORMAT_FILTERS = {
     "docx": "MS Word 2007 XML",
@@ -892,8 +973,9 @@ class _PersistentSofficeConversionError(_PersistentSofficeError):
 
 
 class _SofficeUnoWorker:
-    def __init__(self, app_kind: str):
+    def __init__(self, app_kind: str, printer_access: bool = False):
         self.app_kind = app_kind
+        self.printer_access = printer_access
         self.process: subprocess.Popen[str] | None = None
         self.responses: queue.Queue[dict | None] = queue.Queue()
         self._write_lock = threading.Lock()
@@ -917,7 +999,7 @@ class _SofficeUnoWorker:
 
         pipe_name = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
         profile_uri = _profile_uri(self.app_kind)
-        env = os.environ.copy()
+        env = _libreoffice_child_environment(printer_access=self.printer_access)
         env["PYTHONUNBUFFERED"] = "1"
         command = [python_path, "-u", str(worker_path), SOFFICE_PATH, profile_uri, pipe_name, self.app_kind]
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -1125,10 +1207,14 @@ class _PersistentSofficeManager:
         if worker:
             worker.stop()
 
-    def _ensure_locked(self, app_kind: str) -> _SofficeUnoWorker:
+    def _ensure_locked(self, app_kind: str, printer_access: bool = False) -> _SofficeUnoWorker:
         if self._shutdown_requested.is_set():
             raise _PersistentSofficeTransportError("3T Office đang đóng.")
-        if self._worker and self._worker.app_kind == app_kind:
+        if (
+            self._worker
+            and self._worker.app_kind == app_kind
+            and getattr(self._worker, "printer_access", False) == printer_access
+        ):
             if self._worker.process and self._worker.process.poll() is None:
                 return self._worker
             self._stop_locked()
@@ -1139,7 +1225,7 @@ class _PersistentSofficeManager:
         for _ in range(2):
             if self._shutdown_requested.is_set():
                 break
-            worker = _SofficeUnoWorker(app_kind)
+            worker = _SofficeUnoWorker(app_kind, printer_access=printer_access)
             self._worker = worker
             try:
                 worker.start()
@@ -1244,8 +1330,9 @@ class _PersistentSofficeManager:
 
     def operation(self, app_kind: str | None, operation: str, **payload) -> dict:
         kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
+        printer_access = operation == "print_pdf"
         with self._lock:
-            worker = self._ensure_locked(kind)
+            worker = self._ensure_locked(kind, printer_access=printer_access)
             try:
                 timeout = 300 if operation == "print_pdf" else 180
                 return worker.operation(operation, payload, timeout=timeout)
@@ -1295,6 +1382,15 @@ _PERSISTENT_SOFFICE = _PersistentSofficeManager()
 
 class DocumentEngineError(Exception):
     pass
+
+
+class ExternalFileChangeError(DocumentEngineError):
+    """The file on disk is no longer the version this window opened or last saved."""
+
+    def __init__(self, path: str, fingerprint: str):
+        super().__init__("Tệp đã được thay đổi bên ngoài 3T Office kể từ lần mở hoặc lưu gần nhất.")
+        self.path = path
+        self.fingerprint = fingerprint
 
 
 _CSV_DELIMITER_CODES = {",": 44, ";": 59, "\t": 9}
@@ -1674,7 +1770,7 @@ def _run_soffice_convert(
                     if target_ext == "docx" and os.environ.get("VNO_PRINT_VERIFY") == "1" and src_path.lower().endswith(".html"):
                         _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
                         with tempfile.TemporaryDirectory() as cli_dir:
-                            subprocess.run(cmd[:-3] + ["--outdir", cli_dir, src_path], capture_output=True, timeout=120, check=False)
+                            subprocess.run(cmd[:-3] + ["--outdir", cli_dir, src_path], capture_output=True, timeout=120, check=False, env=_libreoffice_child_environment())
                             cli_docx = Path(cli_dir) / out_path.name
 
                             def _parts(path):
@@ -1688,7 +1784,7 @@ def _run_soffice_convert(
                         _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
                         with tempfile.TemporaryDirectory() as cli_dir:
                             cli_cmd = cmd[:-3] + ["--outdir", cli_dir, src_path]
-                            subprocess.run(cli_cmd, capture_output=True, timeout=120, check=False)
+                            subprocess.run(cli_cmd, capture_output=True, timeout=120, check=False, env=_libreoffice_child_environment())
                             cli_pdf = Path(cli_dir) / out_path.name
                             pm = _get_print_pipeline_module()
                             a, b = pm.fast_pdf_page_count(persistent_path), pm.fast_pdf_page_count(str(cli_pdf))
@@ -1709,7 +1805,8 @@ def _run_soffice_convert(
         # times out, or rejects a filter/document.
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=120, check=False
+                cmd, capture_output=True, text=True, timeout=120, check=False,
+                env=_libreoffice_child_environment(),
             )
         except subprocess.TimeoutExpired as exc:
             error = DocumentEngineError("Hết thời gian chờ khi chuyển đổi tài liệu.")
@@ -2596,7 +2693,7 @@ def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) ->
         return resolved_path, default_ext
 
     ext = suffix.lstrip(".")
-    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "xltx", "ppt", "pptx", "odt", "ods", "odp", "pdf", "csv", "html", "htm"}:
+    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "xltx", "dotx", "potx", "ppt", "pptx", "odt", "ods", "odp", "pdf", "csv", "html", "htm"}:
         if ext == "htm":
             return file_path, "html"
         return file_path, ext
@@ -2604,22 +2701,44 @@ def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) ->
     return file_path, default_ext
 
 
-def _convert_xlsx_to_template(xlsx_path: str) -> None:
-    """Đổi gói .xlsx đã lưu thành mẫu .xltx: chỉ thay loại nội dung của xl/workbook.xml."""
+# Mẫu Office: lưu như tài liệu thường rồi chỉ đổi loại nội dung của phần chính (đúng như Word/Excel/PowerPoint ghi mẫu).
+_OOXML_TEMPLATE_FORMATS = {
+    # đuôi mẫu: (đuôi dựng, loại nội dung tài liệu, loại nội dung mẫu, tên phần chính khi báo lỗi)
+    "xltx": ("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml",
+             "application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml", "bảng tính", "sổ làm việc"),
+    "dotx": ("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml",
+             "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml", "tài liệu", "văn bản chính"),
+    "potx": ("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml",
+             "application/vnd.openxmlformats-officedocument.presentationml.template.main+xml", "bản trình chiếu", "bản trình bày"),
+}
+
+
+def _template_build_format(target_format: str | None) -> str | None:
+    """Định dạng thật cần dựng cho một định dạng mẫu (.xltx→xlsx, .dotx→docx, .potx→pptx); còn lại giữ nguyên."""
+    entry = _OOXML_TEMPLATE_FORMATS.get((target_format or "").lower())
+    return entry[0] if entry else target_format
+
+
+def _convert_ooxml_to_template(package_path: str, template_format: str) -> None:
+    """Đổi gói OOXML đã lưu thành mẫu: chỉ thay loại nội dung của phần chính trong [Content_Types].xml."""
     import zipfile
-    main_ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"
-    template_ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml"
-    tmp_path = xlsx_path + ".tpl"
-    with zipfile.ZipFile(xlsx_path) as zin, zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zout:
+    _build, main_ct, template_ct, kind, part = _OOXML_TEMPLATE_FORMATS[template_format]
+    tmp_path = package_path + ".tpl"
+    with zipfile.ZipFile(package_path) as zin, zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zout:
         for item in zin.infolist():
             data = zin.read(item.filename)
             if item.filename == "[Content_Types].xml":
                 text = data.decode("utf-8")
                 if main_ct not in text:
-                    raise DocumentEngineError("Không tạo được mẫu: gói bảng tính thiếu phần sổ làm việc.")
+                    raise DocumentEngineError(f"Không tạo được mẫu: gói {kind} thiếu phần {part}.")
                 data = text.replace(main_ct, template_ct).encode("utf-8")
             zout.writestr(item, data)
-    os.replace(tmp_path, xlsx_path)
+    os.replace(tmp_path, package_path)
+
+
+def _convert_xlsx_to_template(xlsx_path: str) -> None:
+    """Đổi gói .xlsx đã lưu thành mẫu .xltx: chỉ thay loại nội dung của xl/workbook.xml."""
+    _convert_ooxml_to_template(xlsx_path, "xltx")
 
 
 def _sheet_fods_for_export(fods: str, target_format: str | None) -> str:
@@ -3020,9 +3139,42 @@ def _print_pdf_job(app_kind: str, pdf_path: str, printer: str, copies: int, page
     )
 
 
-def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
+def _file_fingerprint(path: str) -> str | None:
+    """mtime+size of a file as one opaque string (nanoseconds do not survive a JavaScript number)."""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+    return f"{stat.st_mtime_ns}:{stat.st_size}"
+
+
+def _durable_files():
+    services = _os_services()
+    return getattr(services, "durable_files", None) if services is not None else None
+
+
+def _write_durable_copy(src_path: str, staging_path: str) -> None:
+    """Copy src to staging and force it to disk, so a replace can never publish a partial or empty file."""
+    with open(src_path, "rb") as source, open(staging_path, "wb") as staging:
+        shutil.copyfileobj(source, staging, 1024 * 1024)
+        staging.flush()
+        durable = _durable_files()
+        if durable is not None:
+            durable.flush_file(staging.fileno())
+        else:
+            os.fsync(staging.fileno())
+        staged_bytes = os.fstat(staging.fileno()).st_size
+        source_bytes = os.fstat(source.fileno()).st_size
+    if staged_bytes <= 0 or staged_bytes != source_bytes:
+        raise DocumentEngineError("Không thể ghi tệp vào đĩa: bản ghi tạm không đầy đủ. Tệp gốc chưa bị thay đổi.")
+
+
+def _atomic_replace_file(src_temp_file: str, dest_path: str, *, before_replace=None) -> None:
     """Thay thế nguyên tử tệp đích bằng tệp tạm đã được tạo và hậu kỳ thành công.
     Nếu có lỗi xảy ra trong quá trình convert hoặc ghi đè, tệp gốc không bị ảnh hưởng.
+    Bản tạm được đẩy xuống đĩa trước khi thay thế; thư mục cha được đẩy xuống đĩa sau đó
+    (hệ thống tệp từ chối thao tác này thì bỏ qua, lỗi ghi thật vẫn được báo).
+    before_replace(dest) chạy khi bản tạm đã an toàn trên đĩa, ngay trước khi thay thế.
     """
     dest = Path(dest_path).resolve()
 
@@ -3042,9 +3194,14 @@ def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
         staging_path = dest.parent / staging_name
         staging_file = str(staging_path)
 
-        shutil.copyfile(src_temp_file, staging_file)
+        _write_durable_copy(src_temp_file, staging_file)
+        if before_replace is not None:
+            before_replace(str(dest))
         os.replace(staging_file, str(dest))
         staging_file = None
+        durable = _durable_files()
+        if durable is not None:
+            durable.flush_directory(dest.parent)
     except PermissionError as exc:
         raise DocumentEngineError(
             f"Không thể ghi đè tệp: tệp đang được mở bởi ứng dụng khác hoặc bị khóa ({exc}). "
@@ -3058,6 +3215,26 @@ def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
                 os.remove(staging_file)
             except OSError:
                 pass
+
+
+def _keep_save_backup(dest_path: str, document_password: str | None) -> None:
+    """Keep the version a save is about to replace. A backup failure is logged and never blocks the save."""
+    if not os.path.isfile(dest_path):
+        return
+    store = SaveBackupStore(_user_data_dir())
+    try:
+        if document_password and not _is_encrypted_package(dest_path):
+            # A password is being added: no readable copy of the document may stay behind.
+            store.discard(dest_path)
+        elif not store.keep(dest_path):
+            logging.getLogger("vnoffice.save").info("Save backup skipped: the file is over the size limit")
+    except Exception as exc:
+        reason = f"{type(exc).__name__} errno={getattr(exc, 'errno', None)} winerror={getattr(exc, 'winerror', None)}"
+        logging.getLogger("vnoffice.save").warning("Save backup failed: %s", reason)
+        try:
+            store.record_failure(reason)
+        except OSError as log_exc:
+            logging.getLogger("vnoffice.save").warning("Save backup log unavailable: %s", type(log_exc).__name__)
 
 
 def _verify_saved_file(dest_path: str) -> None:
@@ -4355,6 +4532,33 @@ class VnOfficeApi:
             content, app_kind, target_format, suggested_name, source_path,
         )
 
+    def acknowledge_external_change(self, target_path, fingerprint):
+        """The user chose to overwrite: accept exactly the on-disk version shown in the dialog, and no later one."""
+        if not isinstance(target_path, str) or not target_path or not isinstance(fingerprint, str) or not fingerprint:
+            return {"status": "error", "message": "Đường dẫn tệp không hợp lệ."}
+        self._fingerprint_store()[self._fingerprint_key(target_path)] = fingerprint
+        return {"status": "ok"}
+
+    def _fingerprint_store(self) -> dict[str, str]:
+        """Version of each file this window last read or wrote; Save compares it with the disk."""
+        return self.__dict__.setdefault("_disk_fingerprints", {})
+
+    @staticmethod
+    def _fingerprint_key(path: str) -> str:
+        return os.path.normcase(os.path.abspath(str(path)))
+
+    def _record_disk_fingerprint(self, path: str, fingerprint: str | None = None) -> None:
+        current = fingerprint or _file_fingerprint(path)
+        if current:
+            self._fingerprint_store()[self._fingerprint_key(path)] = current
+
+    def _raise_if_changed_on_disk(self, path: str) -> None:
+        """No record (never opened here) or no file (deleted, unreachable) means there is nothing to overwrite silently."""
+        recorded = self._fingerprint_store().get(self._fingerprint_key(path))
+        current = _file_fingerprint(path)
+        if recorded and current and current != recorded:
+            raise ExternalFileChangeError(path, current)
+
     def set_document_password(self, password):
         """Keep the active document password in process memory only."""
         if password is not None and (not isinstance(password, str) or len(password) > 255):
@@ -4813,6 +5017,9 @@ class VnOfficeApi:
         if not self._server_port:
             return {"status": "error", "message": "Máy chủ giao diện của 3T Office chưa sẵn sàng."}
 
+        policy = _file_dialog_policy()
+        if policy is not None:
+            source_path = Path(policy.normalize_existing_path(str(source_path)))
         file_name = source_path.name
         child_api = VnOfficeApi(app_kind=app_kind, initial_file=str(source_path), server_port=self._server_port)
         child_api._start_document_engine()
@@ -4996,6 +5203,7 @@ class VnOfficeApi:
     def _open_document_dialog_impl(self, app_kind="writer", source_path=None, password=None):
         """Mở hộp thoại chọn tệp NATIVE thật của hệ điều hành, chuyển đổi tệp thật sang
         định dạng trung gian mà UI có thể hiển thị."""
+        policy = _file_dialog_policy()
         if source_path:
             src_path = str(source_path)
         elif self._initial_file:
@@ -5008,20 +5216,40 @@ class VnOfficeApi:
             if not window:
                 return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
 
-            file_types = OPEN_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))
+            if policy is not None:
+                dialog_kwargs = {"file_types": policy.open_file_types(app_kind)}
+                if policy.open_allows_multiple:
+                    dialog_kwargs["allow_multiple"] = True
+            else:
+                dialog_kwargs = {"file_types": OPEN_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))}
             try:
-                result = window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types)
+                result = _create_file_dialog(window, webview.OPEN_DIALOG, **dialog_kwargs)
             except Exception as exc:  # lỗi hệ thống khi mở hộp thoại
                 return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
 
-            if not result:
+            chosen = _dialog_paths(result)
+            if not chosen:
                 return {"status": "cancelled"}
-            src_path = result[0]
+            if policy is not None:
+                chosen = [policy.normalize_existing_path(path) for path in chosen]
+            src_path = chosen[0]
+            # Như Office for Mac: chọn nhiều tệp thì tệp đầu mở ở cửa sổ này, các tệp sau mở cửa sổ riêng.
+            additional = [path for path in chosen[1:] if FILE_APP_KINDS.get(Path(path).suffix.lower()) == app_kind]
+            if additional:
+                threading.Thread(
+                    target=self._open_additional_files, args=(additional, app_kind),
+                    daemon=True, name="3T Office open more files",
+                ).start()
+        if policy is not None:
+            # Tên tệp tiếng Việt từ macOS thường ở dạng tách dấu (NFD): hiển thị/ghi nhớ ở dạng dựng sẵn (NFC).
+            src_path = policy.normalize_existing_path(src_path)
 
         _notify_document_open_progress(self)
 
         self._reporting_file_path = src_path
         self._reporting_operation = f"open.{Path(src_path).suffix.lower().lstrip('.') or 'unknown'}"
+        # Taken before the read: a change made while the file loads must count as a change.
+        opened_fingerprint = _file_fingerprint(src_path)
         if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
             _notify_sheet_open_progress("Đã chọn tệp. Đang chuẩn bị mở bảng tính lớn…", True, self)
 
@@ -5175,6 +5403,8 @@ class VnOfficeApi:
                             "ooxmlCommentsExtendedXml": _read_docx_comments_extended_xml(convert_src_path),
                             "ooxmlStylesXml": _read_docx_zip_entry(convert_src_path, "word/styles.xml"),
                             "ooxmlNumberingXml": _read_docx_zip_entry(convert_src_path, "word/numbering.xml"),
+                            "ooxmlFootnotesXml": _read_docx_zip_entry(convert_src_path, "word/footnotes.xml"),
+                            "ooxmlEndnotesXml": _read_docx_zip_entry(convert_src_path, "word/endnotes.xml"),
                             "ooxmlSettingsXml": _read_docx_zip_entry(convert_src_path, "word/settings.xml"),
                             "ooxmlCorePropertiesXml": _read_docx_zip_entry(convert_src_path, "docProps/core.xml"),
                         }
@@ -5283,6 +5513,7 @@ class VnOfficeApi:
         else:
             payload["content"] = content
         self._current_file_path = src_path
+        self._record_disk_fingerprint(src_path, opened_fingerprint)
         if app_kind == "writer":
             ooxml = (
                 writer_ooxml_metadata["ooxmlDocumentXml"]
@@ -5328,6 +5559,10 @@ class VnOfficeApi:
                 payload["ooxmlHeaders"] = writer_ooxml_metadata.get("ooxmlHeaders", {})
                 payload["ooxmlFooters"] = writer_ooxml_metadata.get("ooxmlFooters", {})
                 payload["ooxmlRels"] = writer_ooxml_metadata.get("ooxmlRels", {})
+                if writer_ooxml_metadata.get("ooxmlFootnotesXml"):
+                    payload["ooxmlFootnotesXml"] = writer_ooxml_metadata["ooxmlFootnotesXml"]
+                if writer_ooxml_metadata.get("ooxmlEndnotesXml"):
+                    payload["ooxmlEndnotesXml"] = writer_ooxml_metadata["ooxmlEndnotesXml"]
                 if writer_ooxml_metadata.get("ooxmlSettingsXml"):
                     payload["ooxmlSettingsXml"] = writer_ooxml_metadata["ooxmlSettingsXml"]
             else:
@@ -5336,6 +5571,12 @@ class VnOfficeApi:
                 payload["ooxmlHeaders"] = all_hdrs
                 payload["ooxmlFooters"] = all_ftrs
                 payload["ooxmlRels"] = all_rels
+                footnotes_xml = _read_docx_zip_entry(src_path, "word/footnotes.xml")
+                if footnotes_xml:
+                    payload["ooxmlFootnotesXml"] = footnotes_xml
+                endnotes_xml = _read_docx_zip_entry(src_path, "word/endnotes.xml")
+                if endnotes_xml:
+                    payload["ooxmlEndnotesXml"] = endnotes_xml
                 settings_xml = _read_docx_zip_entry(src_path, "word/settings.xml")
                 if settings_xml:
                     payload["ooxmlSettingsXml"] = settings_xml
@@ -5396,21 +5637,33 @@ class VnOfficeApi:
         self._document_password = password if encrypted_source else None
         return payload
 
+    def _open_additional_files(self, paths, app_kind):
+        for path in paths:
+            try:
+                result = self.open_file_in_new_window(path, app_kind)
+            except Exception as exc:
+                result = {"status": "error", "message": str(exc)}
+            if not isinstance(result, dict) or result.get("status") != "ok":
+                logging.getLogger("vnoffice.open").warning(
+                    "Could not open an additional selected %s file in a new window.", app_kind,
+                )
+
     def _open_writer_reference_document_impl(self):
         window = _active_window(self)
         if not window:
             return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
+        policy = _file_dialog_policy()
+        file_types = (policy.open_file_types("writer") if policy is not None
+                      else OPEN_FILE_TYPES.get("writer", ("Tất cả tệp (*.*)",)))
         try:
-            result = window.create_file_dialog(
-                webview.OPEN_DIALOG,
-                file_types=OPEN_FILE_TYPES.get("writer", ("Tất cả tệp (*.*)",)),
-            )
+            result = _create_file_dialog(window, webview.OPEN_DIALOG, file_types=file_types)
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
-        if not result:
+        chosen = _dialog_paths(result)
+        if not chosen:
             return {"status": "cancelled"}
 
-        reference_path = result[0]
+        reference_path = policy.normalize_existing_path(chosen[0]) if policy is not None else chosen[0]
         previous_initial = self._initial_file
         previous_current = self._current_file_path
         try:
@@ -5438,14 +5691,16 @@ class VnOfficeApi:
             "Tất cả tệp (*.*)",
         )
         try:
-            result = window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types)
+            result = _create_file_dialog(window, webview.OPEN_DIALOG, file_types=file_types)
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
 
-        if not result:
+        chosen = _dialog_paths(result)
+        if not chosen:
             return {"status": "cancelled"}
 
-        src_path = result[0]
+        policy = _file_dialog_policy()
+        src_path = policy.normalize_existing_path(chosen[0]) if policy is not None else chosen[0]
         ext = Path(src_path).suffix.lower()
         file_name = Path(src_path).name
         self._reporting_file_path = src_path
@@ -5516,10 +5771,16 @@ class VnOfficeApi:
             except OSError:
                 pass
 
+        def before_replace(dest):
+            # Checked again here: conversion can take a long time on a large document.
+            self._raise_if_changed_on_disk(target_path)
+            _keep_save_backup(dest, self._document_password)
+
         try:
+            self._raise_if_changed_on_disk(target_path)
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
                 stage_started = time.perf_counter()
-                build_format = "xlsx" if (app_kind == "sheet" and target_format == "xltx") else target_format
+                build_format = _template_build_format(target_format)
                 src_path = _write_save_source(content, app_kind, tmp, build_format)
                 if audit_timings is not None:
                     audit_timings["fodsWriteMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
@@ -5528,14 +5789,14 @@ class VnOfficeApi:
                     src_path, app_kind, build_format, source_document_path=source_path, timings=audit_timings,
                 )
                 if build_format != target_format:
-                    _convert_xlsx_to_template(out_path)
+                    _convert_ooxml_to_template(out_path, target_format)
                 if self._document_password and target_format not in {"docx", "xlsx", "pptx"}:
                     raise DocumentEngineError("Hãy xóa mật khẩu trước khi lưu sang định dạng không hỗ trợ mã hóa.")
                 out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
                 if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
                     _run_ooxml_shadow(target_format, source_path, out_path)
                 stage_started = time.perf_counter()
-                _atomic_replace_file(out_path, target_path)
+                _atomic_replace_file(out_path, target_path, before_replace=before_replace)
                 if audit_timings is not None:
                     audit_timings["atomicReplaceMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
                 stage_started = time.perf_counter()
@@ -5543,6 +5804,9 @@ class VnOfficeApi:
                 if audit_timings is not None:
                     audit_timings["verifyMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
                     audit_timings["outputBytes"] = os.path.getsize(target_path)
+        except ExternalFileChangeError as exc:
+            write_audit_timings("EXTERNAL_CHANGE")
+            return {"status": "external_change", "message": str(exc), "path": exc.path, "fingerprint": exc.fingerprint}
         except DocumentEngineError as exc:
             write_audit_timings("FAIL")
             return {"status": "error", "message": str(exc)}
@@ -5552,6 +5816,7 @@ class VnOfficeApi:
 
         write_audit_timings("PASS")
         self._current_file_path = target_path
+        self._record_disk_fingerprint(target_path)
         result = {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
         if audit_timings is not None:
             result["timings"] = audit_timings
@@ -5580,31 +5845,62 @@ class VnOfficeApi:
                 default_ext = "html" if s_ext == "htm" else s_ext
                 default_stem = Path(suggested_name).stem
 
-        if target_format == "pdf":
-            file_types = ("Tài liệu PDF (*.pdf)", "Tất cả tệp (*.*)")
+        policy = _file_dialog_policy()
+        if policy is not None:
+            # MAC-3-2610: macOS Save panels have no file-type menu (pywebview Cocoa/Qt), so the name carries the
+            # extension of the chosen format; unnamed documents start as "Tài liệu 1.docx" in ~/Documents.
+            default_stem, default_ext = policy.suggested_save_name(app_kind, suggested_name, target_format)
+            dialog_kwargs = {
+                "save_filename": policy.dialog_save_filename(default_stem, default_ext),
+                "file_types": policy.save_file_types(app_kind, default_ext),
+            }
+            initial_directory = policy.initial_directory(source_path)
+            if initial_directory:
+                dialog_kwargs["directory"] = initial_directory
         else:
-            file_types = _save_file_types_for_format(app_kind, default_ext)
+            if target_format == "pdf":
+                file_types = ("Tài liệu PDF (*.pdf)", "Tất cả tệp (*.*)")
+            else:
+                file_types = _save_file_types_for_format(app_kind, default_ext)
 
-        # Leave the extension off so the native dialog can append the extension
-        # for whichever file type the user selects, including a different format.
-        dialog_kwargs = {"save_filename": default_stem, "file_types": file_types}
-        # Like Word/Excel/PowerPoint, Save As starts in the folder of the file being edited.
-        source_dir = os.path.dirname(str(source_path)) if source_path else ""
-        if source_dir and os.path.isdir(source_dir):
-            dialog_kwargs["directory"] = source_dir
+            # Leave the extension off so the native dialog can append the extension
+            # for whichever file type the user selects, including a different format.
+            dialog_kwargs = {"save_filename": default_stem, "file_types": file_types}
+            # Like Word/Excel/PowerPoint, Save As starts in the folder of the file being edited.
+            source_dir = os.path.dirname(str(source_path)) if source_path else ""
+            if source_dir and os.path.isdir(source_dir):
+                dialog_kwargs["directory"] = source_dir
 
         try:
             # pywebview's Windows SaveFileDialog uses the native overwrite prompt; if
             # the user declines/cancels it, create_file_dialog returns an empty result.
-            save_result = window.create_file_dialog(webview.SAVE_DIALOG, **dialog_kwargs)
+            save_result = _create_file_dialog(window, webview.SAVE_DIALOG, **dialog_kwargs)
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được hộp thoại lưu: {exc}"}
 
-        if not save_result:
+        chosen = _dialog_paths(save_result)
+        if not chosen:
             return {"status": "cancelled"}
-        dest_path = save_result if isinstance(save_result, str) else save_result[0]
+        dest_path = chosen[0]
 
-        dest_path, actual_format = _infer_save_format_from_path(dest_path, app_kind=app_kind)
+        if policy is not None:
+            dest_path, actual_format, corrected = policy.resolve_saved_path(
+                dest_path, default_ext, policy.save_extensions(app_kind, target_format),
+            )
+            if policy.needs_overwrite_confirmation(dest_path, corrected):
+                # The native panel asked about the name the user typed, not the one with the added extension.
+                try:
+                    confirmed = window.create_confirmation_dialog(
+                        "Thay thế tệp đã có?",
+                        f"Tệp “{os.path.basename(dest_path)}” đã có trong thư mục này. "
+                        "Thay thế sẽ ghi đè nội dung của tệp đó. Bạn có muốn thay thế không?",
+                    )
+                except Exception as exc:
+                    return {"status": "error", "message": f"Không mở được xác nhận thay thế tệp: {exc}"}
+                if not confirmed:
+                    return {"status": "cancelled"}
+        else:
+            dest_path, actual_format = _infer_save_format_from_path(dest_path, app_kind=app_kind)
         target_format = actual_format
         if app_kind == "sheet" and target_format == "csv" and _fods_sheet_count(content) > 1:
             try:
@@ -5630,19 +5926,22 @@ class VnOfficeApi:
                 else:
                     # Mẫu .xltx: đi hết đường lưu .xlsx (giữ mọi bước hậu kỳ của VN Office)
                     # rồi chỉ đổi loại nội dung của sổ thành "template".
-                    build_format = "xlsx" if (app_kind == "sheet" and target_format == "xltx") else target_format
+                    build_format = _template_build_format(target_format)
                     src_path = _write_save_source(content, app_kind, tmp, build_format)
                     out_path = _convert_save_source_to_native(
                         src_path, app_kind, build_format, source_document_path=source_path,
                     )
                     if build_format != target_format:
-                        _convert_xlsx_to_template(out_path)
+                        _convert_ooxml_to_template(out_path, target_format)
                     if self._document_password and target_format not in {"docx", "xlsx", "pptx"}:
                         raise DocumentEngineError("Hãy xóa mật khẩu trước khi lưu sang định dạng không hỗ trợ mã hóa.")
                     out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
                     if build_format == target_format and target_format in {"docx", "xlsx", "pptx"}:
                         _run_ooxml_shadow(target_format, source_path, out_path)
-                _atomic_replace_file(out_path, dest_path)
+                _atomic_replace_file(
+                    out_path, dest_path,
+                    before_replace=lambda dest: _keep_save_backup(dest, self._document_password),
+                )
                 _verify_saved_file(dest_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
@@ -5650,6 +5949,7 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Không lưu được tệp. Hãy kiểm tra quyền ghi, dung lượng trống và thử lại."}
 
         self._current_file_path = dest_path
+        self._record_disk_fingerprint(dest_path)
         response = {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
         if target_format == "pdf":
             response["engine"] = pdf_engine or "LibreOffice"

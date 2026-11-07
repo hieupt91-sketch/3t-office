@@ -7,6 +7,7 @@ import { WRITER_HELP_ENTRIES } from "./entries-writer.js";
 import { ERROR_REPORTING_HELP_ENTRIES } from "./entries-error-reporting.js";
 import { AUTORECOVER_HELP_ENTRIES } from "./entries-autorecover.js";
 import { STABILITY_HELP_ENTRIES } from "./entries-stability.js";
+import { SAVE_SAFETY_HELP_ENTRIES } from "./entries-save-safety.js";
 import { UPDATER_HELP_ENTRIES } from "./entries-updater.js";
 import { LICENSE_HELP_ENTRIES } from "./entries-license.js";
 import { GAP_HELP_ENTRIES } from "./entries-gaps-0410.js";
@@ -18,6 +19,7 @@ import { RETRO_PLATFORM_HELP_ENTRIES } from "./entries-retro-platform.js";
 import { VIETNAMESE_TYPING_HELP_ENTRIES } from "./entries-vietnamese-typing.js";
 import { MACOS_FONT_HELP_ENTRIES } from "./entries-macos-fonts.js";
 import { MACOS_SHORTCUT_HELP_ENTRIES } from "./entries-macos-shortcuts.js";
+import { MACOS_FILE_HELP_ENTRIES } from "./entries-macos-files.js";
 
 /** @type {Array<HelpEntry>} */
 export const HELP_ENTRIES = [
@@ -25,6 +27,7 @@ export const HELP_ENTRIES = [
   ...ERROR_REPORTING_HELP_ENTRIES,
   ...AUTORECOVER_HELP_ENTRIES,
   ...STABILITY_HELP_ENTRIES,
+  ...SAVE_SAFETY_HELP_ENTRIES,
   ...UPDATER_HELP_ENTRIES,
   ...LICENSE_HELP_ENTRIES,
   ...GAP_HELP_ENTRIES,
@@ -35,7 +38,8 @@ export const HELP_ENTRIES = [
   ...RETRO_PLATFORM_HELP_ENTRIES,
   ...VIETNAMESE_TYPING_HELP_ENTRIES,
   ...MACOS_FONT_HELP_ENTRIES,
-  ...MACOS_SHORTCUT_HELP_ENTRIES
+  ...MACOS_SHORTCUT_HELP_ENTRIES,
+  ...MACOS_FILE_HELP_ENTRIES
 ];
 
 /**

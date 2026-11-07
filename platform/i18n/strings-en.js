@@ -216,6 +216,8 @@ export const enStrings = {
     print: "Print document",
     exportPdf: "Export PDF",
     ready: "Ready",
+    interfaceLocale: "English (United States)",
+    characterEncoding: "Character encoding: Unicode normalization (NFC)",
     ok: "OK",
     cancel: "Cancel",
     close: "Close",
@@ -263,6 +265,13 @@ export const enStrings = {
     pickTopic: "Select a feature in the list to read its guide.",
     location: "Location",
     stepsHeading: "How to use"
+  },
+  saveConflict: {
+    title: "File has changed",
+    message: "The file “{fileName}” was changed outside 3T Office since you last opened or saved it, possibly by someone else on the network. If you overwrite it, those changes will be lost. What would you like to do?",
+    saveCopy: "Save a copy",
+    overwrite: "Overwrite",
+    cancel: "Cancel"
   },
   autoRecover: {
     settingsTitle: "AutoRecover",
@@ -504,7 +513,17 @@ export const enStrings = {
     status: { enter: "Enter", edit: "Edit", point: "Point" },
     referenceHint: "Click or drag across cells to insert references; press F2 to switch between Edit and Point.",
     formulaBarLabel: "Sheet Formula Bar",
+    legacyFunctionWarningOne: "Function {function} is available starting with version 2019/365; older spreadsheet app versions may show #NAME?.",
     legacyFunctionWarning: "Functions {functions} are available starting with version 2019/365; older spreadsheet app versions may show #NAME?.",
+    formulaBarPlaceholder: "Enter a value or formula (for example: =SUM(F4:F7), =AVERAGE(E4:E7)...)",
+    statusStatCount: "Count numbers", statusStatCountShort: "COUNT",
+    statusStatCounta: "Count nonblank cells", statusStatCountaShort: "COUNTA",
+    statusStatMin: "Minimum", statusStatMinShort: "MIN",
+    statusStatMax: "Maximum", statusStatMaxShort: "MAX",
+    statusStatAverage: "Average", statusStatAverageShort: "AVERAGE",
+    statusStatSum: "Sum", statusStatSumShort: "SUM",
+    statusReady: "READY",
+    statusCell: "Cell: {coord}",
     disableLegacyFunctionWarning: "Turn off warnings for this session"
   },
   sheetTableStyles: {
@@ -1920,6 +1939,9 @@ export const enStrings = {
       replyPlaceholder: "Type your reply...",
       replyBtn: "Send Reply",
       panelLabel: "Document Comments",
+      revisionsLabel: "Revisions",
+      deleteCommentAria: "Delete comment for: {text}",
+      deleteCommentButton: "Delete",
       openCommentAria: "Open comment for: {text}",
       placeholderHeader: "Click to enter header...",
       placeholderFooter: "Click to enter footer..."

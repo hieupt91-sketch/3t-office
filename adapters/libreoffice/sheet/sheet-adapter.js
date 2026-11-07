@@ -4,6 +4,8 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { saveInPlaceCheckingExternalChange } from "../common/save-conflict.js";
+import { documentFontStack } from "../../../platform/fonts/font-stack.js";
 import { showAlertDialog, showPromptDialog, showFindReplaceDialog, showHyperlinkDialog, showSymbolPicker } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
@@ -1452,6 +1454,10 @@ export class SheetAdapter {
     while ((frameMatch = frameRegex.exec(shapesXml)) !== null) {
       const frameAttrs = frameMatch[1];
       const frameBody = frameMatch[2];
+      // LibreOffice writes an image preview beside the live chart object in the same frame.
+      // The Sheet chart renderer replaces that preview; importing it as a regular image leaves
+      // a broken-image outline over the chart when the preview payload is not browser-decodable.
+      if (/<chart:chart\b/i.test(frameBody)) continue;
       const imageMatch = frameBody.match(/<draw:image\b([^>]*)>([\s\S]*?)<\/draw:image>/i);
       if (!imageMatch) continue;
       const binaryMatch = imageMatch[2].match(/<office:binary-data\b[^>]*>([\s\S]*?)<\/office:binary-data>/i);
@@ -1631,10 +1637,12 @@ export class SheetAdapter {
         width = Number(colWidths.get(col)) || defaultColWidth;
       }
       const style = item.style || {};
+      // FIX-D6-2510: đo bằng cùng chuỗi phông ô lưới vẽ (tên gốc + phông cùng kích thước + họ chung).
+      const family = documentFontStack(style.fontFamily) || "Calibri, Carlito, Arial, sans-serif";
       const cellFont = {
-        css: `${style.fontStyle || "normal"} ${style.fontWeight || "normal"} ${style.fontSize || "14.67px"} ${style.fontFamily || "Calibri, Carlito, Arial, sans-serif"}`,
+        css: `${style.fontStyle || "normal"} ${style.fontWeight || "normal"} ${style.fontSize || "14.67px"} ${family}`,
         px: parseFloat(style.fontSize) || 14.67,
-        family: style.fontFamily || "Calibri, Carlito, Arial, sans-serif",
+        family,
         heights: heights.map(Number)
       };
       const runs = richRuns
@@ -5004,7 +5012,12 @@ ${pristineXlsxMarker}${docPropsMarker}
    * leaks a fake worksheet. Strip embedded objects before cell parsing.
    */
   _xmlWithoutEmbeddedObjects(xmlText) {
-    return String(xmlText || "").replace(/<draw:object\b([^>]*)>([\s\S]*?)<\/draw:object>/gi, "<draw:object$1/>");
+    const withoutChartPreviews = String(xmlText || "").replace(/<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi, (frame, attrs, body) => {
+      if (!/<chart:chart\b/i.test(body) || !/<draw:image\b/i.test(body)) return frame;
+      const cleanBody = body.replace(/<draw:image\b[^>]*\/\s*>|<draw:image\b[^>]*>[\s\S]*?<\/draw:image>/gi, "");
+      return `<draw:frame${attrs}>${cleanBody}</draw:frame>`;
+    });
+    return withoutChartPreviews.replace(/<draw:object\b([^>]*)>([\s\S]*?)<\/draw:object>/gi, "<draw:object$1/>");
   }
 
   _mapOdfChartClass(value) {
@@ -5095,6 +5108,11 @@ ${pristineXlsxMarker}${docPropsMarker}
           workbook.sheets[0]
         );
         if (values) ranges.push(values);
+        const label = this._parseOdfTargetRange(
+          attrs.match(/chart:label-cell-address=["']([^"']+)["']/i)?.[1] || "",
+          workbook.sheets[0]
+        );
+        if (label) ranges.push(label);
       }
       const categories = this._parseOdfTargetRange(
         categoryAttrs.match(/table:cell-range-address=["']([^"']+)["']/i)?.[1] || "",
@@ -6645,13 +6663,15 @@ ${pristineXlsxMarker}${docPropsMarker}
     }
 
     const fodsContent = this.serializeToFods();
-    const result = await globalUnoBridge.saveRealFileInPlace(
+    const result = await saveInPlaceCheckingExternalChange(
       "sheet",
       fodsContent,
       this.sourceFilePath,
-      this.sourceFilePath
+      this.sourceFilePath,
+      () => this.saveAs()
     );
 
+    if (result.status === "saved_copy") return true;
     if (result.status === "ok") {
       this.isDirty = false;
       const savedPath = result.path || this.sourceFilePath;

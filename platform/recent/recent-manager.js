@@ -21,6 +21,18 @@ export function formatShortPath(filePath) {
   return `${prefix}.../${parts.slice(-2).join("/")}`;
 }
 
+/**
+ * Cùng một tệp có thể được báo bằng hai cách viết Unicode của tên tiếng Việt (dựng sẵn NFC hoặc tách dấu NFD, như
+ * tên tệp macOS trả về). So khớp theo dạng NFC để danh sách gần đây không bị trùng; đường dẫn lưu vẫn giữ nguyên.
+ * @param {string} first
+ * @param {string} second
+ */
+export function isSameRecentPath(first, second) {
+  if (typeof first !== "string" || typeof second !== "string") return false;
+  if (first === second) return true;
+  return first.normalize("NFC") === second.normalize("NFC");
+}
+
 export class RecentFilesManager {
   static _getStorage() {
     if (typeof window !== "undefined" && window.localStorage) return window.localStorage;
@@ -52,8 +64,8 @@ export class RecentFilesManager {
       const storage = this._getStorage();
       if (!storage || typeof path !== "string" || !path.trim()) return false;
       const list = this.getRecentFiles();
-      const existingIdx = list.findIndex(item => item.path === path && item.app === app);
-      
+      const existingIdx = list.findIndex(item => isSameRecentPath(item.path, path) && item.app === app);
+
       const entry = {
         id: `${app}_${name}`,
         name,

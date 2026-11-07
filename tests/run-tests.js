@@ -4,6 +4,7 @@
  */
 
 import { runCommandBusTests } from "./unit/command-bus.test.js";
+import { runSaveExternalChangeTests } from "./unit/save-external-change.test.js";
 import { runWriterInteractiveRulerTests } from "./unit/writer-interactive-ruler.test.js";
 import { runWriterNavigationPaneTests } from "./unit/writer-nav-pane.test.js";
 import { runNumericDialogValidationTests } from "./unit/numeric-dialog-validation.test.js";
@@ -38,6 +39,7 @@ import { runI18nTests } from "./unit/i18n.test.js";
 import { run3TDisplayNameTests } from "./unit/3t-display-name.test.js";
 import { runI18nHardcodedEnglishTests } from "./unit/i18n-hardcoded-english.test.js";
 import { runSyntaxCheckTests } from "./unit/syntax-check.test.js";
+import { runLicenseGateTests } from "./unit/license-gate.test.js";
 import { runHtmlSmokeTests } from "./smoke/html-smoke.test.js";
 import { runAiServiceTests } from "./unit/ai-service.test.js";
 import { runApiKeyManagerTests } from "./unit/api-key-manager.test.js";
@@ -79,6 +81,7 @@ import { runSheetArrayFormulaTests } from "./unit/sheet-array-formulas.test.js";
 import { runSlidesDiagramTests } from "./unit/slides-diagrams.test.js";
 import { runShortcutScopeTests } from "./unit/shortcut-scope.test.js";
 import { runMacOSKeymapTests } from "./unit/macos-keymap.test.js";
+import { runMacOSFileDialogTests } from "./unit/macos-file-dialogs.test.js";
 import { runCaretBoundaryTests } from "./unit/caret-boundary.test.js";
 import { runWriterRefMailAuditTests } from "./unit/writer-refmail-audit.test.js";
 import { runSheetImageTests } from "./unit/sheet-images.test.js";
@@ -257,6 +260,7 @@ import { runSlidesImportFidelityTests } from "./unit/slides-import-fidelity.test
 import { runSlidesSaveFidelityTests } from "./unit/slides-save-fidelity.test.js";
 import { runWriterDocxAuditTests } from "./unit/writer-docx-audit.test.js";
 import { runWriterDocFontSpacingTests } from "./unit/writer-doc-font-spacing.test.js";
+import { runWriterNumberingOracleQ83Tests } from "./unit/writer-numbering-oracle-q83.test.js";
 import { runWriterZoomWheelTests } from "./unit/writer-zoom-wheel.test.js";
 import { runWriterLegacyKeepNextTests } from "./unit/writer-legacy-keep-next.test.js";
 import { runSheetDateValuesTests } from "./unit/sheet-date-values.test.js";
@@ -327,6 +331,8 @@ import { runWriterTabsTablesAgyTests } from "./unit/writer-tabs-tables-agy.test.
 import { runSheetThemesTests } from "./unit/sheet-themes.test.js";
 import { run as runWriterWord2016Parity2Tests } from "./unit/writer-word2016-parity2.test.js";
 import { runSlidesFix2510Tests } from "./unit/slides-fix-2510.test.js";
+import { runDocumentFontStackTests } from "./unit/document-font-stack.test.js";
+import { runSlides23110Tests } from "./unit/slides-2-3110.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -410,6 +416,7 @@ async function runAll() {
     { title: "47. Behavioral Tests — VN Slides SmartArt-like Diagrams", runner: runSlidesDiagramTests },
     { title: "48. Runtime Tests — Active App Shortcut Scope", runner: runShortcutScopeTests },
     { title: "48b. Runtime Tests — macOS Cmd/Option Shortcut Map", runner: runMacOSKeymapTests },
+    { title: "48b2. Unit Tests — macOS Open/Save Dialog Names & Help (MAC-3-2610)", runner: runMacOSFileDialogTests },
     { title: "48c. Unit Tests — Document Boundary Caret (Cmd/Ctrl+Home/End, D9)", runner: runCaretBoundaryTests },
     { title: "49. Behavioral & Unit Tests — VN Writer References & Mailings Audit", runner: runWriterRefMailAuditTests },
     { title: "50. Behavioral Tests — VN Sheet Insert Pictures", runner: runSheetImageTests },
@@ -563,6 +570,7 @@ async function runAll() {
     { title: "184. Unit Tests — Slides Save Fidelity (PowerPoint 2016 parity: quotes, line-height, fo:clip, master chrome)", runner: runSlidesSaveFidelityTests },
     { title: "185. Unit Tests — Writer DOCX effective-format audit", runner: runWriterDocxAuditTests },
     { title: "186. Unit Tests — Writer doc font / line spacing (Word multiple x font ratio, anchor <br>, imported class)", runner: runWriterDocFontSpacingTests },
+    { title: "186b. Unit Tests — Writer WordprocessingML list numbering oracle parity (MS-OI29500 §17.9, start/lvlRestart override)", runner: runWriterNumberingOracleQ83Tests },
     { title: "187. Unit Tests — Sheet date/time cell values (office:date-value round trip)", runner: runSheetDateValuesTests },
     { title: "188. Unit Tests — UI Kit Notification Bar & WCAG AA Color Contrast", runner: runNotificationBarTests },
     { title: "189. Unit Tests — Signed Updater UI and Help", runner: runUpdaterUiTests },
@@ -663,7 +671,11 @@ async function runAll() {
     { title: "272. Unit Tests — Writer Tabs Dialog, Ruler Tab Stops, Go To, Split Table, Text Direction, Table Properties (AGY-WRITER1)", runner: runWriterTabsTablesAgyTests },
     { title: "273. Unit Tests — Sheet Workbook Themes, Colors, Fonts Parity (AGY-THEMES)", runner: runSheetThemesTests },
     { title: "273. Unit Tests — Writer Selection Pane, Group/Ungroup, Split Window, Table Styles, Table Formula (Word 2016 Parity Round 2)", runner: runWriterWord2016Parity2Tests },
-    { title: "274. Unit Tests — FIX-SLIDES-2510 (D1 mở lại PPTX vẽ hai lần, D7 dấu đầu dòng, D8 chữ trong hình)", runner: runSlidesFix2510Tests }
+    { title: "274. Unit Tests — FIX-SLIDES-2510 (D1 mở lại PPTX vẽ hai lần, D7 dấu đầu dòng, D8 chữ trong hình)", runner: runSlidesFix2510Tests },
+    { title: "274. Unit Tests — Document Font Stacks & Calibri→Carlito Substitutes (FIX-D6-2510)", runner: runDocumentFontStackTests },
+    { title: "275. Unit Tests — SLIDES-2-3110 (a thanh nhấn sau mở lại, b vừa vùng nhìn, c hình dựng sẵn ở hình thu nhỏ/trình chiếu, d chữ hình căn giữa khi lưu)", runner: runSlides23110Tests },
+    { title: "276. Unit Tests — Tệp bị thay đổi từ bên ngoài khi lưu (S1)", runner: runSaveExternalChangeTests },
+    { title: "278. Unit Tests — G1 Cổng giấy phép dependency (lớp riêng, INBOX-MAC #18)", runner: runLicenseGateTests }
   ];
 
   for (const suite of suites) {
