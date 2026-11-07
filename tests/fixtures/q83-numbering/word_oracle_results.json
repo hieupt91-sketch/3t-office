@@ -1,0 +1,352 @@
+﻿{
+    "case3_lvl_restart_0.docx":  [
+                                     {
+                                         "Index":  1,
+                                         "Text":  "Phan mot",
+                                         "ListString":  "1.",
+                                         "ListValue":  1
+                                     },
+                                     {
+                                         "Index":  2,
+                                         "Text":  "Muc con a",
+                                         "ListString":  "a)",
+                                         "ListValue":  1
+                                     },
+                                     {
+                                         "Index":  3,
+                                         "Text":  "Muc con b",
+                                         "ListString":  "b)",
+                                         "ListValue":  2
+                                     },
+                                     {
+                                         "Index":  4,
+                                         "Text":  "Phan hai",
+                                         "ListString":  "2.",
+                                         "ListValue":  2
+                                     },
+                                     {
+                                         "Index":  5,
+                                         "Text":  "Muc con sau phan hai",
+                                         "ListString":  "a)",
+                                         "ListValue":  1
+                                     }
+                                 ],
+    "case5_multi_numid_same_abstract.docx":  [
+                                                 {
+                                                     "Index":  1,
+                                                     "Text":  "Danh sach A muc mot",
+                                                     "ListString":  "1.",
+                                                     "ListValue":  1
+                                                 },
+                                                 {
+                                                     "Index":  2,
+                                                     "Text":  "Danh sach A muc hai",
+                                                     "ListString":  "2.",
+                                                     "ListValue":  2
+                                                 },
+                                                 {
+                                                     "Index":  3,
+                                                     "Text":  "Danh sach B muc mot",
+                                                     "ListString":  "3.",
+                                                     "ListValue":  3
+                                                 },
+                                                 {
+                                                     "Index":  4,
+                                                     "Text":  "Danh sach B muc hai",
+                                                     "ListString":  "4.",
+                                                     "ListValue":  4
+                                                 },
+                                                 {
+                                                     "Index":  5,
+                                                     "Text":  "Danh sach A muc ba",
+                                                     "ListString":  "5.",
+                                                     "ListValue":  5
+                                                 }
+                                             ],
+    "case4_lvl_restart_n.docx":  [
+                                     {
+                                         "Index":  1,
+                                         "Text":  "Cap khong dot mot",
+                                         "ListString":  "1.",
+                                         "ListValue":  1
+                                     },
+                                     {
+                                         "Index":  2,
+                                         "Text":  "Cap mot dot mot",
+                                         "ListString":  "a)",
+                                         "ListValue":  1
+                                     },
+                                     {
+                                         "Index":  3,
+                                         "Text":  "Cap hai muc mot",
+                                         "ListString":  "i.",
+                                         "ListValue":  1
+                                     },
+                                     {
+                                         "Index":  4,
+                                         "Text":  "Cap mot dot hai",
+                                         "ListString":  "b)",
+                                         "ListValue":  2
+                                     },
+                                     {
+                                         "Index":  5,
+                                         "Text":  "Cap hai muc hai",
+                                         "ListString":  "i.",
+                                         "ListValue":  1
+                                     },
+                                     {
+                                         "Index":  6,
+                                         "Text":  "Cap khong dot hai",
+                                         "ListString":  "2.",
+                                         "ListValue":  2
+                                     },
+                                     {
+                                         "Index":  7,
+                                         "Text":  "Cap mot dot ba",
+                                         "ListString":  "a)",
+                                         "ListValue":  1
+                                     },
+                                     {
+                                         "Index":  8,
+                                         "Text":  "Cap hai muc ba",
+                                         "ListString":  "i.",
+                                         "ListValue":  1
+                                     }
+                                 ],
+    "case4b_abstract_lvl_restart_n.docx":  [
+                                               {
+                                                   "Index":  1,
+                                                   "Text":  "Cap khong dot mot",
+                                                   "ListString":  "1.",
+                                                   "ListValue":  1
+                                               },
+                                               {
+                                                   "Index":  2,
+                                                   "Text":  "Cap mot dot mot",
+                                                   "ListString":  "a)",
+                                                   "ListValue":  1
+                                               },
+                                               {
+                                                   "Index":  3,
+                                                   "Text":  "Cap hai muc mot",
+                                                   "ListString":  "i.",
+                                                   "ListValue":  1
+                                               },
+                                               {
+                                                   "Index":  4,
+                                                   "Text":  "Cap mot dot hai",
+                                                   "ListString":  "b)",
+                                                   "ListValue":  2
+                                               },
+                                               {
+                                                   "Index":  5,
+                                                   "Text":  "Cap hai muc hai",
+                                                   "ListString":  "ii.",
+                                                   "ListValue":  2
+                                               },
+                                               {
+                                                   "Index":  6,
+                                                   "Text":  "Cap khong dot hai",
+                                                   "ListString":  "2.",
+                                                   "ListValue":  2
+                                               },
+                                               {
+                                                   "Index":  7,
+                                                   "Text":  "Cap mot dot ba",
+                                                   "ListString":  "a)",
+                                                   "ListValue":  1
+                                               },
+                                               {
+                                                   "Index":  8,
+                                                   "Text":  "Cap hai muc ba",
+                                                   "ListString":  "i.",
+                                                   "ListValue":  1
+                                               }
+                                           ],
+    "case5b_multi_numid_with_start_override.docx":  [
+                                                        {
+                                                            "Index":  1,
+                                                            "Text":  "Danh sach 1 muc mot",
+                                                            "ListString":  "1.",
+                                                            "ListValue":  1
+                                                        },
+                                                        {
+                                                            "Index":  2,
+                                                            "Text":  "Danh sach 1 muc hai",
+                                                            "ListString":  "2.",
+                                                            "ListValue":  2
+                                                        },
+                                                        {
+                                                            "Index":  3,
+                                                            "Text":  "Danh sach 2 muc mot",
+                                                            "ListString":  "10.",
+                                                            "ListValue":  10
+                                                        },
+                                                        {
+                                                            "Index":  4,
+                                                            "Text":  "Danh sach 2 muc hai",
+                                                            "ListString":  "11.",
+                                                            "ListValue":  11
+                                                        },
+                                                        {
+                                                            "Index":  5,
+                                                            "Text":  "Danh sach 1 muc ba",
+                                                            "ListString":  "12.",
+                                                            "ListValue":  12
+                                                        }
+                                                    ],
+    "case2_lvl_start_override.docx":  [
+                                          {
+                                              "Index":  1,
+                                              "Text":  "Doan mot cua lvl start override",
+                                              "ListString":  "1.",
+                                              "ListValue":  1
+                                          },
+                                          {
+                                              "Index":  2,
+                                              "Text":  "Doan hai cua lvl start override",
+                                              "ListString":  "2.",
+                                              "ListValue":  2
+                                          },
+                                          {
+                                              "Index":  3,
+                                              "Text":  "Doan ba cua lvl start override",
+                                              "ListString":  "3.",
+                                              "ListValue":  3
+                                          }
+                                      ],
+    "case3b_abstract_lvl_restart_0.docx":  [
+                                               {
+                                                   "Index":  1,
+                                                   "Text":  "Phan mot",
+                                                   "ListString":  "1.",
+                                                   "ListValue":  1
+                                               },
+                                               {
+                                                   "Index":  2,
+                                                   "Text":  "Muc con a",
+                                                   "ListString":  "a)",
+                                                   "ListValue":  1
+                                               },
+                                               {
+                                                   "Index":  3,
+                                                   "Text":  "Muc con b",
+                                                   "ListString":  "b)",
+                                                   "ListValue":  2
+                                               },
+                                               {
+                                                   "Index":  4,
+                                                   "Text":  "Phan hai",
+                                                   "ListString":  "2.",
+                                                   "ListValue":  2
+                                               },
+                                               {
+                                                   "Index":  5,
+                                                   "Text":  "Muc con tiep tuc sau phan hai",
+                                                   "ListString":  "c)",
+                                                   "ListValue":  3
+                                               }
+                                           ],
+    "case1_start_override.docx":  [
+                                      {
+                                          "Index":  1,
+                                          "Text":  "Muc mot bat dau tu nam",
+                                          "ListString":  "5.",
+                                          "ListValue":  5
+                                      },
+                                      {
+                                          "Index":  2,
+                                          "Text":  "Muc hai tiep theo",
+                                          "ListString":  "6.",
+                                          "ListValue":  6
+                                      },
+                                      {
+                                          "Index":  3,
+                                          "Text":  "Muc ba tiep theo",
+                                          "ListString":  "7.",
+                                          "ListValue":  7
+                                      }
+                                  ],
+    "case7_control_no_override.docx":  [
+                                           {
+                                               "Index":  1,
+                                               "Text":  "Doi chung phan mot",
+                                               "ListString":  "1.",
+                                               "ListValue":  1
+                                           },
+                                           {
+                                               "Index":  2,
+                                               "Text":  "Doi chung muc a",
+                                               "ListString":  "a)",
+                                               "ListValue":  1
+                                           },
+                                           {
+                                               "Index":  3,
+                                               "Text":  "Doi chung muc b",
+                                               "ListString":  "b)",
+                                               "ListValue":  2
+                                           },
+                                           {
+                                               "Index":  4,
+                                               "Text":  "Doi chung phan hai",
+                                               "ListString":  "2.",
+                                               "ListValue":  2
+                                           },
+                                           {
+                                               "Index":  5,
+                                               "Text":  "Doi chung muc a sau phan hai",
+                                               "ListString":  "a)",
+                                               "ListValue":  1
+                                           }
+                                       ],
+    "case6_deep_then_shallow.docx":  [
+                                         {
+                                             "Index":  1,
+                                             "Text":  "Cap nong mot",
+                                             "ListString":  "1.",
+                                             "ListValue":  1
+                                         },
+                                         {
+                                             "Index":  2,
+                                             "Text":  "Cap trung a",
+                                             "ListString":  "a)",
+                                             "ListValue":  1
+                                         },
+                                         {
+                                             "Index":  3,
+                                             "Text":  "Cap sau mot",
+                                             "ListString":  "i.",
+                                             "ListValue":  1
+                                         },
+                                         {
+                                             "Index":  4,
+                                             "Text":  "Cap sau hai",
+                                             "ListString":  "ii.",
+                                             "ListValue":  2
+                                         },
+                                         {
+                                             "Index":  5,
+                                             "Text":  "Cap nong hai",
+                                             "ListString":  "2.",
+                                             "ListValue":  2
+                                         },
+                                         {
+                                             "Index":  6,
+                                             "Text":  "Cap sau sau cap nong hai",
+                                             "ListString":  "i.",
+                                             "ListValue":  1
+                                         },
+                                         {
+                                             "Index":  7,
+                                             "Text":  "Cap trung sau cap sau",
+                                             "ListString":  "b)",
+                                             "ListValue":  2
+                                         },
+                                         {
+                                             "Index":  8,
+                                             "Text":  "Cap sau tiep theo",
+                                             "ListString":  "i.",
+                                             "ListValue":  1
+                                         }
+                                     ]
+}

@@ -259,6 +259,7 @@ import { runSlidesImportFidelityTests } from "./unit/slides-import-fidelity.test
 import { runSlidesSaveFidelityTests } from "./unit/slides-save-fidelity.test.js";
 import { runWriterDocxAuditTests } from "./unit/writer-docx-audit.test.js";
 import { runWriterDocFontSpacingTests } from "./unit/writer-doc-font-spacing.test.js";
+import { runWriterNumberingOracleQ83Tests } from "./unit/writer-numbering-oracle-q83.test.js";
 import { runWriterZoomWheelTests } from "./unit/writer-zoom-wheel.test.js";
 import { runWriterLegacyKeepNextTests } from "./unit/writer-legacy-keep-next.test.js";
 import { runSheetDateValuesTests } from "./unit/sheet-date-values.test.js";
@@ -568,6 +569,7 @@ async function runAll() {
     { title: "184. Unit Tests — Slides Save Fidelity (PowerPoint 2016 parity: quotes, line-height, fo:clip, master chrome)", runner: runSlidesSaveFidelityTests },
     { title: "185. Unit Tests — Writer DOCX effective-format audit", runner: runWriterDocxAuditTests },
     { title: "186. Unit Tests — Writer doc font / line spacing (Word multiple x font ratio, anchor <br>, imported class)", runner: runWriterDocFontSpacingTests },
+    { title: "186b. Unit Tests — Writer WordprocessingML list numbering oracle parity (MS-OI29500 §17.9, start/lvlRestart override)", runner: runWriterNumberingOracleQ83Tests },
     { title: "187. Unit Tests — Sheet date/time cell values (office:date-value round trip)", runner: runSheetDateValuesTests },
     { title: "188. Unit Tests — UI Kit Notification Bar & WCAG AA Color Contrast", runner: runNotificationBarTests },
     { title: "189. Unit Tests — Signed Updater UI and Help", runner: runUpdaterUiTests },
