@@ -30,6 +30,10 @@ SEND_TIMEOUT_SECONDS = 3
 MAX_BACKOFF_SECONDS = 300
 
 
+def _monotonic() -> float:
+    return time.monotonic()
+
+
 class _RejectRedirects(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -661,12 +665,12 @@ class ErrorReporter:
     def _sender_loop(self) -> None:
         retry_at = 0.0
         while not self._stop.is_set():
-            timeout = max(0.0, retry_at - time.monotonic()) if retry_at else None
+            timeout = max(0.0, retry_at - _monotonic()) if retry_at else None
             self._wake.wait(timeout=timeout)
             self._wake.clear()
             if self._stop.is_set():
                 return
-            if retry_at and time.monotonic() < retry_at:
+            if retry_at and _monotonic() < retry_at:
                 continue
             try:
                 can_send = self.enabled and self.endpoint and self._consent_state() == "granted"
@@ -685,7 +689,7 @@ class ErrorReporter:
                     self._backoff_seconds = 1
                     retry_at = 0.0
                     break
-                retry_at = time.monotonic() + self._backoff_seconds
+                retry_at = _monotonic() + self._backoff_seconds
                 self._backoff_seconds = min(MAX_BACKOFF_SECONDS, max(1, self._backoff_seconds * 2))
                 break
 

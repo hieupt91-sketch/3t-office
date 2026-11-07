@@ -42,6 +42,7 @@ import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 import { isSpellcheckEnabled, setSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
 import { PageSetupDialog } from "./page-setup-dialog.js";
+import { documentFontStack } from "../../platform/fonts/font-stack.js";
 import { TableSlicerController, normalizeTableSlicer } from "./table-slicer.js";
 import {
   cellColor,
@@ -307,6 +308,7 @@ export class SheetGridController {
       () => this.sheets,
       this._createTableResolver()
     );
+    this.formulaEngine.numberLocale = options.numberLocale || { locale: "vi-VN", decimalSeparator: ",", thousandsSeparator: "." };
     // GETPIVOTDATA cần biết PivotTable nào phủ ô được tham chiếu (hoặc PivotTable đầu tiên của trang).
     this.formulaEngine.pivotResolver = (sheetName, coord) => {
       const list = this.pivotTablesBySheet?.[sheetName || this.activeSheet] || [];
@@ -504,7 +506,7 @@ export class SheetGridController {
         <button type="button" class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
         <button type="button" class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
       </div>
-      <textarea class="vno-formula-input" id="vno-formula-val" rows="1" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)"></textarea>
+      <textarea class="vno-formula-input" id="vno-formula-val" rows="1" aria-label="Thanh công thức" placeholder="${t("sheetFormulaEntry.formulaBarPlaceholder", "Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)")}"></textarea>
       <button type="button" class="vno-formula-btn vno-formula-expand-btn" id="vno-fx-expand" title="Mở rộng thanh công thức (Ctrl+Shift+U)" aria-label="Mở rộng thanh công thức (Ctrl+Shift+U)" aria-expanded="false">▾</button>
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
@@ -2388,7 +2390,8 @@ export class SheetGridController {
     const category = data.style?.numberFormat?.category;
     if (typeof val !== "number" || !Number.isFinite(val)) return val ?? "";
     if (category === "date") {
-      const text = NumberFormatter.formatValue(val, { category: "date", dateFormat: "dd/mm/yyyy" }, this.options?.numberLocale).text;
+      const dateFormat = String(this.options?.numberLocale?.locale || "").toLowerCase().startsWith("en") ? "mm/dd/yyyy" : "dd/mm/yyyy";
+      const text = NumberFormatter.formatValue(val, { category: "date", dateFormat }, this.options?.numberLocale).text;
       if (text && !/[#]/.test(text)) return text;
     } else if (category === "time") {
       const day = ((val % 1) + 1) % 1;
@@ -2401,7 +2404,7 @@ export class SheetGridController {
     } else if (category === "percentage") {
       return `${Number((val * 100).toPrecision(12))}%`;
     }
-    return val;
+    return NumberFormatter.formatGeneralNumber(val, this.options?.numberLocale);
   }
 
   _validateDataValidationCommit(col, row, value, originalValue) {
@@ -7962,9 +7965,8 @@ export class SheetGridController {
     // Currency input is a type inference result, so apply both its real numeric
     // value and display format at the point where literal cell edits are stored.
     const hasExplicitCurrency = typeof value === "string" && /(?:₫|VN(?:D|Đ))/iu.test(value);
-    const supportsLocaleNumberInput = !category || ["general", "number", "accounting", "currency", "percentage"].includes(category);
-    if (typeof value === "string" && supportsLocaleNumberInput
-      && !NumberFormatter.isDateInput(value) && !NumberFormatter.isTimeInput(value)) {
+    const supportsLocaleNumberInput = !category || ["general", "number", "accounting", "currency", "percentage", "date"].includes(category);
+    if (typeof value === "string" && supportsLocaleNumberInput && !NumberFormatter.isTimeInput(value)) {
       const inferred = NumberFormatter.inferUserInput(value, nextStyle.numberFormat, this.options?.numberLocale || {
         decimalSeparator: ",",
         thousandsSeparator: "."
@@ -7974,9 +7976,12 @@ export class SheetGridController {
         return { value: inferred.value, style: nextStyle };
       }
       if (typeof inferred?.value === "number" && Number.isFinite(inferred.value)) {
-        if (inferred.numberFormat && (!category || category === "general")) nextStyle.numberFormat = inferred.numberFormat;
+        if (inferred.numberFormat && (!category || category === "general" || (category === "date" && inferred.numberFormat.category === "date"))) {
+          nextStyle.numberFormat = inferred.numberFormat;
+        }
         return { value: inferred.value, style: nextStyle };
       }
+      if (typeof inferred?.value === "string" && !NumberFormatter.isDateInput(value)) return { value: inferred.value, style: nextStyle };
     }
     if (typeof value === "string" && (!category || category === "general")
       && /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*%$/.test(value.trim())) {
@@ -8018,9 +8023,12 @@ export class SheetGridController {
     const functions = findLegacyUnsupportedFunctions(formula).filter(name => !warned.has(name));
     if (!functions.length) return;
     for (const name of functions) warned.add(name);
+    const messageKey = functions.length === 1
+      ? "sheetFormulaEntry.legacyFunctionWarningOne"
+      : "sheetFormulaEntry.legacyFunctionWarning";
     shell.showNotification({
       type: "warning",
-      message: t("sheetFormulaEntry.legacyFunctionWarning", { functions: functions.join(", ") }),
+      message: t(messageKey, { function: functions[0], functions: functions.join(", ") }),
       actions: [{
         label: t("sheetFormulaEntry.disableLegacyFunctionWarning"),
         ariaLabel: t("sheetFormulaEntry.disableLegacyFunctionWarning"),
@@ -9798,6 +9806,8 @@ export class SheetGridController {
       id: `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       type,
       range: normalizedRange,
+      x: Math.max(0, this.cols.indexOf(normalizedRange.end.c) + 1) * 100 + 46,
+      y: Math.max(0, normalizedRange.start.r - 1) * this.rowHeight + 28,
       title: `Biểu đồ ${this._rangeLabel(normalizedRange)}`,
       labels: [],
       data: []
@@ -22543,6 +22553,9 @@ export class SheetGridController {
       // S29a: Excel giữ khoảng trắng liên tiếp trong ô; model ghi "nowrap"/"normal" (ý nghĩa: có bọc chữ hay không)
       // → DOM dùng pre / pre-wrap để không gộp dấu cách (lan02 A17 "Phí chuyển tiền:" + 15 dấu cách + "□ Người…").
       if (k === "whiteSpace") { dom.style.whiteSpace = v === "normal" ? "pre-wrap" : (v === "nowrap" ? "pre" : v); continue; }
+      // FIX-D6-2510: tên phông từ tệp ("Calibri") + phông thay thế cùng kích thước + họ chung, để máy thiếu phông
+      // không rơi về phông có chân mặc định. Model/tệp lưu vẫn giữ nguyên tên phông gốc.
+      if (k === "fontFamily") { dom.style.fontFamily = documentFontStack(v); continue; }
       dom.style[k] = v;
     }
     this._applyTextRotationToDom(dom, styles.textRotation);
@@ -22663,7 +22676,7 @@ export class SheetGridController {
         if (run.style?.fontWeight) styles.push(`font-weight:${run.style.fontWeight}`);
         if (run.style?.fontStyle) styles.push(`font-style:${run.style.fontStyle}`);
         if (run.style?.textDecoration) styles.push(`text-decoration:${run.style.textDecoration}`);
-        if (run.style?.fontFamily) styles.push(`font-family:${run.style.fontFamily}`);
+        if (run.style?.fontFamily) styles.push(`font-family:${documentFontStack(run.style.fontFamily)}`);
         if (run.style?.fontSize) styles.push(`font-size:${run.style.fontSize}`);
         const styleAttr = styles.length ? ` style="${escapeHtml(styles.join(";")).replace(/"/g, "&quot;")}"` : "";
         return `<span${styleAttr}>${escapeHtml(run.text)}</span>`;
