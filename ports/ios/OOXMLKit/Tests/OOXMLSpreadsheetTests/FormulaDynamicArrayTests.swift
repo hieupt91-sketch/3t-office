@@ -9,6 +9,7 @@ import XCTest
 /// M7 lát 26: RANDARRAY / WRAPROWS / WRAPCOLS (INBOX-MAC #17).
 /// M7 lát 27: TEXTSPLIT / TEXTBEFORE / TEXTAFTER (INBOX-MAC #17).
 /// M7 lát 28: LAMBDA — giá trị hàm, gọi trực tiếp, qua LET, qua tên định nghĩa (đệ quy).
+/// M7 lát 29: MAP / BYROW / BYCOL / SCAN / REDUCE / MAKEARRAY (INBOX-MAC #17).
 /// Giá trị kỳ vọng theo Excel: SEQUENCE cắt phần lẻ hàng/cột về nguyên,
 /// TRANSPOSE đổi hàng ↔ cột, ô lỗi đi qua nguyên vẹn; SORT ổn định, rỗng
 /// luôn cuối; FILTER cần bao_gồm logic đúng hình; UNIQUE so trùng không
@@ -1457,5 +1458,316 @@ final class FormulaDynamicArrayTests: XCTestCase {
         e.defineNameExpression("K", expr: try FormulaParser.parse("5+1"))
         XCTAssertEqual(calc(e, "=K(2)"), .error("#VALUE!"), "tên hằng mà bị gọi như hàm")
         XCTAssertEqual(calc(e, "=K"), .number(6), "dùng như tên thường vẫn đúng")
+    }
+
+    // MARK: MAP / BYROW / BYCOL / SCAN / REDUCE / MAKEARRAY (lát 29)
+
+    /// Hành vi kỳ vọng theo Excel 365: MAP áp lambda cho từng phần tử (đa mảng
+    /// cùng kích thước); BYROW/BYCOL gom từng hàng/cột thành một giá trị;
+    /// SCAN/REDUCE cộng dồn theo hàng; MAKEARRAY sinh lưới từ chỉ số 1-based.
+    func testMapSingleArrayBasic() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=MAP(A1:B2, LAMBDA(x, x*2))", "D1:E2"),
+                       [.number(2), .number(4), .number(6), .number(8)])
+        XCTAssertEqual(cse(e, "=MAP({1,2;3,4}, LAMBDA(x, x+10))", "D1:E2"),
+                       [.number(11), .number(12), .number(13), .number(14)],
+                       "hằng mảng 2x2")
+        XCTAssertEqual(calc(e, "=SUM(MAP(A1:B2, LAMBDA(x, x+1)))"), .number(14),
+                       "(1+1)+(2+1)+(3+1)+(4+1)")
+    }
+
+    func testMapSingleCellIsValueError() {
+        XCTAssertEqual(calc(engine(), "=MAP(A1:B2, LAMBDA(x, x))"), .error("#VALUE!"),
+                       "mảng nhiều ô ở ô thường không có vị trí CSE")
+    }
+
+    func testMapMultiArray() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=MAP({1,2},{10,20}, LAMBDA(a,b,a+b))", "D1:E1"),
+                       [.number(11), .number(22)])
+        XCTAssertEqual(cse(e, "=MAP(A1:B2, {10,20;30,40}, LAMBDA(a,b,a+b))", "D1:E2"),
+                       [.number(11), .number(22), .number(33), .number(44)],
+                       "1+10, 2+20, 3+30, 4+40")
+        XCTAssertEqual(cse(e, "=MAP(A1:B2, A1:B2, A1:B2, LAMBDA(a,b,c,a+b+c))", "D1:E2"),
+                       [.number(3), .number(6), .number(9), .number(12)],
+                       "ba mảng 2x2: a+b+c theo từng ô")
+    }
+
+    func testMapShapeMismatchIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=MAP(A1:B2, A1:A2, LAMBDA(a,b,a+b))"), .error("#VALUE!"),
+                       "2x2 với 2x1 lệch kích thước")
+        XCTAssertEqual(calc(e, "=MAP({1,2;3,4},{1,2,3}, LAMBDA(a,b,a+b))"), .error("#VALUE!"),
+                       "2x2 với 1x3 lệch kích thước")
+        XCTAssertEqual(calc(e, "=MAP(A1:B2, A1, LAMBDA(a,b,a+b))"), .error("#VALUE!"),
+                       "mảng 2x2 với ô đơn: ô đơn không được phát như trong phép toán theo phần tử")
+    }
+
+    func testMapWrongArgCount() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=MAP(A1)"), .error("#VALUE!"), "thiếu lambda")
+        XCTAssertEqual(calc(e, "=MAP()"), .error("#VALUE!"), "không có đối số")
+    }
+
+    func testMapNotLambdaIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=MAP(A1:B2, 5)"), .error("#VALUE!"), "đối số lambda là số")
+        XCTAssertEqual(calc(e, "=MAP(A1:B2, A1)"), .error("#VALUE!"), "đối số lambda là giá trị ô")
+        XCTAssertEqual(calc(e, "=MAP(A1:B2, \"x\")"), .error("#VALUE!"), "đối số lambda là chuỗi")
+        XCTAssertEqual(calc(e, "=MAP(A1:B2, 1/0)"), .error("#DIV/0!"), "đối số lambda là lỗi → lan nguyên vẹn")
+    }
+
+    func testMapLambdaParamMismatchIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=MAP(A1:B2, LAMBDA(x,y,x+y))"), .error("#VALUE!"),
+                       "lambda 2 tham số cho 1 mảng")
+        XCTAssertEqual(calc(e, "=MAP(A1:B2, A1:B2, LAMBDA(x, x))"), .error("#VALUE!"),
+                       "lambda 1 tham số cho 2 mảng")
+        XCTAssertEqual(calc(e, "=MAP(A1:B2, LAMBDA(x, x))"), .error("#VALUE!"),
+                       "sai số tham số không được bù")
+    }
+
+    func testMapErrorElementPropagates() {
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=MAP(A1:B2, LAMBDA(x, x+1))"), .error("#DIV/0!"),
+                       "phần tử mảng là lỗi thì lỗi lan ra nguyên vẹn")
+    }
+
+    func testMapLambdaReturnsErrorKeptInCell() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=MAP({1,-1}, LAMBDA(x, IF(x>0, x, NA())))", "D1:E1"),
+                       [.number(1), .error("#N/A")],
+                       "lỗi do thân lambda trả về ở lại đúng ô đó trong lưới")
+    }
+
+    func testMapViaLetAndNestedCall() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=LET(f, LAMBDA(x, x*3), MAP(A1:B2, f))", "D1:E2"),
+                       [.number(3), .number(6), .number(9), .number(12)],
+                       "lambda qua LET")
+        XCTAssertEqual(cse(e, "=MAP(A1:B2, LAMBDA(x, ABS(x-3)))", "D1:E2"),
+                       [.number(2), .number(1), .number(0), .number(1)],
+                       "lambda gọi hàm khác bên trong")
+        XCTAssertEqual(cse(e, "=MAP(A1:B2, LAMBDA(x, SUM(x, 10)))", "D1:E2"),
+                       [.number(11), .number(12), .number(13), .number(14)],
+                       "lambda gọi SUM với đối số phần tử")
+    }
+
+    func testMapLambdaViaDefinedName() throws {
+        let e = engine()
+        e.defineNameExpression("DOUBLE", expr: try FormulaParser.parse("LAMBDA(x, x*2)"))
+        XCTAssertEqual(cse(e, "=MAP(A1:B2, DOUBLE)", "D1:E2"),
+                       [.number(2), .number(4), .number(6), .number(8)],
+                       "lambda qua tên định nghĩa làm đối số MAP")
+    }
+
+    // MARK: BYROW
+
+    func testByRowBasic() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=BYROW(A1:B2, LAMBDA(r, SUM(r)))", "D1:D2"),
+                       [.number(3), .number(7)], "hàng 1: 1+2; hàng 2: 3+4")
+        XCTAssertEqual(cse(e, "=BYROW(A1:B2, LAMBDA(r, MAX(r)))", "D1:D2"),
+                       [.number(2), .number(4)], "giá trị lớn nhất mỗi hàng")
+        XCTAssertEqual(calc(e, "=BYROW({1,2,3}, LAMBDA(r, SUM(r)))"), .number(6),
+                       "một hàng duy nhất → kết quả 1x1")
+    }
+
+    func testByRowWrongArgs() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=BYROW(A1:B2)"), .error("#VALUE!"), "thiếu lambda")
+        XCTAssertEqual(calc(e, "=BYROW(A1:B2, LAMBDA(x,y,x))"), .error("#VALUE!"),
+                       "lambda 2 tham số, BYROW chỉ cho 1")
+        XCTAssertEqual(calc(e, "=BYROW(A1:B2, 5)"), .error("#VALUE!"), "không phải lambda")
+        XCTAssertEqual(calc(e, "=BYROW(A1:B2, LAMBDA(r, SUM(r)), 1)"), .error("#VALUE!"),
+                       "thừa đối số")
+    }
+
+    func testByRowLambdaReturnsArrayIsValueError() {
+        XCTAssertEqual(calc(engine(), "=BYROW(A1:B2, LAMBDA(r, r))"), .error("#VALUE!"),
+                       "lambda trả nguyên hàng (mảng 1x2) thì mỗi hàng phải là một giá trị đơn")
+    }
+
+    func testByRowViaLet() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=LET(f, LAMBDA(r, MAX(r)), BYROW(A1:B2, f))", "D1:D2"),
+                       [.number(2), .number(4)], "lambda qua LET")
+    }
+
+    func testByRowErrorCellInRow() {
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "B1")
+        XCTAssertEqual(cse(e, "=BYROW(A1:B2, LAMBDA(r, SUM(r)))", "D1:D2"),
+                       [.error("#DIV/0!"), .number(7)],
+                       "ô lỗi trong hàng lan vào kết quả của đúng hàng đó")
+    }
+
+    // MARK: BYCOL
+
+    func testByColBasic() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=BYCOL(A1:B2, LAMBDA(c, SUM(c)))", "D1:E1"),
+                       [.number(4), .number(6)], "cột 1: 1+3; cột 2: 2+4")
+        XCTAssertEqual(cse(e, "=BYCOL(A1:B2, LAMBDA(c, MIN(c)))", "D1:E1"),
+                       [.number(1), .number(2)], "giá trị nhỏ nhất mỗi cột")
+        XCTAssertEqual(calc(e, "=BYCOL({1;2;3}, LAMBDA(c, SUM(c)))"), .number(6),
+                       "một cột duy nhất → kết quả 1x1")
+    }
+
+    func testByColWrongArgs() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=BYCOL(A1:B2)"), .error("#VALUE!"), "thiếu lambda")
+        XCTAssertEqual(calc(e, "=BYCOL(A1:B2, LAMBDA(x,y,x))"), .error("#VALUE!"),
+                       "lambda 2 tham số, BYCOL chỉ cho 1")
+        XCTAssertEqual(calc(e, "=BYCOL(A1:B2, \"x\")"), .error("#VALUE!"), "không phải lambda")
+    }
+
+    func testByColLambdaReturnsArrayIsValueError() {
+        XCTAssertEqual(calc(engine(), "=BYCOL(A1:B2, LAMBDA(c, c))"), .error("#VALUE!"),
+                       "lambda trả nguyên cột (mảng 2x1) thì mỗi cột phải là một giá trị đơn")
+    }
+
+    // MARK: SCAN
+
+    func testScanBasic() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=SCAN(0, {1,2,3,4}, LAMBDA(a,v,a+v))", "D1:G1"),
+                       [.number(1), .number(3), .number(6), .number(10)],
+                       "cộng dồn 1, 1+2, +3, +4")
+        XCTAssertEqual(cse(e, "=SCAN(0, A1:B2, LAMBDA(a,v,a+v))", "D1:E2"),
+                       [.number(1), .number(3), .number(6), .number(10)],
+                       "duyệt theo hàng trên mảng 2x2")
+        XCTAssertEqual(cse(e, "=SCAN(10, {1,2}, LAMBDA(a,v,a+v))", "D1:E1"),
+                       [.number(11), .number(13)], "giá trị đầu 10")
+    }
+
+    func testScanConcat() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=SCAN(\"\", {\"a\",\"b\"}, LAMBDA(a,v,a&v))", "D1:E1"),
+                       [.string("a"), .string("ab")], "acc là chuỗi, nối dồn")
+    }
+
+    func testScanWrongArgs() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=SCAN(0, A1:B2)"), .error("#VALUE!"), "thiếu lambda")
+        XCTAssertEqual(calc(e, "=SCAN(0, A1:B2, LAMBDA(x, x))"), .error("#VALUE!"),
+                       "lambda 1 tham số, SCAN cần 2")
+        XCTAssertEqual(calc(e, "=SCAN(0, A1:B2, 5)"), .error("#VALUE!"), "không phải lambda")
+        XCTAssertEqual(calc(e, "=SCAN(0, A1:B2, LAMBDA(a,v,a+v), 1)"), .error("#VALUE!"),
+                       "thừa đối số")
+        XCTAssertEqual(calc(e, "=SCAN(1/0, A1:B2, LAMBDA(a,v,a+v))"), .error("#DIV/0!"),
+                       "giá trị đầu là lỗi → lan nguyên vẹn")
+    }
+
+    func testScanErrorPropagates() {
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=SCAN(0, A1:B2, LAMBDA(a,v,a+v))"), .error("#DIV/0!"),
+                       "phần tử mảng là lỗi thì lỗi lan ra")
+        XCTAssertEqual(calc(engine(), "=SCAN(0, A1:B2, LAMBDA(a,v,1/0))"), .error("#DIV/0!"),
+                       "thân lambda lỗi ở bước đầu thì lan ra")
+    }
+
+    // MARK: REDUCE
+
+    func testReduceBasic() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=REDUCE(0, A1:B2, LAMBDA(a,v,a+v))"), .number(10), "1+2+3+4")
+        XCTAssertEqual(calc(e, "=REDUCE(1, {1,2,3,4}, LAMBDA(a,v,a*v))"), .number(24),
+                       "tích dồn 1*1*2*3*4")
+        XCTAssertEqual(calc(e, "=REDUCE(10, {1,2}, LAMBDA(a,v,a-v))"), .number(7),
+                       "10-1-2")
+    }
+
+    func testReduceWrongArgs() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=REDUCE(0, A1:B2)"), .error("#VALUE!"), "thiếu lambda")
+        XCTAssertEqual(calc(e, "=REDUCE(0, A1:B2, LAMBDA(x, x))"), .error("#VALUE!"),
+                       "lambda 1 tham số, REDUCE cần 2")
+        XCTAssertEqual(calc(e, "=REDUCE(0, A1:B2, \"x\")"), .error("#VALUE!"), "không phải lambda")
+        XCTAssertEqual(calc(e, "=REDUCE(1/0, A1:B2, LAMBDA(a,v,a+v))"), .error("#DIV/0!"),
+                       "giá trị đầu là lỗi → lan nguyên vẹn")
+    }
+
+    func testReduceReturnsArray() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=REDUCE({10,20}, {1}, LAMBDA(a,v,a))", "D1:E1"),
+                       [.number(10), .number(20)],
+                       "acc cuối là mảng thì trả nguyên mảng để tràn")
+    }
+
+    func testReduceErrorElementPropagates() {
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=REDUCE(0, A1:B2, LAMBDA(a,v,a+v))"), .error("#DIV/0!"),
+                       "phần tử mảng là lỗi thì lỗi lan ra")
+    }
+
+    // MARK: MAKEARRAY
+
+    func testMakeArrayBasic() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=MAKEARRAY(2,3,LAMBDA(r,c,r*10+c))", "D1:F2"),
+                       [.number(11), .number(12), .number(13),
+                        .number(21), .number(22), .number(23)],
+                       "chỉ số 1-based: hàng 1 → 11,12,13; hàng 2 → 21,22,23")
+        XCTAssertEqual(calc(e, "=MAKEARRAY(1,1,LAMBDA(r,c,42))"), .number(42),
+                       "mảng 1x1 → giá trị đơn")
+        XCTAssertEqual(calc(e, "=SUM(MAKEARRAY(2,2,LAMBDA(r,c,1)))"), .number(4),
+                       "mảng toàn 1, tổng 4")
+        XCTAssertEqual(cse(e, "=MAKEARRAY(3,1,LAMBDA(r,c,r*r))", "D1:D3"),
+                       [.number(1), .number(4), .number(9)], "một cột: bình phương chỉ số hàng")
+    }
+
+    func testMakeArrayBadDimsIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=MAKEARRAY(0,2,LAMBDA(r,c,1))"), .error("#VALUE!"), "0 hàng")
+        XCTAssertEqual(calc(e, "=MAKEARRAY(2,0,LAMBDA(r,c,1))"), .error("#VALUE!"), "0 cột")
+        XCTAssertEqual(calc(e, "=MAKEARRAY(-1,2,LAMBDA(r,c,1))"), .error("#VALUE!"), "âm")
+        XCTAssertEqual(calc(e, "=MAKEARRAY(2,-3,LAMBDA(r,c,1))"), .error("#VALUE!"), "cột âm")
+        XCTAssertEqual(calc(e, "=MAKEARRAY(2.5,2,LAMBDA(r,c,1))"), .error("#VALUE!"),
+                       "không nguyên: lát 29 chốt nghiêm ngặt, không cắt phần lẻ")
+        XCTAssertEqual(calc(e, "=MAKEARRAY(2,2.9,LAMBDA(r,c,1))"), .error("#VALUE!"), "cột không nguyên")
+        XCTAssertEqual(calc(e, "=MAKEARRAY(\"x\",2,LAMBDA(r,c,1))"), .error("#VALUE!"), "không phải số")
+    }
+
+    func testMakeArrayWrongArgs() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=MAKEARRAY(2,2)"), .error("#VALUE!"), "thiếu lambda")
+        XCTAssertEqual(calc(e, "=MAKEARRAY()"), .error("#VALUE!"), "không có đối số")
+        XCTAssertEqual(calc(e, "=MAKEARRAY(2,2,5)"), .error("#VALUE!"), "không phải lambda")
+        XCTAssertEqual(calc(e, "=MAKEARRAY(2,2,LAMBDA(x,x))"), .error("#VALUE!"),
+                       "lambda 1 tham số, MAKEARRAY cần 2")
+        XCTAssertEqual(calc(e, "=MAKEARRAY(2,2,LAMBDA(r,c,r),1)"), .error("#VALUE!"), "thừa đối số")
+    }
+
+    func testMakeArrayErrorArgPropagates() {
+        XCTAssertEqual(calc(engine(), "=MAKEARRAY(1/0,2,LAMBDA(r,c,1))"), .error("#DIV/0!"),
+                       "hàng là lỗi → lan nguyên vẹn")
+        XCTAssertEqual(calc(engine(), "=MAKEARRAY(2,1/0,LAMBDA(r,c,1))"), .error("#DIV/0!"),
+                       "cột là lỗi → lan nguyên vẹn")
+        XCTAssertEqual(calc(engine(), "=MAKEARRAY(2,2,1/0)"), .error("#DIV/0!"),
+                       "lambda là lỗi → lan nguyên vẹn")
+    }
+
+    func testMakeArrayOversizeIsCalcError() {
+        XCTAssertEqual(calc(engine(), "=MAKEARRAY(2000,2000,LAMBDA(r,c,1))"), .error("#CALC!"),
+                       "4.000.000 ô vượt giới hạn 1.000.000 phần tử")
+    }
+
+    // MARK: Kết hợp (lát 29)
+
+    func testLambdaHelpersCombined() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=SUM(MAP(BYROW(A1:B2,LAMBDA(r,SUM(r))),LAMBDA(x,x*2)))"),
+                       .number(20), "BYROW {3;7} → MAP {6;14} → SUM 20")
+        XCTAssertEqual(calc(e, "=SUM(MAP(SCAN(0,{1,2,3},LAMBDA(a,v,a+v)),LAMBDA(x,x+1)))"),
+                       .number(13), "SCAN {1,3,6} → MAP {2,4,7} → SUM 13")
+        XCTAssertEqual(calc(e, "=REDUCE(0, BYCOL(A1:B2,LAMBDA(c,SUM(c))), LAMBDA(a,v,a+v))"),
+                       .number(10), "BYCOL {4,6} → REDUCE cộng dồn 10")
+        XCTAssertEqual(cse(e, "=MAP(MAKEARRAY(2,2,LAMBDA(r,c,r+c)), LAMBDA(x, x*10))", "D1:E2"),
+                       [.number(20), .number(30), .number(30), .number(40)],
+                       "MAKEARRAY {2,3;3,4} → MAP x10")
     }
 }

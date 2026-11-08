@@ -263,6 +263,12 @@ struct FormulaEvaluator {
         case "WRAPROWS": return wrapVector(args, byRow: true)
         case "WRAPCOLS": return wrapVector(args, byRow: false)
         case "TEXTSPLIT": return textSplit(args)
+        case "MAP": return mapArray(args)
+        case "BYROW": return byRowArray(args)
+        case "BYCOL": return byColArray(args)
+        case "SCAN": return scanArray(args)
+        case "REDUCE": return reduceArray(args)
+        case "MAKEARRAY": return makeArray(args)
         default: return nil
         }
     }
@@ -1061,6 +1067,232 @@ struct FormulaEvaluator {
         return .array(out)
     }
 
+    // MARK: Hàm trợ giúp LAMBDA — MAP / BYROW / BYCOL / SCAN / REDUCE / MAKEARRAY (M7 lát 29, INBOX-MAC #17)
+
+    /// Lấy lambda từ một biểu thức đối số (tính bằng eval() để giữ nguyên
+    /// EvalValue.lambda — không đi qua scalar() vì nó biến lambda trần thành
+    /// #VALUE!). Trả (lambda, lỗi): lỗi != nil khi đối số tự nó là lỗi scalar
+    /// (lan truyền nguyên vẹn như các hàm khác); lambda == nil và lỗi == nil
+    /// khi đối số không phải lambda → #VALUE!.
+    private func lambdaFromArg(_ expr: FormulaExpr) -> (lambda: (params: [String], body: FormulaExpr, captured: [String: EvalValue])?, error: CellValue?) {
+        let v = eval(expr)
+        if case .scalar(let c) = v, case .error = c { return (nil, c) }
+        guard case .lambda(let params, let body, let captured) = v else { return (nil, nil) }
+        return ((params, body, captured), nil)
+    }
+
+    /// Ép kết quả trả về của lambda về một ô: scalar giữ nguyên (kể cả ô lỗi —
+    /// tầng trên giữ nó trong lưới như Excel); mảng/vùng đúng 1 ô lấy ô đó;
+    /// mảng nhiều ô hoặc giá trị hàm → nil (lỗi cấu trúc, tầng trên trả
+    /// #VALUE!). Không dùng giao ngầm theo vị trí như scalar().
+    private func singleCellValue(_ v: EvalValue) -> CellValue? {
+        switch v {
+        case .scalar(let c): return c
+        case .lambda: return nil
+        case .array(let rows):
+            guard rows.count == 1, rows[0].count == 1 else { return nil }
+            return rows[0][0]
+        case .ref(let sh, let r):
+            guard r.start == r.end else { return nil }
+            return context.cellValue(sheet: sh, ref: r.start)
+        }
+    }
+
+    /// MAP(mảng1, [mảng2, ...], lambda): áp lambda cho từng phần tử; lambda
+    /// nhận đúng số đối số bằng số mảng; các mảng phải cùng kích thước, lệch
+    /// → #VALUE!. Phần tử mảng là lỗi scalar → lan ra nguyên vẹn (qua
+    /// applyLambdaValues, như lát 28); lambda trả lỗi cho một phần tử thì lỗi
+    /// đó ở lại đúng ô đó trong lưới như Excel.
+    private func mapArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard args.count >= 2 else { return bad }
+        let (lam, lamErr) = lambdaFromArg(args[args.count - 1])
+        if let e = lamErr { return .scalar(e) }
+        guard let lam, lam.params.count == args.count - 1 else { return bad }
+        var grids: [[[CellValue]]] = []
+        grids.reserveCapacity(args.count - 1)
+        for a in args.dropLast() {
+            guard let g = materialize(eval(a)), !g.isEmpty, (g.first?.count ?? 0) > 0 else { return bad }
+            grids.append(g)
+        }
+        let rows = grids[0].count, cols = grids[0][0].count
+        guard grids.allSatisfy({ $0.count == rows && ($0.first?.count ?? 0) == cols }) else { return bad }
+        guard rows * cols <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rows)
+        for i in 0..<rows {
+            var line: [CellValue] = []
+            line.reserveCapacity(cols)
+            for j in 0..<cols {
+                let vals = grids.map { EvalValue.scalar($0[i][j]) }
+                // Phần tử mảng là lỗi scalar → lan ra nguyên vẹn (không gọi
+                // thân lambda); lỗi do thân trả về thì ở lại đúng ô đó.
+                for v in vals {
+                    if case .scalar(let cv) = v, case .error = cv { return .scalar(cv) }
+                }
+                let r = applyLambdaValues(params: lam.params, body: lam.body, captured: lam.captured, values: vals)
+                guard let c = singleCellValue(r) else { return bad }
+                line.append(c)
+            }
+            out.append(line)
+        }
+        return .array(out)
+    }
+
+    /// BYROW(mảng, lambda): lambda nhận 1 đối số là một hàng (mảng 1×n);
+    /// trả về cột n×1 (một kết quả mỗi hàng). Lambda phải nhận đúng 1 tham số
+    /// và trả một giá trị đơn mỗi hàng, nếu không → #VALUE!.
+    private func byRowArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard args.count == 2 else { return bad }
+        let (lam, lamErr) = lambdaFromArg(args[1])
+        if let e = lamErr { return .scalar(e) }
+        guard let lam, lam.params.count == 1 else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        guard grid.count <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(grid.count)
+        for row in grid {
+            let r = applyLambdaValues(params: lam.params, body: lam.body, captured: lam.captured,
+                                      values: [.array([row])])
+            guard let c = singleCellValue(r) else { return bad }
+            out.append([c])
+        }
+        return .array(out)
+    }
+
+    /// BYCOL(mảng, lambda): lambda nhận 1 đối số là một cột (mảng n×1);
+    /// trả về hàng 1×m (một kết quả mỗi cột).
+    private func byColArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard args.count == 2 else { return bad }
+        let (lam, lamErr) = lambdaFromArg(args[1])
+        if let e = lamErr { return .scalar(e) }
+        guard let lam, lam.params.count == 1 else { return bad }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        guard cols <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        var out: [CellValue] = []
+        out.reserveCapacity(cols)
+        for j in 0..<cols {
+            let col = grid.map { [$0[j]] }
+            let r = applyLambdaValues(params: lam.params, body: lam.body, captured: lam.captured,
+                                      values: [.array(col)])
+            guard let c = singleCellValue(r) else { return bad }
+            out.append(c)
+        }
+        return .array([out])
+    }
+
+    /// SCAN(giá_trị_đầu, mảng, lambda): lambda(acc, giá_trị) → acc mới; trả
+    /// về mảng cùng kích thước chứa các giá trị tích lũy từng bước (duyệt theo
+    /// hàng). Acc giữa chừng là lỗi scalar → lan ra nguyên vẹn (theo đúng
+    /// cách applyLambdaValues lan lỗi đối số scalar); acc là mảng nhiều ô
+    /// → #VALUE!.
+    private func scanArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard args.count == 3 else { return bad }
+        let initV = eval(args[0])
+        if case .scalar(let c) = initV, case .error = c { return .scalar(c) }
+        let (lam, lamErr) = lambdaFromArg(args[2])
+        if let e = lamErr { return .scalar(e) }
+        guard let lam, lam.params.count == 2 else { return bad }
+        guard let grid = materialize(eval(args[1])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        guard grid.count * cols <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        var acc = initV
+        var out: [[CellValue]] = []
+        out.reserveCapacity(grid.count)
+        for row in grid {
+            var line: [CellValue] = []
+            line.reserveCapacity(cols)
+            for cell in row {
+                let r = applyLambdaValues(params: lam.params, body: lam.body, captured: lam.captured,
+                                          values: [acc, .scalar(cell)])
+                guard let c = singleCellValue(r) else { return bad }
+                if case .error = c { return .scalar(c) }
+                line.append(c)
+                acc = .scalar(c)
+            }
+            out.append(line)
+        }
+        return .array(out)
+    }
+
+    /// REDUCE(giá_trị_đầu, mảng, lambda): lambda(acc, giá_trị) → acc; trả về
+    /// một giá trị duy nhất — scalar, hoặc mảng nếu acc cuối là mảng (trả
+    /// nguyên EvalValue cuối để tràn như mảng động). Acc giữa chừng là lỗi
+    /// scalar → lan ra nguyên vẹn.
+    private func reduceArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard args.count == 3 else { return bad }
+        let initV = eval(args[0])
+        if case .scalar(let c) = initV, case .error = c { return .scalar(c) }
+        let (lam, lamErr) = lambdaFromArg(args[2])
+        if let e = lamErr { return .scalar(e) }
+        guard let lam, lam.params.count == 2 else { return bad }
+        guard let grid = materialize(eval(args[1])), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else { return bad }
+        var acc = initV
+        for row in grid {
+            for cell in row {
+                let r = applyLambdaValues(params: lam.params, body: lam.body, captured: lam.captured,
+                                          values: [acc, .scalar(cell)])
+                if case .scalar(let c) = r, case .error = c { return .scalar(c) }
+                acc = r
+            }
+        }
+        return acc
+    }
+
+    /// MAKEARRAY(hàng, cột, lambda): lambda(hàng, cột) → giá trị, chỉ số
+    /// 1-based; hàng/cột phải là số nguyên dương (không nguyên, âm, 0, không
+    /// phải số → #VALUE!); lambda phải nhận đúng 2 tham số; lưới vượt giới
+    /// hạn phần tử → #CALC! (theo đúng ngưỡng của SEQUENCE).
+    private func makeArray(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard args.count == 3 else { return bad }
+        let rv = scalar(eval(args[0]))
+        if case .error(let e) = rv { return .scalar(.error(e)) }
+        let cv = scalar(eval(args[1]))
+        if case .error(let e) = cv { return .scalar(.error(e)) }
+        guard let rn = number(rv), rn.isFinite, rn == rn.rounded(.towardZero), rn >= 1,
+              rn <= Double(Self.maxElementwiseCells) else { return bad }
+        guard let cn = number(cv), cn.isFinite, cn == cn.rounded(.towardZero), cn >= 1,
+              cn <= Double(Self.maxElementwiseCells) else { return bad }
+        guard rn * cn <= Double(Self.maxElementwiseCells) else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        let (lam, lamErr) = lambdaFromArg(args[2])
+        if let e = lamErr { return .scalar(e) }
+        guard let lam, lam.params.count == 2 else { return bad }
+        let rows = Int(rn), cols = Int(cn)
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rows)
+        for i in 0..<rows {
+            var line: [CellValue] = []
+            line.reserveCapacity(cols)
+            for j in 0..<cols {
+                let r = applyLambdaValues(params: lam.params, body: lam.body, captured: lam.captured,
+                                          values: [.scalar(.number(Double(i + 1))),
+                                                   .scalar(.number(Double(j + 1)))])
+                guard let c = singleCellValue(r) else { return bad }
+                line.append(c)
+            }
+            out.append(line)
+        }
+        return .array(out)
+    }
+
     // MARK: Ép kiểu
 
     /// nil nếu không đổi được sang số (chuỗi không phải số). Lỗi phải được xử lý trước.
@@ -1210,13 +1442,25 @@ struct FormulaEvaluator {
     /// giới hạn engine thì #VALUE!.
     private func applyLambdaValue(params: [String], body: FormulaExpr, captured: [String: EvalValue], argExprs: [FormulaExpr]) -> EvalValue {
         guard params.count == argExprs.count else { return .scalar(.error(FormulaErrors.value)) }
-        guard lambdaDepth < Self.maxLambdaDepth else { return .scalar(.error(FormulaErrors.value)) }
         var values: [EvalValue] = []
         values.reserveCapacity(argExprs.count)
         for a in argExprs {
             let v = eval(a)
             if case .scalar(let cv) = v, case .error = cv { return v }
             values.append(v)
+        }
+        return applyLambdaValues(params: params, body: body, captured: captured, values: values)
+    }
+
+    /// Gọi lambda với các giá trị đối số đã tính sẵn (dùng cho MAP/BYROW/BYCOL/
+    /// SCAN/REDUCE/MAKEARRAY, lát 29): đối số là giá trị phần tử/mảng đã
+    /// materialize; lỗi scalar trong đối số lan ra; lệch số lượng → #VALUE!;
+    /// đệ quy sâu quá giới hạn engine thì #VALUE!.
+    private func applyLambdaValues(params: [String], body: FormulaExpr, captured: [String: EvalValue], values: [EvalValue]) -> EvalValue {
+        guard params.count == values.count else { return .scalar(.error(FormulaErrors.value)) }
+        guard lambdaDepth < Self.maxLambdaDepth else { return .scalar(.error(FormulaErrors.value)) }
+        for v in values {
+            if case .scalar(let cv) = v, case .error = cv { return v }
         }
         var sub = self
         sub.lambdaDepth += 1
