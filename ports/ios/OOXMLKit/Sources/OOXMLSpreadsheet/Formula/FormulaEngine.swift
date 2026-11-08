@@ -275,7 +275,19 @@ public final class FormulaEngine {
             let key = n.uppercased()
             guard !expanding.contains(key) else { return [] }
             return expandedReferences(ex, currentSheet: currentSheet, bound: bound, expanding: expanding.union([key]))
+        case .apply(let c, let args):
+            return expandedReferences(c, currentSheet: currentSheet, bound: bound, expanding: expanding)
+                + args.flatMap { expandedReferences($0, currentSheet: currentSheet, bound: bound, expanding: expanding) }
         case .call(let name, let args):
+            if name == "LAMBDA" {
+                // Tham số là biến cục bộ của thân, không mở rộng thành tên vùng.
+                var b = bound
+                for a in args.dropLast() {
+                    if case .name(let n) = a { b.insert(n.uppercased()) }
+                }
+                guard let last = args.last else { return [] }
+                return expandedReferences(last, currentSheet: currentSheet, bound: b, expanding: expanding)
+            }
             if name == "LET" {
                 var out: [(sheet: String?, range: CellRange)] = []
                 var b = bound
@@ -292,7 +304,16 @@ public final class FormulaEngine {
                 if let last = args.last { out += expandedReferences(last, currentSheet: currentSheet, bound: b, expanding: expanding) }
                 return out
             }
-            return args.flatMap { expandedReferences($0, currentSheet: currentSheet, bound: bound, expanding: expanding) }
+            // M7 lát 28: tên định nghĩa chứa LAMBDA gọi như hàm — thân của nó cũng
+            // có thể dùng ô (mở rộng đệ quy, chặn vòng bằng `expanding`).
+            var out = args.flatMap { expandedReferences($0, currentSheet: currentSheet, bound: bound, expanding: expanding) }
+            if let ex = resolveDefinedNameExpr(name, currentSheet: currentSheet) {
+                let key = name.uppercased()
+                if !expanding.contains(key) {
+                    out += expandedReferences(ex, currentSheet: currentSheet, bound: bound, expanding: expanding.union([key]))
+                }
+            }
+            return out
         default: return []
         }
     }

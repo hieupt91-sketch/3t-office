@@ -196,6 +196,7 @@ extension FormulaEvaluator {
         case .scalar(let v):
             if case .error = v { throw Abort(value: v) }
             return Grid(sheet: nil, origin: nil, rows: [[v]])
+        case .lambda: throw fail(FormulaErrors.value)
         case .array(let rows):
             return Grid(sheet: nil, origin: nil, rows: rows)
         case .ref(let sh, let r):
@@ -426,6 +427,7 @@ extension FormulaEvaluator {
             if case .error = v { throw Abort(value: v) }
             guard r <= 1, (c ?? 1) <= 1 else { throw fail(FormulaErrors.ref) }
             return .scalar(v)
+        case .lambda: throw fail(FormulaErrors.value)
         case .array(let rows):
             let nr = rows.count, nc = rows.first?.count ?? 0
             var row = Int(r), col = c.map { Int($0) }

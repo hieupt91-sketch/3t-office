@@ -8,6 +8,7 @@ import XCTest
 /// M7 lát 25: TOCOL / TOROW / HSTACK / VSTACK (INBOX-MAC #17).
 /// M7 lát 26: RANDARRAY / WRAPROWS / WRAPCOLS (INBOX-MAC #17).
 /// M7 lát 27: TEXTSPLIT / TEXTBEFORE / TEXTAFTER (INBOX-MAC #17).
+/// M7 lát 28: LAMBDA — giá trị hàm, gọi trực tiếp, qua LET, qua tên định nghĩa (đệ quy).
 /// Giá trị kỳ vọng theo Excel: SEQUENCE cắt phần lẻ hàng/cột về nguyên,
 /// TRANSPOSE đổi hàng ↔ cột, ô lỗi đi qua nguyên vẹn; SORT ổn định, rỗng
 /// luôn cuối; FILTER cần bao_gồm logic đúng hình; UNIQUE so trùng không
@@ -1364,5 +1365,97 @@ final class FormulaDynamicArrayTests: XCTestCase {
 
     func testTextSplitInSum() {
         XCTAssertEqual(calc(engine(), "=SUM(TEXTSPLIT(\"1,2,3\",\",\"))"), .number(6))
+    }
+
+    // MARK: LAMBDA (lát 28)
+
+    /// Hành vi kỳ vọng theo Excel 365: LAMBDA tạo giá trị hàm, gọi trực tiếp bằng
+    /// `(…)` sau biểu thức; hàm trần trong ô → #VALUE!; tham số không phân biệt hoa/thường.
+    func testLambdaDirectCall() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=LAMBDA(x, x+1)(5)"), .number(6))
+        XCTAssertEqual(calc(e, "=LAMBDA(x, y, x+y)(3,4)"), .number(7))
+        XCTAssertEqual(calc(e, "=LAMBDA(5)()"), .number(5), "không tham số: thân là hằng")
+        XCTAssertEqual(calc(e, "=LAMBDA(X, X+1)(5)"), .number(6), "tên tham số không phân biệt hoa/thường")
+        XCTAssertEqual(calc(e, "=LAMBDA(x, x*2)(A1)"), .number(2), "đối số từ ô")
+        XCTAssertEqual(calc(e, "=LAMBDA(x, x+1)(A1+B1)"), .number(4), "đối số là biểu thức")
+        XCTAssertEqual(calc(e, "=SUM(LAMBDA(x, x+1)(5))"), .number(6), "kết quả scalar dùng trong SUM")
+        XCTAssertEqual(calc(e, "=LAMBDA(x, LAMBDA(y, x+y))(10)(5)"), .number(15),
+                       "lambda lồng: lambda trong trả về lambda ngoài")
+        XCTAssertEqual(calc(e, "=LET(x, 100, LAMBDA(x, x+1)(5))"), .number(6),
+                       "tham số che biến LET cùng tên")
+    }
+
+    func testLambdaBareIsValueError() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=LAMBDA(x, x+1)"), .error("#VALUE!"), "hàm trần trong ô")
+        XCTAssertEqual(calc(e, "=LAMBDA(1)"), .error("#VALUE!"), "không tham số, thân là hằng, vẫn là hàm trần")
+        XCTAssertEqual(calc(e, "=SUM(LAMBDA(x, x+1))"), .error("#VALUE!"), "hàm trần làm đối số")
+    }
+
+    func testLambdaViaLet() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=LET(f, LAMBDA(x, x*2), f(21))"), .number(42))
+        XCTAssertEqual(calc(e, "=LET(f, LAMBDA(x, x+1), f(1)+f(2))"), .number(5), "gọi nhiều lần")
+        XCTAssertEqual(calc(e, "=LET(a, 10, LAMBDA(x, x+a)(5))"), .number(15),
+                       "lambda chụp biến LET đã gán trước nó")
+        XCTAssertEqual(calc(e, "=LET(a, 1, LET(f, LAMBDA(x, x+a), LET(a, 2, f(5))))"), .number(6),
+                       "phạm vi từ vựng: thân thấy a lúc định nghĩa, không phải lúc gọi")
+        XCTAssertEqual(calc(e, "=LET(f, LAMBDA(x, x+1), LET(g, LAMBDA(y, f(y)*2), g(5)))"), .number(12),
+                       "lambda gọi lambda khác qua LET")
+        XCTAssertEqual(calc(e, "=LET(f, LAMBDA(x, x+1), LET(y, 7, f(y)))"), .number(8),
+                       "đối số tính ở nơi gọi: y gán sau khi f định nghĩa vẫn thấy khi gọi")
+    }
+
+    func testLambdaArgErrors() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=LAMBDA(x, x+1)(1,2)"), .error("#VALUE!"), "thừa đối số")
+        XCTAssertEqual(calc(e, "=LAMBDA(x, x+1)()"), .error("#VALUE!"), "thiếu đối số")
+        XCTAssertEqual(calc(e, "=LAMBDA(x, y, x+y)(1)"), .error("#VALUE!"), "thiếu một trong hai đối số")
+        XCTAssertEqual(calc(e, "=LAMBDA()"), .error("#VALUE!"), "không có cả thân")
+        XCTAssertEqual(calc(e, "=LAMBDA(1, 2)"), .error("#VALUE!"), "tham số không phải tên")
+        XCTAssertEqual(calc(e, "=LAMBDA(A1, A1+1)(5)"), .error("#VALUE!"), "tham số trông như ô")
+        XCTAssertEqual(calc(e, "=LAMBDA(x, x, x+1)(1)"), .error("#VALUE!"), "tham số trùng tên")
+        XCTAssertEqual(calc(e, "=LAMBDA(X, x, 1)(1,2)"), .error("#VALUE!"), "trùng tên không phân biệt hoa/thường")
+        XCTAssertEqual(calc(e, "=LAMBDA(x, 1/0)(5)"), .error("#DIV/0!"), "lỗi trong thân lan ra")
+        XCTAssertEqual(calc(e, "=LAMBDA(x, x+1)(1/0)"), .error("#DIV/0!"), "lỗi trong đối số lan ra")
+        XCTAssertEqual(calc(e, "=LAMBDA(x, x+1)(1,)"), .error("#VALUE!"), "đối số bỏ trống vẫn tính là đối số")
+    }
+
+    func testLambdaCallNonFunction() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=(5)(3)"), .error("#VALUE!"), "gọi một số")
+        XCTAssertEqual(calc(e, "=SUM(1)(2)"), .error("#VALUE!"), "gọi kết quả hàm scalar")
+        XCTAssertEqual(calc(e, "=LET(x, 5, x(1))"), .error("#VALUE!"), "gọi biến không phải hàm")
+        XCTAssertEqual(calc(e, "=LET(x, A1:B2, x(1))"), .error("#VALUE!"), "gọi biến vùng")
+    }
+
+    func testLambdaReturnsArray() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=LAMBDA(x, SEQUENCE(x))(3)", "D1:D3"),
+                       [.number(1), .number(2), .number(3)], "lambda trả mảng, trải qua CSE")
+        XCTAssertEqual(calc(e, "=SUM(LAMBDA(a, a)(A1:A3))"), .number(4),
+                       "lambda trả nguyên vùng, SUM trải phẳng: A1+A2=1+3")
+        XCTAssertEqual(calc(e, "=SUM(LAMBDA(x, x+1)(A1:A2))"), .number(6),
+                       "đối số vùng: (1+1)+(3+1)=6")
+    }
+
+    func testLambdaRecursiveDefinedName() throws {
+        let e = engine()
+        e.defineNameExpression("FACT", expr: try FormulaParser.parse("LAMBDA(n, IF(n<=1, 1, n*FACT(n-1)))"))
+        XCTAssertEqual(calc(e, "=FACT(5)"), .number(120), "đệ quy qua tên định nghĩa")
+        XCTAssertEqual(calc(e, "=FACT(0)"), .number(1), "điều kiện dừng")
+        e.defineNameExpression("DOWN", expr: try FormulaParser.parse("LAMBDA(n, IF(n<=0, 0, n+DOWN(n-1)))"))
+        XCTAssertEqual(calc(e, "=DOWN(100)"), .number(5050), "đệ quy sâu 100 vẫn chạy")
+        e.defineNameExpression("LOOP", expr: try FormulaParser.parse("LAMBDA(x, LOOP(x+1))"))
+        XCTAssertEqual(calc(e, "=LOOP(1)"), .error("#VALUE!"),
+                       "đệ quy vô hạn dừng ở giới hạn của engine (512), không tràn ngăn xếp")
+    }
+
+    func testLambdaDefinedNameNotFunction() throws {
+        let e = engine()
+        e.defineNameExpression("K", expr: try FormulaParser.parse("5+1"))
+        XCTAssertEqual(calc(e, "=K(2)"), .error("#VALUE!"), "tên hằng mà bị gọi như hàm")
+        XCTAssertEqual(calc(e, "=K"), .number(6), "dùng như tên thường vẫn đúng")
     }
 }

@@ -13,6 +13,9 @@ public indirect enum FormulaExpr: Equatable {
     case percent(FormulaExpr)
     case binary(String, FormulaExpr, FormulaExpr)
     case call(String, [FormulaExpr])
+    /// Gọi một giá trị hàm: `LAMBDA(...)(...)`, `f(...)` khi f là biến chứa lambda
+    /// (M7 lát 28). Khác `.call` ở chỗ callee là biểu thức, không phải tên hàm.
+    case apply(FormulaExpr, [FormulaExpr])
     case empty // tham số bị bỏ trống trong lời gọi hàm, ví dụ SUM(1,,2)
     case array([[CellValue]]) // hằng mảng {1,2;3,4}
 
@@ -25,6 +28,7 @@ public indirect enum FormulaExpr: Equatable {
         case .binary(_, let a, let b): return a.references + b.references
         case .empty, .array: return []
         case .call(_, let args): return args.flatMap { $0.references }
+        case .apply(let c, let args): return c.references + args.flatMap { $0.references }
         default: return []
         }
     }
@@ -121,8 +125,32 @@ public enum FormulaParser {
         }
         mutating func parsePostfix() throws -> FormulaExpr {
             var e = try parsePrimary()
-            while case .percent? = peek { pos += 1; e = .percent(e) }
+            while true {
+                if case .percent? = peek { pos += 1; e = .percent(e); continue }
+                // Gọi giá trị hàm: `LAMBDA(...)(...)`, `(expr)(...)` (M7 lát 28).
+                if case .lparen? = peek {
+                    pos += 1
+                    e = .apply(e, try parseArgList())
+                    continue
+                }
+                break
+            }
             return e
+        }
+
+        /// Danh sách đối số sau "(" đã tiêu thụ; dùng chung cho `.function` và gọi hậu tố.
+        mutating func parseArgList() throws -> [FormulaExpr] {
+            var args: [FormulaExpr] = []
+            if case .rparen? = peek { pos += 1; return args }
+            while true {
+                if case .comma? = peek { args.append(.empty); pos += 1; continue }
+                if case .rparen? = peek { args.append(.empty); pos += 1; break }
+                args.append(try parseComparison())
+                if case .comma? = peek { pos += 1; continue }
+                if case .rparen? = peek { pos += 1; break }
+                throw FormulaSyntaxError(message: "thiếu ')' hoặc ','", position: pos)
+            }
+            return args
         }
 
         mutating func parsePrimary() throws -> FormulaExpr {
@@ -164,17 +192,7 @@ public enum FormulaParser {
             case .function(let name):
                 pos += 1
                 pos += 1 // "(" do tokenizer đảm bảo
-                var args: [FormulaExpr] = []
-                if case .rparen? = peek { pos += 1; return .call(name, args) }
-                while true {
-                    if case .comma? = peek { args.append(.empty); pos += 1; continue }
-                    if case .rparen? = peek { args.append(.empty); pos += 1; break }
-                    args.append(try parseComparison())
-                    if case .comma? = peek { pos += 1; continue }
-                    if case .rparen? = peek { pos += 1; break }
-                    throw FormulaSyntaxError(message: "thiếu ')' hoặc ','", position: pos)
-                }
-                return .call(name, args)
+                return .call(name, try parseArgList())
             case .sheet(let sh):
                 pos += 1
                 if let (c1, c2) = wholeColumnPair() { pos += 3; return .range(sheet: sh, range: Parser.columnRange(c1, c2)) }

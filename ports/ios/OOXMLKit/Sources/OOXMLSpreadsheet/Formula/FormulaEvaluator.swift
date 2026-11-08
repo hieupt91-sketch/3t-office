@@ -24,10 +24,13 @@ enum FormulaErrors {
 }
 
 /// Giá trị trung gian: số liệu đơn hoặc tham chiếu vùng (chưa trải phẳng).
-enum EvalValue {
+/// M7 lát 28: thêm giá trị hàm `.lambda` (đệ quy qua môi trường đã chụp nên enum là indirect).
+indirect enum EvalValue {
     case scalar(CellValue)
     case ref(sheet: String, range: CellRange)
     case array([[CellValue]])
+    /// Hàm LAMBDA: tham số (đã viết hoa), thân, môi trường đã chụp lúc tạo (bao hàm LET).
+    case lambda(params: [String], body: FormulaExpr, env: [String: EvalValue])
 }
 
 /// Bộ tính giá trị cho AST. Không có hiệu ứng phụ; mọi lỗi trở thành `.error("#...")`.
@@ -41,6 +44,10 @@ struct FormulaEvaluator {
     var arrayOrigin: CellReference? = nil
     /// Tên hằng/công thức đang được mở (M7 lát 17): chặn vòng tên A→B→A thành #REF!.
     var nameStack: Set<String> = []
+    /// Độ sâu lồng gọi lambda đang chạy (M7 lát 28): chặn đệ quy vô hạn tràn ngăn xếp.
+    var lambdaDepth: Int = 0
+    /// Giới hạn của engine (không phải Excel): đệ quy lambda sâu hơn thì #VALUE!.
+    private static let maxLambdaDepth = 512
 
     func evaluate(_ expr: FormulaExpr) -> CellValue {
         scalar(eval(expr))
@@ -93,6 +100,12 @@ struct FormulaEvaluator {
             let l = eval(a), r = eval(b)
             if let arr = elementwise(op, l, r) { return arr }
             return .scalar(binary(op, scalar(l), scalar(r)))
+        case .apply(let callee, let args):
+            let v = eval(callee)
+            guard case .lambda(let params, let body, let captured) = v else {
+                return .scalar(.error(FormulaErrors.value))
+            }
+            return applyLambdaValue(params: params, body: body, captured: captured, argExprs: args)
         case .call(let name, let args):
             return call(name, args)
         }
@@ -103,6 +116,8 @@ struct FormulaEvaluator {
     func scalar(_ v: EvalValue) -> CellValue {
         switch v {
         case .scalar(let c): return c
+        // Hàm lambda trần trong ô → #VALUE! như Excel (chỉ có nghĩa khi được gọi).
+        case .lambda: return .error(FormulaErrors.value)
         case .ref(let sh, let r):
             if r.start == r.end { return context.cellValue(sheet: sh, ref: r.start) }
             guard let pos = position else { return .error(FormulaErrors.value) }
@@ -128,7 +143,7 @@ struct FormulaEvaluator {
     /// true nếu giá trị là mảng/vùng có hơn 1 ô.
     private func isMulti(_ v: EvalValue) -> Bool {
         switch v {
-        case .scalar: return false
+        case .scalar, .lambda: return false
         case .array(let rows): return rows.count > 1 || (rows.first?.count ?? 0) > 1
         case .ref(_, let r): return r.start != r.end
         }
@@ -138,6 +153,8 @@ struct FormulaEvaluator {
     private func materialize(_ v: EvalValue) -> [[CellValue]]? {
         switch v {
         case .scalar(let c): return [[c]]
+        // Hàm lambda dùng như mảng → lưới chứa lỗi, lỗi lan ra qua hàm gọi nó.
+        case .lambda: return [[.error(FormulaErrors.value)]]
         case .array(let rows):
             guard rows.reduce(0, { $0 + $1.count }) <= Self.maxElementwiseCells else { return nil }
             return rows
@@ -1150,11 +1167,79 @@ struct FormulaEvaluator {
     // MARK: Hàm
 
     func call(_ name: String, _ args: [FormulaExpr]) -> EvalValue {
+        // M7 lát 28: biến LET chứa lambda thì gọi nó (biến che cả tên hàm trùng tên,
+        // như Excel); biến không phải hàm mà bị gọi → #VALUE!.
+        if let v = env[name.uppercased()] {
+            if case .lambda(let params, let body, let captured) = v {
+                return applyLambdaValue(params: params, body: body, captured: captured, argExprs: args)
+            }
+            return .scalar(.error(FormulaErrors.value))
+        }
         if name == "LET" { return letCall(args) }
         if name == "IF", let v = ifArray(args) { return v }
         if let v = callArray(name, args) { return v }
         if let v = callReference(name, args) { return v }
+        if name == "LAMBDA" { return lambdaCall(args) }
+        // Tên định nghĩa chứa LAMBDA thì gọi được bằng tên (đệ quy qua tên, lát 28).
+        if let ex = context.definedNameExpr(name) { return definedNameCall(name, ex, args) }
         return .scalar(callScalar(name, args))
+    }
+
+    // MARK: LAMBDA (M7 lát 28, INBOX-MAC #17)
+
+    /// LAMBDA(tham_số…, thân): tham số phải là tên, không trùng nhau (không phân biệt
+    /// hoa/thường); ít nhất một đối số (thân). Trả về giá trị hàm chụp môi trường hiện tại.
+    private func lambdaCall(_ args: [FormulaExpr]) -> EvalValue {
+        guard !args.isEmpty else { return .scalar(.error(FormulaErrors.value)) }
+        var params: [String] = []
+        var seen = Set<String>()
+        for a in args.dropLast() {
+            guard case .name(let n) = a else { return .scalar(.error(FormulaErrors.value)) }
+            let key = n.uppercased()
+            guard !seen.contains(key) else { return .scalar(.error(FormulaErrors.value)) }
+            seen.insert(key)
+            params.append(key)
+        }
+        return .lambda(params: params, body: args[args.count - 1], env: env)
+    }
+
+    /// Gọi lambda với các biểu thức đối số: đối số tính TRƯỚC ở nơi gọi (môi trường
+    /// hiện tại — ví dụ biến LET của nơi gọi), rồi mới gắn vào môi trường đã chụp của
+    /// lambda; lỗi scalar trong đối số lan ra; lệch số lượng → #VALUE!; thân tính trong
+    /// môi trường đã chụp + tham số đã gắn (phạm vi từ vựng, như Excel). Đệ quy sâu quá
+    /// giới hạn engine thì #VALUE!.
+    private func applyLambdaValue(params: [String], body: FormulaExpr, captured: [String: EvalValue], argExprs: [FormulaExpr]) -> EvalValue {
+        guard params.count == argExprs.count else { return .scalar(.error(FormulaErrors.value)) }
+        guard lambdaDepth < Self.maxLambdaDepth else { return .scalar(.error(FormulaErrors.value)) }
+        var values: [EvalValue] = []
+        values.reserveCapacity(argExprs.count)
+        for a in argExprs {
+            let v = eval(a)
+            if case .scalar(let cv) = v, case .error = cv { return v }
+            values.append(v)
+        }
+        var sub = self
+        sub.lambdaDepth += 1
+        sub.env = captured
+        for (p, v) in zip(params, values) { sub.env[p] = v }
+        return sub.eval(body)
+    }
+
+    /// Gọi tên định nghĩa: chỉ tính biểu thức đích (không chạy thân) với môi trường
+    /// rỗng rồi áp dụng nếu nó là lambda; tên không phải lambda mà bị gọi → #VALUE!.
+    /// Vòng tên trong lúc tính biểu thức đích → #REF! (qua nameStack); đệ quy thật
+    /// qua tên vẫn chạy vì mỗi lần gọi lại kiểm tra độ sâu lambda riêng.
+    private func definedNameCall(_ name: String, _ ex: FormulaExpr, _ args: [FormulaExpr]) -> EvalValue {
+        let key = name.uppercased()
+        guard !nameStack.contains(key) else { return .scalar(.error(FormulaErrors.ref)) }
+        var sub = self
+        sub.env = [:]
+        sub.nameStack.insert(key)
+        let v = sub.eval(ex)
+        guard case .lambda(let params, let body, let captured) = v else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        return applyLambdaValue(params: params, body: body, captured: captured, argExprs: args)
     }
 
     /// LET(name1, value1, ..., calculation): gán lần lượt (giá trị sau dùng được biến trước,
@@ -1243,6 +1328,7 @@ struct FormulaEvaluator {
         for a in args {
             switch eval(a) {
             case .scalar(let v): out.append((v, true))
+            case .lambda: out.append((.error(FormulaErrors.value), true))
             case .array(let rows): for v in rows.flatMap({ $0 }) { out.append((v, true)) }
             case .ref(let sh, let r):
                 // Ô đơn rỗng bị bỏ qua cũng như trong vùng.
