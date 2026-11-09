@@ -960,9 +960,9 @@ public final class Worksheet {
         let value: CellValue
         switch t {
         case "s":
-            if let i = vText.flatMap({ Int($0.trimmingCharacters(in: .whitespaces)) }), let s = workbook.sharedStrings?[i] {
+            if let i = vText.flatMap({ Int($0.trimmingCharacters(in: .whitespaces)) }), let s = workbook.string(at: i) {
                 value = .string(s)
-                rich = workbook.sharedStrings?.isRichText(i) ?? false
+                rich = workbook.isRichText(at: i)
             } else {
                 value = .empty
             }
@@ -1338,9 +1338,8 @@ public final class Worksheet {
                 setAttributeAfterR(c, "t", "str")
                 newChildren.append(v(SharedStrings.escape(s)))
             } else {
-                let sst = try workbook.sharedStringsCreatingIfNeeded()
                 setAttributeAfterR(c, "t", "s")
-                newChildren.append(v(String(sst.index(for: s))))
+                newChildren.append(v(String(try workbook.stringIndex(for: s))))
             }
         case .bool(let b):
             setAttributeAfterR(c, "t", "b")

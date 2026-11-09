@@ -130,6 +130,12 @@ public final class LazySharedStrings {
     /// Số chuỗi duy nhất (thuộc tính `uniqueCount` + số chuỗi mới đã thêm).
     public var uniqueCount: Int { baseUnique + tailTexts.count }
 
+    /// Có thay đổi chưa ghi ra không: chuỗi mới đã thêm (`tail`) hoặc
+    /// `count` đã tăng do `index(for:)` được gọi. Đọc thuần không làm bẩn.
+    /// `Workbook` dùng cờ này để quyết định có đẩy `serializedData()` vào
+    /// gói khi lưu hay không (không bẩn → giữ nguyên byte nén gốc).
+    var hasUnwrittenChanges: Bool { !tailXML.isEmpty || bumpCalls > 0 }
+
     // MARK: - Đọc lười
 
     /// Văn bản của mục thứ `index` (`nil` ngoài phạm vi). Chỉ giải mã khi

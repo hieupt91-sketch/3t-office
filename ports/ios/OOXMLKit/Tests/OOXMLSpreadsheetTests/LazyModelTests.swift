@@ -1,11 +1,15 @@
 import XCTest
 @testable import OOXMLSpreadsheet
 import OOXMLPackage
+import OOXMLTestSupport
 
 /// Gói M2b giai đoạn A (issue #10): `LazySharedStrings` — chỉ mục offset
 /// quét 1 lượt byte thô, giải mã lười, thêm chuỗi vào đuôi, ghi ra bằng
 /// byte gốc + `<si>` mới.
+/// Giai đoạn A2: nối bảng lười vào `Workbook` theo đường opt-in
+/// (`lazyModel: true`), giữ eager mặc định.
 final class LazyModelTests: XCTestCase {
+    let rich = "xlsx/rich-excel.xlsx"
 
     /// Dựng part sharedStrings tổng hợp: `count`/`uniqueCount` cho trước,
     /// các `<si>` cho trước (chuỗi XML thô).
@@ -155,5 +159,90 @@ final class LazyModelTests: XCTestCase {
         print("M2b-A1 index(for:) trượt (quét tuyến tính 300.000 mục): "
             + "\(String(format: "%.3f", missSeconds)) s")
         XCTAssertEqual(idx, 300_000)
+    }
+
+    // MARK: - A2: nối vào Workbook (opt-in `lazyModel: true`)
+
+    func testLazyWorkbookReadsSharedStringsWithoutEagerTable() throws {
+        let original = try Fixtures.data(rich)
+        let wb = try Workbook(data: original, deferValidation: true, lazyModel: true)
+        XCTAssertTrue(wb.isLazyModel)
+        XCTAssertNil(wb.sharedStrings, "đường lười không được dựng bảng eager")
+        XCTAssertNotNil(wb.lazySharedStrings)
+        XCTAssertEqual(wb.lazySharedStrings?.decodedCount, 0, "mở lười không giải mã chuỗi nào")
+        let ws = try wb.worksheet(named: "Dữ liệu")
+        XCTAssertEqual(try ws.value("A1"), .string("Mã"))
+        XCTAssertEqual(wb.lazySharedStrings?.decodedCount, 1)
+        XCTAssertEqual(try ws.value("A1"), .string("Mã"), "đọc lại lấy từ cache")
+        XCTAssertEqual(wb.lazySharedStrings?.decodedCount, 1, "cache hit không giải mã lại")
+        XCTAssertEqual(try ws.value("B2"), .string("Giấy A4 Double A"))
+        XCTAssertEqual(wb.lazySharedStrings?.decodedCount, 2)
+        XCTAssertEqual(try ws.cell("A8")?.isRichText, true)
+        XCTAssertEqual(try ws.value("A8"), .string("Chú ý: số liệu tạm tính"))
+        XCTAssertEqual(try ws.value("D7"), .string("Chuỗi nội tuyến"), "inlineStr không qua bảng chia sẻ")
+        XCTAssertEqual(wb.lazySharedStrings?.decodedCount, 3, "chỉ 3 chuỗi được chạm tới mới giải mã")
+    }
+
+    func testLazyWorkbookEditStringSaveReopen() throws {
+        let original = try Fixtures.data(rich)
+        let url = try Fixtures.scratchDirectory("xlsx-lazy-edit").appendingPathComponent("rich-lazy-edited.xlsx")
+        do {
+            let wb = try Workbook(data: original, deferValidation: true, lazyModel: true)
+            let ws = try wb.worksheet(named: "Dữ liệu")
+            try ws.setValue("Bút bi Thiên Long (hộp 20)", at: "B3")
+            try ws.setValue("Giấy A4 Double A", at: "B4") // dùng lại chuỗi đã có
+            try ws.setValue("  khoảng trắng  ", at: "F2")
+            try wb.save(to: url)
+        }
+        // "Đóng" = giải phóng toàn bộ đối tượng; mở lại từ đĩa bằng đường eager.
+        let wb = try Workbook(contentsOf: url)
+        let ws = try wb.worksheet(named: "Dữ liệu")
+        XCTAssertEqual(try ws.value("B3"), .string("Bút bi Thiên Long (hộp 20)"))
+        XCTAssertEqual(try ws.value("B4"), .string("Giấy A4 Double A"))
+        XCTAssertEqual(try ws.value("F2"), .string("  khoảng trắng  "))
+        XCTAssertEqual(try ws.value("A8"), .string("Chú ý: số liệu tạm tính"), "rich text còn")
+        XCTAssertEqual(try ws.value("A1"), .string("Mã"), "chuỗi gốc còn nguyên")
+
+        let saved = try Data(contentsOf: url)
+        try RoundTrip.verify(original: original, saved: saved,
+                             allowedChanges: ["xl/worksheets/sheet1.xml", "xl/sharedStrings.xml", "xl/workbook.xml"],
+                             requireChanged: ["xl/worksheets/sheet1.xml", "xl/sharedStrings.xml"],
+                             name: "xlsx-lazy-values.xlsx")
+        let sst = try RoundTrip.partString(saved, "xl/sharedStrings.xml")
+        XCTAssertTrue(sst.contains("<t xml:space=\"preserve\">  khoảng trắng  </t>"))
+        XCTAssertTrue(sst.contains("<color rgb=\"FFC00000\"/>"), "định dạng rich text giữ nguyên")
+    }
+
+    func testLazyWorkbookNoOpSaveIsLossless() throws {
+        let original = try Fixtures.data(rich)
+        let wb = try Workbook(data: original, deferValidation: true, lazyModel: true)
+        // Chạm vài ô (chỉ đọc) rồi lưu không sửa: không phần nào được đổi.
+        let ws = try wb.worksheet(named: "Dữ liệu")
+        XCTAssertEqual(try ws.value("A1"), .string("Mã"))
+        XCTAssertFalse(wb.lazySharedStrings?.hasUnwrittenChanges ?? true, "chỉ đọc không được làm bẩn bảng lười")
+        let saved = try wb.save()
+        try RoundTrip.assertNoOpSaveIsLossless(original, saved: saved, name: "m2b-a2-lazy-noop.xlsx")
+    }
+
+    func testLazyWorkbookWithoutSSTCreatesOnDemand() throws {
+        // Fixture không có phần sharedStrings và không ô nào dùng t="s":
+        // mở lười, ghi chuỗi mới phải tự tạo part sst.
+        let original = try Fixtures.data("xlsx/implicit-refs.xlsx")
+        let wb = try Workbook(data: original, deferValidation: true, lazyModel: true)
+        XCTAssertTrue(wb.isLazyModel)
+        XCTAssertNil(wb.sharedStrings)
+        XCTAssertNil(wb.lazySharedStrings, "chưa có part sst thì chưa dựng bảng")
+        let ws = try wb.worksheet(at: 0)
+        XCTAssertEqual(try ws.value("A1"), .number(1))
+        try ws.setValue("Chuỗi mới hoàn toàn", at: "D1")
+        XCTAssertNotNil(wb.lazySharedStrings, "ghi chuỗi mới tạo bảng lười")
+        let saved = try wb.save()
+        let re = try Workbook(data: saved)
+        let ws2 = try re.worksheet(at: 0)
+        XCTAssertEqual(try ws2.value("D1"), .string("Chuỗi mới hoàn toàn"))
+        XCTAssertEqual(try ws2.value("A1"), .number(1), "ô số gốc còn nguyên")
+        XCTAssertEqual(try ws2.value("C1"), .string("ba"), "inlineStr còn nguyên")
+        let sst = try RoundTrip.partString(saved, "xl/sharedStrings.xml")
+        XCTAssertTrue(sst.contains("Chuỗi mới hoàn toàn"))
     }
 }

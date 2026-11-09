@@ -7,7 +7,7 @@ import OOXMLPresentation
 
 // Dùng: ooxml-bench gen <bytes-xấp-xỉ> <đường-dẫn.xlsx>
 //       ooxml-bench run <chế-độ> <đường-dẫn.xlsx>
-// Chế độ: zip-list | open-eager | open-lazy | workbook-eager | workbook-lazy | save-eager | save-lazy
+// Chế độ: zip-list | open-eager | open-lazy | workbook-eager | workbook-lazy | workbook-lazymodel | save-eager | save-lazy | save-lazymodel
 // Mỗi lần chạy là một tiến trình riêng để VmHWM (bộ nhớ đỉnh, Linux) không bị lẫn giữa các chế độ.
 
 func now() -> Double { Double(DispatchTime.now().uptimeNanoseconds) / 1e9 }
@@ -82,6 +82,19 @@ func run(mode: String, path: String) throws {
     case "workbook-eager", "workbook-lazy":
         let wb = mode.hasSuffix("lazy") ? try Workbook(contentsOf: url, deferValidation: true) : try Workbook(contentsOf: url)
         detail = "sheets=\(wb.sheetNames.count) xmlParsed=\(wb.package.loadedXMLPartCount)"
+    case "workbook-lazymodel":
+        // M2b A2: mở bằng đường lười theo mô hình (sharedStrings chỉ quét offset).
+        let wb = try Workbook(contentsOf: url, deferValidation: true, lazyModel: true)
+        detail = "sheets=\(wb.sheetNames.count) xmlParsed=\(wb.package.loadedXMLPartCount)"
+    case "save-lazymodel":
+        // M2b A2: như save-lazy nhưng đi đường lazyModel (ghi chuỗi mới vào đuôi <sst>).
+        let wb = try Workbook(contentsOf: url, deferValidation: true, lazyModel: true)
+        let tOpen = now()
+        try wb.worksheet(at: 0).setValue("bench", at: "A1")
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("bench-out-lazymodel-\(getpid()).xlsx")
+        try wb.save(to: out)
+        try? FileManager.default.removeItem(at: out)
+        detail = String(format: "open=%.3fs edit+save=%.3fs", tOpen - t0, now() - tOpen)
     case "save-eager", "save-lazy":
         let wb = mode.hasSuffix("lazy") ? try Workbook(contentsOf: url, deferValidation: true) : try Workbook(contentsOf: url)
         let tOpen = now()
