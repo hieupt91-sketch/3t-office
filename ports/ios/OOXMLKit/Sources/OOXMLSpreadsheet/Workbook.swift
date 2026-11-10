@@ -34,6 +34,13 @@ public final class Workbook {
     public let workbookPart: PartName
     let document: XDocument
     public private(set) var sharedStrings: SharedStrings?
+    /// Bảng chuỗi chia sẻ LƯỜI (chỉ có khi mở bằng `lazyModel: true`):
+    /// lúc mở chỉ quét chỉ mục offset, không parse DOM `<sst>`.
+    /// Khi có nó, `sharedStrings` (eager) giữ `nil`.
+    var lazySharedStrings: LazySharedStrings?
+    private var lazySharedStringsPart: PartName?
+    /// Mở bằng đường lười (`lazyModel: true`) hay đường eager mặc định.
+    public private(set) var isLazyModel = false
     public let styles: StyleSheet?
     private final class WeakSheet { weak var sheet: Worksheet?; init(_ s: Worksheet) { sheet = s } }
     /// Cache yếu (tránh vòng tham chiếu): mọi sửa đổi nằm trong DOM của gói, nên tạo lại Worksheet luôn nhất quán.
@@ -60,14 +67,34 @@ public final class Workbook {
         try self.init(package: OPCPackage(data: data, deferValidation: deferValidation))
     }
 
-    public init(package: OPCPackage) throws {
+    /// Mở LƯỜI THEO MÔ HÌNH (opt-in, gói M2b giai đoạn A — issue #10):
+    /// bảng chuỗi chia sẻ chỉ quét chỉ mục offset, không parse DOM `<sst>`
+    /// lúc mở; chuỗi chỉ giải mã khi ô đọc tới. Mặc định eager giữ nguyên.
+    /// `deferValidation` vẫn áp dụng như đường mở lười (`init(contentsOf:deferValidation:)`).
+    public convenience init(contentsOf url: URL, deferValidation: Bool, lazyModel: Bool) throws {
+        try self.init(package: OPCPackage(contentsOf: url, deferValidation: deferValidation), lazyModel: lazyModel)
+    }
+
+    /// Như trên, mở từ dữ liệu trong bộ nhớ.
+    public convenience init(data: Data, deferValidation: Bool, lazyModel: Bool) throws {
+        try self.init(package: OPCPackage(data: data, deferValidation: deferValidation), lazyModel: lazyModel)
+    }
+
+    public init(package: OPCPackage, lazyModel: Bool = false) throws {
         self.package = package
+        self.isLazyModel = lazyModel
         guard let main = try? package.mainDocumentPart(), package.hasPart(main) else { throw SpreadsheetError.notASpreadsheet }
         workbookPart = main
         document = try package.xml(main)
         guard document.root.is(NS.s, "workbook") else { throw SpreadsheetError.notASpreadsheet }
         if let p = try package.relatedPart(from: main, .sharedStrings), package.hasPart(p) {
-            sharedStrings = try SharedStrings(package: package, part: p)
+            if lazyModel {
+                // Chỉ lấy byte thô của part, KHÔNG parse DOM `<sst>` lúc mở.
+                lazySharedStrings = try LazySharedStrings(data: package.data(of: p))
+                lazySharedStringsPart = p
+            } else {
+                sharedStrings = try SharedStrings(package: package, part: p)
+            }
         }
         if let p = try package.relatedPart(from: main, .styles), package.hasPart(p) {
             styles = try StyleSheet(package: package, part: p)
@@ -519,6 +546,50 @@ public final class Workbook {
         return s
     }
 
+    // MARK: Bảng chuỗi chia sẻ — chuyển tiếp eager/lười (M2b A2)
+
+    /// Văn bản của chuỗi chia sẻ thứ `index` (`nil` ngoài phạm vi).
+    /// Đường lười chỉ giải mã mục được hỏi (cache LRU 1.024 mục).
+    func string(at index: Int) -> String? {
+        if let lazy = lazySharedStrings { return lazy[index] }
+        return sharedStrings?[index]
+    }
+
+    /// Mục thứ `index` có phải rich text không.
+    func isRichText(at index: Int) -> Bool {
+        if let lazy = lazySharedStrings { return lazy.isRichText(index) }
+        return sharedStrings?.isRichText(index) ?? false
+    }
+
+    /// Chỉ số của chuỗi thuần (dùng lại nếu đã có, ngược lại thêm mới ở
+    /// cuối). Đường lười: chuỗi mới vào đuôi chờ, ghi ra ở lần lưu sau.
+    func stringIndex(for text: String) throws -> Int {
+        if isLazyModel { return try lazySharedStringsCreatingIfNeeded().index(for: text) }
+        return try sharedStringsCreatingIfNeeded().index(for: text)
+    }
+
+    /// Tạo phần sharedStrings mới cho workbook chưa có (đường lười): ghi
+    /// trực tiếp byte `<sst>` rỗng, không parse DOM.
+    func lazySharedStringsCreatingIfNeeded() throws -> LazySharedStrings {
+        if let l = lazySharedStrings { return l }
+        let part = PartName(workbookPart.directory + "/sharedStrings.xml")
+        let data = Data("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><sst xmlns=\"\(NS.s.primaryURI)\" count=\"0\" uniqueCount=\"0\"></sst>".utf8)
+        package.setData(data, for: part, contentType: ContentType.sharedStrings)
+        _ = try package.relationships(of: workbookPart).add(.sharedStrings, to: part)
+        let l = try LazySharedStrings(data: data)
+        lazySharedStrings = l
+        lazySharedStringsPart = part
+        return l
+    }
+
+    /// Đẩy byte sharedStrings lười đã đổi vào gói trước khi lưu. Không bẩn
+    /// thì không đụng tới part (giữ nguyên byte nén gốc khi lưu không sửa).
+    private func flushLazySharedStrings() {
+        guard isLazyModel, let lazy = lazySharedStrings, let part = lazySharedStringsPart,
+              lazy.hasUnwrittenChanges else { return }
+        package.setData(lazy.serializedData(), for: part)
+    }
+
     func invalidateCalcChain() { calcChainInvalid = true }
     func requestRecalculation() { needsRecalculation = true }
 
@@ -550,12 +621,14 @@ public final class Workbook {
 
     public func save() throws -> Data {
         try applyCalculationState()
+        flushLazySharedStrings()
         return try package.save()
     }
 
     /// Lưu an toàn (ghi tạm → kiểm tra → thay nguyên tử).
     public func save(to url: URL) throws {
         try applyCalculationState()
+        flushLazySharedStrings()
         try package.save(to: url)
     }
 
@@ -566,6 +639,7 @@ public final class Workbook {
     /// gọi tường minh hàm này mới đi đường truyền phát.
     public func saveStreaming(to url: URL) throws {
         try applyCalculationState()
+        flushLazySharedStrings()
         try package.saveStreaming(to: url)
     }
 
