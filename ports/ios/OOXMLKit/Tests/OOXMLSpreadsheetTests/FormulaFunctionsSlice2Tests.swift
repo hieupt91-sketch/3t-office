@@ -485,8 +485,9 @@ final class FormulaFunctionsSlice2Tests: XCTestCase {
 
     func testUnknownStillNameError() {
         XCTAssertEqual(calc("FOO(1)"), err("#NAME?"))
-        // XLOOKUP đã có từ gói L4 (xem testXlookup); LAMBDA là ví dụ hàm chưa triển khai.
-        XCTAssertEqual(calc("LAMBDA(1)", data), err("#NAME?"))
+        // LAMBDA đã triển khai ở M7 lát 28: LAMBDA(1) là hàm không tham số, thân là hằng 1;
+        // hàm trần trong ô → #VALUE! theo Excel, không còn #NAME?.
+        XCTAssertEqual(calc("LAMBDA(1)", data), err("#VALUE!"))
     }
 
     // MARK: Engine: phụ thuộc, lan lỗi, chéo sheet

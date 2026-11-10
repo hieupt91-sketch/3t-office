@@ -64,6 +64,178 @@ final class FormulaEvaluatorTests: XCTestCase {
         XCTAssertEqual(calc("XLOOKUP(1,A1:A3,B1:B3)", d), .number(10), "đầu mảng")
     }
 
+    func testXmatch() {
+        let d: [String: CellValue] = [
+            "A1": .number(1), "A2": .number(2), "A3": .number(3),
+            "B1": .number(10), "B2": .number(20), "B3": .number(30),
+            "E1": .string("táo"), "E2": .string("cam"), "E3": .string("xoài"),
+            "F1": .number(7), "F2": .number(7), "F3": .number(9),
+            "H1": .number(3), "H2": .number(2), "H3": .number(1),
+        ]
+        XCTAssertEqual(calc("XMATCH(2,A1:A3)", d), .number(2), "khớp đúng")
+        XCTAssertEqual(calc("XMATCH(4,A1:A3)", d), err("#N/A"), "không thấy")
+        XCTAssertEqual(calc("XMATCH(2.5,A1:A3,-1)", d), .number(2), "match -1: nhỏ hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(0.5,A1:A3,-1)", d), err("#N/A"), "match -1: không có gì nhỏ hơn")
+        XCTAssertEqual(calc("XMATCH(2.5,A1:A3,1)", d), .number(3), "match 1: lớn hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(4,A1:A3,1)", d), err("#N/A"), "match 1: không có gì lớn hơn")
+        XCTAssertEqual(calc("XMATCH(\"c*\",E1:E3,2)", d), .number(2), "match 2: ký tự đại diện *")
+        XCTAssertEqual(calc("XMATCH(\"t?o\",E1:E3,2)", d), .number(1), "match 2: ký tự đại diện ?")
+        XCTAssertEqual(calc("XMATCH(\"TÁO\",E1:E3)", d), .number(1), "khớp chuỗi không phân biệt hoa thường")
+        XCTAssertEqual(calc("XMATCH(7,F1:F3,0,-1)", d), .number(2), "search -1: lấy khớp cuối")
+        XCTAssertEqual(calc("XMATCH(10,A1:B1)", d), .number(2), "mảng ngang")
+        XCTAssertEqual(calc("XMATCH(2,A1:A3,0,2)", d), .number(2), "nhị phân tăng dần: khớp đúng")
+        XCTAssertEqual(calc("XMATCH(2.5,A1:A3,-1,2)", d), .number(2), "nhị phân tăng dần: nhỏ hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(2.5,A1:A3,1,2)", d), .number(3), "nhị phân tăng dần: lớn hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(2,H1:H3,0,-2)", d), .number(2), "nhị phân giảm dần: khớp đúng")
+        XCTAssertEqual(calc("XMATCH(2.5,H1:H3,-1,-2)", d), .number(2), "nhị phân giảm dần: nhỏ hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(2.5,H1:H3,1,-2)", d), .number(1), "nhị phân giảm dần: lớn hơn gần nhất")
+        XCTAssertEqual(calc("XMATCH(0.5,H1:H3,1,-2)", d), .number(3), "nhị phân giảm dần: lớn hơn gần nhất ở cuối")
+        XCTAssertEqual(calc("XMATCH(2,A1:A3,3)", d), err("#VALUE!"), "match_mode ngoài miền")
+        XCTAssertEqual(calc("XMATCH(2,A1:A3,0,3)", d), err("#VALUE!"), "search_mode ngoài miền")
+        XCTAssertEqual(calc("XMATCH(2,A1:B2)", d), err("#VALUE!"), "lookup_array không phải vector")
+        XCTAssertEqual(calc("XMATCH(\"c*\",E1:E3,2,2)", d), err("#VALUE!"), "ký tự đại diện + tìm nhị phân")
+        XCTAssertEqual(calc("XMATCH(1/0,A1:A3)", d), err("#DIV/0!"), "lỗi trong khóa lan ra")
+        XCTAssertEqual(calc("XMATCH(2,A1:A3,)", d), .number(2), "match_mode trống -> 0 = khớp đúng")
+        XCTAssertEqual(calc("XMATCH(2,A1:A3,,)", d), err("#VALUE!"), "search_mode trống -> 0, ngoài miền (quy ước: đối số trống ép về 0 như XLOOKUP)")
+    }
+
+    func testWeekdayWeeknumNetworkdaysWorkday() {
+        // Golden Excel 2016: batch13-common D1=45000 (2023-03-15 Thứ Tư), D2=45100;
+        // batch4-misc: WEEKNUM các loại return_type.
+        let d: [String: CellValue] = [
+            "D1": .number(45000), "D2": .number(45100),
+            "H1": .number(45293), "H2": .number(45294), // 2024-01-02, 2024-01-03
+            "H3": .string("không phải ngày"), "H4": .empty,
+        ]
+        // WEEKDAY — golden: WEEKDAY(D1)=4, WEEKDAY(D1,2)=3
+        XCTAssertEqual(calc("WEEKDAY(D1)", d), .number(4), "golden batch13: Thứ Tư, loại 1")
+        XCTAssertEqual(calc("WEEKDAY(D1,2)", d), .number(3), "golden batch13: Thứ Tư, loại 2")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,1))"), .number(2), "2024-01-01 Thứ Hai, loại 1")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,1),2)"), .number(1), "loại 2: Thứ Hai = 1")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,1),3)"), .number(0), "loại 3: Thứ Hai = 0")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,7))"), .number(1), "Chủ nhật, loại 1")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,7),2)"), .number(7), "Chủ nhật, loại 2 = 7")
+        XCTAssertEqual(calc("WEEKDAY(45000.9)", d), .number(4), "serial lẻ cắt phần thập phân")
+        XCTAssertEqual(calc("WEEKDAY(0)"), .number(7), "serial 0 = Thứ Bảy theo cách đếm Excel")
+        XCTAssertEqual(calc("WEEKDAY(60)"), .number(4), "serial 60 (29/02/1900 giả) = Thứ Tư")
+        XCTAssertEqual(calc("WEEKDAY(\"2024-03-05\")"), .number(3), "chuỗi ngày hợp lệ")
+        XCTAssertEqual(calc("WEEKDAY(DATE(2024,1,1),4)"), err("#NUM!"), "return_type ngoài miền")
+        XCTAssertEqual(calc("WEEKDAY(\"không phải ngày\")"), err("#VALUE!"), "chuỗi không phải ngày")
+        XCTAssertEqual(calc("WEEKDAY(-1)"), err("#NUM!"), "serial âm")
+        // WEEKNUM — golden batch4
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,1,1))"), .number(1), "golden: 2024-01-01 loại 1")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,1,1),2)"), .number(1), "golden: 2024-01-01 loại 2")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,12,31))"), .number(53), "golden: 2024-12-31 loại 1")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,12,31),2)"), .number(53), "golden: 2024-12-31 loại 2")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2023,1,1),2)"), .number(1), "golden: 2023-01-01 loại 2")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),11)"), .number(10), "golden: loại 11 (tuần bắt đầu Thứ Hai)")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),12)"), .number(11), "golden: loại 12 (Thứ Ba)")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),16)"), .number(10), "golden: loại 16 (Thứ Bảy)")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),17)"), .number(10), "golden: loại 17 (Chủ nhật)")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),21)"), .number(10), "golden: loại 21 (ISO)")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),3)"), err("#NUM!"), "golden: loại 3 ngoài miền")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),0)"), err("#NUM!"), "golden: loại 0 ngoài miền")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2023,1,1),21)"), .number(52), "ISO: 2023-01-01 thuộc tuần 52 của 2022")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,12,29),21)"), .number(52), "ISO: 2024-12-29 Chủ nhật = tuần 52")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,12,30),21)"), .number(1), "ISO: 2024-12-30 Thứ Hai = tuần 1 của 2025")
+        XCTAssertEqual(calc("WEEKNUM(0)"), err("#NUM!"), "serial 0 không có tuần")
+        XCTAssertEqual(calc("WEEKNUM(DATE(2024,3,5),22)"), err("#NUM!"), "loại 22 ngoài miền")
+        // NETWORKDAYS — golden: NETWORKDAYS(D1,D2)=73
+        XCTAssertEqual(calc("NETWORKDAYS(D1,D2)", d), .number(73), "golden batch13")
+        XCTAssertEqual(calc("NETWORKDAYS(D2,D1)", d), .number(-73), "đảo đầu: đếm âm")
+        XCTAssertEqual(calc("NETWORKDAYS(DATE(2024,1,1),DATE(2024,1,1))"), .number(1), "cùng ngày làm việc = 1")
+        XCTAssertEqual(calc("NETWORKDAYS(DATE(2024,1,6),DATE(2024,1,6))"), .number(0), "cùng ngày Thứ Bảy = 0")
+        XCTAssertEqual(calc("NETWORKDAYS(DATE(2024,1,1),DATE(2024,1,5),DATE(2024,1,1))"), .number(4), "lễ rơi vào ngày làm việc thì trừ")
+        XCTAssertEqual(calc("NETWORKDAYS(DATE(2024,1,1),DATE(2024,1,5),H1:H2)", d), .number(3), "lễ theo vùng: trừ 2 ngày")
+        XCTAssertEqual(calc("NETWORKDAYS(DATE(2024,1,1),DATE(2024,1,5),H3:H4)", d), .number(5), "lễ là chữ/rỗng: bỏ qua")
+        // WORKDAY — golden: WORKDAY(D1,10)=45014
+        XCTAssertEqual(calc("WORKDAY(D1,10)", d), .number(45014), "golden batch13")
+        XCTAssertEqual(calc("WORKDAY(D1,0)", d), .number(45000), "days = 0: giữ nguyên start")
+        XCTAssertEqual(calc("WORKDAY(D1,-1)", d), .number(44999), "lùi 1 ngày làm việc")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,6),1)"), .number(45299), "Thứ Bảy +1 = Thứ Hai 2024-01-08")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,6),0)"), .number(45297), "Thứ Bảy +0 = giữ nguyên Thứ Bảy")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,1),1,DATE(2024,1,2))"), .number(45294), "bỏ qua lễ 2024-01-02")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,1),2,H1:H2)", d), .number(45296), "lễ theo vùng: 01-01 +2 = 01-05")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,1),10.9)"), .number(45306), "days lẻ cắt phần thập phân")
+        XCTAssertEqual(calc("WORKDAY(\"không phải ngày\",1)"), err("#VALUE!"), "start không phải ngày")
+        XCTAssertEqual(calc("WORKDAY(DATE(2024,1,1),\"x\")"), err("#VALUE!"), "days không phải số")
+    }
+
+    func testFinancialPmtFvPvNpvIrrRateNperIpmtPpmt() {
+        // M7 lát 23: hàm tài chính. Giá trị đối chiếu tính độc lập bằng Python
+        // (cùng công thức Excel); sai số cho phép 0,005 (tiền) / 1e-5 (lãi suất).
+        func fin(_ formula: String, _ expected: Double, tol: Double = 0.005, cells: [String: CellValue] = [:], msg: String = "", _ file: StaticString = #filePath, _ line: UInt = #line) {
+            let v = calc(formula, cells)
+            guard case .number(let d) = v else {
+                XCTFail("\(formula) trả \(v), mong số ≈ \(expected) \(msg)", file: file, line: line)
+                return
+            }
+            XCTAssertEqual(d, expected, accuracy: tol, "\(formula) \(msg)", file: file, line: line)
+        }
+        let cash: [String: CellValue] = [
+            "A1": .number(100), "A2": .number(200), "A3": .number(300), "A4": .string("chữ"),
+            "B1": .number(-1000), "B2": .number(300), "B3": .number(400), "B4": .number(500),
+            "C1": .number(-100), "C2": .number(110),
+            "D1": .number(-100), "D2": .number(39), "D3": .number(59), "D4": .number(55), "D5": .number(20),
+            "E1": .number(100), "E2": .number(200),
+        ]
+        // PMT — trả góp 10.000 trong 12 tháng, 8%/năm
+        fin("PMT(0.08/12,12,10000)", -869.88)
+        fin("PMT(0.1,10,100000)", -16274.54)
+        fin("PMT(0,10,1000)", -100)
+        fin("PMT(0.1,10,100000,0,1)", -14795.04, msg: "type = 1: trả đầu kỳ")
+        fin("PMT(0.1,10,1000,0,)", -162.75, msg: "type trống -> 0")
+        XCTAssertEqual(calc("PMT(0.1,0,1000)"), err("#NUM!"), "nper = 0")
+        XCTAssertEqual(calc("PMT(-1,10,1000)"), err("#NUM!"), "rate = -1")
+        XCTAssertEqual(calc("PMT(0.1,10,1000,0,2)"), err("#NUM!"), "type ngoài miền")
+        XCTAssertEqual(calc("PMT(\"x\",10,1000)"), err("#VALUE!"), "rate không phải số")
+        // FV
+        fin("FV(0.05,10,-100,-1000)", 2886.68)
+        fin("FV(0,10,-100)", 1000)
+        fin("FV(0.05,10,-100)", 1257.79, "pv mặc định 0")
+        XCTAssertEqual(calc("FV(-1,10,-100)"), err("#NUM!"), "rate = -1")
+        // PV
+        fin("PV(0.08,20,-1000)", 9818.15)
+        fin("PV(0,10,-100)", 1000)
+        fin("PV(0.1,10,-16274.54)", 100000, tol: 0.05, msg: "nghịch đảo PMT (PMT đã làm tròn 2 chữ số)")
+        // NPV
+        fin("NPV(0.1,100,200,300)", 481.59)
+        fin("NPV(0.1,A1:A3)", 481.59, cells: cash, msg: "vùng")
+        fin("NPV(0.1,A1:A4)", 481.59, cells: cash, msg: "chữ trong vùng bị bỏ qua")
+        fin("NPV(0.1,-1000,300,400,500)", -19.12)
+        XCTAssertEqual(calc("NPV(-1,100)"), err("#DIV/0!"), "rate = -1")
+        XCTAssertEqual(calc("NPV(0.1,\"x\")"), err("#VALUE!"), "giá trị trực tiếp không phải số")
+        // IRR
+        fin("IRR(B1:B4)", 0.088963, tol: 0.00001, cells: cash)
+        fin("IRR(B1:B4,0.5)", 0.088963, tol: 0.00001, cells: cash, msg: "guess khác vẫn cùng nghiệm")
+        fin("IRR(C1:C2)", 0.1, tol: 0.000001, cells: cash, msg: "IRR(-100,110) = 10%")
+        fin("IRR(D1:D5)", 0.280948, tol: 0.00001, cells: cash)
+        XCTAssertEqual(calc("IRR(E1:E2)", cash), err("#NUM!"), "toàn dương: không có nghiệm")
+        XCTAssertEqual(calc("IRR(B1)", cash), err("#NUM!"), "một giá trị")
+        // RATE
+        fin("RATE(12,-100,1000)", 0.029229, tol: 0.00001)
+        fin("RATE(10,-16274.54,100000)", 0.1, tol: 0.00001, msg: "nghịch đảo PMT")
+        fin("RATE(12,-100,1000,0,0,0.5)", 0.029229, tol: 0.00001, msg: "guess khác vẫn cùng nghiệm")
+        XCTAssertEqual(calc("RATE(0,-100,1000)"), err("#NUM!"), "nper = 0")
+        // NPER
+        fin("NPER(0.1,-200,1000)", 7.27)
+        fin("NPER(0,-100,1000)", 10)
+        fin("NPER(0.05/12,-200,10000)", 56.18)
+        XCTAssertEqual(calc("NPER(0.1,-100,1000)"), err("#NUM!"), "trả đúng bằng lãi: không bao giờ hết nợ")
+        XCTAssertEqual(calc("NPER(0,0,1000)"), err("#NUM!"), "rate = 0, pmt = 0")
+        // IPMT / PPMT — khoản vay 1.000, 10%/năm, 3 kỳ: PMT = -402,11
+        fin("IPMT(0.1,1,3,1000)", -100)
+        fin("IPMT(0.1,2,3,1000)", -69.79)
+        fin("IPMT(0.1,3,3,1000)", -36.56)
+        fin("IPMT(0,1,3,1000)", 0, msg: "rate = 0: không có lãi")
+        XCTAssertEqual(calc("IPMT(0.1,0,3,1000)"), err("#NUM!"), "per = 0")
+        XCTAssertEqual(calc("IPMT(0.1,4,3,1000)"), err("#NUM!"), "per > nper")
+        fin("PPMT(0.1,1,3,1000)", -302.11)
+        fin("PPMT(0.1,2,3,1000)", -332.33)
+        fin("PPMT(0.1,3,3,1000)", -365.56)
+        fin("PPMT(0.1,2,3,1000)+IPMT(0.1,2,3,1000)", -402.11, msg: "gốc + lãi = PMT")
+    }
+
     func testEmptyArguments() {
         XCTAssertEqual(calc("SUM(1,,2)"), .number(3), "tham số trống ở giữa bị bỏ qua như Excel")
         XCTAssertEqual(calc("SUM(,1,2)"), .number(3), "tham số trống ở đầu")
@@ -122,6 +294,42 @@ final class FormulaEvaluatorTests: XCTestCase {
         XCTAssertEqual(e.value(sheet: "Sheet1", at: "E2"), .number(120), "SUM=6 * B2")
         XCTAssertEqual(e.value(sheet: "Sheet1", at: "F1"), .number(10), "hằng dọc trong CSE: phần tử 1")
         XCTAssertEqual(e.value(sheet: "Sheet1", at: "F3"), .number(30), "hằng dọc trong CSE: phần tử 3")
+    }
+
+    func testArrayFormulasInNormalContext() {
+        // M7 lát 16 (INBOX-MAC #17): mảng trong công thức thường, giá trị từ golden Excel 2016.
+        // golden-batch12-typical.json: B1:B4 / C1:C4.
+        let d12: [String: CellValue] = [
+            "B1": .number(1200000), "B2": .number(3500000), "B3": .number(1800000), "B4": .number(50000),
+            "C1": .number(4), "C2": .number(1), "C3": .number(2), "C4": .number(100),
+        ]
+        XCTAssertEqual(calc("SUMPRODUCT((C1:C4>1)*B1:B4)", d12), .number(3050000),
+                       "golden batch12: (C>1) -> 1200000 + 1800000 + 50000")
+        XCTAssertEqual(calc("SUMPRODUCT((C1:C4>1)*1)", d12), .number(3),
+                       "3 trong 4 ô C > 1")
+        XCTAssertEqual(calc("SUM((C1:C4>1)*B1:B4)", d12), .number(3050000),
+                       "SUM trên mảng so sánh cũng ra 3050000")
+        // golden-batch16-array-functions.json: A1=1, B1=2, A2=3, B2=4.
+        let d16: [String: CellValue] = [
+            "A1": .number(1), "B1": .number(2), "A2": .number(3), "B2": .number(4),
+        ]
+        XCTAssertEqual(calc("SUM(IF(A1:B2>1,1,0))", d16), .number(3),
+                       "golden batch16: 3 trong 4 ô > 1")
+        XCTAssertEqual(calc("SUM(IF(A1:B2>1,A1:B2,0))", d16), .number(9),
+                       "IF mảng với nhánh mảng: 2+3+4")
+        XCTAssertEqual(calc("SUM(IF(A1:A2>1,10,0))", d16), .number(10),
+                       "IF mảng dọc, nhánh scalar phát cho mọi ô")
+        XCTAssertEqual(calc("COUNT(IF(A1:B2>1,1,0))", d16), .number(4),
+                       "IF mảng trả 4 ô, COUNT đếm cả 0")
+        XCTAssertEqual(calc("SUM((A1:A3>1)*B1:B3)", [
+            "A1": .number(1), "A2": .number(2), "A3": .number(3),
+            "B1": .number(10), "B2": .number(20), "B3": .number(30),
+        ]), .number(50), "so sánh mảng * vùng: 0*10 + 1*20 + 1*30")
+        XCTAssertEqual(calc("SUMPRODUCT(A1:A3,B1:B2)", [
+            "A1": .number(1), "A2": .number(2), "A3": .number(3),
+            "B1": .number(10), "B2": .number(20),
+        ]), err("#VALUE!"), "lệch hình vẫn #VALUE!")
+        XCTAssertEqual(calc("IF(A1>1,1,0)", d16), .number(0), "IF điều kiện đơn giữ đường cũ")
     }
 
     func testArithmeticErrors() {
