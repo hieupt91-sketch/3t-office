@@ -590,6 +590,9 @@ public final class Workbook {
         package.setData(lazy.serializedData(), for: part)
     }
 
+    /// Trang tính của `part` đang được giữ ở dạng DOM (đã mở bằng `worksheet(…)` và còn sống).
+    func isWorksheetLoaded(_ part: PartName) -> Bool { loaded[part]?.sheet != nil }
+
     func invalidateCalcChain() { calcChainInvalid = true }
     func requestRecalculation() { needsRecalculation = true }
 

@@ -1221,6 +1221,10 @@ public final class Worksheet {
     }
 
     private func setAttributeAfterR(_ e: XElement, _ name: String, _ value: String) {
+        Worksheet.setAttributeAfterR(e, name, value)
+    }
+
+    static func setAttributeAfterR(_ e: XElement, _ name: String, _ value: String) {
         if e.attribute(name) != nil { e.setAttribute(name, value); return }
         let i = (e.attributes.firstIndex { $0.name == "r" }).map { $0 + 1 } ?? 0
         e.attributes.insert(XAttribute(name: name, value: value), at: i)
@@ -1286,7 +1290,15 @@ public final class Worksheet {
     private func cellElement(_ ref: CellReference) -> XElement {
         if let c = cellElements[ref] { return c }
         let row = rowElement(ref.row)
-        let c = XElement(name: q("c"), attributes: [XAttribute(name: "r", value: ref.a1)])
+        let c = Worksheet.insertNewCell(ref, into: row, name: q("c"))
+        cellElements[ref] = c
+        return c
+    }
+
+    /// Tạo `<c r=…>` mới trong `row` đúng vị trí cột và nới `spans` của hàng. Dùng chung cho đường DOM
+    /// và `SheetPatcher`.
+    static func insertNewCell(_ ref: CellReference, into row: XElement, name: String) -> XElement {
+        let c = XElement(name: name, attributes: [XAttribute(name: "r", value: ref.a1)])
         var inserted = false
         for (i, node) in row.children.enumerated() {
             guard let e = node.element else { continue }
@@ -1302,7 +1314,6 @@ public final class Worksheet {
             }
         }
         if !inserted { row.append(c) }
-        cellElements[ref] = c
         if let spans = row.attribute("spans") {
             let p = spans.split(separator: ":").compactMap { Int($0) }
             if p.count == 2 { row.setAttribute("spans", "\(min(p[0], ref.column)):\(max(p[1], ref.column))") }
@@ -1311,6 +1322,12 @@ public final class Worksheet {
     }
 
     private func write(_ value: CellValue, formula: String?, into c: XElement) throws {
+        try Worksheet.write(value, formula: formula, into: c, workbook: workbook) { self.q($0) }
+    }
+
+    /// Ghi giá trị/công thức vào phần tử `<c>`. Dùng chung cho đường DOM và `SheetPatcher`.
+    static func write(_ value: CellValue, formula: String?, into c: XElement, workbook: Workbook,
+                      q: (String) -> String) throws {
         c.removeChildren { node in
             guard let e = node.element else { return false }
             return e.is(NS.s, "f") || e.is(NS.s, "v") || e.is(NS.s, "is")
@@ -1371,9 +1388,16 @@ public final class Worksheet {
     }
 
     private func updateDimension(_ ref: CellReference) {
-        let dim = document.root.firstChild(NS.s, "dimension") ?? {
-            let e = XElement(name: q("dimension"), attributes: [XAttribute(name: "ref", value: ref.a1)])
-            document.root.insertChild(e, schemaOrder: Worksheet.worksheetOrder)
+        Worksheet.updateDimension(root: document.root, ref)
+    }
+
+    /// Nới `<dimension>` của sheet cho chứa `ref` (tạo phần tử nếu chưa có). Dùng chung cho đường DOM
+    /// và `SheetPatcher`.
+    static func updateDimension(root: XElement, _ ref: CellReference) {
+        let dim = root.firstChild(NS.s, "dimension") ?? {
+            let e = XElement(name: root.qualifiedName("dimension", in: NS.s).name,
+                             attributes: [XAttribute(name: "ref", value: ref.a1)])
+            root.insertChild(e, schemaOrder: Worksheet.worksheetOrder)
             return e
         }()
         let current = dim.attribute("ref").flatMap(CellRange.init) ?? CellRange(ref, ref)

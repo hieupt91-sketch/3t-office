@@ -253,6 +253,19 @@ sequenceDiagram
 
 ---
 
+### 4.1c. `sheet.setValues` (ghi nhiều ô, ưu tiên đường vá không dựng DOM)
+- **Mã nguồn:** `sheetSetValues` trong `OOXMLBridge.swift`; lõi là `SheetPatcher` (`Sources/OOXMLSpreadsheet/SheetPatcher.swift`).
+- **Tham số:** `handle`; `sheet` hoặc `sheetIndex`; `cells`: mảng `{"ref": "A1", "value": …}` (định dạng `value` như `sheet.setValue`).
+- **Trả về:** `{"path": "patch" | "dom", "count": <số ô>}`.
+- **Ngữ nghĩa:** thử đường vá trước: chỉ parse các hàng bị sửa, mọi hàng khác giữ nguyên từng byte, không dựng cây XML của cả sheet. Kết quả giống `sheet.setValue` gọi lần lượt theo thứ tự ô tăng dần (có test so cấu trúc XML với đường DOM trên mọi fixture). Đường vá từ chối và lệnh tự ghi bằng đường DOM (`path: "dom"`) khi: ô đích đang có công thức, sheet có công thức mảng hoặc bảng dữ liệu, số hàng hay địa chỉ ô ngầm định, hàng không tăng dần, `<sheetData/>` tự đóng, hoặc sheet đã được nạp ở dạng DOM trong phiên (ví dụ đã gọi `sheet.read`). Khi từ chối, gói chưa bị đổi gì.
+- **Dùng khi:** sửa ô trên tệp lớn mở bằng `open {lazy: true}`; kết hợp `sheet.readRows` để đọc mà không nạp DOM.
+
+```json
+{"id":14,"op":"sheet.setValues","args":{"handle":"h1","sheetIndex":0,"cells":[{"ref":"B7","value":{"t":"n","v":12.5}},{"ref":"C7","value":"ghi chú"}]}}
+```
+
+---
+
 ### 4.2. `sheet.setValue`
 - **Mã nguồn:** [OOXMLBridge.swift:728-731](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L728-L731) và [BridgeJSON.swift:41-64](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/BridgeJSON.swift#L41-L64).
 - **Tham số:** `handle`, `sheet`/`sheetIndex`, `ref` (tọa độ ô, ví dụ `"C2"`), `value` (giá trị).

@@ -9,6 +9,7 @@ import OOXMLPresentation
 //       ooxml-bench run <chế-độ> <đường-dẫn.xlsx>
 // Chế độ: zip-list | open-eager | open-lazy | workbook-eager | workbook-lazy | workbook-lazymodel | save-eager | save-lazy | save-lazymodel
 //          | rows-window | rows-all (đọc theo cửa sổ hàng bằng SheetRowReader, không dựng DOM cả sheet)
+//          | save-patch (sửa 1 ô bằng SheetPatcher rồi lưu truyền phát)
 // Mỗi lần chạy là một tiến trình riêng để VmHWM (bộ nhớ đỉnh, Linux) không bị lẫn giữa các chế độ.
 
 func now() -> Double { Double(DispatchTime.now().uptimeNanoseconds) / 1e9 }
@@ -104,6 +105,18 @@ func run(mode: String, path: String) throws {
         try wb.save(to: out)
         try? FileManager.default.removeItem(at: out)
         detail = String(format: "open=%.3fs edit+save=%.3fs", tOpen - t0, now() - tOpen)
+    case "save-patch":
+        // Mở lười + sửa 1 ô bằng SheetPatcher (không dựng DOM sheet) + lưu truyền phát.
+        let wb = try Workbook(contentsOf: url, deferValidation: true, lazyModel: true)
+        let tOpen = now()
+        let patcher = try wb.patcher(forSheetAt: 0)
+        try patcher.setValue(.string("bench"), at: "A1")
+        try patcher.commit()
+        let tPatch = now()
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("bench-out-patch-\(getpid()).xlsx")
+        try wb.saveStreaming(to: out)
+        try? FileManager.default.removeItem(at: out)
+        detail = String(format: "open=%.3fs patch=%.3fs saveStream=%.3fs xmlParsed=%d", tOpen - t0, tPatch - tOpen, now() - tPatch, wb.package.loadedXMLPartCount)
     case "save-stream":
         let wb = try Workbook(contentsOf: url, deferValidation: true)
         let tOpen = now()

@@ -435,6 +435,16 @@ public final class XDocument {
     public var string: String { String(decoding: serialized(), as: UTF8.self) }
 }
 
+extension XElement {
+    /// Xuất riêng các nút `nodes` (không kèm khai báo XML) bằng cùng bộ ghi với `XDocument.serialized()`.
+    /// Dùng khi chỉ một đoạn của tài liệu được dựng DOM và cần ghép lại vào byte gốc.
+    public static func serializedFragment(_ nodes: [XNode]) -> Data {
+        var w = XWriter()
+        for n in nodes { w.node(n) }
+        return Data(w.out)
+    }
+}
+
 // MARK: - Bộ phân tích
 
 struct XParser {

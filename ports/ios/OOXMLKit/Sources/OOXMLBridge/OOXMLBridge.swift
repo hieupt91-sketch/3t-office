@@ -95,6 +95,7 @@ public final class OOXMLBridge {
         case "sheet.read": return try sheetRead(args)
         case "sheet.readRows": return try sheetReadRows(args)
         case "sheet.setValue": return try sheetSetValue(args)
+        case "sheet.setValues": return try sheetSetValues(args)
         case "sheet.setFormula": return try sheetSetFormula(args)
         case "sheet.clear": try worksheet(args).clear(try args.string("ref")); return [:]
         case "sheet.rewriteLegacyConcat": return ["changed": try worksheet(args).rewriteLegacyConcat()]
@@ -885,6 +886,41 @@ public final class OOXMLBridge {
             cells = ws.cells
         }
         return ["cells": cells.map { cellJSON($0, styles: styles) }, "used": ws.usedRange?.description ?? ""]
+    }
+
+    /// Ghi nhiều giá trị một lượt. Thử đường vá (`SheetPatcher`, không dựng DOM cả sheet) trước; nếu sheet
+    /// thuộc trường hợp đường vá từ chối thì ghi bằng đường DOM như `sheet.setValue`.
+    /// args: handle, sheet | sheetIndex, cells: [{ref, value}]. result: {path: "patch" | "dom", count}.
+    private func sheetSetValues(_ args: Args) throws -> [String: Any] {
+        let handle = try args.string("handle")
+        let wb = try workbook(args)
+        guard let list = args.raw["cells"] as? [[String: Any]], !list.isEmpty else {
+            throw BridgeError("args", "thiếu tham số cells")
+        }
+        var edits: [(ref: String, value: CellValue)] = []
+        for item in list {
+            guard let ref = item["ref"] as? String, CellReference(ref) != nil else {
+                throw SpreadsheetError.invalidReference("\(item["ref"] ?? "")")
+            }
+            edits.append((ref, try BridgeValue.cellValue(from: item["value"])))
+        }
+        do {
+            let patcher: SheetPatcher
+            if let name = args.optString("sheet") {
+                patcher = try wb.patcher(forSheetNamed: name)
+            } else {
+                patcher = try wb.patcher(forSheetAt: args.optInt("sheetIndex") ?? 0)
+            }
+            for e in edits { try patcher.setValue(e.value, at: e.ref) }
+            try patcher.commit()
+            // Byte sheet đã đổi: bỏ chỉ mục hàng cũ của sheet này.
+            rowReaders[handle + "\u{0}" + patcher.part.description] = nil
+            return ["path": "patch", "count": edits.count]
+        } catch SheetPatchError.unsupported {
+            let ws = try worksheet(args)
+            for e in edits { try ws.setValue(e.value, at: e.ref) }
+            return ["path": "dom", "count": edits.count]
+        }
     }
 
     private func sheetSetValue(_ args: Args) throws -> [String: Any] {
