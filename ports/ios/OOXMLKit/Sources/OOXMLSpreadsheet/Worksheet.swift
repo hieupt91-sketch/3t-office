@@ -954,6 +954,13 @@ public final class Worksheet {
     }
 
     private func makeCell(_ ref: CellReference, _ c: XElement) -> Cell {
+        Worksheet.decodeCell(ref, c, workbook: workbook) { self.sharedMasters[$0] }
+    }
+
+    /// Giải mã một phần tử `<c>` thành `Cell`. Dùng chung cho đường DOM (`Worksheet`) và
+    /// đường đọc theo cửa sổ hàng (`SheetRowReader`) để hai đường luôn cho cùng kết quả.
+    static func decodeCell(_ ref: CellReference, _ c: XElement, workbook: Workbook,
+                           sharedMaster: (String) -> (ref: CellReference, formula: String)?) -> Cell {
         let t = c.attribute("t")
         let vText = c.firstChild(NS.s, "v")?.textContent
         var rich = false
@@ -986,7 +993,7 @@ public final class Worksheet {
             let text = f.textContent
             if !text.isEmpty {
                 formula = text
-            } else if ftype == "shared", let si = f.attribute("si"), let m = sharedMasters[si] {
+            } else if ftype == "shared", let si = f.attribute("si"), let m = sharedMaster(si) {
                 formula = FormulaRewriter.shift(m.formula, rows: ref.row - m.ref.row, columns: ref.column - m.ref.column)
             }
         }

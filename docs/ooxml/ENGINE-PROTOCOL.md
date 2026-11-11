@@ -235,6 +235,24 @@ sequenceDiagram
 
 ---
 
+### 4.1b. `sheet.readRows` (đọc theo cửa sổ hàng, không dựng DOM cả sheet)
+- **Mã nguồn:** `sheetReadRows` trong `OOXMLBridge.swift`; lõi là `SheetRowReader` (`Sources/OOXMLSpreadsheet/SheetRowReader.swift`).
+- **Dùng khi:** hiện màn hình đầu hoặc cuộn trên sheet lớn. `sheet.read` dựng cây XML cho cả sheet (tệp 10 MB: khoảng 2 giây và 530 MB ở lần chạm đầu); `sheet.readRows` chỉ lập chỉ mục vị trí hàng rồi parse đúng các hàng được hỏi.
+- **Tham số:**
+  - `handle` (bắt buộc); `sheet` hoặc `sheetIndex` (tùy chọn).
+  - `range` (ví dụ `"A1:H50"`): chỉ trả ô trong vùng; hoặc
+  - `from` (hàng đầu, mặc định 1) và `count` (số hàng, mặc định 200).
+- **Trả về:** `{"cells": [...], "rowCount": <số hàng có trong tệp>, "lastRow": <số hàng lớn nhất>}`. Mỗi ô có cùng định dạng với `sheet.read`.
+- **Ngữ nghĩa:** kết quả giống hệt `sheet.read` cho cùng vùng (có test so khớp trên mọi fixture). Sau khi sheet bị sửa trong phiên, lệnh đọc từ bản đã sửa (lập lại ảnh chụp mỗi lần gọi, chậm hơn); khi chưa sửa, chỉ mục được dùng lại giữa các lần gọi.
+- **Mở nhanh:** kết hợp với `open` có `"lazy": true` (hoãn kiểm tra toàn gói tới lúc lưu, không dựng bảng chuỗi trong RAM). Mặc định của `open` không đổi.
+
+```json
+{"id":12,"op":"open","args":{"path":"<tệp.xlsx>","lazy":true}}
+{"id":13,"op":"sheet.readRows","args":{"handle":"h1","sheetIndex":0,"from":1,"count":100}}
+```
+
+---
+
 ### 4.2. `sheet.setValue`
 - **Mã nguồn:** [OOXMLBridge.swift:728-731](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L728-L731) và [BridgeJSON.swift:41-64](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/BridgeJSON.swift#L41-L64).
 - **Tham số:** `handle`, `sheet`/`sheetIndex`, `ref` (tọa độ ô, ví dụ `"C2"`), `value` (giá trị).

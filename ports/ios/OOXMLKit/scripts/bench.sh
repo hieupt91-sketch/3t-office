@@ -7,7 +7,7 @@ B=.build/release/ooxml-bench
 D=$(mktemp -d)
 $B gen 1000000 "$D/s1.xlsx"; $B gen 10000000 "$D/s10.xlsx"
 for f in s1 s10; do
-  for m in zip-list open-eager open-lazy workbook-eager workbook-lazy save-eager save-lazy; do
+  for m in zip-list open-eager open-lazy workbook-eager workbook-lazy sheet-lazy rows-window rows-all save-eager save-lazy; do
     for i in 1 2 3; do $B run $m "$D/$f.xlsx"; done
   done
 done

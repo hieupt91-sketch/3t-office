@@ -8,6 +8,7 @@ import OOXMLPresentation
 // Dùng: ooxml-bench gen <bytes-xấp-xỉ> <đường-dẫn.xlsx>
 //       ooxml-bench run <chế-độ> <đường-dẫn.xlsx>
 // Chế độ: zip-list | open-eager | open-lazy | workbook-eager | workbook-lazy | workbook-lazymodel | save-eager | save-lazy | save-lazymodel
+//          | rows-window | rows-all (đọc theo cửa sổ hàng bằng SheetRowReader, không dựng DOM cả sheet)
 // Mỗi lần chạy là một tiến trình riêng để VmHWM (bộ nhớ đỉnh, Linux) không bị lẫn giữa các chế độ.
 
 func now() -> Double { Double(DispatchTime.now().uptimeNanoseconds) / 1e9 }
@@ -116,6 +117,24 @@ func run(mode: String, path: String) throws {
         let tOpen = now()
         let v = try wb.worksheet(at: 0).value("A1")
         detail = String(format: "open=%.3fs sheetAccess=%.3fs A1=%@", tOpen - t0, now() - tOpen, "\(v)")
+    case "rows-window", "rows-all":
+        // Mở lười + đọc 100 hàng đầu (màn hình đầu tiên) hoặc toàn bộ hàng theo lô 1.000, qua SheetRowReader.
+        let wb = try Workbook(contentsOf: url, deferValidation: true, lazyModel: true)
+        let tOpen = now()
+        let reader = try wb.rowReader(forSheetAt: 0)
+        let tIndex = now()
+        var count = 0
+        if mode == "rows-window" {
+            count = try reader.cells(inRows: 1...100).count
+        } else {
+            var r = 1
+            while r <= reader.lastRowNumber {
+                count += try reader.cells(inRows: r...(r + 999)).count
+                r += 1000
+            }
+        }
+        detail = String(format: "open=%.3fs index=%.3fs read=%.3fs rows=%d cells=%d xmlParsed=%d",
+                        tOpen - t0, tIndex - tOpen, now() - tIndex, reader.rowCount, count, wb.package.loadedXMLPartCount)
     case "parse-part":
         // Đối số phụ: tên part cần parse DOM riêng (đo trọng lượng DOM từng part).
         let part = CommandLine.arguments.count > 4 ? CommandLine.arguments[4] : "xl/worksheets/sheet1.xml"
