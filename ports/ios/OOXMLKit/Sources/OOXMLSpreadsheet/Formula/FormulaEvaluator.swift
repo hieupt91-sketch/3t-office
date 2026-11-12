@@ -1548,6 +1548,10 @@ struct FormulaEvaluator {
             return .string(s)
         case "NA":
             return args.isEmpty ? .error(FormulaErrors.na) : bad
+        case "TRUE":
+            return args.isEmpty ? .bool(true) : bad
+        case "FALSE":
+            return args.isEmpty ? .bool(false) : bad
         default:
             return callSlice2(name, args) ?? .error(FormulaErrors.name)
         }

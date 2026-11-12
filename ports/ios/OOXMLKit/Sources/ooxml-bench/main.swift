@@ -66,6 +66,28 @@ func generate(targetBytes: Int, to path: String) throws {
     out.removeAll()
 }
 
+/// In kết quả engine công thức cho mọi ô CÓ công thức của một sheet, dạng TSV: `ô<TAB>loại<TAB>giá trị`.
+/// Loại: n (số), s (chuỗi), b (bool), e (lỗi), empty. Dùng cho bộ đối chiếu `scripts/formula-oracle`.
+func evalFormulas(path: String, sheet: String) throws {
+    let wb = try Workbook(contentsOf: URL(fileURLWithPath: path))
+    let engine = try FormulaEngine(workbook: wb)
+    _ = engine.recalculate()
+    let ws = try wb.worksheet(named: sheet)
+    var out = ""
+    for cell in ws.cells where cell.formula != nil {
+        let line: String
+        switch engine.value(sheet: sheet, at: cell.reference.a1) {
+        case .number(let d): line = "n\t" + String(format: "%.17g", d)
+        case .string(let t): line = "s\t" + t.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\n", with: "\\n").replacingOccurrences(of: "\t", with: "\\t")
+        case .bool(let b): line = "b\t" + (b ? "1" : "0")
+        case .error(let e): line = "e\t" + e
+        case .empty: line = "empty\t"
+        }
+        out += cell.reference.a1 + "\t" + line + "\n"
+    }
+    FileHandle.standardOutput.write(Data(out.utf8))
+}
+
 func run(mode: String, path: String) throws {
     let url = URL(fileURLWithPath: path)
     let size = (try FileManager.default.attributesOfItem(atPath: path)[.size] as? Int) ?? 0
@@ -203,5 +225,6 @@ let a = CommandLine.arguments
 do {
     if a.count == 4, a[1] == "gen", let n = Int(a[2]) { try generate(targetBytes: n, to: a[3]) }
     else if a.count >= 4, a[1] == "run" { try run(mode: a[2], path: a[3]) }
-    else { print("dùng: ooxml-bench gen <bytes> <out.xlsx> | run <mode> <file.xlsx>"); exit(2) }
+    else if a.count == 4, a[1] == "eval" { try evalFormulas(path: a[2], sheet: a[3]) }
+    else { print("dùng: ooxml-bench gen <bytes> <out.xlsx> | run <mode> <file.xlsx> | eval <file.xlsx> <sheet>"); exit(2) }
 } catch { print("LỖI: \(error)"); exit(1) }
