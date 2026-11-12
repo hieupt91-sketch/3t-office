@@ -86,11 +86,12 @@ struct FormulaEvaluator {
             guard let s = context.resolveSheet(sh) else { return .scalar(.error(FormulaErrors.ref)) }
             return .ref(sheet: s, range: r)
         case .unary(let op, let x):
-            let v = scalar(eval(x))
-            if case .error = v { return .scalar(v) }
-            if op == "+" { return .scalar(v) }
-            guard let n = number(v) else { return .scalar(.error(FormulaErrors.value)) }
-            return .scalar(.number(-n))
+            let inner = eval(x)
+            // `--(vùng="a")`, `-vùng`: dấu trừ đơn áp lên từng phần tử của mảng/vùng (như Excel).
+            if isMulti(inner), let rows = materialize(inner) {
+                return .array(rows.map { $0.map { unaryValue(op, $0) } })
+            }
+            return .scalar(unaryValue(op, scalar(inner)))
         case .percent(let x):
             let v = scalar(eval(x))
             if case .error = v { return .scalar(v) }
@@ -109,6 +110,13 @@ struct FormulaEvaluator {
         case .call(let name, let args):
             return call(name, args)
         }
+    }
+
+    private func unaryValue(_ op: String, _ v: CellValue) -> CellValue {
+        if case .error = v { return v }
+        if op == "+" { return v }
+        guard let n = number(v) else { return .error(FormulaErrors.value) }
+        return .number(-n)
     }
 
     /// Ép về giá trị đơn. Vùng 1 ô → giá trị ô. Vùng nhiều ô/hằng nhiều phần tử: giao ngầm theo vị trí
@@ -1379,13 +1387,25 @@ struct FormulaEvaluator {
         let ra = rank(a), rb = rank(b)
         if ra != rb { return ra < rb ? -1 : 1 }
         switch (a, b) {
-        case (.number(let x), .number(let y)): return x < y ? -1 : (x > y ? 1 : 0)
+        case (.number(let x), .number(let y)):
+            if numbersEqualToExcelPrecision(x, y) { return 0 }
+            return x < y ? -1 : 1
         case (.string(let x), .string(let y)):
             let o = x.compare(y, options: [.caseInsensitive])
             return o == .orderedAscending ? -1 : (o == .orderedDescending ? 1 : 0)
         case (.bool(let x), .bool(let y)): return x == y ? 0 : (!x ? -1 : 1)
         default: return 0
         }
+    }
+
+    /// Excel coi hai số bằng nhau khi chúng trùng nhau ở 15 chữ số có nghĩa: `0.1+0.2=0.3` là TRUE
+    /// dù hai vế khác nhau ở bit cuối.
+    static func numbersEqualToExcelPrecision(_ x: Double, _ y: Double) -> Bool {
+        if x == y { return true }
+        guard x.isFinite, y.isFinite else { return false }
+        // Đường nhanh: hai số làm tròn 15 chữ số về cùng giá trị thì chênh nhau tương đối < ~1e-14.
+        if abs(x - y) >= 1.1e-14 * max(abs(x), abs(y)) { return false }
+        return String(format: "%.14e", x) == String(format: "%.14e", y)
     }
 
     private static func emptyLike(_ other: CellValue) -> CellValue {

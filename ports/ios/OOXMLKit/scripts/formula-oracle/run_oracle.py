@@ -23,18 +23,56 @@ RNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 XLFN = ["CONCAT", "TEXTJOIN", "IFS", "SWITCH", "IFNA", "STDEV.S", "STDEV.P", "VAR.S", "VAR.P", "MODE.SNGL",
         "PERCENTILE.INC", "PERCENTILE.EXC", "QUARTILE.INC", "QUARTILE.EXC", "PERCENTRANK.INC", "PERCENTRANK.EXC",
         "RANK.EQ", "RANK.AVG", "COVARIANCE.P", "COVARIANCE.S", "FORECAST.LINEAR", "NORM.DIST", "NORM.S.DIST",
-        "NORM.INV", "NORM.S.INV", "SKEW.P", "XLOOKUP", "XMATCH", "SEQUENCE", "UNIQUE", "TAKE", "DROP"]
+        "NORM.INV", "NORM.S.INV", "SKEW.P", "XLOOKUP", "XMATCH", "SEQUENCE", "UNIQUE", "TAKE", "DROP", "XOR"]
 XLWS = ["FILTER", "SORT"]
 
 # Chỗ LibreOffice 24.2 cho kết quả khác hành vi Excel được ghi trong tài liệu của Microsoft. Engine theo Excel.
 # CHƯA kiểm bằng Excel thật trong môi trường này — cần xác nhận ở bước đối chiếu Office (issue #11).
+LO_ERR = "LibreOffice xuất mã lỗi nội bộ (Err:502/504…) thành #VALUE!; Excel trả #NUM!"
 KNOWN_ORACLE_DIFFERENCES = {
+    # Lỗi và đối số sai: LibreOffice gom nhiều mã lỗi về #VALUE! khi xuất XLSX.
     "SQRT(-1)": "Excel trả #NUM!; LibreOffice ghi #VALUE! khi xuất XLSX",
+    "LN(0)": LO_ERR, "LOG(0)": LO_ERR,
+    "LARGE(D!A1:A10,11)": LO_ERR, "SMALL(D!A1:A10,0)": LO_ERR,
+    "PERCENTILE(D!A1:A10,1.1)": LO_ERR, "QUARTILE(D!A1:A10,5)": LO_ERR,
+    "NORM.INV(0,0,1)": LO_ERR, "NORM.INV(1.5,0,1)": LO_ERR,
+    "CORREL(D!A1:A3,D!D1:D2)": "Hai vùng khác kích thước: Excel #N/A; LibreOffice #VALUE!",
+    "MODE(D!A1:A3)": "Không có giá trị lặp: Excel #N/A; LibreOffice #VALUE!",
+    "IRR(D!N2:N5)": "Dòng tiền toàn dương: Excel #NUM!; LibreOffice #N/A",
+    "DATEDIF(D!C3,D!C1,\"D\")": "Ngày đầu sau ngày cuối: Excel #NUM!; LibreOffice #VALUE!",
+    "DATEDIF(D!C1,D!C3,\"X\")": "Đơn vị không hợp lệ: Excel #NUM!; LibreOffice #VALUE!",
+    "VLOOKUP(7,D!H1:I8,3,FALSE)": "Cột trả về vượt vùng: Excel #REF!; LibreOffice #VALUE!",
+    "HLOOKUP(\"b\",D!K1:M2,3,FALSE)": "Hàng trả về vượt vùng: Excel #REF!; LibreOffice #VALUE!",
+    "POWER(0,0)": "Excel #NUM!; LibreOffice trả 1",
+    "POWER(-8,1/3)": "Cơ số âm, mũ phân số: Excel #NUM!; LibreOffice trả -2",
+    "POWER(0,-1)": "Excel #DIV/0!; LibreOffice #NUM!",
     "COUNT(D!A1:E10)": "Excel bỏ qua TRUE/FALSE nằm trong vùng tham chiếu; LibreOffice đếm cả",
+    "SUM(D!E1:E2)": "Excel bỏ qua TRUE/FALSE trong vùng tham chiếu (=0); LibreOffice cộng (=1)",
+    "AVERAGE(D!E1:E2)": "Excel bỏ qua TRUE/FALSE trong vùng tham chiếu (#DIV/0!); LibreOffice tính",
+    "MAX(D!E1:E2)": "Excel bỏ qua TRUE/FALSE trong vùng tham chiếu (=0); LibreOffice trả TRUE",
+    # Văn bản viết thẳng làm đối số số: Excel ép sang số, LibreOffice (cấu hình mặc định) báo lỗi.
+    'SUM("3",4)': "Đối số chuỗi số viết thẳng: Excel ép thành 3 (=7); LibreOffice #VALUE!",
+    'AVERAGE(1,"3",TRUE)': "Excel ép chuỗi số và TRUE khi viết thẳng làm đối số; LibreOffice #VALUE!",
+    'MAX(D!A1:A10,"5")': "Excel ép chuỗi số viết thẳng; LibreOffice #VALUE!",
+    "TRUE>5": "Excel xếp logic lớn hơn số (TRUE); LibreOffice so TRUE như 1",
     "PERCENTRANK(D!A1:A10,20.5)": "Excel cắt cụt về 3 chữ số; LibreOffice làm tròn",
     "PERCENTRANK.INC(D!A1:A10,15)": "Excel cắt cụt về 3 chữ số; LibreOffice làm tròn",
     'TEXTJOIN("|",FALSE,D!E1:E5)': "Excel nối bool thành TRUE/FALSE; LibreOffice ghi 1/0",
+    'FIND("","abc")': "Chuỗi tìm rỗng: Excel trả 1; LibreOffice #VALUE!",
+    "LEN(TRUE)": "Excel đếm chữ của \"TRUE\" (=4); LibreOffice đếm 1",
+    "CONCATENATE(1,2,TRUE)": "Excel nối bool thành \"TRUE\"; LibreOffice ghi 1",
+    "VALUE(TRUE)": "Excel #VALUE!; LibreOffice trả 1",
+    "TYPE(TRUE)": "Excel: TYPE(TRUE)=4 (logic); LibreOffice coi logic là số (=1)",
+    'TEXT(-0.4,"0")': "Excel trả \"-0\" (hành vi đã biết); LibreOffice trả \"0\"",
+    "DATE(1900,1,1)": "Excel: 1 (gốc 1900-01-00); LibreOffice lệch 1 cho ngày trước 1900-03-01",
+    "DATE(1900,2,29)": "Excel giữ ngày 29/2/1900 không có thật (=60); LibreOffice =61",
+    "YEAR(1)": "Excel: 1900; LibreOffice: 1899 (khác gốc ngày trước 1900-03-01)",
     "SUM(FILTER(D!A1:A10,D!A1:A10>10))": "LibreOffice 24.2 chưa có FILTER (trả #VALUE! thay vì #NAME?)",
+}
+
+# Ca em chưa chắc Excel thật trả gì: KHÔNG gán đúng/sai cho engine, chờ đối chiếu Excel (issue #11).
+UNVERIFIED_VS_EXCEL = {
+    "LOG(10,1)": "Cơ số 1: engine trả #NUM!; nhiều khả năng Excel trả #DIV/0! (ln 1 = 0) nhưng chưa kiểm được",
 }
 
 
@@ -250,22 +288,29 @@ def main(argv):
         group, note = compare(l, e)
         if group in ("mismatch", "error-code") and f in KNOWN_ORACLE_DIFFERENCES:
             group, note = "known-oracle-difference", KNOWN_ORACLE_DIFFERENCES[f]
+        elif group in ("mismatch", "error-code") and f in UNVERIFIED_VS_EXCEL:
+            group, note = "unverified-vs-excel", UNVERIFIED_VS_EXCEL[f]
         counts[group] = counts.get(group, 0) + 1
         rows.append({"row": i, "formula": f, "libreoffice": l, "engine": e, "group": group, "note": note})
     result = {"oracle": lover, "cases": len(cases), "counts": counts, "rows": rows}
     json.dump(result, open(os.path.join(outdir, "oracle-result.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    compared = len(cases) - counts.get("oracle-unsupported", 0) - counts.get("known-oracle-difference", 0)
+    compared = (len(cases) - counts.get("oracle-unsupported", 0) - counts.get("known-oracle-difference", 0)
+                - counts.get("unverified-vs-excel", 0))
     print(f"Oracle: {lover}")
     print(f"Tổng {len(cases)} công thức; so được {compared}; khớp {counts.get('match', 0)}; "
           f"khác mã lỗi {counts.get('error-code', 0)}; LỆCH {counts.get('mismatch', 0)}; "
           f"oracle không hỗ trợ {counts.get('oracle-unsupported', 0)}; "
-          f"khác biệt đã biết của oracle {counts.get('known-oracle-difference', 0)}")
+          f"khác biệt đã biết của oracle {counts.get('known-oracle-difference', 0)}; "
+          f"chưa kiểm được với Excel {counts.get('unverified-vs-excel', 0)}")
     for r in rows:
         if r["group"] in ("mismatch", "error-code"):
             print(f"  [{r['group']}] {r['formula']}\n      LO={r['libreoffice']}  engine={r['engine']}  ({r['note']})")
     for r in rows:
         if r["group"] == "known-oracle-difference":
             print(f"  [đã biết] {r['formula']}: {r['note']}")
+    for r in rows:
+        if r["group"] == "unverified-vs-excel":
+            print(f"  [chưa kiểm] {r['formula']}: {r['note']}")
     bad = counts.get("mismatch", 0) + counts.get("error-code", 0)
     return 1 if bad and "--strict" in argv else 0
 

@@ -48,6 +48,11 @@ extension FormulaEvaluator {
 
     private func dispatch(_ name: String, _ a: [FormulaExpr]) throws -> CellValue? {
         switch name {
+        // Thông tin / kiểm tra loại (không lan truyền lỗi trong đối số)
+        case "ISBLANK", "ISNUMBER", "ISTEXT", "ISLOGICAL", "ISERROR", "ISERR", "ISNA", "ISEVEN", "ISODD",
+             "N", "T", "TYPE", "ERROR.TYPE":
+            return try info(name, a)
+        case "XOR": return try xor(a)
         // Tra cứu
         case "VLOOKUP": return try vhlookup(a, vertical: true)
         case "HLOOKUP": return try vhlookup(a, vertical: false)
@@ -543,6 +548,8 @@ extension FormulaEvaluator {
         try need(a, 2...2)
         let v = try sc(a[0])
         let fmt = try tx(a[1])
+        // Định dạng văn bản "@": trả nguyên văn bản của giá trị.
+        if fmt == "@" { return .string(FormulaEvaluator.text(v)) }
         var x: Double
         switch v {
         case .number(let d): x = d
@@ -730,6 +737,88 @@ extension FormulaEvaluator {
     /// M7: WEEKDAY(serial, [return_type]): 1 = Chủ nhật 1..Thứ bảy 7 (mặc định),
     /// 2 = Thứ hai 1..Chủ nhật 7, 3 = Thứ hai 0..Chủ nhật 6; loại khác → #NUM!.
     /// Serial 0 → 7 (thứ Bảy theo cách đếm của Excel); serial âm → #NUM! (dateArg).
+    /// Họ hàm kiểm tra loại giá trị. Khác các hàm khác, đối số lỗi KHÔNG làm cả hàm lỗi:
+    /// `ISERROR(1/0)` là TRUE, `ERROR.TYPE(1/0)` là 2.
+    private func info(_ name: String, _ a: [FormulaExpr]) throws -> CellValue {
+        try need(a, 1...1)
+        let raw = eval(a[0])
+        let v = scalar(raw)
+        func isError(_ e: String?) -> Bool { if case .error(let x) = v { return e == nil || x == e } else { return false } }
+        switch name {
+        case "ISBLANK":
+            if case .empty = v { return .bool(true) }
+            return .bool(false)
+        case "ISNUMBER": if case .number = v { return .bool(true) }; return .bool(false)
+        case "ISTEXT": if case .string = v { return .bool(true) }; return .bool(false)
+        case "ISLOGICAL": if case .bool = v { return .bool(true) }; return .bool(false)
+        case "ISERROR": return .bool(isError(nil))
+        case "ISNA": return .bool(isError(FormulaErrors.na))
+        case "ISERR":
+            if case .error(let e) = v { return .bool(e != FormulaErrors.na) }
+            return .bool(false)
+        case "ISEVEN", "ISODD":
+            if case .error = v { return v }
+            if case .bool = v { throw fail(FormulaErrors.value) }
+            guard let n = number(v), n.isFinite else { throw fail(FormulaErrors.value) }
+            let even = Int(n.rounded(.towardZero)) % 2 == 0
+            return .bool(name == "ISEVEN" ? even : !even)
+        case "N":
+            switch v {
+            case .number, .error: return v
+            case .bool(let b): return .number(b ? 1 : 0)
+            default: return .number(0)
+            }
+        case "T":
+            switch v {
+            case .string, .error: return v
+            default: return .string("")
+            }
+        case "TYPE":
+            if isMultiValue(raw) { return .number(64) }
+            switch v {
+            case .number, .empty: return .number(1)
+            case .string: return .number(2)
+            case .bool: return .number(4)
+            case .error: return .number(16)
+            }
+        default: // ERROR.TYPE
+            guard case .error(let e) = v else { return .error(FormulaErrors.na) }
+            let codes = ["#NULL!": 1, "#DIV/0!": 2, "#VALUE!": 3, "#REF!": 4, "#NAME?": 5, "#NUM!": 6, "#N/A": 7,
+                         "#SPILL!": 9, "#CALC!": 14]
+            guard let c = codes[e] else { return .error(FormulaErrors.na) }
+            return .number(Double(c))
+        }
+    }
+
+    private func isMultiValue(_ v: EvalValue) -> Bool {
+        switch v {
+        case .scalar, .lambda: return false
+        case .array(let rows): return rows.count > 1 || (rows.first?.count ?? 0) > 1
+        case .ref(_, let r): return r.start != r.end
+        }
+    }
+
+    /// XOR: TRUE khi số đối số TRUE là lẻ. Trong vùng/mảng, chữ và ô trống bị bỏ qua; số khác 0 tính là TRUE;
+    /// không có giá trị logic/số nào → #VALUE!. Chuỗi viết thẳng làm đối số → #VALUE!.
+    private func xor(_ a: [FormulaExpr]) throws -> CellValue {
+        guard !a.isEmpty else { throw fail(FormulaErrors.value) }
+        var seen = false
+        var trues = 0
+        for e in a {
+            if case .string = e { throw fail(FormulaErrors.value) }
+            for v in try grid(e).flat {
+                switch v {
+                case .bool(let b): seen = true; if b { trues += 1 }
+                case .number(let n): seen = true; if n != 0 { trues += 1 }
+                case .error: throw Abort(value: v)
+                case .string, .empty: continue
+                }
+            }
+        }
+        guard seen else { throw fail(FormulaErrors.value) }
+        return .bool(trues % 2 == 1)
+    }
+
     private func weekday(_ a: [FormulaExpr]) throws -> CellValue {
         try need(a, 1...2)
         let s = try dateArg(a[0])
@@ -740,6 +829,10 @@ extension FormulaEvaluator {
         case 1: return .number(Double(w))
         case 2: return .number(Double(((w + 5) % 7) + 1))
         case 3: return .number(Double((w + 5) % 7))
+        case 11...17:
+            // 11 = tuần bắt đầu Thứ hai (Thứ hai = 1) … 17 = bắt đầu Chủ nhật (Chủ nhật = 1).
+            let dowMon1 = ((w + 5) % 7) + 1
+            return .number(Double((dowMon1 - (type - 10) + 7) % 7 + 1))
         default: throw fail(FormulaErrors.num)
         }
     }
