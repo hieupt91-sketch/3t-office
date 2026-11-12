@@ -110,5 +110,13 @@ export async function runLicenseGateTests() {
     error: npmMismatch.pass ? "Cổng đã PASS khi package.json có dependency npm chưa khai báo." : undefined,
   });
 
+  // 8. Fixture âm bản: VNO_KEEP_LO_DICTS=1 phải bị cổng chặn (INBOX-MAC #22).
+  const keepDicts = auditLicenses({ manifest: exceptionOkFixture, requirementsText: "", packageJson: {}, keepLoDicts: true });
+  results.push({
+    name: "G1: fixture VNO_KEEP_LO_DICTS=1 bị cổng chặn (FAIL)",
+    pass: keepDicts.pass === false && keepDicts.failures.some((f) => f.includes("VNO_KEEP_LO_DICTS")),
+    error: keepDicts.pass ? "Cổng đã PASS khi VNO_KEEP_LO_DICTS=1 — các dict GPL có thể lọt vào bản phát hành." : undefined,
+  });
+
   return results;
 }

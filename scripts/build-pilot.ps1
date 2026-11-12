@@ -20,6 +20,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# INBOX-MAC #22: release packages must never include LibreOffice's dict-*
+# extensions (some are GPL). VNO_KEEP_LO_DICTS=1 used to re-include them;
+# it is now forbidden and fails the build instead of silently shipping GPL code.
+if ($env:VNO_KEEP_LO_DICTS -eq "1") { throw "VNO_KEEP_LO_DICTS=1 is forbidden: some LibreOffice dict-* extensions are GPL and must not ship in a release package (INBOX-MAC #22)." }
 $repo = Split-Path -Parent $PSScriptRoot
 $versionPattern = '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
 if ($Version -notmatch $versionPattern) { throw "Version must use semantic x.y.z syntax: $Version" }
@@ -101,12 +105,9 @@ Write-Host "[3/5] LibreOffice (large, a few minutes)"
 # Legal/size slimming (docs/SPEC-DOC-100.md L3): the app never uses LibreOffice's spell-check/hyphenation dictionaries
 # (3T Doc has its own Vietnamese word list), and about half of the language dictionary extensions are GPL. Leaving them out
 # removes the GPL redistribution duty and ~450 MB. The installer .msi files that may sit in the LibreOffice folder are not
-# part of the engine either. Set VNO_KEEP_LO_DICTS=1 to package the full folder as before.
-$loExtra = @()
-if ($env:VNO_KEEP_LO_DICTS -ne "1") {
-    $loExtra = @("/XF", "*.msi", "/XD",
-        "dict-*", "wiki-publisher")  # robocopy /XD takes names (wildcards allowed); only share\extensions has these
-}
+# part of the engine either. VNO_KEEP_LO_DICTS=1 is forbidden (INBOX-MAC #22): the build fails above if it is set.
+$loExtra = @("/XF", "*.msi", "/XD",
+    "dict-*", "wiki-publisher")  # robocopy /XD takes names (wildcards allowed); only share\extensions has these
 Invoke-Robocopy $LibreOfficeDir (Join-Path $appDir "tools\libreoffice") $loExtra
 
 # 3b. Pre-warmed LibreOffice profiles (~1 MB each): the first launch copies them instead of building a profile
