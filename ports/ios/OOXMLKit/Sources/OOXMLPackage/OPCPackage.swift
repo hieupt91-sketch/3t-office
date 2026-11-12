@@ -146,6 +146,9 @@ public final class OPCPackage {
         return doc
     }
 
+    /// Phần này đã được parse thành DOM và đang nằm trong bộ đệm.
+    public func isXMLLoaded(_ part: PartName) -> Bool { xmlCache[part] != nil }
+
     public func markModified(_ part: PartName) {
         modifiedXML.insert(part)
         pendingData[part] = nil

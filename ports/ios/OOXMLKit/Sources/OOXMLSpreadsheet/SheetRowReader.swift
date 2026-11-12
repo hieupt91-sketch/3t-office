@@ -18,13 +18,21 @@ public final class SheetRowReader {
     public let workbook: Workbook
     public let part: PartName
 
-    private let data: Data
-    private let rootOpenTag: Data
-    private let prefix: [UInt8] // tiền tố namespace của phần tử gốc kèm ":" (rỗng nếu không có)
-    private var rowStarts: [Int] = []
-    private var rowNumbers: [Int] = []
-    private var sheetDataEnd = 0 // offset kết thúc vùng hàng (đầu thẻ đóng sheetData)
-    private var ascending = true
+    let data: Data
+    let rootOpenTag: Data
+    let prefix: [UInt8] // tiền tố namespace của phần tử gốc kèm ":" (rỗng nếu không có)
+    private(set) var rowStarts: [Int] = []
+    private(set) var rowNumbers: [Int] = []
+    private(set) var sheetDataEnd = 0 // offset kết thúc vùng hàng (đầu thẻ đóng sheetData)
+    private(set) var ascending = true
+    /// Offset ngay sau thẻ mở của phần tử gốc, đầu thẻ `<sheetData`, và ngay sau thẻ mở `<sheetData …>`.
+    private(set) var rootOpenEnd = 0
+    private(set) var sheetDataOpenStart = 0
+    private(set) var sheetDataOpenEnd = 0
+    /// `<sheetData/>` tự đóng (không có hàng nào và không có thẻ đóng riêng).
+    private(set) var sheetDataSelfClosing = false
+    /// Có hàng không ghi thuộc tính `r` (số hàng ngầm định theo vị trí).
+    private(set) var hasImplicitRowNumbers = false
     private var sharedMasters: [String: (ref: CellReference, formula: String)]?
 
     init(workbook: Workbook, part: PartName) throws {
@@ -37,6 +45,9 @@ public final class SheetRowReader {
         var numbers: [Int] = []
         var end = 0
         var asc = true
+        var rootOpenEndOffset = 0, sdOpenStart = 0, sdOpenEnd = 0
+        var selfClosing = false
+        var implicitRows = false
         var failure: String?
         data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
             let b = raw.bindMemory(to: UInt8.self)
@@ -59,6 +70,7 @@ public final class SheetRowReader {
                 return
             }
             open = Data(b[rootStart...rootEnd])
+            rootOpenEndOffset = rootEnd + 1
             var nameEnd = rootStart + 1
             while nameEnd < rootEnd, !SheetRowReader.isDelimiter(b[nameEnd]) { nameEnd += 1 }
             let name = Array(b[(rootStart + 1)..<nameEnd])
@@ -71,8 +83,11 @@ public final class SheetRowReader {
                 failure = "thiếu sheetData"
                 return
             }
+            sdOpenStart = sd
+            sdOpenEnd = sdTagEnd + 1
             if b[sdTagEnd - 1] == 0x2F { // <sheetData/>
                 end = sdTagEnd + 1
+                selfClosing = true
                 return
             }
             let sdClose = [0x3C, 0x2F] + pfx + Array("sheetData".utf8)
@@ -84,7 +99,9 @@ public final class SheetRowReader {
             var next = 1
             while let r = SheetRowReader.find(rowOpen, in: b, from: pos, to: end, boundaryAfter: true) {
                 let te = SheetRowReader.tagEnd(in: b, from: r, to: end) ?? (end - 1)
-                let number = SheetRowReader.rowNumber(in: b, from: r + rowOpen.count, to: te) ?? next
+                let explicit = SheetRowReader.rowNumber(in: b, from: r + rowOpen.count, to: te)
+                if explicit == nil { implicitRows = true }
+                let number = explicit ?? next
                 if let last = numbers.last, number <= last { asc = false }
                 starts.append(r)
                 numbers.append(number)
@@ -99,6 +116,11 @@ public final class SheetRowReader {
         rowNumbers = numbers
         sheetDataEnd = end
         ascending = asc
+        rootOpenEnd = rootOpenEndOffset
+        sheetDataOpenStart = sdOpenStart
+        sheetDataOpenEnd = sdOpenEnd
+        sheetDataSelfClosing = selfClosing
+        hasImplicitRowNumbers = implicitRows
     }
 
     // MARK: Thông tin
@@ -158,7 +180,7 @@ public final class SheetRowReader {
     }
 
     /// Chỉ số đầu tiên có số hàng >= `number` (chỉ dùng khi số hàng tăng dần).
-    private func lowerBound(_ number: Int) -> Int {
+    func lowerBound(_ number: Int) -> Int {
         var lo = 0, hi = rowNumbers.count
         while lo < hi {
             let mid = (lo + hi) / 2
@@ -167,7 +189,7 @@ public final class SheetRowReader {
         return lo
     }
 
-    private func byteRange(of run: Range<Int>) -> Range<Int> {
+    func byteRange(of run: Range<Int>) -> Range<Int> {
         let end = run.upperBound < rowStarts.count ? rowStarts[run.upperBound] : sheetDataEnd
         return rowStarts[run.lowerBound]..<end
     }
@@ -175,8 +197,12 @@ public final class SheetRowReader {
     /// Dựng DOM nhỏ chỉ chứa các hàng của `run` (bọc trong thẻ gốc thật để giữ đúng namespace).
     /// Trả cả tài liệu: phần tử con chỉ giữ tham chiếu yếu tới cha, nên người gọi phải giữ tài liệu
     /// sống trong lúc đọc thì việc tra namespace qua tổ tiên mới đúng.
-    private func parse(_ run: Range<Int>) throws -> (document: XDocument, rows: [XElement]) {
-        let bytes = byteRange(of: run)
+    func parse(_ run: Range<Int>) throws -> (document: XDocument, rows: [XElement]) {
+        try parse(bytes: byteRange(of: run))
+    }
+
+    /// Như `parse(_:)` nhưng cho một khoảng byte bất kỳ nằm trong `sheetData` (rỗng = sheetData không có hàng).
+    func parse(bytes: Range<Int>) throws -> (document: XDocument, rows: [XElement]) {
         let p = String(decoding: prefix, as: UTF8.self)
         var doc = Data(capacity: rootOpenTag.count + bytes.count + 64)
         doc.append(rootOpenTag)
@@ -269,7 +295,7 @@ public final class SheetRowReader {
 
     // MARK: Quét byte
 
-    private static func isDelimiter(_ c: UInt8) -> Bool {
+    static func isDelimiter(_ c: UInt8) -> Bool {
         c == 0x20 || c == 0x3E || c == 0x2F || c == 0x09 || c == 0x0A || c == 0x0D
     }
 
@@ -300,7 +326,7 @@ public final class SheetRowReader {
         return nil
     }
 
-    private static func find(_ needle: [UInt8], in b: UnsafeBufferPointer<UInt8>, from: Int, to: Int,
+    static func find(_ needle: [UInt8], in b: UnsafeBufferPointer<UInt8>, from: Int, to: Int,
                              boundaryAfter: Bool) -> Int? {
         let m = needle.count
         guard m > 0, to - from >= m else { return nil }
