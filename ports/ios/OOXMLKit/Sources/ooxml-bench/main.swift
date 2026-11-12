@@ -109,6 +109,8 @@ func run(mode: String, path: String) throws {
         // Mở lười + sửa 1 ô bằng SheetPatcher (không dựng DOM sheet) + lưu truyền phát.
         // "-num" ghi số thay cho chuỗi để tách chi phí tra bảng chuỗi dùng chung.
         let wb = try Workbook(contentsOf: url, deferValidation: true, lazyModel: true)
+        // OOXML_BENCH_NOFAST=1: tắt nén nhanh cho phần lớn, để so với mức nén mặc định.
+        if ProcessInfo.processInfo.environment["OOXML_BENCH_NOFAST"] == "1" { wb.package.fastCompressionThreshold = nil }
         let tOpen = now()
         let patcher = try wb.patcher(forSheetAt: 0)
         let tInit = now()
@@ -151,6 +153,20 @@ func run(mode: String, path: String) throws {
         }
         detail = String(format: "open=%.3fs index=%.3fs read=%.3fs rows=%d cells=%d xmlParsed=%d",
                         tOpen - t0, tIndex - tOpen, now() - tIndex, reader.rowCount, count, wb.package.loadedXMLPartCount)
+    case "deflate-part":
+        // Đo riêng bộ nén: giải nén 1 part rồi nén lại ở từng mức (đối số phụ: tên part).
+        let part = CommandLine.arguments.count > 4 ? CommandLine.arguments[4] : "xl/worksheets/sheet1.xml"
+        let z = try ZipArchive(contentsOf: url)
+        let d = try z.contents(of: part)
+        var parts: [String] = []
+        for (name, level) in [("fast", Deflate.Level.fast), ("default", .default), ("best", .best)] {
+            let t = now()
+            let c = Deflate.compress(d, level: level)
+            parts.append(String(format: "%@=%.3fs/%.2fMB", name, now() - t, Double(c.count) / 1e6))
+        }
+        let tInflate = now()
+        _ = try z.contents(of: part)
+        detail = String(format: "part=%@ raw=%.1fMB inflate=%.3fs ", part, Double(d.count) / 1e6, now() - tInflate) + parts.joined(separator: " ")
     case "parse-part":
         // Đối số phụ: tên part cần parse DOM riêng (đo trọng lượng DOM từng part).
         let part = CommandLine.arguments.count > 4 ? CommandLine.arguments[4] : "xl/worksheets/sheet1.xml"
