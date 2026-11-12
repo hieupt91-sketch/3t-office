@@ -50,6 +50,54 @@ final class LazyModelTests: XCTestCase {
         XCTAssertNil(lazy[-1])
     }
 
+    /// Đường nhanh của tra cứu (`fastText`) chỉ được nhận mục mà kết quả TRÙNG với giải mã đầy đủ.
+    func testFastTextAgreesWithFullDecode() throws {
+        let entries = [
+            plain("thuần ASCII plain"), plain("Tiếng Việt có dấu"), plain("a &amp; b"), plain("A_x0009_B"),
+            "<si><t xml:space=\"preserve\">giữ</t></si>", "<si><t xml:space=\"preserve\">  hai đầu  </t></si>",
+            plain(" đầu trắng"), plain("dòng\nmới"), plain("tab\tgiữa"), "<si/>", "<si><t/></si>", "<si><t></t></si>",
+            "<si><r><rPr><b/></rPr><t>Đậm</t></r><r><t> thường</t></r></si>", plain("a_xb"), plain("gạch_dưới"),
+            "<si><t>phiên âm</t><rPh sb=\"0\" eb=\"1\"><t>x</t></rPh></si>", plain("cuối"),
+        ]
+        let lazy = try LazySharedStrings(data: makeSST(count: entries.count, unique: entries.count, entries: entries))
+        var fastCount = 0
+        for i in 0..<entries.count {
+            guard let fast = lazy.fastText(i) else { continue }
+            fastCount += 1
+            XCTAssertEqual(fast, lazy[i], "mục \(i): \(entries[i])")
+        }
+        XCTAssertGreaterThanOrEqual(fastCount, 5, "các mục thuần phải đi được đường nhanh")
+        for path in ["xlsx/rich-excel.xlsx", "real/sample-sheet.xlsx", "real/ton-kho-3t.xlsx", "real/sample-sheet-formulas.xlsx"] {
+            let pkg = try OPCPackage(data: try Fixtures.data(path))
+            guard let part = pkg.partNames.first(where: { $0.description.hasSuffix("sharedStrings.xml") }) else { continue }
+            let table = try LazySharedStrings(data: try pkg.data(of: part))
+            for i in 0..<table.entryCount {
+                if let fast = table.fastText(i) { XCTAssertEqual(fast, table[i], "\(path) mục \(i)") }
+            }
+        }
+    }
+
+    /// Tra cứu qua chỉ mục băm: trả mục ĐẦU TIÊN bằng văn bản (kể cả mục rich/có escape), chuỗi mới thì thêm.
+    func testIndexForUsesFirstMatchAndAppendsUnknown() throws {
+        var entries: [String] = []
+        for i in 0..<500 { entries.append(plain("Mục \(i)")) }
+        entries[7] = plain("a &amp; b")
+        entries[9] = "<si><r><t>ghép</t></r><r><t> đôi</t></r></si>"
+        entries[300] = plain("Mục 3")           // lặp: phải trả 3, không phải 300
+        entries[400] = plain("a &amp; b")       // lặp của mục có escape: phải trả 7
+        let lazy = try LazySharedStrings(data: makeSST(count: 500, unique: 500, entries: entries))
+        XCTAssertEqual(lazy.index(for: "Mục 3"), 3)
+        XCTAssertEqual(lazy.index(for: "a & b"), 7)
+        XCTAssertEqual(lazy.index(for: "ghép đôi"), 9)
+        XCTAssertEqual(lazy.index(for: "Mục 499"), 499)
+        XCTAssertEqual(lazy.index(for: "chưa có"), 500)
+        XCTAssertEqual(lazy.index(for: "chưa có"), 500)
+        XCTAssertEqual(lazy.index(for: "chưa có 2"), 501)
+        // Dạng tổ hợp Unicode khác nhau nhưng bằng nhau theo String ==.
+        XCTAssertEqual(lazy.index(for: "Mu\u{0323}c 10".precomposedStringWithCanonicalMapping), lazy.index(for: "Mục 10"))
+        XCTAssertEqual(lazy.uniqueCount, 502)
+    }
+
     func testInitDoesNotDecodeUntilAccessed() throws {
         var entries: [String] = []
         for i in 0..<200 { entries.append(plain("Mục \(i)")) }

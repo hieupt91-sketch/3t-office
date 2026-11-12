@@ -51,10 +51,13 @@ public final class LazySharedStrings {
     /// Số lần `index(for:)` đã gọi — `count` tăng 1 mỗi lần gọi, giống
     /// `SharedStrings.bumpCount()` (kể cả khi chuỗi đã có).
     private var bumpCalls = 0
-    /// Chỉ số xa nhất mà lần quét tuyến tính của `index(for:)` đã đi qua.
-    private var scanWatermark = 0
-    /// Chuỗi đã biết → chỉ số đầu tiên của nó (đã quét qua hoặc đã thêm).
+    /// Chuỗi đã tra hoặc đã thêm → chỉ số của nó (chỉ các chuỗi từng được hỏi, không phải cả bảng).
     private var seen: [String: Int] = [:]
+    /// Chỉ mục băm của bảng gốc, dựng ở lần tra trượt đầu tiên: băm chuỗi → chỉ số ĐẦU TIÊN có băm đó.
+    /// Chỉ giữ số (≈ 12 byte/mục), không giữ chuỗi.
+    private var hashFirst: [Int: Int32]?
+    /// Các chỉ số còn lại có cùng băm (chuỗi lặp hoặc va chạm băm), tăng dần.
+    private var hashMore: [Int: [Int32]] = [:]
     /// XML `<si>...</si>` của các chuỗi mới thêm (đuôi chờ).
     private var tailXML: [String] = []
     private var tailTexts: [String] = []
@@ -178,14 +181,14 @@ public final class LazySharedStrings {
     public func index(for text: String) -> Int {
         bumpCalls += 1
         if let i = seen[text] { return i }
-        // Quét tuyến tính từ mốc đã quét: giải mã từng mục chưa biết,
-        // ghi nhớ chuỗi của nó để lần sau tra O(1).
-        while scanWatermark < entries.count {
-            let i = scanWatermark
-            scanWatermark += 1
-            guard let t = self.text(at: i) else { continue }
-            if seen[t] == nil { seen[t] = i }
-            if t == text { return i }
+        if hashFirst == nil { buildHashIndex() }
+        let h = text.hashValue
+        if let first = hashFirst?[h] {
+            // Ứng viên theo thứ tự tăng dần: trả mục ĐẦU TIÊN có văn bản bằng (như bản quét tuyến tính cũ).
+            for candidate in [first] + (hashMore[h] ?? []) where entryText(Int(candidate)) == text {
+                seen[text] = Int(candidate)
+                return Int(candidate)
+            }
         }
         let escaped = SharedStrings.escape(text)
         let preserve = text.first?.isWhitespace == true
@@ -196,6 +199,52 @@ public final class LazySharedStrings {
         let i = entries.count + tailTexts.count - 1
         seen[text] = i
         return i
+    }
+
+    /// Văn bản của mục gốc thứ `i` cho việc tra cứu: đường nhanh cho mục dạng thuần, ngược lại giải mã đầy đủ.
+    private func entryText(_ i: Int) -> String? {
+        fastText(i) ?? text(at: i)
+    }
+
+    /// Dựng chỉ mục băm cho mọi mục gốc trong một lượt. `String.hashValue` tính trên dạng chuẩn hóa nên hai
+    /// chuỗi bằng nhau theo `==` (kể cả khác dạng tổ hợp Unicode) luôn cùng băm.
+    private func buildHashIndex() {
+        var first: [Int: Int32] = [:]
+        first.reserveCapacity(entries.count)
+        for i in 0..<entries.count {
+            guard let t = entryText(i) else { continue }
+            let h = t.hashValue
+            if first[h] == nil { first[h] = Int32(i) } else { hashMore[h, default: []].append(Int32(i)) }
+        }
+        hashFirst = first
+    }
+
+    /// Đường nhanh: mục có đúng dạng `<si><t>RAW</t></si>` (hoặc `<t xml:space="preserve">`) mà RAW không chứa
+    /// thứ gì cần giải mã (`<`, `&`, CR, chuỗi thoát `_x…`) và không có khoảng trắng ở hai đầu, tab hay xuống
+    /// dòng — khi đó văn bản chính là RAW, khỏi parse XML. Mọi dạng khác trả `nil` để đi đường giải mã đầy đủ.
+    func fastText(_ i: Int) -> String? {
+        guard i >= 0, i < entries.count else { return nil }
+        let e = entries[i]
+        let end = e.offset + e.length
+        let prefixes: [[UInt8]] = [Array("<si><t>".utf8), Array("<si><t xml:space=\"preserve\">".utf8)]
+        let suffix = Array("</t></si>".utf8)
+        guard e.length > suffix.count, raw[(end - suffix.count)..<end].elementsEqual(suffix) else { return nil }
+        for prefix in prefixes where e.length >= prefix.count + suffix.count
+            && raw[e.offset..<(e.offset + prefix.count)].elementsEqual(prefix) {
+            let from = e.offset + prefix.count, to = end - suffix.count
+            guard from < to else { return nil }
+            func isSpace(_ c: UInt8) -> Bool { c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D }
+            if isSpace(raw[from]) || isSpace(raw[to - 1]) { return nil }
+            var k = from
+            while k < to {
+                let c = raw[k]
+                if c == 0x3C || c == 0x26 || c == 0x0D || c == 0x0A || c == 0x09 { return nil }
+                if c == 0x5F, k + 1 < to, raw[k + 1] == 0x78 { return nil } // "_x"
+                k += 1
+            }
+            return String(decoding: raw[from..<to], as: UTF8.self)
+        }
+        return nil
     }
 
     // MARK: - Ghi ra

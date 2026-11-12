@@ -42,3 +42,15 @@ Trong 3,7–3,9 giây của `save-patch`, bước vá chiếm khoảng 1,8 giây
 - Chỉ ghi giá trị. Công thức, định dạng, chèn/xóa hàng cột vẫn đi đường DOM.
 - Giao diện chưa gọi `sheet.setValues`.
 - Chưa đối chiếu Excel thật (#11).
+
+## Cập nhật 12/11 — tách chi phí bước vá và tối ưu tra chuỗi (nhánh `claude/lazy-sst-lookup`)
+Đo tách cho thấy 1,5–1,7 giây của bước vá là do `LazySharedStrings.index(for:)` quét tuyến tính và giải mã cả 313.503 chuỗi để tìm chuỗi mới; ghi SỐ thì `commit()` chỉ mất 0,02 giây (cả lượt 1,67 giây, 124 MB).
+
+Đã thay bằng chỉ mục băm dựng ở lần tra trượt đầu tiên (không giữ chuỗi, chỉ giữ số), ngữ nghĩa không đổi. Cùng máy, cùng tệp 9,7 MB:
+
+| Mở + ghi 1 ô chuỗi mới + lưu | Thời gian | RAM đỉnh |
+|---|---|---|
+| `save-patch` trước tối ưu | 3,7–3,9 s | 184 MB |
+| `save-patch` sau tối ưu | **2,2–2,3 s** | **148 MB** |
+
+Phần còn lại chủ yếu là lưu truyền phát (khoảng 1,8 giây: nén lại sheet và kiểm tra gói). `swift test -c release`: 632/632.

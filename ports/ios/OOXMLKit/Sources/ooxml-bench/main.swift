@@ -105,14 +105,17 @@ func run(mode: String, path: String) throws {
         try wb.save(to: out)
         try? FileManager.default.removeItem(at: out)
         detail = String(format: "open=%.3fs edit+save=%.3fs", tOpen - t0, now() - tOpen)
-    case "save-patch":
+    case "save-patch", "save-patch-num":
         // Mở lười + sửa 1 ô bằng SheetPatcher (không dựng DOM sheet) + lưu truyền phát.
+        // "-num" ghi số thay cho chuỗi để tách chi phí tra bảng chuỗi dùng chung.
         let wb = try Workbook(contentsOf: url, deferValidation: true, lazyModel: true)
         let tOpen = now()
         let patcher = try wb.patcher(forSheetAt: 0)
-        try patcher.setValue(.string("bench"), at: "A1")
+        let tInit = now()
+        try patcher.setValue(mode.hasSuffix("num") ? .number(42) : .string("bench"), at: "A1")
         try patcher.commit()
         let tPatch = now()
+        FileHandle.standardError.write(Data(String(format: "  [patch] init=%.3fs commit=%.3fs\n", tInit - tOpen, tPatch - tInit).utf8))
         let out = FileManager.default.temporaryDirectory.appendingPathComponent("bench-out-patch-\(getpid()).xlsx")
         try wb.saveStreaming(to: out)
         try? FileManager.default.removeItem(at: out)
