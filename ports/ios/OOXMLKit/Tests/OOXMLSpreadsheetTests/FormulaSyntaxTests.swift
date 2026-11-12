@@ -76,4 +76,50 @@ final class FormulaSyntaxTests: XCTestCase {
         XCTAssertThrowsError(try FormulaParser.parse("{1,2;3}"), "mảng không chữ nhật phải lỗi")
         XCTAssertThrowsError(try FormulaParser.parse("{1,A1}"), "tham chiếu trong hằng mảng phải lỗi")
     }
+
+    // MARK: Tiền tố lưu trữ của Excel (_xlfn., _xlfn._xlws., _xlpm.)
+
+    /// Trong tệp XLSX, Excel ghi hàm ra đời sau bản 2007 kèm `_xlfn.` và hàm mảng động kèm `_xlfn._xlws.`.
+    /// Engine phải coi đó là cùng một hàm; trước đây trả #NAME? cho mọi hàm như vậy.
+    func testStoragePrefixesAreStrippedFromFunctionNames() throws {
+        XCTAssertEqual(FormulaTokenizer.canonicalFunctionName("_xlfn.STDEV.S"), "STDEV.S")
+        XCTAssertEqual(FormulaTokenizer.canonicalFunctionName("_xlfn._xlws.FILTER"), "FILTER")
+        XCTAssertEqual(FormulaTokenizer.canonicalFunctionName("_XLFN.ifs"), "IFS")
+        XCTAssertEqual(FormulaTokenizer.canonicalFunctionName("sum"), "SUM")
+
+        let engine = FormulaEngine()
+        engine.addSheet("S")
+        for (i, v) in [10.0, 20.0, 30.0, 40.0].enumerated() { engine.setValue(.number(v), sheet: "S", at: "A\(i + 1)") }
+        engine.setFormula("_xlfn.STDEV.S(A1:A4)", sheet: "S", at: "B1")
+        engine.setFormula("STDEV.S(A1:A4)", sheet: "S", at: "B2")
+        engine.setFormula("_xlfn.IFS(A1>100,\"a\",A1>5,\"b\")", sheet: "S", at: "B3")
+        engine.setFormula("_xlfn.TEXTJOIN(\"-\",TRUE,A1:A2)", sheet: "S", at: "B4")
+        engine.setFormula("SUM(_xlfn._xlws.FILTER(A1:A4,A1:A4>15))", sheet: "S", at: "B5")
+        engine.setFormula("_xlfn.XLOOKUP(30,A1:A4,A1:A4)", sheet: "S", at: "B6")
+        engine.setFormula("SUM(_xlfn.MAP(A1:A4,_xlfn.LAMBDA(_xlpm.x,_xlpm.x*2)))", sheet: "S", at: "B7")
+        engine.setFormula("_xlfn.NOSUCHFUNCTION(1)", sheet: "S", at: "B8")
+        _ = engine.recalculate()
+        XCTAssertEqual(engine.value(sheet: "S", at: "B1"), engine.value(sheet: "S", at: "B2"))
+        guard case .number = engine.value(sheet: "S", at: "B1") else { return XCTFail("STDEV.S có tiền tố phải ra số") }
+        XCTAssertEqual(engine.value(sheet: "S", at: "B3"), .string("b"))
+        XCTAssertEqual(engine.value(sheet: "S", at: "B4"), .string("10-20"))
+        XCTAssertEqual(engine.value(sheet: "S", at: "B5"), .number(90))
+        XCTAssertEqual(engine.value(sheet: "S", at: "B6"), .number(30))
+        XCTAssertEqual(engine.value(sheet: "S", at: "B7"), .number(200))
+        XCTAssertEqual(engine.value(sheet: "S", at: "B8"), .error("#NAME?"), "hàm không tồn tại vẫn phải là #NAME?")
+    }
+
+    func testTrueFalseFunctionForms() throws {
+        let engine = FormulaEngine()
+        engine.addSheet("S")
+        engine.setFormula("TRUE()", sheet: "S", at: "A1")
+        engine.setFormula("FALSE()", sheet: "S", at: "A2")
+        engine.setFormula("IF(TRUE(),1,2)+IF(FALSE(),10,20)", sheet: "S", at: "A3")
+        engine.setFormula("TRUE(1)", sheet: "S", at: "A4")
+        _ = engine.recalculate()
+        XCTAssertEqual(engine.value(sheet: "S", at: "A1"), .bool(true))
+        XCTAssertEqual(engine.value(sheet: "S", at: "A2"), .bool(false))
+        XCTAssertEqual(engine.value(sheet: "S", at: "A3"), .number(21))
+        guard case .error = engine.value(sheet: "S", at: "A4") else { return XCTFail("TRUE(1) phải là lỗi") }
+    }
 }

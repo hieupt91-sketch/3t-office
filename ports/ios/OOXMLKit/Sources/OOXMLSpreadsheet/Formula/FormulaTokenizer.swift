@@ -25,6 +25,17 @@ public enum FormulaToken: Equatable {
 public enum FormulaTokenizer {
     static let errorLiterals = ["#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A"]
 
+    /// Tên hàm chuẩn (viết hoa, bỏ tiền tố lưu trữ). Trong tệp, Excel ghi hàm ra đời sau bản 2007 kèm tiền
+    /// tố `_xlfn.` (vd. `_xlfn.STDEV.S`, `_xlfn.IFS`), hàm mảng động kèm `_xlfn._xlws.` (vd. `_xlfn._xlws.FILTER`).
+    /// Tiền tố chỉ là quy ước lưu trữ, không thuộc tên hàm.
+    static func canonicalFunctionName(_ raw: String) -> String {
+        var name = raw.uppercased()
+        for prefix in ["_XLFN.", "_XLWS."] {
+            while name.hasPrefix(prefix) { name = String(name.dropFirst(prefix.count)) }
+        }
+        return name
+    }
+
     public static func tokenize(_ text: String) throws -> [FormulaToken] {
         let s = Array(text)
         var i = 0
@@ -106,9 +117,11 @@ public enum FormulaTokenizer {
             if isIdentStart(c) {
                 let start = i
                 while i < s.count, isIdentPart(s[i]) { i += 1 }
-                let word = String(s[start..<i])
+                var word = String(s[start..<i])
                 if i < s.count, s[i] == "!" { i += 1; out.append(.sheet(word)); continue }
-                if i < s.count, s[i] == "(" { out.append(.function(word.uppercased())); continue }
+                if i < s.count, s[i] == "(" { out.append(.function(FormulaTokenizer.canonicalFunctionName(word))); continue }
+                // Tham số LAMBDA/LET trong tệp mang tiền tố _xlpm. (vd. _xlpm.x): bỏ tiền tố để khớp tên khai báo.
+                if word.lowercased().hasPrefix("_xlpm.") { word = String(word.dropFirst(6)) }
                 let upper = word.uppercased()
                 if upper == "TRUE" { out.append(.bool(true)) }
                 else if upper == "FALSE" { out.append(.bool(false)) }
