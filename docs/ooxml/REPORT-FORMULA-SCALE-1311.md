@@ -28,4 +28,4 @@ Chỉ mục (sheet → cột → danh sách hàng đã sắp xếp), tìm nhị 
 ## Giới hạn và việc tiếp
 - Chỉ đo Linux x86, dữ liệu tổng hợp. Sheet thật có công thức tham chiếu cả cột (`A:A`) hoặc nhiều sheet chưa đo.
 - Vẫn tính lại toàn bộ sau mỗi sửa (100.000 dòng ≈ 3 s). Bước tiếp: tính lại tăng dần (chỉ các ô phụ thuộc bắc cầu vào ô vừa đổi) để sửa một ô còn mili-giây.
-- Chưa rõ app hiện có gọi engine này để tính công thức sau khi mở qua engine hay không (phụ thuộc nối `main.py`); sửa này có lợi khi và chỉ khi nó được dùng.
+- **Hiện chưa có nơi nào dùng `recalculate()` ngoài bench và test:** bridge/`ooxml-engine` chưa có lệnh tính công thức (giá trị đệm của công thức do phía giao diện cung cấp qua `cached` khi lưu). Sửa này là nền cho lúc app chuyển phần tính công thức sang engine; không làm app nhanh hơn ngay hôm nay. Vì vậy chưa làm tính lại tăng dần (chưa có người dùng để xác nhận cách gọi).
