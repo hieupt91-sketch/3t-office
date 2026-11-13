@@ -38,11 +38,16 @@ jobs:
         id: diff
         shell: bash -eo pipefail {0}
         run: |
-          # Không xác định được điểm so sánh thì chạy đầy đủ (an toàn hơn bỏ sót).
+          # Đẩy nhánh MỚI (before = 000…0): so với điểm rẽ khỏi vn-main, không chạy đầy đủ oan cho PR chỉ đổi tài liệu.
           if [ "${{ github.event_name }}" = "pull_request" ]; then base="${{ github.event.pull_request.base.sha }}"
           elif [ "${{ github.event_name }}" = "push" ]; then base="${{ github.event.before }}"
           else base=""; fi
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin vn-main 2>/dev/null || true
+            base="$(git merge-base HEAD origin/vn-main 2>/dev/null || true)"
+          fi
+          # Vẫn không xác định được điểm so sánh thì chạy đầy đủ (an toàn hơn bỏ sót).
+          if [ -z "$base" ]; then
             echo "ios=true" >> "$GITHUB_OUTPUT"; echo "Không có điểm so sánh: chạy đầy đủ"; exit 0
           fi
           if git diff --name-only "$base" HEAD | grep -qE '^(ports/ios/|\.github/workflows/ios-ooxmlkit\.yml$)'; then
