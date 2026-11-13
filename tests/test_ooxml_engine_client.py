@@ -35,12 +35,49 @@ def fake_engine(tmp_path: Path, *, delay: float = 0) -> Path:
         for line in sys.stdin:
             request = json.loads(line)
             op = request.get("op")
+            args = request.get("args", {{}})
             if op == "hang":
                 time.sleep({delay})
             if op == "open":
-                result = {{"handle": "fake-h1", "kind": "xlsx", "runtime_path": os.environ.get("PATH", "")}}
+                result = {{"handle": "fake-h1", "kind": "xlsx",
+                           "runtime_path": os.environ.get("PATH", ""),
+                           "echo": args}}
             elif op == "sheet.read":
                 result = {{"cells": [{{"ref": "A1", "value": "ok"}}]}}
+            elif op == "sheet.readRows":
+                if args.get("handle") != "fake-h1":
+                    print(json.dumps({{"id": request["id"], "ok": False,
+                                       "error": {{"code": "bad_handle",
+                                                  "message": "handle không tồn tại"}}}}), flush=True)
+                    continue
+                if args.get("sheet") == "KhongCo":
+                    print(json.dumps({{"id": request["id"], "ok": False,
+                                       "error": {{"code": "no_sheet",
+                                                  "message": "sheet không có"}}}}), flush=True)
+                    continue
+                if args.get("range") == "SAI":
+                    print(json.dumps({{"id": request["id"], "ok": False,
+                                       "error": {{"code": "bad_range",
+                                                  "message": "range sai"}}}}), flush=True)
+                    continue
+                result = {{"cells": [{{"ref": "A1", "value": "ok"}}],
+                           "rowCount": 2, "lastRow": 2, "echo": args}}
+            elif op == "sheet.setValues":
+                if args.get("handle") != "fake-h1":
+                    print(json.dumps({{"id": request["id"], "ok": False,
+                                       "error": {{"code": "bad_handle",
+                                                  "message": "handle không tồn tại"}}}}), flush=True)
+                    continue
+                if args.get("sheet") == "KhongCo":
+                    print(json.dumps({{"id": request["id"], "ok": False,
+                                       "error": {{"code": "no_sheet",
+                                                  "message": "sheet không có"}}}}), flush=True)
+                    continue
+                cells = args.get("cells", [])
+                path = "dom" if any(
+                    isinstance(c, dict) and isinstance(c.get("value"), dict)
+                    and c["value"].get("t") == "f" for c in cells) else "patch"
+                result = {{"path": path, "count": len(cells), "echo": args}}
             elif op in ("xlsx.save", "docx.save", "pptx.save"):
                 result = {{"ok": True, "changedParts": ["document.xml"]}}
             elif op == "unsupported":
@@ -76,6 +113,88 @@ def test_fake_stdio_open_read_and_save_operations(tmp_path, monkeypatch):
             saved = client.save(kind, source_path="source." + kind, target_path="out." + kind, delta={})
             assert saved["ok"] is True
             assert saved["changedParts"] == ["document.xml"]
+    finally:
+        client.close()
+
+
+def test_open_lazy_flag_is_sent_only_when_enabled(tmp_path):
+    client_module = load_client()
+    script = fake_engine(tmp_path)
+    client = client_module.EngineClient(str(script), timeout=2, popen=fake_popen(script))
+    try:
+        lazy = client.open(tmp_path / "input.xlsx", lazy=True)
+        assert lazy["ok"] is True
+        assert lazy["echo"]["lazy"] is True
+        eager = client.open(tmp_path / "input.xlsx")
+        assert eager["ok"] is True
+        assert "lazy" not in eager["echo"]
+    finally:
+        client.close()
+
+
+def test_read_rows_window_range_and_sheet_selection(tmp_path):
+    client_module = load_client()
+    script = fake_engine(tmp_path)
+    client = client_module.EngineClient(str(script), timeout=2, popen=fake_popen(script))
+    try:
+        rows = client.read_rows("fake-h1", from_row=1, count=100)
+        assert rows["ok"] is True
+        assert rows["rowCount"] == 2
+        assert rows["lastRow"] == 2
+        assert rows["echo"] == {
+            "handle": "fake-h1", "sheetIndex": 0, "from": 1, "count": 100}
+        by_range = client.read_rows("fake-h1", range="A1:H50")
+        assert by_range["ok"] is True
+        assert by_range["echo"]["range"] == "A1:H50"
+        assert "from" not in by_range["echo"]
+        assert "count" not in by_range["echo"]
+        by_name = client.read_rows("fake-h1", sheet="Dữ liệu", from_row=3, count=10)
+        assert by_name["echo"] == {
+            "handle": "fake-h1", "sheet": "Dữ liệu", "from": 3, "count": 10}
+    finally:
+        client.close()
+
+
+def test_read_rows_error_cases_reported(tmp_path):
+    client_module = load_client()
+    script = fake_engine(tmp_path)
+    client = client_module.EngineClient(str(script), timeout=2, popen=fake_popen(script))
+    try:
+        bad_handle = client.read_rows("khong-co")
+        assert bad_handle["ok"] is False
+        assert bad_handle["code"] == "bad_handle"
+        missing = client.read_rows("fake-h1", sheet="KhongCo")
+        assert missing["ok"] is False
+        assert missing["code"] == "no_sheet"
+        bad_range = client.read_rows("fake-h1", range="SAI")
+        assert bad_range["ok"] is False
+        assert bad_range["code"] == "bad_range"
+    finally:
+        client.close()
+
+
+def test_set_values_patch_and_dom_paths(tmp_path):
+    client_module = load_client()
+    script = fake_engine(tmp_path)
+    client = client_module.EngineClient(str(script), timeout=2, popen=fake_popen(script))
+    try:
+        patched = client.set_values("fake-h1", [
+            {"ref": "B7", "value": {"t": "n", "v": 12.5}},
+            {"ref": "C7", "value": "ghi chú"},
+        ])
+        assert patched["ok"] is True
+        assert patched["path"] == "patch"
+        assert patched["count"] == 2
+        assert patched["echo"]["sheetIndex"] == 0
+        dom = client.set_values("fake-h1", [
+            {"ref": "A1", "value": {"t": "f", "v": "=SUM(B1:B2)"}},
+        ], sheet="Dữ liệu")
+        assert dom["ok"] is True
+        assert dom["path"] == "dom"
+        assert dom["echo"]["sheet"] == "Dữ liệu"
+        bad = client.set_values("khong-co", [{"ref": "A1", "value": 1}])
+        assert bad["ok"] is False
+        assert bad["code"] == "bad_handle"
     finally:
         client.close()
 

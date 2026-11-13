@@ -93,6 +93,19 @@ def measure_files(files: list[Path], *, repeats: int,
                 "engine_total_ms": summarize([r["engine_total_ms"] for r in ok_runs
                                               if r.get("engine_total_ms") is not None]),
                 "render_ms": None,  # NOT RUN — đo ở UI qua CDP (lát S4)
+                "first_screen_ms": summarize([r["first_screen_ms"] for r in ok_runs
+                                              if r.get("first_screen_ms") is not None]),
+                "first_screen_package_ms": summarize(
+                    [r["first_screen_package_ms"] for r in ok_runs
+                     if r.get("first_screen_package_ms") is not None]),
+                "first_screen_data_ms": summarize(
+                    [r["first_screen_data_ms"] for r in ok_runs
+                     if r.get("first_screen_data_ms") is not None]),
+                "first_screen_counts": (
+                    ok_runs[0].get("first_screen_counts", {}) if ok_runs else {}),
+                "first_screen_errors": sorted(
+                    {str(r.get("first_screen_error")) for r in ok_runs
+                     if r.get("first_screen_error")}),
                 "peak_rss_kb": summarize([r["peak_rss_kb"] for r in ok_runs
                                           if r.get("peak_rss_kb") is not None]),
                 "counts": ok_runs[0].get("counts", {}) if ok_runs else {},
