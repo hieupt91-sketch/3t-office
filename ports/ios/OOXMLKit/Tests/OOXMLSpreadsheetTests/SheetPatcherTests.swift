@@ -175,12 +175,18 @@ final class SheetPatcherTests: XCTestCase {
         try patcher.setValue(.number(5), at: "A2")
         assertUnsupported({ try patcher.commit() }, "ô thuộc công thức chia sẻ")
         XCTAssertEqual(try wb.package.data(of: part), before, "từ chối thì byte sheet không đổi")
-        // Công thức mảng hoặc bảng dữ liệu nằm đâu đó trong sheet.
-        wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\" t=\"str\"><f t=\"dataTable\" ref=\"A1:A2\"/><v>x</v></c></row>"))
-        assertUnsupported({ _ = try wb.patcher(forSheetAt: 0) }, "bảng dữ liệu")
-        // Công thức mảng ở bất kỳ đâu trong sheet.
-        wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\"><f t=\"array\" ref=\"A1:A2\">B1:B2*2</f><v>2</v></c></row>"))
-        assertUnsupported({ _ = try wb.patcher(forSheetAt: 0) }, "công thức mảng")
+        // Ô nằm trong vùng công thức mảng/bảng dữ liệu: từ chối khi commit (ô ngoài vùng thì vá được, xem test riêng).
+        for (formula, label) in [("<f t=\"dataTable\" ref=\"A1:A2\"/>", "bảng dữ liệu"), ("<f t=\"array\" ref=\"A1:A2\">B1:B2*2</f>", "công thức mảng")] {
+            wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\" t=\"str\">\(formula)<v>x</v></c></row><row r=\"2\"><c r=\"A2\"><v>1</v></c></row>"))
+            before = try wb.package.data(of: part)
+            patcher = try wb.patcher(forSheetAt: 0)
+            try patcher.setValue(.number(5), at: "A2") // thành viên của vùng, không phải ô chủ
+            assertUnsupported({ try patcher.commit() }, "ô trong vùng \(label)")
+            XCTAssertEqual(try wb.package.data(of: part), before)
+        }
+        // Thẻ mảng không có ref đọc được ⇒ từ chối ngay (an toàn).
+        wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\"><f t=\"array\">B1:B2*2</f><v>2</v></c></row>"))
+        assertUnsupported({ _ = try wb.patcher(forSheetAt: 0) }, "mảng không có ref")
         // Số hàng ngầm định.
         wb = try workbook(sheetXML: sheet("<row><c r=\"A1\"><v>1</v></c></row>"))
         assertUnsupported({ _ = try wb.patcher(forSheetAt: 0) }, "hàng ngầm định")
@@ -413,5 +419,27 @@ final class SheetPatcherTests: XCTestCase {
         patcher.clear(range: CellRange("A1:A1048576")!)
         assertUnsupported({ try patcher.commit() }, "vùng xóa chạm quá nhiều hàng")
         XCTAssertEqual(try wb.package.data(of: part), before)
+    }
+
+    /// Sheet có công thức mảng ở nơi khác vẫn vá được; chỉ ô trong vùng mảng bị từ chối. Hàng chứa công thức mảng
+    /// ngoài vùng ghi giữ nguyên byte.
+    func testCellsOutsideArrayRangeArePatchedAndArrayRowsStayIdentical() throws {
+        let arrayRow = "<row r=\"3\"><c r=\"A3\"><f t=\"array\" ref=\"A3:A4\">B3:B4*2</f><v>2</v></c></row><row r=\"4\"><c r=\"A4\"><v>4</v></c></row>"
+        let wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>" + arrayRow))
+        let patcher = try wb.patcher(forSheetAt: 0)
+        try patcher.setValue(.number(9), at: "A1")
+        try patcher.setValue(.string("mới"), at: "C9")
+        patcher.clear(range: CellRange("A1:B2")!)
+        try patcher.commit()
+        let text = String(decoding: try wb.package.data(of: PartName("/xl/worksheets/sheet1.xml")), as: UTF8.self)
+        XCTAssertTrue(text.contains(arrayRow), "hàng công thức mảng không bị đụng phải giữ nguyên byte")
+        let ws = try Workbook(data: try wb.save()).worksheet(at: 0)
+        XCTAssertEqual(try ws.value("C9"), .string("mới"))
+        XCTAssertEqual(try ws.value("A1"), .empty, "xóa thắng ghi")
+        // Vùng xóa chạm vùng mảng ⇒ từ chối.
+        let wb2 = try workbook(sheetXML: sheet(arrayRow))
+        let p2 = try wb2.patcher(forSheetAt: 0)
+        p2.clear(range: CellRange("A4:B5")!)
+        assertUnsupported({ try p2.commit() }, "xóa chạm vùng mảng")
     }
 }

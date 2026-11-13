@@ -57,8 +57,13 @@ public final class SheetPatcher {
         if reader.sheetDataSelfClosing { throw SheetPatchError.unsupported("sheetData tự đóng") }
         if !reader.ascending { throw SheetPatchError.unsupported("hàng không tăng dần") }
         if reader.hasImplicitRowNumbers { throw SheetPatchError.unsupported("số hàng ngầm định") }
-        if try containsArrayFormula() { throw SheetPatchError.unsupported("sheet có công thức mảng hoặc bảng dữ liệu") }
+        arrayRanges = try arrayFormulaRanges()
     }
+
+    /// Vùng của các công thức mảng/bảng dữ liệu trong sheet: ô nằm trong vùng này không vá được (cần hiểu cả nhóm);
+    /// ô ngoài vùng vá bình thường dù sheet có công thức mảng ở nơi khác.
+    private var arrayRanges: [CellRange] = []
+    private func touchesArray(_ ref: CellReference) -> Bool { arrayRanges.contains { $0.contains(ref) } }
 
     /// Xếp hàng một lần ghi giá trị (ghi đè lần xếp trước cho cùng ô). Chưa sửa gì cho tới `commit()`.
     public func setValue(_ value: CellValue, at ref: CellReference) throws {
@@ -111,6 +116,13 @@ public final class SheetPatcher {
     public func commit() throws {
         guard !committed else { throw SheetPatchError.alreadyCommitted }
         guard !edits.isEmpty || !clearedRanges.isEmpty else { committed = true; return }
+
+        for ref in edits.keys where touchesArray(ref) {
+            throw SheetPatchError.unsupported("ô \(ref.a1) nằm trong vùng công thức mảng/bảng dữ liệu")
+        }
+        for range in clearedRanges where arrayRanges.contains(where: { $0.intersects(range) }) {
+            throw SheetPatchError.unsupported("vùng xóa \(range) chạm vùng công thức mảng/bảng dữ liệu")
+        }
 
         // Hàng hiện có nằm trong các vùng xóa (chỉ hàng đã có trong tệp; hàng chưa có thì không có gì để xóa).
         var clearRows = Set<Int>()
@@ -308,16 +320,45 @@ public final class SheetPatcher {
         return XElement.serializedFragment(parsed.root.children)
     }
 
-    private func containsArrayFormula() throws -> Bool {
+    /// Quét byte của sheetData tìm thẻ `<f t="array"|"dataTable" ref="…">` và lấy vùng `ref`. Thẻ thiếu/không đọc được
+    /// `ref` ⇒ từ chối (an toàn): ném `unsupported`.
+    private func arrayFormulaRanges() throws -> [CellRange] {
         let from = reader.sheetDataOpenEnd, to = reader.sheetDataEnd
-        guard from < to else { return false }
-        return reader.data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) -> Bool in
+        guard from < to else { return [] }
+        var ranges: [CellRange] = []
+        var failure: String?
+        reader.data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
             let b = raw.bindMemory(to: UInt8.self)
             for needle in ["t=\"array\"", "t='array'", "t=\"dataTable\"", "t='dataTable'"] {
-                if SheetRowReader.find(Array(needle.utf8), in: b, from: from, to: to, boundaryAfter: false) != nil { return true }
+                let pattern = Array(needle.utf8)
+                var cursor = from
+                while cursor < to, let hit = SheetRowReader.find(pattern, in: b, from: cursor, to: to, boundaryAfter: false) {
+                    cursor = hit + pattern.count
+                    // Thẻ chứa vị trí này: từ '<' gần nhất phía trước tới '>' kế tiếp.
+                    var open = hit
+                    while open > from, b[open] != UInt8(ascii: "<") { open -= 1 }
+                    var close = hit
+                    while close < to, b[close] != UInt8(ascii: ">") { close += 1 }
+                    let tag = String(decoding: UnsafeBufferPointer(rebasing: b[open..<min(close, to)]), as: UTF8.self)
+                    guard let r = Self.attribute("ref", in: tag), let range = CellRange(r) else {
+                        failure = "công thức mảng/bảng dữ liệu không có vùng ref đọc được"
+                        return
+                    }
+                    ranges.append(range)
+                }
             }
-            return false
         }
+        if let failure { throw SheetPatchError.unsupported(failure) }
+        return ranges
+    }
+
+    private static func attribute(_ name: String, in tag: String) -> String? {
+        for quote in ["\"", "'"] {
+            guard let start = tag.range(of: " \(name)=\(quote)") else { continue }
+            let rest = tag[start.upperBound...]
+            if let end = rest.firstIndex(of: Character(quote)) { return String(rest[..<end]) }
+        }
+        return nil
     }
 
     private func slice(_ range: Range<Int>) -> Data {

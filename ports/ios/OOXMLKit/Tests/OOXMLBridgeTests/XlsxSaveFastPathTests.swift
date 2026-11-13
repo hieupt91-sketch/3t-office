@@ -150,16 +150,20 @@ final class XlsxSaveFastPathTests: XCTestCase {
         XCTAssertGreaterThan(checked, 2)
     }
 
-    /// Cùng một ô xuất hiện nhiều lần: lần cuối thắng, ở CẢ hai đường (sheet 1 đi đường vá, sheet 0 đi đường DOM).
+    /// Cùng một ô xuất hiện nhiều lần: lần cuối thắng, ở CẢ hai đường (đường DOM được ép bằng một thao tác cấu trúc).
     func testRepeatedEditsToSameCellKeepTheLastValue() throws {
         let fixture = "xlsx/rich-excel.xlsx"
         let names = try Workbook(data: try Fixtures.data(fixture)).sheetNames
-        for (index, expectedPath) in [(1, "patch"), (0, "dom")] {
+        for (index, forceDOM) in [(1, false), (0, false), (0, true)] {
             let list = [Edit(sheet: names[index], ref: "Z60", type: "string", value: "lần một"),
                         Edit(sheet: names[index], ref: "Z60", type: "number", value: 7),
                         Edit(sheet: names[index], ref: "z60", type: "string", value: "lần cuối")]
-            let (result, target, _) = try save(fixture, delta: ["cells": list.map(\.json)], label: "dup\(index)")
-            XCTAssertEqual(result["path"] as? String, expectedPath, "sheet \(index)")
+            var delta: [String: Any] = ["cells": list.map(\.json)]
+            if forceDOM {
+                delta["structural_ops"] = [["op": "sheet.freezePanes", "args": ["sheet": names[index], "rows": 1, "cols": 0]]]
+            }
+            let (result, target, _) = try save(fixture, delta: delta, label: "dup\(index)\(forceDOM)")
+            XCTAssertEqual(result["path"] as? String, forceDOM ? "dom" : "patch", "sheet \(index)")
             XCTAssertEqual(try Workbook(data: try Data(contentsOf: target)).worksheet(at: index).value("Z60"),
                            .string("lần cuối"), "sheet \(index)")
         }
@@ -307,18 +311,43 @@ final class XlsxSaveFastPathTests: XCTestCase {
 
     }
 
-    /// Một sheet vá được, một sheet đường vá từ chối (sheet "Dữ liệu" có công thức mảng) → cả delta rơi về DOM
-    /// và KHÔNG để lại nửa chừng: cả hai sheet đều có giá trị mới.
+    /// Một sheet vá được, một sheet đường vá từ chối (sheet "Ẩn" được thay bằng bản có số hàng ngầm định) → cả delta
+    /// rơi về DOM và KHÔNG để lại nửa chừng: cả hai sheet đều có giá trị mới.
     func testPartiallyEligibleDeltaFallsBackWholeAndLeavesNothingHalfApplied() throws {
         let fixture = "xlsx/rich-excel.xlsx"
-        let names = try Workbook(data: try Fixtures.data(fixture)).sheetNames
+        let base = try Workbook(data: try Fixtures.data(fixture))
+        let names = base.sheetNames
+        let ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+        base.package.setData(Data("<?xml version=\"1.0\"?><worksheet xmlns=\"\(ns)\"><sheetData><row><c r=\"A1\"><v>1</v></c></row></sheetData></worksheet>".utf8),
+                             for: PartName("/xl/worksheets/sheet3.xml"))
+        let dir = try Fixtures.scratchDirectory("xlsx-fast-partial")
+        let source = dir.appendingPathComponent("source.xlsx"), target = dir.appendingPathComponent("staging.xlsx")
+        try base.package.save().write(to: source)
         let list = [Edit(sheet: names[1], ref: "Z90", type: "string", value: "sheet vá được"),
-                    Edit(sheet: names[0], ref: "Z91", type: "string", value: "sheet có công thức mảng")]
-        let (result, target, _) = try save(fixture, delta: ["cells": list.map(\.json)], label: "partial")
-        XCTAssertEqual(result["path"] as? String, "dom")
+                    Edit(sheet: names[2], ref: "Z91", type: "string", value: "sheet có hàng ngầm định")]
+        let response = try request(["source_document_path": source.path, "target_path": target.path,
+                                    "delta": ["cells": list.map(\.json)]])
+        XCTAssertEqual(response["ok"] as? Bool, true, "\(response)")
+        XCTAssertEqual((response["result"] as? [String: Any])?["path"] as? String, "dom")
         let wb = try Workbook(data: try Data(contentsOf: target))
         XCTAssertEqual(try wb.worksheet(named: names[1]).value("Z90"), .string("sheet vá được"))
-        XCTAssertEqual(try wb.worksheet(named: names[0]).value("Z91"), .string("sheet có công thức mảng"))
+        XCTAssertEqual(try wb.worksheet(named: names[2]).value("Z91"), .string("sheet có hàng ngầm định"))
+    }
+
+    /// Ghi vào ô TRONG vùng công thức mảng không lưu được ở cả hai đường (Worksheet từ chối): ok:false, không để lại tệp.
+    /// Ghi ngoài vùng mảng của cùng sheet thì đi đường vá.
+    func testArrayRangeCellsAreRefusedAndOutsideCellsArePatched() throws {
+        let fixture = "xlsx/rich-excel.xlsx"
+        let names = try Workbook(data: try Fixtures.data(fixture)).sheetNames
+        let inside = [Edit(sheet: names[0], ref: "C11", type: "string", value: "trong vùng mảng")]
+        let (error, target, _) = try failure(fixture, delta: ["cells": inside.map(\.json)], label: "array-inside")
+        XCTAssertFalse((error["message"] as? String ?? "").isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path), "lỗi thì không để lại tệp đích")
+
+        let outside = [Edit(sheet: names[0], ref: "Z91", type: "string", value: "ngoài vùng mảng")]
+        let (fast, fastTarget, _) = try save(fixture, delta: ["cells": outside.map(\.json)], label: "outside-array")
+        XCTAssertEqual(fast["path"] as? String, "patch", "ô ngoài vùng mảng phải đi đường vá")
+        XCTAssertEqual(try Workbook(data: try Data(contentsOf: fastTarget)).worksheet(named: names[0]).value("Z91"), .string("ngoài vùng mảng"))
     }
 
     // MARK: Lỗi

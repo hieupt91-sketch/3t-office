@@ -63,3 +63,8 @@ Còn lại ở đường `dom`: `cleared_cells`, `structural_ops`, công thức 
 Số đo (XLSX 9,7 MB qua `ooxml-engine`, 3 lần): delta ghi 1 ô + xóa 1 ô: **2,5–3,1 s, 167 MB, path=patch** (trước: path=dom 17,6–20 s, 1.033–1.045 MB). Chưa tính nén song song (#32); sau khi #32 gộp dự kiến ~1 s như delta giá trị.
 
 Kiểm thử: `testClearedCellsUsePatchPathAndMatchDOMOnEveryFixture` (12 fixture, ép đường DOM bằng thao tác cấu trúc vô hại rồi so từng ô; ≥ 8 sheet đi đường vá), `testClearOnlyDeltaAndOversizedRangeFallback`, hai test mới ở `SheetPatcherTests`. Còn đường DOM: `structural_ops`, công thức chia sẻ/mảng, vùng xóa > 5.000 hàng.
+
+## Cập nhật E-1d (13/11): công thức mảng chỉ chặn ô thuộc vùng của nó
+Trước đây chỉ cần sheet có MỘT công thức mảng hoặc bảng dữ liệu ở đâu đó là cả sheet bị từ chối đường vá và rơi về DOM (~20 s). Thực tế chỉ ô nằm trong `ref` của công thức mảng mới cần hiểu cả nhóm. `SheetPatcher` nay quét thẻ `<f t="array"|"dataTable" ref="…">`, lấy vùng `ref` (thẻ không đọc được `ref` ⇒ từ chối, an toàn), và chỉ từ chối khi một ô ghi/vùng xóa chạm vùng đó. Hàng chứa công thức mảng ngoài vùng ghi giữ nguyên byte.
+
+Kiểm thử: `testCellsOutsideArrayRangeArePatchedAndArrayRowsStayIdentical`, bản cập nhật `testUnsupportedCasesLeavePackageUntouched`, và hai test cầu nối mới (`testArrayRangeCellsAreRefusedAndOutsideCellsArePatched`; sheet có hàng ngầm định thay cho "sheet có mảng" trong test rơi-về-DOM-nguyên-delta). Ghi vào ô trong vùng mảng bị chính `Worksheet` từ chối ở đường DOM ("Ô C11 thuộc công thức mảng C10:C11") nên delta kiểu đó trả lỗi ở cả hai đường (hành vi cũ giữ nguyên). `swift test -c release` 660/660.
