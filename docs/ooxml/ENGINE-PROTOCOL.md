@@ -266,6 +266,21 @@ sequenceDiagram
 
 ---
 
+### 4.1d. `sheet.layout` (bố cục hiển thị, không parse dữ liệu ô)
+- **Mã nguồn:** `sheetLayout` trong `OOXMLBridge.swift`; lõi là `SheetRowReader.layout(rows:)` (`SheetRowReader.swift`). Chỉ đọc phần ĐẦU và phần ĐUÔI của `sheetN.xml` (ngoài `<sheetData>`) và thuộc tính của các hàng trong cửa sổ; tệp 9,7 MB: ~130 ms lần đầu (dựng chỉ mục hàng, dùng lại cho `sheet.readRows`).
+- **Tham số:** `handle`; `sheet` hoặc `sheetIndex`; tùy chọn `from` + `count` (cửa sổ hàng cần thuộc tính từng hàng; không có thì `rows` rỗng).
+- **Trả về:** `columns` (`min`, `max`, `width`, `hidden`, `customWidth`, `style`), `merges` (mọi ô gộp, dạng "A1:B2"), `frozenRows`, `frozenColumns` (chỉ khi `pane` ở trạng thái đóng băng), `autoFilter`, `dimension`, `defaultColumnWidth`, `defaultRowHeight`, `showGridLines`, `rows` (chỉ hàng TRONG cửa sổ có chiều cao/ẩn/định dạng hàng/outline khác mặc định: `r`, `height`, `hidden`, `customHeight`, `style`, `outlineLevel`), `rowCount`, `lastRow`.
+- **Ngữ nghĩa:** kết quả khớp đường DOM (`Worksheet.mergedCells/columnWidth/rowHeight/autoFilterRange`) trên mọi fixture (test `SheetLayoutTests`). Độ rộng cột là đơn vị ký tự của Excel (như `<col width>`); cột không có trong `columns` dùng `defaultColumnWidth` (hoặc 8,43 nếu thiếu).
+
+### 4.1e. `workbook.styles` (chi tiết mọi định dạng ô)
+- **Mã nguồn:** `workbookStyles` trong `OOXMLBridge.swift`; lõi là `Workbook.cellFormatDetails()` (`StyleDetails.swift`).
+- **Tham số:** `handle`.
+- **Trả về:** `{"count": N, "formats": [...]}`; phần tử thứ `s` ứng với chỉ số `style` của ô trong `sheet.readRows`. Mỗi định dạng có `numberFormatId`, `numberFormat` (mã), `font` (`name`, `size`, `bold`, `italic`, `underline`, `strike`, `color`), `fill` (`pattern`, `foreground`, `background`), `border` (`left/right/top/bottom/diagonal` = `{style, color}` hoặc null), `alignment` (`horizontal`, `vertical`, `wrapText`, `indent`, `rotation`, `shrinkToFit`).
+- **Màu:** `{"rgb": "RRGGBB", "theme", "tint", "indexed", "auto"}`; `rgb` đã giải từ theme + tint, indexed (kể cả bảng tùy biến) hoặc rgb gốc; không có `rgb` nghĩa là tự động/hệ thống (giao diện dùng màu mặc định). **Giới hạn đã biết:** làm tròn tint lệch Excel tối đa vài đơn vị mỗi kênh (Excel tính HLS bằng số nguyên; chưa kiểm bit-chính-xác với Excel thật).
+- **Dùng khi:** gọi một lần sau `open` và cache theo `handle`; vẽ ô từ `style` của `sheet.readRows` + bảng này + `sheet.layout`, không cần đọc `styles.xml`/`sheetN.xml` ở phía Python.
+
+---
+
 ### 4.2. `sheet.setValue`
 - **Mã nguồn:** [OOXMLBridge.swift:728-731](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/OOXMLBridge.swift#L728-L731) và [BridgeJSON.swift:41-64](file:///E:/VNOffice-agy-PROTOCOL/ports/ios/OOXMLKit/Sources/OOXMLBridge/BridgeJSON.swift#L41-L64).
 - **Tham số:** `handle`, `sheet`/`sheetIndex`, `ref` (tọa độ ô, ví dụ `"C2"`), `value` (giá trị).

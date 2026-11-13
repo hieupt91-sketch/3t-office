@@ -94,6 +94,8 @@ public final class OOXMLBridge {
 
         case "sheet.read": return try sheetRead(args)
         case "sheet.readRows": return try sheetReadRows(args)
+        case "sheet.layout": return try sheetLayout(args)
+        case "workbook.styles": return try workbookStyles(args)
         case "sheet.setValue": return try sheetSetValue(args)
         case "sheet.setValues": return try sheetSetValues(args)
         case "sheet.setFormula": return try sheetSetFormula(args)
@@ -1033,6 +1035,74 @@ public final class OOXMLBridge {
 
     // MARK: Sheet
 
+    /// `sheet.layout` — bố cục hiển thị (cột, ô gộp, freeze panes, vùng lọc, hàng trong cửa sổ). Không parse dữ liệu ô.
+    private func sheetLayout(_ args: Args) throws -> [String: Any] {
+        let (_, reader) = try rowReader(for: args)
+        var window: ClosedRange<Int>?
+        if args.optInt("from") != nil || args.optInt("count") != nil {
+            let from = max(1, args.optInt("from") ?? 1)
+            window = from...(from + max(1, args.optInt("count") ?? 200) - 1)
+        }
+        let l = try reader.layout(rows: window)
+        var out: [String: Any] = [
+            "showGridLines": l.showGridLines,
+            "columns": l.columns.map { c -> [String: Any] in
+                var o: [String: Any] = ["min": c.min, "max": c.max, "hidden": c.hidden, "customWidth": c.customWidth]
+                if let w = c.width { o["width"] = w }
+                if let s = c.style { o["style"] = s }
+                return o
+            },
+            "merges": l.merges.map(\.description),
+            "frozenRows": l.frozenRows, "frozenColumns": l.frozenColumns,
+            "rows": l.rows.map { r -> [String: Any] in
+                var o: [String: Any] = ["r": r.number, "hidden": r.hidden, "customHeight": r.customHeight, "outlineLevel": r.outlineLevel]
+                if let h = r.height { o["height"] = h }
+                if let s = r.style { o["style"] = s }
+                return o
+            },
+            "rowCount": reader.rowCount, "lastRow": reader.lastRowNumber,
+        ]
+        if let d = l.dimension { out["dimension"] = d.description }
+        if let w = l.defaultColumnWidth { out["defaultColumnWidth"] = w }
+        if let h = l.defaultRowHeight { out["defaultRowHeight"] = h }
+        if let f = l.autoFilter { out["autoFilter"] = f.description }
+        return out
+    }
+
+    /// `workbook.styles` — chi tiết mọi định dạng ô theo chỉ số `style` (phông, màu đã giải ra RGB, nền, viền, căn lề).
+    private func workbookStyles(_ args: Args) throws -> [String: Any] {
+        let wb = try workbook(args)
+        func color(_ c: CellFormatDetail.Color?) -> Any {
+            guard let c else { return NSNull() }
+            var o: [String: Any] = ["auto": c.auto]
+            if let v = c.rgb { o["rgb"] = v }
+            if let v = c.theme { o["theme"] = v }
+            if let v = c.tint { o["tint"] = v }
+            if let v = c.indexed { o["indexed"] = v }
+            return o
+        }
+        func edge(_ e: CellFormatDetail.Edge?) -> Any {
+            guard let e else { return NSNull() }
+            return ["style": e.style ?? NSNull(), "color": color(e.color)] as [String: Any]
+        }
+        let formats = wb.cellFormatDetails().map { f -> [String: Any] in
+            [
+                "numberFormatId": f.numberFormatId, "numberFormat": f.numberFormatCode,
+                "font": ["name": f.font.name ?? NSNull(), "size": f.font.size ?? NSNull(), "bold": f.font.bold,
+                         "italic": f.font.italic, "underline": f.font.underline ?? NSNull(), "strike": f.font.strike,
+                         "color": color(f.font.color)] as [String: Any],
+                "fill": ["pattern": f.fill.pattern ?? NSNull(), "foreground": color(f.fill.foreground),
+                         "background": color(f.fill.background)] as [String: Any],
+                "border": ["left": edge(f.border.left), "right": edge(f.border.right), "top": edge(f.border.top),
+                           "bottom": edge(f.border.bottom), "diagonal": edge(f.border.diagonal)] as [String: Any],
+                "alignment": ["horizontal": f.alignment.horizontal ?? NSNull(), "vertical": f.alignment.vertical ?? NSNull(),
+                              "wrapText": f.alignment.wrapText, "indent": f.alignment.indent,
+                              "rotation": f.alignment.rotation ?? NSNull(), "shrinkToFit": f.alignment.shrinkToFit] as [String: Any],
+            ]
+        }
+        return ["count": formats.count, "formats": formats]
+    }
+
     private func cellJSON(_ c: Cell, styles: StyleSheet?) -> [String: Any] {
         var o: [String: Any] = ["ref": c.reference.a1, "value": BridgeValue.json(c.value), "style": c.styleIndex]
         if let f = c.formula { o["formula"] = f }
@@ -1046,7 +1116,8 @@ public final class OOXMLBridge {
     /// Đọc ô theo cửa sổ hàng, KHÔNG dựng DOM cả sheet (xem `SheetRowReader`).
     /// args: handle, sheet | sheetIndex, và `range` ("A1:H50") hoặc `from` (hàng đầu, mặc định 1) + `count` (mặc định 200).
     /// result: cells (cùng định dạng với `sheet.read`), rowCount (số hàng có trong tệp), lastRow (số hàng lớn nhất).
-    private func sheetReadRows(_ args: Args) throws -> [String: Any] {
+    /// Bộ đọc hàng của sheet theo `sheet`/`sheetIndex`; dùng lại chỉ mục khi sheet chưa bị sửa trong phiên.
+    private func rowReader(for args: Args) throws -> (workbook: Workbook, reader: SheetRowReader) {
         let handle = try args.string("handle")
         let wb = try workbook(args)
         let info: SheetInfo
@@ -1073,6 +1144,11 @@ public final class OOXMLBridge {
             reader = try wb.rowReader(forSheetNamed: info.name)
             rowReaders[key] = reader
         }
+        return (wb, reader)
+    }
+
+    private func sheetReadRows(_ args: Args) throws -> [String: Any] {
+        let (wb, reader) = try rowReader(for: args)
         let cells: [Cell]
         if let r = args.optString("range") {
             guard let range = CellRange(r) else { throw SpreadsheetError.invalidReference(r) }

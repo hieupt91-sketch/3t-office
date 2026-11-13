@@ -387,3 +387,110 @@ extension Workbook {
         return try SheetRowReader(workbook: self, part: part)
     }
 }
+
+// MARK: Bố cục sheet (không dựng DOM phần dữ liệu)
+
+/// Bố cục hiển thị của một sheet: cột, hàng, ô gộp, freeze panes, vùng lọc, vùng dùng. Lấy từ phần ĐẦU và phần ĐUÔI
+/// của `sheetN.xml` (ngoài `<sheetData>`) và từ thuộc tính của các hàng trong cửa sổ được hỏi — không parse dữ liệu ô.
+public struct SheetLayout: Equatable, Sendable {
+    public struct Column: Equatable, Sendable {
+        public var min: Int, max: Int
+        public var width: Double?
+        public var hidden: Bool
+        public var customWidth: Bool
+        public var style: Int?
+    }
+    public struct Row: Equatable, Sendable {
+        public var number: Int
+        public var height: Double?
+        public var hidden: Bool
+        public var customHeight: Bool
+        public var style: Int?
+        public var outlineLevel: Int
+    }
+    public var dimension: CellRange?
+    public var defaultColumnWidth: Double?
+    public var defaultRowHeight: Double?
+    public var showGridLines: Bool
+    public var columns: [Column]
+    public var merges: [CellRange]
+    public var frozenRows: Int
+    public var frozenColumns: Int
+    public var autoFilter: CellRange?
+    /// Chỉ các hàng TRONG cửa sổ yêu cầu có thuộc tính khác mặc định (chiều cao, ẩn, định dạng hàng).
+    public var rows: [Row]
+}
+
+extension SheetRowReader {
+    /// Bố cục sheet. `rows` = cửa sổ hàng cần thuộc tính từng hàng (nil = không đọc hàng nào).
+    public func layout(rows window: ClosedRange<Int>? = nil) throws -> SheetLayout {
+        // Phần đầu (trước sheetData) + phần đuôi (sau thẻ đóng sheetData), bọc trong thẻ gốc thật.
+        let headRange = rootOpenEnd..<sheetDataOpenStart
+        var tailStart = data.count
+        if sheetDataSelfClosing {
+            tailStart = sheetDataOpenEnd
+        } else if let close = data.withUnsafeBytes({ (raw: UnsafeRawBufferPointer) -> Int? in
+            let b = raw.bindMemory(to: UInt8.self)
+            return SheetRowReader.indexOf(0x3E, in: b, from: sheetDataEnd, to: b.count)
+        }) {
+            tailStart = close + 1
+        }
+        func bytes(_ r: Range<Int>) -> Data { data.subdata(in: (data.startIndex + r.lowerBound)..<(data.startIndex + max(r.lowerBound, r.upperBound))) }
+        var doc = Data(capacity: rootOpenTag.count + headRange.count + (data.count - tailStart) + 32)
+        doc.append(rootOpenTag)
+        doc.append(bytes(headRange))
+        doc.append(bytes(tailStart..<data.count))
+        let rootName = String(decoding: rootOpenTag.dropFirst().prefix { !SheetRowReader.isDelimiter($0) }, as: UTF8.self)
+        if !doc.suffix(rootName.utf8.count + 3).elementsEqual(Data("</\(rootName)>".utf8)) {
+            // Đuôi gốc đã chứa thẻ đóng gốc (tệp thường); chỉ thêm nếu thiếu.
+            doc.append(Data("</\(rootName)>".utf8))
+        }
+        let parsed: XDocument
+        do { parsed = try XDocument(data: doc) } catch { throw PackageError.invalidPart(part, "\(error)") }
+        let root = parsed.root
+
+        var layout = SheetLayout(dimension: root.firstChild(NS.s, "dimension")?.attribute("ref").flatMap(CellRange.init),
+                                 defaultColumnWidth: nil, defaultRowHeight: nil, showGridLines: true,
+                                 columns: [], merges: [], frozenRows: 0, frozenColumns: 0, autoFilter: nil, rows: [])
+        if let fmt = root.firstChild(NS.s, "sheetFormatPr") {
+            layout.defaultColumnWidth = fmt.attribute("defaultColWidth").flatMap { Double($0) }
+            layout.defaultRowHeight = fmt.attribute("defaultRowHeight").flatMap { Double($0) }
+        }
+        if let view = root.firstChild(NS.s, "sheetViews")?.firstChild(NS.s, "sheetView") {
+            if let g = view.attribute("showGridLines") { layout.showGridLines = !(g == "0" || g == "false") }
+            if let pane = view.firstChild(NS.s, "pane"), pane.attribute("state") == "frozen" || pane.attribute("state") == "frozenSplit" {
+                layout.frozenColumns = Int(Double(pane.attribute("xSplit") ?? "0") ?? 0)
+                layout.frozenRows = Int(Double(pane.attribute("ySplit") ?? "0") ?? 0)
+            }
+        }
+        for col in root.firstChild(NS.s, "cols")?.children(NS.s, "col") ?? [] {
+            guard let lo = Int(col.attribute("min") ?? ""), let hi = Int(col.attribute("max") ?? "") else { continue }
+            layout.columns.append(.init(min: lo, max: hi, width: col.attribute("width").flatMap { Double($0) },
+                                        hidden: col.attribute("hidden") == "1" || col.attribute("hidden") == "true",
+                                        customWidth: col.attribute("customWidth") == "1" || col.attribute("customWidth") == "true",
+                                        style: col.attribute("style").flatMap { Int($0) }))
+        }
+        layout.merges = root.firstChild(NS.s, "mergeCells")?.children(NS.s, "mergeCell").compactMap { $0.attribute("ref").flatMap(CellRange.init) } ?? []
+        layout.autoFilter = root.firstChild(NS.s, "autoFilter")?.attribute("ref").flatMap(CellRange.init)
+
+        if let window {
+            for run in indexRuns(for: window) {
+                let rowDoc = try parse(run)
+                defer { withExtendedLifetime(rowDoc.document) {} }
+                for (offset, row) in rowDoc.rows.enumerated() where run.lowerBound + offset < run.upperBound {
+                    let number = rowNumbers[run.lowerBound + offset]
+                    let ht = row.attribute("ht").flatMap { Double($0) }
+                    let hidden = row.attribute("hidden") == "1" || row.attribute("hidden") == "true"
+                    let custom = row.attribute("customHeight") == "1" || row.attribute("customHeight") == "true"
+                    let style = row.attribute("s").flatMap { Int($0) }
+                    let outline = Int(row.attribute("outlineLevel") ?? "0") ?? 0
+                    if ht != nil || hidden || custom || style != nil || outline > 0 {
+                        layout.rows.append(.init(number: number, height: ht, hidden: hidden, customHeight: custom,
+                                                 style: style, outlineLevel: outline))
+                    }
+                }
+            }
+        }
+        return layout
+    }
+}
