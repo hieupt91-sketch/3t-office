@@ -27,6 +27,10 @@ public final class OOXMLBridge {
     private var counter = 0
     /// Bộ đọc theo cửa sổ hàng đã lập chỉ mục, theo "handle\u{0}part" (chỉ dùng lại khi sheet chưa bị sửa).
     private var rowReaders: [String: SheetRowReader] = [:]
+    /// Danh sách đoạn thân theo handle, dùng lại giữa các lệnh không đổi cấu trúc (xem `perform`).
+    private var paragraphCache: [String: [Paragraph]] = [:]
+    private var tableCache: [String: [Table]] = [:]
+    private var slideCache: [String: [Slide]] = [:]
 
     public init() {}
 
@@ -77,13 +81,43 @@ public final class OOXMLBridge {
 
     // MARK: Điều phối
 
+    /// Các lệnh `doc.*` KHÔNG làm đổi danh sách đoạn của thân (chỉ đọc hoặc sửa nội dung/định dạng tại chỗ). Mọi lệnh
+    /// `doc.*` khác — kể cả lệnh mới thêm sau này — xóa bộ nhớ đệm danh sách đoạn của handle (mặc định an toàn).
+    private static let paragraphListStableOps: Set<String> = [
+        "doc.read", "doc.setText", "doc.setStyle", "doc.setSpacing", "doc.setRunEffect", "doc.setNumbering",
+        "doc.removeNumbering", "doc.setRunTextEffects", "doc.watermark", "doc.sections",
+    ]
+
+    /// Các lệnh `slide.*` KHÔNG đổi danh sách slide (sửa nội dung/định dạng trong một slide hoặc chỉ đọc). Lệnh khác
+    /// (xóa, nhân đôi, di chuyển, thay thế toàn bản… và mọi lệnh mới) xóa bộ nhớ đệm danh sách slide của handle.
+    private static let slideListStableOps: Set<String> = [
+        "slide.read", "slide.setText", "slide.setTitle", "slide.renameShape", "slide.setTableCell", "slide.setNotes",
+        "slide.transition", "slide.setTransition", "slide.removeTransition", "slide.animations", "slide.animationSteps",
+        "slide.setAnimationTiming", "slide.addFadeEntrance", "slide.removeAnimations", "slide.addEntranceEffect",
+        "slide.addAppearEntrance", "slide.theme", "slide.showSettings",
+    ]
+
     private func perform(op: String, args: Args) throws -> Any {
+        // `Paragraph` list của một handle được dùng lại giữa các lệnh (dựng lại tốn O(số đoạn): tài liệu 120.000 đoạn
+        // ~290 ms mỗi lần đọc cửa sổ hoặc sửa một đoạn).
+        if op.hasPrefix("doc.") ? !Self.paragraphListStableOps.contains(op) : true,
+           op != "info", let handle = args.optString("handle") {
+            paragraphCache[handle] = nil
+            tableCache[handle] = nil
+        }
+        if op.hasPrefix("slide.") ? !Self.slideListStableOps.contains(op) : true, op != "info",
+           let handle = args.optString("handle") {
+            slideCache[handle] = nil
+        }
         switch op {
         case "open": return try open(args)
         case "info": return try info(args)
         case "close":
             let handle = try args.string("handle")
             docs[handle] = nil
+            paragraphCache[handle] = nil
+            tableCache[handle] = nil
+            slideCache[handle] = nil
             rowReaders = rowReaders.filter { !$0.key.hasPrefix(handle + "\u{0}") }
             return [:]
         case "exportBytes": return ["base64": try exportBytes(args).base64EncodedString()]
@@ -1023,8 +1057,23 @@ public final class OOXMLBridge {
         guard case .word(let d) = try doc(args) else { throw BridgeError("kind", "tài liệu không phải văn bản") }
         return d
     }
+    /// Danh sách đoạn của thân, dùng lại giữa các lệnh không đổi cấu trúc (xem `paragraphListStableOps`).
+    private func cachedParagraphs(_ args: Args) throws -> [Paragraph] {
+        let handle = try args.string("handle")
+        if let cached = paragraphCache[handle] { return cached }
+        let list = try word(args).paragraphs
+        paragraphCache[handle] = list
+        return list
+    }
+    private func cachedTables(_ args: Args) throws -> [Table] {
+        let handle = try args.string("handle")
+        if let cached = tableCache[handle] { return cached }
+        let list = try word(args).tables
+        tableCache[handle] = list
+        return list
+    }
     private func paragraph(_ args: Args) throws -> Paragraph {
-        let ps = try word(args).paragraphs
+        let ps = try cachedParagraphs(args)
         let i = try args.int("index")
         guard ps.indices.contains(i) else { throw BridgeError("index", "đoạn \(i) ngoài phạm vi") }
         return ps[i]
@@ -1033,7 +1082,18 @@ public final class OOXMLBridge {
         guard case .presentation(let p) = try doc(args) else { throw BridgeError("kind", "tài liệu không phải trình chiếu") }
         return p
     }
-    private func slide(_ args: Args) throws -> Slide { try presentation(args).slide(at: try args.int("index")) }
+    /// Slide theo `index` từ danh sách đã nhớ (dựng danh sách Slide tốn O(số slide) mỗi lần: bộ 400 slide ~85 ms).
+    /// Chỉ số ngoài phạm vi đi qua `slide(at:)` để giữ đúng lỗi cũ.
+    private func slide(_ args: Args) throws -> Slide {
+        let handle = try args.string("handle")
+        let index = try args.int("index")
+        let list: [Slide]
+        if let cached = slideCache[handle] { list = cached } else {
+            list = try presentation(args).slides
+            slideCache[handle] = list
+        }
+        return list.indices.contains(index) ? list[index] : try presentation(args).slide(at: index)
+    }
     /// Shape bảng của slide: theo tên nếu truyền "shape", nếu không lấy bảng đầu tiên.
     private func tableShape(_ args: Args) throws -> Shape {
         let s = try slide(args)
@@ -1445,10 +1505,12 @@ public final class OOXMLBridge {
     }
 
     private func docRead(_ args: Args) throws -> [String: Any] {
-        let ps = try word(args).paragraphs
+        let ps = try cachedParagraphs(args)
         let from = args.optInt("from") ?? 0
         let count = args.optInt("count") ?? ps.count
-        let slice = ps.enumerated().filter { $0.offset >= from && $0.offset < from + count }
+        // Như bộ lọc cũ `offset >= from && offset < from + count`, nhưng chỉ duyệt cửa sổ thay vì cả danh sách.
+        let lo = max(0, from), hi = min(ps.count, from &+ count)
+        let slice: [(offset: Int, element: Paragraph)] = lo < hi ? (lo..<hi).map { (offset: $0, element: ps[$0]) } : []
         return ["total": ps.count, "paragraphs": slice.map { (i, p) -> [String: Any] in
             var o: [String: Any] = ["index": i, "text": p.text]
             if let s = p.styleId { o["style"] = s }
@@ -1477,7 +1539,7 @@ public final class OOXMLBridge {
                 return value
             }
             return o
-        }, "tables": try word(args).tables.map { table in table.rows.map { row in row.map(\.text) } }]
+        }, "tables": try cachedTables(args).map { table in table.rows.map { row in row.map(\.text) } }]
     }
 
     private func docInsertParagraph(_ args: Args) throws -> [String: Any] {
