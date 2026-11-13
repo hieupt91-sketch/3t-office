@@ -41,7 +41,11 @@ public final class SheetPatcher {
         var style: Int?
     }
     private var edits: [CellReference: CellEdit] = [:]
+    /// Vùng cần xóa nội dung (áp SAU mọi lần ghi, như delta của `xlsx.save`). Ô vẫn giữ định dạng.
+    private var clearedRanges: [CellRange] = []
     private var committed = false
+    /// Số hàng tối đa đường vá chịu đọc để xóa; vượt thì từ chối (đường DOM xử lý vùng quá lớn).
+    public static let maxClearRows = 5000
 
     init(workbook: Workbook, part: PartName) throws {
         self.workbook = workbook
@@ -93,16 +97,39 @@ public final class SheetPatcher {
         try setValue(value, at: ref)
     }
 
+    /// Xếp hàng một lần xóa nội dung ô trong vùng (như `Worksheet.clear` cho từng ô có sẵn: bỏ giá trị và công
+    /// thức, giữ định dạng, ô trống không có định dạng thì bị gỡ). Áp sau mọi lần ghi khi `commit()`.
+    public func clear(range: CellRange) {
+        clearedRanges.append(range)
+    }
+
+    private func isCleared(_ ref: CellReference) -> Bool {
+        clearedRanges.contains { $0.contains(ref) }
+    }
+
     /// Áp mọi lần ghi đã xếp vào byte của sheet. Ném `unsupported` thì gói chưa bị đổi.
     public func commit() throws {
         guard !committed else { throw SheetPatchError.alreadyCommitted }
-        guard !edits.isEmpty else { committed = true; return }
+        guard !edits.isEmpty || !clearedRanges.isEmpty else { committed = true; return }
+
+        // Hàng hiện có nằm trong các vùng xóa (chỉ hàng đã có trong tệp; hàng chưa có thì không có gì để xóa).
+        var clearRows = Set<Int>()
+        for range in clearedRanges {
+            var index = reader.lowerBound(range.start.row)
+            while index < reader.rowCount, reader.rowNumbers[index] <= range.end.row {
+                clearRows.insert(reader.rowNumbers[index])
+                if clearRows.count > SheetPatcher.maxClearRows {
+                    throw SheetPatchError.unsupported("vùng xóa chạm quá \(SheetPatcher.maxClearRows) hàng")
+                }
+                index += 1
+            }
+        }
 
         // Giai đoạn 1: dựng DOM nhỏ cho từng hàng bị đụng và kiểm mọi điều kiện, CHƯA sửa gì.
         var patches: [RowPatch] = []
         var appended: [Int] = [] // hàng mới lớn hơn mọi hàng hiện có
         let byRow = Dictionary(grouping: edits.keys, by: \.row)
-        for r in byRow.keys.sorted() {
+        for r in Set(byRow.keys).union(clearRows).sorted() {
             let index = reader.lowerBound(r)
             if index < reader.rowCount, reader.rowNumbers[index] == r {
                 patches.append(try existingRowPatch(index: index))
@@ -138,11 +165,12 @@ public final class SheetPatcher {
                     guard let ref = c.attribute("r").flatMap(CellReference.init) else {
                         throw SheetPatchError.unsupported("ô không ghi địa chỉ")
                     }
-                    guard let edit = edits[ref], let f = c.firstChild(NS.s, "f") else { continue }
+                    let cleared = isCleared(ref)
+                    guard edits[ref] != nil || cleared, let f = c.firstChild(NS.s, "f") else { continue }
                     if let type = f.attribute("t"), type != "normal" {
                         throw SheetPatchError.unsupported("ô \(ref.a1) thuộc công thức \(type)")
                     }
-                    if edit.content != nil { dropsOrAddsFormula = true }
+                    if cleared || edits[ref]?.content != nil { dropsOrAddsFormula = true }
                 }
             }
         }
@@ -150,6 +178,7 @@ public final class SheetPatcher {
             if case .formula = edit.content { dropsOrAddsFormula = true }
         }
         let head = try patchedHead()
+        var didClear = false
 
         // Giai đoạn 2: ghi giá trị bằng các hàm dùng chung với Worksheet.
         for patch in patches {
@@ -171,6 +200,19 @@ public final class SheetPatcher {
                         if style == 0 { c.removeAttribute("s") } else { Worksheet.setAttributeAfterR(c, "s", String(style)) }
                     }
                 }
+                // Xóa sau khi ghi (cùng thứ tự với đường DOM): ô trong vùng xóa mất giá trị và công thức, giữ định dạng.
+                if !clearedRanges.isEmpty {
+                    for c in row.children(NS.s, "c") {
+                        guard let ref = c.attribute("r").flatMap(CellReference.init), isCleared(ref) else { continue }
+                        try Worksheet.write(.empty, formula: nil, into: c, workbook: workbook, q: q)
+                        let style = c.attribute("s")
+                        if (style == nil || style == "0") && c.elements.isEmpty
+                            && c.attributes.allSatisfy({ $0.name == "r" || $0.name == "s" }) {
+                            c.removeFromParent()
+                        }
+                        didClear = true
+                    }
+                }
             }
         }
 
@@ -188,7 +230,7 @@ public final class SheetPatcher {
 
         workbook.package.setData(out, for: part)
         if dropsOrAddsFormula { workbook.invalidateCalcChain() }
-        if edits.values.contains(where: { $0.content != nil }) { workbook.requestRecalculation() }
+        if didClear || edits.values.contains(where: { $0.content != nil }) { workbook.requestRecalculation() }
         committed = true
     }
 

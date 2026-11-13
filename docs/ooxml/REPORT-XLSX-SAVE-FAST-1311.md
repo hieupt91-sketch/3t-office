@@ -54,3 +54,12 @@ Số đo (qua `ooxml-engine`, XLSX 9,7 MB, 3 lần chạy): delta có công th�
 Kiểm thử thêm: `SheetPatcherTests` (công thức/định dạng so cấu trúc XML và ô với đường DOM trên 12 fixture; calcChain bị hủy đúng lúc; gộp ghi tuần tự; công thức chia sẻ và bảng dữ liệu bị từ chối), `XlsxSaveFastPathTests` (công thức/định dạng đi `patch` và bằng kết quả đường DOM; chỉ số định dạng vượt phạm vi bị từ chối ở cả hai đường; xóa ô và thao tác cấu trúc vẫn `dom`). `swift test -c release`: 654/654 (build sạch).
 
 Còn lại ở đường `dom`: `cleared_cells`, `structural_ops`, công thức chia sẻ/mảng, sheet có công thức mảng. Hai việc có thể làm tiếp: hỗ trợ `cleared_cells` bằng đường vá, và bung công thức chia sẻ theo nhóm mà vẫn không dựng DOM cả sheet.
+
+## Cập nhật E-1c (13/11): xóa ô (`cleared_cells`) đi đường vá
+`SheetPatcher.clear(range:)` xóa nội dung trong vùng ngay trên các hàng bị chạm (chỉ hàng đã có trong tệp, tối đa 5.000 hàng; quá thì rơi về DOM). Ngữ nghĩa như `Worksheet.clear` từng ô: bỏ giá trị và công thức, giữ định dạng, ô trống không định dạng bị gỡ, hủy `calcChain` nếu có công thức, áp SAU mọi lần ghi. Ô thuộc công thức chia sẻ/mảng trong vùng xóa → từ chối, đường DOM xử lý.
+
+**Sửa lỗi có sẵn ở đường DOM:** delta vừa ghi vừa xóa cùng một ô bị bước kiểm lại báo `reopen` ("giá trị … không khớp") và tệp lưu bị hủy dù kết quả đúng; bước kiểm nay tính thứ tự "xóa sau ghi".
+
+Số đo (XLSX 9,7 MB qua `ooxml-engine`, 3 lần): delta ghi 1 ô + xóa 1 ô: **2,5–3,1 s, 167 MB, path=patch** (trước: path=dom 17,6–20 s, 1.033–1.045 MB). Chưa tính nén song song (#32); sau khi #32 gộp dự kiến ~1 s như delta giá trị.
+
+Kiểm thử: `testClearedCellsUsePatchPathAndMatchDOMOnEveryFixture` (12 fixture, ép đường DOM bằng thao tác cấu trúc vô hại rồi so từng ô; ≥ 8 sheet đi đường vá), `testClearOnlyDeltaAndOversizedRangeFallback`, hai test mới ở `SheetPatcherTests`. Còn đường DOM: `structural_ops`, công thức chia sẻ/mảng, vùng xóa > 5.000 hàng.

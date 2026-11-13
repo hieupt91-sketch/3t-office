@@ -632,8 +632,9 @@ public final class OOXMLBridge {
         // trúc — thì vá thẳng byte của sheet, lưu truyền phát và kiểm lại bằng đọc theo cửa sổ hàng: không dựng DOM
         // cả sheet, không đọc cả tệp vào RAM nhiều lần. Trường hợp đường vá từ chối thì rơi về đường DOM bên dưới
         // (chưa có gì được ghi ra đĩa).
-        if structuralOps.isEmpty, clearedCells.isEmpty, !cells.isEmpty,
-           let fast = try xlsxSaveCellsFast(sourceURL: sourceURL, targetURL: targetURL, cells: cells) {
+        if structuralOps.isEmpty, !(cells.isEmpty && clearedCells.isEmpty),
+           let fast = try xlsxSaveCellsFast(sourceURL: sourceURL, targetURL: targetURL, cells: cells,
+                                            clearedCells: clearedCells) {
             return fast
         }
 
@@ -710,7 +711,19 @@ public final class OOXMLBridge {
                 guard lastIndex[key] == index else { continue }
                 let sheet = try reopened.worksheet(named: cell["sheet"] as! String)
                 let reference = cell["ref"] as! String
-                if let formula = cell["formula"] as? String {
+                // Xóa áp SAU mọi lần ghi: ô nằm trong vùng xóa kết thúc ở trạng thái trống (định dạng vẫn đúng như đã đặt).
+                let writtenRef = CellReference(reference)
+                let wasCleared = clearedCells.contains { c in
+                    guard let sheetName = c["sheet"] as? String, let text = c["range"] as? String,
+                          let range = CellRange(text), let writtenRef else { return false }
+                    return sheetName.lowercased() == (cell["sheet"] as? String ?? "").lowercased() && range.contains(writtenRef)
+                }
+                if wasCleared {
+                    let actual = try sheet.cell(reference)
+                    guard actual?.formula == nil, (actual?.value ?? .empty) == .empty else {
+                        throw BridgeError("reopen", "ô \(reference) còn nội dung sau khi xóa")
+                    }
+                } else if let formula = cell["formula"] as? String {
                     guard try sheet.cell(reference)?.formula == (formula.hasPrefix("=") ? String(formula.dropFirst()) : formula) else {
                         throw BridgeError("reopen", "công thức \(reference) không khớp sau khi mở lại")
                     }
@@ -738,7 +751,8 @@ public final class OOXMLBridge {
     /// (chưa ghi gì ra đĩa) khi đường vá từ chối — người gọi rơi về đường DOM. Kiểm tra sau khi lưu: mở lại tệp
     /// đích bằng đường lười, so danh sách sheet và từng ô đã ghi (nội dung và định dạng cuối cùng của mỗi ô, như
     /// đường DOM); sai thì xóa tệp đích.
-    private func xlsxSaveCellsFast(sourceURL: URL, targetURL: URL, cells: [[String: Any]]) throws -> [String: Any]? {
+    private func xlsxSaveCellsFast(sourceURL: URL, targetURL: URL, cells: [[String: Any]],
+                                   clearedCells: [[String: Any]] = []) throws -> [String: Any]? {
         struct Edit {
             let sheet: String
             let ref: CellReference
@@ -768,6 +782,15 @@ public final class OOXMLBridge {
             }
         }
 
+        var clears: [(sheet: String, range: CellRange)] = []
+        for (index, cell) in clearedCells.enumerated() {
+            guard let sheetName = cell["sheet"] as? String, let rangeText = cell["range"] as? String,
+                  let range = CellRange(rangeText) else {
+                throw BridgeError("delta", "cleared_cells[\(index)] cần sheet và range hợp lệ")
+            }
+            clears.append((sheetName, range))
+        }
+
         let workbook = try Workbook(contentsOf: sourceURL, deferValidation: true, lazyModel: true)
         // Chỉ số định dạng phải tồn tại (như đường DOM): thiếu thì báo không hỗ trợ, không ghi gì.
         var missingStyles: [String] = []
@@ -782,15 +805,23 @@ public final class OOXMLBridge {
 
         var order: [String] = []
         var bySheet: [String: [Edit]] = [:]
+        var sheetNames: [String: String] = [:]
         for e in edits {
             let key = e.sheet.lowercased()
-            if bySheet[key] == nil { order.append(key) }
+            if bySheet[key] == nil && sheetNames[key] == nil { order.append(key) }
+            sheetNames[key] = sheetNames[key] ?? e.sheet
             bySheet[key, default: []].append(e)
+        }
+        for c in clears {
+            let key = c.sheet.lowercased()
+            if bySheet[key] == nil && sheetNames[key] == nil { order.append(key) }
+            sheetNames[key] = sheetNames[key] ?? c.sheet
         }
         do {
             for key in order {
                 let list = bySheet[key] ?? []
-                let patcher = try workbook.patcher(forSheetNamed: list[0].sheet)
+                let patcher = try workbook.patcher(forSheetNamed: sheetNames[key] ?? key)
+                for c in clears where c.sheet.lowercased() == key { patcher.clear(range: c.range) }
                 for e in list {
                     if let formula = e.formula {
                         try patcher.setFormula(formula, cachedValue: e.cached, at: e.ref)
@@ -822,6 +853,10 @@ public final class OOXMLBridge {
                 if expected[key] == nil { keys.append(key) }
                 if e.formula != nil { x.formula = e.formula; x.value = nil } else if let v = e.value { x.value = v; x.formula = nil }
                 if let style = e.style { x.style = style }
+                // Xóa áp sau mọi lần ghi: ô trong vùng xóa kết thúc ở trạng thái trống (định dạng giữ nguyên).
+                if clears.contains(where: { $0.sheet.lowercased() == e.sheet.lowercased() && $0.range.contains(e.ref) }) {
+                    x.value = .empty; x.formula = nil
+                }
                 expected[key] = x
             }
             var readers: [String: SheetRowReader] = [:]
@@ -849,6 +884,13 @@ public final class OOXMLBridge {
                     guard (actual?.styleIndex ?? 0) == style else {
                         throw BridgeError("reopen", "định dạng \(x.ref.a1) không khớp sau khi mở lại")
                     }
+                }
+            }
+            // Vùng xóa: sau khi mở lại không ô nào trong vùng còn giá trị hay công thức.
+            for c in clears {
+                let reader = try reopened.rowReader(forSheetNamed: c.sheet)
+                for cell in try reader.cells(in: c.range) where cell.value != .empty || cell.formula != nil {
+                    throw BridgeError("reopen", "ô \(cell.reference.a1) còn nội dung sau khi xóa")
                 }
             }
             let changedParts = try Self.changedZipParts(beforeURL: sourceURL, afterURL: targetURL)
