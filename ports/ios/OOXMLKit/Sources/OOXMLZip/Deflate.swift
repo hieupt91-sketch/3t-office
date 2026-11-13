@@ -35,6 +35,43 @@ public enum Deflate {
         encoder.run()
         return encoder.writer.out
     }
+
+    /// Kích thước khối cho nén song song. Cố định (không phụ thuộc số lõi) để kết quả LUÔN tất định.
+    public static let parallelChunkSize = 1 << 20
+
+    /// Nén song song kiểu pigz: chia đầu vào thành các khối độc lập, mỗi khối nén riêng (cửa sổ băm reset) và kết thúc
+    /// bằng khối stored rỗng để căn byte, khối cuối mới đánh dấu BFINAL. Kết quả là luồng DEFLATE hợp lệ (mọi bộ giải
+    /// nén đọc được), lớn hơn đường tuần tự vài phần trăm. Đầu vào nhỏ hơn hai khối thì dùng đường tuần tự.
+    public static func compressParallel(_ bytes: [UInt8], level: Level = .default) -> [UInt8] {
+        let chunk = parallelChunkSize
+        guard bytes.count >= 2 * chunk else { return compress(bytes, level: level) }
+        let count = (bytes.count + chunk - 1) / chunk
+        let results = ParallelResults(count: count)
+        DispatchQueue.concurrentPerform(iterations: count) { k in
+            let lo = k * chunk, hi = min(bytes.count, lo + chunk)
+            var encoder = DeflateEncoder(input: Array(bytes[lo..<hi]), level: level)
+            encoder.finalStream = (k == count - 1)
+            encoder.run()
+            results.set(k, encoder.writer.out)
+        }
+        var out: [UInt8] = []
+        out.reserveCapacity(results.totalCount)
+        for k in 0..<count { out.append(contentsOf: results.get(k)) }
+        return out
+    }
+
+    public static func compressParallel(_ data: Data, level: Level = .default) -> Data {
+        Data(compressParallel([UInt8](data), level: level))
+    }
+}
+
+private final class ParallelResults: @unchecked Sendable {
+    private var parts: [[UInt8]]
+    private let lock = NSLock()
+    init(count: Int) { parts = Array(repeating: [], count: count) }
+    func set(_ k: Int, _ v: [UInt8]) { lock.lock(); parts[k] = v; lock.unlock() }
+    func get(_ k: Int) -> [UInt8] { lock.lock(); defer { lock.unlock() }; return parts[k] }
+    var totalCount: Int { lock.lock(); defer { lock.unlock() }; return parts.reduce(0) { $0 + $1.count } }
 }
 
 struct BitWriter {
@@ -189,6 +226,8 @@ struct DeflateEncoder {
     /// literal: giá trị byte; match: bit31 | length << 16 | distance.
     var symbols: [UInt32] = []
     var blockStart = 0
+    /// false: luồng này là một khối giữa chừng của luồng nén song song (không đánh dấu BFINAL, kết thúc bằng sync flush).
+    var finalStream = true
 
     init(input: [UInt8], level: Deflate.Level) {
         self.input = input
@@ -277,13 +316,20 @@ struct DeflateEncoder {
                 i += 1
             }
             if symbols.count >= DeflateEncoder.maxSymbolsPerBlock {
-                let isFinal = i >= n
-                flushBlock(end: i, final: isFinal)
-                finished = isFinal
+                let reachedEnd = i >= n
+                flushBlock(end: i, final: reachedEnd && finalStream)
+                finished = reachedEnd
             }
         }
         if !finished {
-            flushBlock(end: n, final: true)
+            flushBlock(end: n, final: finalStream)
+        }
+        if !finalStream {
+            // Sync flush: khối stored rỗng (BFINAL=0) để luồng kết thúc đúng ranh giới byte.
+            writer.write(0, 3)
+            writer.alignToByte()
+            writer.write(0x0000, 16)
+            writer.write(0xFFFF, 16)
         }
         writer.alignToByte()
     }

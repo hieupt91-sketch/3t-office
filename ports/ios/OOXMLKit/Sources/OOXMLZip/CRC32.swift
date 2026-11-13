@@ -10,26 +10,54 @@ public struct CRC32 {
         return c
     }
 
+    /// Bảng "slicing-by-8": xử lý 8 byte mỗi vòng, nhanh hơn nhiều so với tra bảng từng byte; kết quả giống hệt.
+    private static let tables: [[UInt32]] = {
+        var t = [table]
+        for k in 1..<8 {
+            var next = [UInt32](repeating: 0, count: 256)
+            for i in 0..<256 { next[i] = (t[k - 1][i] >> 8) ^ table[Int(t[k - 1][i] & 0xFF)] }
+            t.append(next)
+        }
+        return t
+    }()
+
+    private static let flat: [UInt32] = tables.flatMap { $0 }
+
     public private(set) var value: UInt32 = 0
 
     public init() {}
 
     public mutating func update<C: Collection>(_ bytes: C) where C.Element == UInt8 {
+        if let r = bytes.withContiguousStorageIfAvailable({ buf -> UInt32 in
+            var tmp = CRC32(); tmp.value = value; tmp.update(buf); return tmp.value
+        }) { value = r; return }
         var c = ~value
         CRC32.table.withUnsafeBufferPointer { t in
-            for b in bytes {
-                c = t[Int((c ^ UInt32(b)) & 0xFF)] ^ (c >> 8)
-            }
+            for b in bytes { c = t[Int((c ^ UInt32(b)) & 0xFF)] ^ (c >> 8) }
         }
         value = ~c
     }
 
     public mutating func update(_ buffer: UnsafeBufferPointer<UInt8>) {
         var c = ~value
-        CRC32.table.withUnsafeBufferPointer { t in
-            for b in buffer {
-                c = t[Int((c ^ UInt32(b)) & 0xFF)] ^ (c >> 8)
+        let n = buffer.count
+        var i = 0
+        CRC32.flat.withUnsafeBufferPointer { t in
+            while i + 8 <= n {
+                let b0 = UInt32(buffer[i]), b1 = UInt32(buffer[i + 1]), b2 = UInt32(buffer[i + 2]), b3 = UInt32(buffer[i + 3])
+                let one: UInt32 = c ^ (b0 | (b1 << 8) | (b2 << 16) | (b3 << 24))
+                var x: UInt32 = t[1792 + Int(one & 0xFF)]
+                x ^= t[1536 + Int((one >> 8) & 0xFF)]
+                x ^= t[1280 + Int((one >> 16) & 0xFF)]
+                x ^= t[1024 + Int(one >> 24)]
+                x ^= t[768 + Int(buffer[i + 4])]
+                x ^= t[512 + Int(buffer[i + 5])]
+                x ^= t[256 + Int(buffer[i + 6])]
+                x ^= t[Int(buffer[i + 7])]
+                c = x
+                i += 8
             }
+            while i < n { c = t[Int((c ^ UInt32(buffer[i])) & 0xFF)] ^ (c >> 8); i += 1 }
         }
         value = ~c
     }
