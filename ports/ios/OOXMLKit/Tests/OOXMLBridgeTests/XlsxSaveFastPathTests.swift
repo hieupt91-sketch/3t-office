@@ -4,8 +4,9 @@ import OOXMLKit
 import OOXMLZip
 import OOXMLTestSupport
 
-/// `xlsx.save` với delta chỉ gồm ghi GIÁ TRỊ ô đi đường nhanh (vá byte sheet + lưu truyền phát + kiểm lại bằng đọc
-/// theo cửa sổ hàng), mọi trường hợp khác đi đường DOM. Hai đường phải cho cùng kết quả cho người dùng.
+/// `xlsx.save` với delta chỉ gồm ghi Ô (giá trị, công thức, chỉ số định dạng) đi đường nhanh (vá byte sheet + lưu
+/// truyền phát + kiểm lại bằng đọc theo cửa sổ hàng); xóa ô, thao tác cấu trúc và mọi sheet/ô đường vá không xử lý
+/// được thì đi đường DOM. Hai đường phải cho cùng kết quả cho người dùng.
 final class XlsxSaveFastPathTests: XCTestCase {
     let bridge = OOXMLBridge()
 
@@ -164,56 +165,118 @@ final class XlsxSaveFastPathTests: XCTestCase {
         }
     }
 
+    // MARK: Công thức và định dạng đi đường vá
+
+    func testFormulaAndStyleDeltasUsePatchPathAndMatchDOM() throws {
+        var patchCount = 0
+        for fixture in Self.fixtures {
+            let sourceData = try Fixtures.data(fixture)
+            let probe = try Workbook(data: sourceData)
+            let styleIndex = (probe.styles?.cellFormatCount ?? 0) > 1 ? 1 : 0
+            for (index, info) in probe.sheets.enumerated() where info.kind == .worksheet {
+                let cells = try probe.worksheet(at: index).cells
+                let maxRow = cells.map(\.reference.row).max() ?? 1
+                let plain = cells.filter { $0.formula == nil }
+                guard plain.count >= 2 else { continue }
+                let label = "\(fixture.replacingOccurrences(of: "/", with: "_"))-\(index)"
+                let newCell = CellReference(column: 3, row: maxRow + 2).a1
+                let delta: [String: Any] = ["cells": [
+                    ["sheet": info.name, "ref": plain[0].reference.a1, "formula": "=1+1", "cached": 2],
+                    ["sheet": info.name, "ref": plain[1].reference.a1, "formula": "\"a\"&\"b\"", "cached": "ab", "cachedType": "string"],
+                    ["sheet": info.name, "ref": newCell, "formula": "SUM(A1:A2)", "cached": 3, "styleIndex": styleIndex],
+                    ["sheet": info.name, "ref": CellReference(column: 1, row: maxRow + 4).a1, "type": "string", "value": "có định dạng", "styleIndex": styleIndex],
+                ]]
+                let (result, target, _) = try save(fixture, delta: delta, label: "fs-\(label)")
+                XCTAssertEqual(result["ok"] as? Bool, true, label)
+                guard result["path"] as? String == "patch" else { continue }
+                patchCount += 1
+
+                let dom = try Workbook(data: sourceData)
+                let ws = try dom.worksheet(named: info.name)
+                try ws.setFormula("=1+1", at: plain[0].reference.a1, cachedValue: .number(2))
+                try ws.setFormula("\"a\"&\"b\"", at: plain[1].reference.a1, cachedValue: .string("ab"))
+                try ws.setFormula("SUM(A1:A2)", at: newCell, cachedValue: .number(3))
+                try ws.setStyleIndex(styleIndex, at: newCell)
+                let styled = CellReference(column: 1, row: maxRow + 4).a1
+                try ws.setValue(.string("có định dạng"), at: styled)
+                try ws.setStyleIndex(styleIndex, at: styled)
+                let saved = try Data(contentsOf: target)
+                let a = try Workbook(data: saved), b = try Workbook(data: try dom.save())
+                for (i, s) in a.sheets.enumerated() where s.kind == .worksheet {
+                    XCTAssertEqual(try a.worksheet(at: i).cells, try b.worksheet(at: i).cells, "\(label): sheet \(s.name)")
+                }
+                XCTAssertEqual(a.package.partNames.map(\.description).sorted(), b.package.partNames.map(\.description).sorted(),
+                               "\(label): danh sách phần")
+                XCTAssertEqual(PackageValidator.validate(saved), PackageValidator.validate(sourceData), label)
+            }
+        }
+        XCTAssertGreaterThanOrEqual(patchCount, 8, "công thức và định dạng phải đi đường vá cho phần lớn sheet mẫu")
+    }
+
+    func testStyleThatDoesNotExistIsReportedAndNothingIsWritten() throws {
+        let fixture = "xlsx/rich-excel.xlsx"
+        let name = try Workbook(data: try Fixtures.data(fixture)).sheetNames[1]
+        let dir = try Fixtures.scratchDirectory("xlsx-fast-nostyle")
+        let source = dir.appendingPathComponent("source.xlsx"), target = dir.appendingPathComponent("staging.xlsx")
+        try Fixtures.data(fixture).write(to: source)
+        let count = try XCTUnwrap(try Workbook(data: try Fixtures.data(fixture)).styles?.cellFormatCount)
+        // Chỉ số = số định dạng (vượt 1) và rất lớn: cả hai đều không tồn tại. Đường nhanh VÀ đường DOM (ép bằng thao
+        // tác cấu trúc) đều phải từ chối, không ghi tệp đích.
+        for (label, extra) in [("nhanh", [String: Any]()),
+                               ("dom", ["structural_ops": [["op": "sheet.freezePanes", "args": ["sheet": name, "rows": 1, "cols": 0]]]])] {
+            for bad in [count, 9999] {
+                var delta: [String: Any] = ["cells": [["sheet": name, "ref": "Z1", "type": "number", "value": 1, "styleIndex": bad]]]
+                for (k, v) in extra { delta[k] = v }
+                if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.removeItem(at: target) }
+                let response = try request(["source_document_path": source.path, "target_path": target.path, "delta": delta])
+                let result = response["result"] as? [String: Any] ?? [:]
+                XCTAssertEqual(result["ok"] as? Bool, false, "\(label) styleIndex=\(bad)")
+                XCTAssertFalse((result["unsupported"] as? [String] ?? []).isEmpty, "\(label) styleIndex=\(bad)")
+                XCTAssertFalse(FileManager.default.fileExists(atPath: target.path), "\(label) styleIndex=\(bad)")
+            }
+        }
+        // Chỉ số cuối cùng hợp lệ (count - 1) thì ghi được.
+        let ok = try request(["source_document_path": source.path, "target_path": target.path,
+                              "delta": ["cells": [["sheet": name, "ref": "Z1", "type": "number", "value": 1, "styleIndex": count - 1]]]])
+        XCTAssertEqual((ok["result"] as? [String: Any])?["ok"] as? Bool, true)
+    }
+
     // MARK: Rơi về đường DOM
 
-    func testIneligibleDeltasFallBackToDOMWithCorrectResult() throws {
+    func testClearAndStructuralDeltasFallBackToDOMWithCorrectResult() throws {
         let fixture = "xlsx/rich-excel.xlsx"
         let probe = try Workbook(data: try Fixtures.data(fixture))
         let name = probe.sheetNames[1] // sheet vá được: đường DOM ở đây là do loại delta, không phải do sheet
         let value = Edit(sheet: name, ref: "Z70", type: "string", value: "giá trị")
-
-        func assertDOM(_ delta: [String: Any], _ label: String, check: (Workbook) throws -> Void) throws {
-            let (result, target, _) = try save(fixture, delta: delta, label: "dom-\(label)")
-            XCTAssertEqual(result["path"] as? String, "dom", label)
-            let wb = try Workbook(data: try Data(contentsOf: target))
-            XCTAssertEqual(try wb.worksheet(at: 1).value("Z70"), .string("giá trị"), label)
-            try check(wb)
-        }
-        try assertDOM(["cells": [value.json, ["sheet": name, "ref": "Z71", "formula": "1+1", "cached": 2]]], "formula") {
-            XCTAssertEqual(try $0.worksheet(at: 1).cell("Z71")?.formula, "1+1")
-        }
-        try assertDOM(["cells": [value.json, ["sheet": name, "ref": "Z72", "type": "number", "value": 3, "styleIndex": 1]]], "style") {
-            XCTAssertEqual(try $0.worksheet(at: 1).cell("Z72")?.styleIndex, 1)
-        }
         let victim = try XCTUnwrap(try probe.worksheet(at: 1).cells.first { $0.formula == nil }, "sheet phải có ô để xóa").reference.a1
-        try assertDOM(["cells": [value.json], "cleared_cells": [["sheet": name, "range": victim]]], "clear") {
-            XCTAssertNil(try $0.worksheet(at: 1).cell(victim))
-        }
-        try assertDOM(["cells": [value.json],
-                       "structural_ops": [["op": "sheet.freezePanes", "args": ["sheet": name, "rows": 1, "cols": 0]]]], "structural") { _ in }
+
+        let (cleared, clearedTarget, _) = try save(fixture, delta: ["cells": [value.json],
+                                                                      "cleared_cells": [["sheet": name, "range": victim]]], label: "dom-clear")
+        XCTAssertEqual(cleared["path"] as? String, "dom")
+        let wb1 = try Workbook(data: try Data(contentsOf: clearedTarget))
+        XCTAssertEqual(try wb1.worksheet(at: 1).value("Z70"), .string("giá trị"))
+        XCTAssertNil(try wb1.worksheet(at: 1).cell(victim))
+
+        let (structural, structuralTarget, _) = try save(fixture, delta: [
+            "cells": [value.json],
+            "structural_ops": [["op": "sheet.freezePanes", "args": ["sheet": name, "rows": 1, "cols": 0]]],
+        ], label: "dom-structural")
+        XCTAssertEqual(structural["path"] as? String, "dom")
+        XCTAssertEqual(try Workbook(data: try Data(contentsOf: structuralTarget)).worksheet(at: 1).value("Z70"), .string("giá trị"))
     }
 
-    /// Sheet 1 vá được, sheet 2 có ô đích đang là công thức → cả delta phải rơi về DOM và KHÔNG để lại nửa chừng.
+    /// Một sheet vá được, một sheet đường vá từ chối (sheet "Dữ liệu" có công thức mảng) → cả delta rơi về DOM
+    /// và KHÔNG để lại nửa chừng: cả hai sheet đều có giá trị mới.
     func testPartiallyEligibleDeltaFallsBackWholeAndLeavesNothingHalfApplied() throws {
-        let fixture = "real/sample-sheet-formulas.xlsx"
-        let sourceData = try Fixtures.data(fixture)
-        let probe = try Workbook(data: sourceData)
-        let sheets = probe.sheets.enumerated().filter { $0.element.kind == .worksheet }
-        let withFormula = try XCTUnwrap(sheets.first { (try? probe.worksheet(at: $0.offset).cells.contains { $0.formula != nil }) == true })
-        let formulaCell = try XCTUnwrap(try probe.worksheet(at: withFormula.offset).cells.first { $0.formula != nil })
-        var list = [Edit(sheet: withFormula.element.name, ref: formulaCell.reference.a1, type: "number", value: 99)]
-        if let other = sheets.first(where: { $0.offset != withFormula.offset }) {
-            list.insert(Edit(sheet: other.element.name, ref: "Z90", type: "string", value: "sheet khác"), at: 0)
-        }
+        let fixture = "xlsx/rich-excel.xlsx"
+        let names = try Workbook(data: try Fixtures.data(fixture)).sheetNames
+        let list = [Edit(sheet: names[1], ref: "Z90", type: "string", value: "sheet vá được"),
+                    Edit(sheet: names[0], ref: "Z91", type: "string", value: "sheet có công thức mảng")]
         let (result, target, _) = try save(fixture, delta: ["cells": list.map(\.json)], label: "partial")
         XCTAssertEqual(result["path"] as? String, "dom")
         let wb = try Workbook(data: try Data(contentsOf: target))
-        XCTAssertEqual(try wb.worksheet(named: withFormula.element.name).value(formulaCell.reference.a1), .number(99))
-        XCTAssertNil(try wb.worksheet(named: withFormula.element.name).cell(formulaCell.reference)?.formula,
-                     "ghi giá trị lên ô công thức xóa công thức (như đường DOM)")
-        if list.count > 1 {
-            XCTAssertEqual(try wb.worksheet(named: list[0].sheet).value("Z90"), .string("sheet khác"))
-        }
+        XCTAssertEqual(try wb.worksheet(named: names[1]).value("Z90"), .string("sheet vá được"))
+        XCTAssertEqual(try wb.worksheet(named: names[0]).value("Z91"), .string("sheet có công thức mảng"))
     }
 
     // MARK: Lỗi
