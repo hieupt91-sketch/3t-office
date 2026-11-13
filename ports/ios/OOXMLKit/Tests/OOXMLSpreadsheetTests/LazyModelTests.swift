@@ -245,4 +245,125 @@ final class LazyModelTests: XCTestCase {
         let sst = try RoundTrip.partString(saved, "xl/sharedStrings.xml")
         XCTAssertTrue(sst.contains("Chuỗi mới hoàn toàn"))
     }
+
+    // MARK: - B1: chỉ mục offset hàng (`RowOffsetIndex`, kế hoạch §4.2)
+
+    private func makeSheet(rowsXML: String) -> Data {
+        var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        xml += "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">"
+        xml += "<dimension ref=\"A1:F10\"/><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews>"
+        xml += "<sheetData>\(rowsXML)</sheetData><mergeCells count=\"1\"><mergeCell ref=\"A1:B1\"/></mergeCells>"
+        xml += "</worksheet>"
+        return Data(xml.utf8)
+    }
+
+    /// Parse một lát `<row>` bằng bọc tối thiểu (mẫu lát sau sẽ dùng để
+    /// materialize cửa sổ hàng): bọc lát trong `<worksheet><sheetData>`.
+    /// Giữ `XDocument` đã parse trong `parsedDocs`: `parent` của `XElement`
+    /// là `weak` nên chỉ giữ `XElement` mà thả `XDocument` thì cây cha bị
+    /// giải phóng, `parent = nil` và `namespaceURI` mất (đã gặp khi test).
+    private var parsedDocs: [XDocument] = []
+    private func parseRowSlice(_ slice: Data) throws -> XElement {
+        let wrapped = Data("<worksheet xmlns=\"\(NS.s.primaryURI)\"><sheetData>".utf8)
+            + slice + Data("</sheetData></worksheet>".utf8)
+        let doc = try XDocument(data: wrapped)
+        let row = try XCTUnwrap(doc.root.firstChild(NS.s, "sheetData")?.firstChild(NS.s, "row"))
+        parsedDocs.append(doc)
+        return row
+    }
+
+    func testRowOffsetIndexFindsRowsGapsAndImplicit() throws {
+        let data = makeSheet(rowsXML:
+            "<row r=\"1\" ht=\"15\"><c r=\"A1\"><v>1</v></c></row>"
+            + "<row r=\"3\"><c r=\"B3\" t=\"s\"><v>0</v></c></row>"
+            + "<row r=\"4\"/>"
+            + "<row><c r=\"A5\"><v>5</v></c></row>"
+            + "<row r=\"10\" customFormat=\"1\"><c r=\"A10\"><v>10</v></c></row>")
+        let idx = try RowOffsetIndex(data: data)
+        XCTAssertEqual(idx.rowCount, 5)
+        XCTAssertEqual(idx.rowNumbers, [1, 3, 4, 5, 10], "hàng thiếu r được đánh số ẩn nối tiếp (sau r=4 là 5)")
+        XCTAssertEqual(idx.maxRowNumber, 10)
+        XCTAssertNil(idx.entry(forRow: 2), "hàng trống không có trong part")
+        XCTAssertFalse(idx.contains(row: 2))
+        XCTAssertTrue(idx.contains(row: 3))
+
+        // Lát hàng 1: đúng từ `<row` tới hết `</row>`, parse lại được.
+        let slice1 = try XCTUnwrap(idx.rowXML(forRow: 1))
+        XCTAssertTrue(slice1.starts(with: Data("<row r=\"1\"".utf8)))
+        XCTAssertEqual(slice1.suffix(6), Data("</row>".utf8))
+        let row1 = try parseRowSlice(slice1)
+        XCTAssertEqual(row1.attribute("r"), "1")
+        XCTAssertEqual(row1.attribute("ht"), "15")
+        XCTAssertEqual(row1.firstChild(NS.s, "c")?.firstChild(NS.s, "v")?.textContent, "1")
+
+        // Hàng rỗng tự đóng: lát đúng `<row r="4"/>`.
+        XCTAssertEqual(idx.rowXML(forRow: 4), Data("<row r=\"4\"/>".utf8))
+        // Hàng ẩn: lát XML không có r, nhưng chỉ mục biết nó là hàng 5.
+        let row5 = try parseRowSlice(try XCTUnwrap(idx.rowXML(forRow: 5)))
+        XCTAssertNil(row5.attribute("r"))
+        XCTAssertEqual(row5.firstChild(NS.s, "c")?.firstChild(NS.s, "v")?.textContent, "5")
+        // Hàng 10 giữ thuộc tính lạ.
+        let row10 = try parseRowSlice(try XCTUnwrap(idx.rowXML(forRow: 10)))
+        XCTAssertEqual(row10.attribute("customFormat"), "1")
+
+        // Biên sheetData: nội dung bắt đầu đúng ở hàng 1, kết thúc ở hàng 10.
+        let bytes = [UInt8](data)
+        XCTAssertEqual(Data(bytes[idx.sheetDataContentStart..<idx.sheetDataContentStart + 10]),
+                       Data("<row r=\"1\"".utf8))
+        XCTAssertEqual(Data(bytes[idx.sheetDataContentEnd - 6..<idx.sheetDataContentEnd]),
+                       Data("</row>".utf8))
+    }
+
+    func testRowOffsetIndexEmptySheet() throws {
+        let empty1 = Data("<?xml version=\"1.0\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData/></worksheet>".utf8)
+        let idx1 = try RowOffsetIndex(data: empty1)
+        XCTAssertEqual(idx1.rowCount, 0)
+        XCTAssertEqual(idx1.maxRowNumber, 0)
+        XCTAssertNil(idx1.rowXML(forRow: 1))
+
+        let empty2 = Data("<?xml version=\"1.0\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData></sheetData></worksheet>".utf8)
+        XCTAssertEqual(try RowOffsetIndex(data: empty2).rowCount, 0)
+    }
+
+    func testRowOffsetIndexMissingSheetDataThrows() throws {
+        let noSD = Data("<?xml version=\"1.0\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><dimension ref=\"A1\"/></worksheet>".utf8)
+        XCTAssertThrowsError(try RowOffsetIndex(data: noSD)) { error in
+            XCTAssertEqual(error as? RowOffsetIndex.InitError, .missingSheetData)
+        }
+        let unterminated = Data("<?xml version=\"1.0\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData><row r=\"1\"><c r=\"A1\"><v>1</v></c></sheetData></worksheet>".utf8)
+        XCTAssertThrowsError(try RowOffsetIndex(data: unterminated)) { error in
+            XCTAssertEqual(error as? RowOffsetIndex.InitError, .unterminatedRow)
+        }
+    }
+
+    func testRowOffsetIndexLargeScanTime() throws {
+        // Cỡ fixture 100k dòng: 100.000 hàng × 6 ô (như l8-bench/big.xlsx).
+        var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        xml += "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>"
+        xml.reserveCapacity(22_000_000)
+        for r in 1...100_000 {
+            xml += "<row r=\"\(r)\"><c r=\"A\(r)\" t=\"s\"><v>\(r - 1)</v></c>"
+            xml += "<c r=\"B\(r)\"><v>\(r)</v></c><c r=\"C\(r)\" t=\"s\"><v>\(r)</v></c>"
+            xml += "<c r=\"D\(r)\"><v>\(r)</v></c><c r=\"E\(r)\" t=\"s\"><v>\(r)</v></c>"
+            xml += "<c r=\"F\(r)\"><v>\(r)</v></c></row>"
+        }
+        xml += "</sheetData></worksheet>"
+        let data = Data(xml.utf8)
+        print("M2b-B1 fixture: \(data.count) byte, 100.000 hàng")
+
+        let t0 = Date()
+        let idx = try RowOffsetIndex(data: data)
+        let scanSeconds = Date().timeIntervalSince(t0)
+        print("M2b-B1 quét chỉ mục 100.000 hàng: \(String(format: "%.3f", scanSeconds)) s")
+        XCTAssertEqual(idx.rowCount, 100_000)
+        XCTAssertEqual(idx.maxRowNumber, 100_000)
+        XCTAssertLessThan(scanSeconds, 5.0, "quét 1 lượt byte thô phải nhanh")
+        // Spot-check đầu/giữa/cuối bằng lát XML thô.
+        XCTAssertTrue(try XCTUnwrap(idx.rowXML(forRow: 1)).starts(with: Data("<row r=\"1\">".utf8)))
+        XCTAssertTrue(try XCTUnwrap(idx.rowXML(forRow: 50_000)).starts(with: Data("<row r=\"50000\">".utf8)))
+        let last = try parseRowSlice(try XCTUnwrap(idx.rowXML(forRow: 100_000)))
+        XCTAssertEqual(last.attribute("r"), "100000")
+        XCTAssertEqual(last.children(NS.s, "c").count, 6)
+        XCTAssertNil(idx.rowXML(forRow: 100_001))
+    }
 }

@@ -7,7 +7,7 @@ import OOXMLPresentation
 
 // Dùng: ooxml-bench gen <bytes-xấp-xỉ> <đường-dẫn.xlsx>
 //       ooxml-bench run <chế-độ> <đường-dẫn.xlsx>
-// Chế độ: zip-list | open-eager | open-lazy | workbook-eager | workbook-lazy | workbook-lazymodel | save-eager | save-lazy | save-lazymodel
+// Chế độ: zip-list | open-eager | open-lazy | workbook-eager | workbook-lazy | workbook-lazymodel | save-eager | save-lazy | save-lazymodel | row-index
 // Mỗi lần chạy là một tiến trình riêng để VmHWM (bộ nhớ đỉnh, Linux) không bị lẫn giữa các chế độ.
 
 func now() -> Double { Double(DispatchTime.now().uptimeNanoseconds) / 1e9 }
@@ -116,6 +116,14 @@ func run(mode: String, path: String) throws {
         let tOpen = now()
         let v = try wb.worksheet(at: 0).value("A1")
         detail = String(format: "open=%.3fs sheetAccess=%.3fs A1=%@", tOpen - t0, now() - tOpen, "\(v)")
+    case "row-index":
+        // M2b B1: chỉ quét chỉ mục offset từng <row> của sheet1 (không parse DOM).
+        let z = try ZipArchive(contentsOf: url)
+        let d = try z.contents(of: "xl/worksheets/sheet1.xml")
+        let tScan = now()
+        let idx = try RowOffsetIndex(data: d)
+        detail = String(format: "rows=%d raw=%.1fMB scan=%.3fs maxRow=%d",
+                        idx.rowCount, Double(d.count) / 1e6, now() - tScan, idx.maxRowNumber)
     case "parse-part":
         // Đối số phụ: tên part cần parse DOM riêng (đo trọng lượng DOM từng part).
         let part = CommandLine.arguments.count > 4 ? CommandLine.arguments[4] : "xl/worksheets/sheet1.xml"
