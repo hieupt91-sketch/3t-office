@@ -9,12 +9,23 @@ import os
 import queue
 import subprocess
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
 
 LOGGER = logging.getLogger("vnoffice.ooxml_engine")
 DEFAULT_TIMEOUT = 5.0
+
+
+def engine_open_enabled() -> bool:
+    """Opt-in cho đường đo mở qua engine (P1, issue #18). Mặc định tắt.
+
+    Tách riêng khỏi VNO_OOXML_ENGINE (luồng lưu) để bật/tắt độc lập.
+    """
+    return os.environ.get("VNO_OOXML_ENGINE_OPEN", "").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
 
 
 def find_engine_path(root: str | Path | None = None) -> str | None:
@@ -149,6 +160,117 @@ class EngineClient:
 
     def open(self, path: str | Path) -> dict[str, Any]:
         return self.request("open", {"path": str(path)})
+
+    def engine_peak_rss_kb(self) -> int | None:
+        """VmHWM (KB) của tiến trình engine đang chạy; None khi không đọc được."""
+        process = self._process
+        if process is None or process.poll() is not None:
+            return None
+        try:
+            status = Path(f"/proc/{process.pid}/status").read_text(encoding="utf-8")
+        except (OSError, ValueError):
+            return None
+        for line in status.splitlines():
+            if line.startswith("VmHWM:"):
+                try:
+                    return int(line.split()[1])
+                except (IndexError, ValueError):
+                    return None
+        return None
+
+    def measure_open(self, path: str | Path, *, kind: str | None = None) -> dict[str, Any]:
+        """Đo 3 pha mở một tệp qua engine (P1, issue #18).
+
+        - ``package_ms``: một lệnh ``open`` (mở gói OPC + metadata).
+        - ``data_ms``: toàn bộ lệnh đọc dữ liệu (xlsx: ``sheet.read`` từng
+          sheet; docx: ``doc.read``; pptx: ``slide.read`` từng slide).
+        - ``render_ms``: None = NOT RUN — pha dựng hình chỉ đo được ở UI
+          thật qua CDP trên máy bàn (lát S4 của P1).
+        Handle luôn được đóng sau khi đo, kể cả khi đọc lỗi.
+        """
+        target = Path(path)
+        resolved_kind = (kind or target.suffix.lstrip(".")).lower()
+        if resolved_kind not in {"xlsx", "docx", "pptx"}:
+            return {
+                "ok": False, "path": str(target), "kind": resolved_kind,
+                "package_ms": None, "data_ms": None, "render_ms": None,
+                "engine_total_ms": None, "peak_rss_kb": None,
+                "counts": {}, "error": f"kind không hỗ trợ: {resolved_kind}",
+            }
+        started = time.perf_counter()
+        opened = self.open(target)
+        package_ms = (time.perf_counter() - started) * 1000.0
+        if opened.get("ok") is not True:
+            return {
+                "ok": False, "path": str(target), "kind": resolved_kind,
+                "package_ms": package_ms, "data_ms": None, "render_ms": None,
+                "engine_total_ms": package_ms,
+                "peak_rss_kb": self.engine_peak_rss_kb(), "counts": {},
+                **{k: v for k, v in opened.items() if k not in {"ok", "path", "kind"}},
+            }
+        handle = str(opened.get("handle", ""))
+        counts: dict[str, Any] = {}
+        data_started = time.perf_counter()
+        try:
+            if resolved_kind == "xlsx":
+                sheets = opened.get("sheets") or []
+                cells = 0
+                for sheet in sheets:
+                    name = sheet.get("name") if isinstance(sheet, dict) else sheet
+                    read = self.read(handle, kind="xlsx", sheet=name)
+                    if read.get("ok") is not True:
+                        return self._measure_error(
+                            target, resolved_kind, package_ms, data_started, read,
+                        )
+                    cells += len(read.get("cells") or [])
+                counts = {"sheets": len(sheets), "cells": cells}
+            elif resolved_kind == "docx":
+                read = self.read(handle, kind="docx")
+                if read.get("ok") is not True:
+                    return self._measure_error(
+                        target, resolved_kind, package_ms, data_started, read,
+                    )
+                counts = {
+                    "paragraphs": read.get("total"),
+                    "tables": len(read.get("tables") or []),
+                }
+            else:  # pptx
+                slides = opened.get("slides") or 0
+                shapes = 0
+                for index in range(int(slides)):
+                    read = self.read(handle, kind="pptx", index=index)
+                    if read.get("ok") is not True:
+                        return self._measure_error(
+                            target, resolved_kind, package_ms, data_started, read,
+                        )
+                    shapes += len(read.get("shapes") or [])
+                counts = {"slides": int(slides), "shapes": shapes}
+        finally:
+            if handle:
+                try:
+                    self.request("close", {"handle": handle})
+                except (OOXMLProtocolError, OOXMLUnsupportedError):
+                    pass
+        data_ms = (time.perf_counter() - data_started) * 1000.0
+        return {
+            "ok": True, "path": str(target), "kind": resolved_kind,
+            "package_ms": package_ms, "data_ms": data_ms, "render_ms": None,
+            "engine_total_ms": package_ms + data_ms,
+            "peak_rss_kb": self.engine_peak_rss_kb(), "counts": counts,
+            "handle": handle,
+        }
+
+    def _measure_error(self, target: Path, kind: str, package_ms: float,
+                       data_started: float, read: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "ok": False, "path": str(target), "kind": kind,
+            "package_ms": package_ms,
+            "data_ms": (time.perf_counter() - data_started) * 1000.0,
+            "render_ms": None,
+            "engine_total_ms": (time.perf_counter() - data_started) * 1000.0 + package_ms,
+            "peak_rss_kb": self.engine_peak_rss_kb(), "counts": {},
+            **{k: v for k, v in read.items() if k not in {"ok", "path", "kind"}},
+        }
 
     def read(self, handle: str, *, kind: str = "xlsx", **args: Any) -> dict[str, Any]:
         operation = {"xlsx": "sheet.read", "docx": "doc.read", "pptx": "slide.read"}.get(kind)
