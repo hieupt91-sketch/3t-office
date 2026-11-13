@@ -370,6 +370,37 @@ final class OOXMLBridgeTests: XCTestCase {
         XCTAssertEqual(tables[0][0][0], "Ô đã sửa")
     }
 
+    /// Chuỗi thao tác trộn (đổi nội dung xen lẫn insert/delete/append): chỉ số của mỗi thao tác tính theo trạng thái HIỆN
+    /// TẠI (sau các thao tác trước) — kết quả phải bằng đúng việc áp lần lượt trực tiếp bằng thư viện.
+    func testDocxSaveDeltaSequentialStructuralOpsMatchDirectApplication() throws {
+        let dir = try Fixtures.scratchDirectory("docx-save-sequence")
+        let source = dir.appendingPathComponent("source.docx")
+        let target = dir.appendingPathComponent("staging.docx")
+        let sourceData = try Fixtures.data("docx/rich-word.docx")
+        try sourceData.write(to: source)
+        let ops: [[String: Any]] = [
+            ["op": "setText", "index": 0, "text": "đầu"],
+            ["op": "insert", "index": 0, "text": "chèn sau đầu"],
+            ["op": "setText", "index": 1, "text": "đoạn vừa chèn đã đổi"],   // chỉ số 1 = đoạn vừa chèn
+            ["op": "append", "text": "cuối tài liệu"],
+            ["op": "delete", "index": 2],                                  // đoạn gốc thứ hai nay ở chỉ số 2
+            ["op": "setText", "index": 0, "text": "đầu lần hai"],
+        ]
+        let result = try call("docx.save", ["source_document_path": source.path, "target_path": target.path,
+                                            "delta": ["paragraphs": ops]])
+        XCTAssertEqual(result["ok"] as? Bool, true, "\(result)")
+
+        let direct = try WordDocument(data: sourceData)
+        try direct.paragraphs[0].setText("đầu")
+        _ = try direct.insertParagraph("chèn sau đầu", style: nil, after: direct.paragraphs[0])
+        direct.paragraphs[1].setText("đoạn vừa chèn đã đổi")
+        _ = direct.appendParagraph("cuối tài liệu", style: nil)
+        try direct.removeParagraph(direct.paragraphs[2])
+        direct.paragraphs[0].setText("đầu lần hai")
+        let saved = try WordDocument(data: try Data(contentsOf: target))
+        XCTAssertEqual(saved.paragraphs.map(\.text), direct.paragraphs.map(\.text))
+    }
+
     func testDocxSaveDeltaUnsupportedDoesNotWriteTarget() throws {
         let dir = try Fixtures.scratchDirectory("docx-save-unsupported")
         let source = dir.appendingPathComponent("source.docx")
