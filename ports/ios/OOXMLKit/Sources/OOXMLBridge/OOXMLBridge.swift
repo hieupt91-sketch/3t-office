@@ -326,8 +326,10 @@ public final class OOXMLBridge {
         let sourceData = try Data(contentsOf: sourceURL)
         let document = try WordDocument(data: sourceData)
         // Kiểm tra chỉ số trước khi sửa để lỗi delta không tạo tệp đích dở dang.
+        // `document.paragraphs` dựng lại cả danh sách mỗi lần gọi (O(số đoạn)): lấy một lần cho cả vòng kiểm tra.
+        let sourceParagraphCount = document.paragraphs.count
         for (i, item) in paragraphs.enumerated() where item["op"] as? String != "append" {
-            guard let index = item["index"] as? Int, document.paragraphs.indices.contains(index) else {
+            guard let index = item["index"] as? Int, (0..<sourceParagraphCount).contains(index) else {
                 throw BridgeError("delta", "paragraphs[\(i)].index ngoài phạm vi")
             }
         }
@@ -346,17 +348,26 @@ public final class OOXMLBridge {
             }
         }
 
+        // Danh sách đoạn chỉ dựng lại sau thao tác đổi cấu trúc (insert/delete/append): setText/replaceText/alignment
+        // không đổi danh sách nên dùng lại, tránh O(số đoạn) cho mỗi thao tác. Chỉ số vẫn theo trạng thái HIỆN TẠI.
+        var currentParagraphs = document.paragraphs
         for item in paragraphs {
             let op = item["op"] as! String
             let text = item["text"] as? String ?? ""
             let index = item["index"] as? Int
             switch op {
-            case "setText": document.paragraphs[index!].setText(text)
-            case "replaceText": _ = document.paragraphs[index!].replaceText(item["find"] as! String, with: item["replace"] as! String)
-            case "alignment": document.paragraphs[index!].alignment = item["value"] as? String
-            case "insert": _ = try document.insertParagraph(text, style: item["style"] as? String, after: document.paragraphs[index!])
-            case "delete": try document.removeParagraph(document.paragraphs[index!])
-            case "append": _ = document.appendParagraph(text, style: item["style"] as? String)
+            case "setText": currentParagraphs[index!].setText(text)
+            case "replaceText": _ = currentParagraphs[index!].replaceText(item["find"] as! String, with: item["replace"] as! String)
+            case "alignment": currentParagraphs[index!].alignment = item["value"] as? String
+            case "insert":
+                _ = try document.insertParagraph(text, style: item["style"] as? String, after: currentParagraphs[index!])
+                currentParagraphs = document.paragraphs
+            case "delete":
+                try document.removeParagraph(currentParagraphs[index!])
+                currentParagraphs = document.paragraphs
+            case "append":
+                _ = document.appendParagraph(text, style: item["style"] as? String)
+                currentParagraphs = document.paragraphs
             default: break
             }
         }
@@ -368,14 +379,18 @@ public final class OOXMLBridge {
             list[item["story"] as! Int].paragraphs[item["paragraph"] as! Int].setText(item["text"] as! String)
         }
 
+        // Văn bản thân được so từng đoạn một lần; `allStories` chứa cả thân nên bỏ thân khỏi so sánh story để không tính
+        // văn bản cả tài liệu hai lần (tài liệu 120.000 đoạn: ~2,3 s).
         let expectedParagraphTexts = document.paragraphs.map(\.text)
-        let expectedStoryTexts = document.allStories.map(\.text)
+        let expectedStoryTexts = document.allStories.dropFirst().map(\.text)
         do {
-            try document.save(to: targetURL)
+            // Lưu truyền phát với kiểm chứng NHẸ: phần lớn không parse lại DOM; phần document.xml đã sửa được parse đầy
+            // đủ ngay bên dưới khi mở lại và so văn bản.
+            try document.package.saveStreaming(to: targetURL)
             let savedData = try Data(contentsOf: targetURL)
             let reopened = try WordDocument(data: savedData)
             guard reopened.paragraphs.map(\.text) == expectedParagraphTexts,
-                  reopened.allStories.map(\.text) == expectedStoryTexts,
+                  reopened.allStories.dropFirst().map(\.text) == expectedStoryTexts,
                   reopened.tables.count == document.tables.count else {
                 throw BridgeError("reopen", "nội dung DOCX sau khi mở lại không khớp")
             }
@@ -446,7 +461,10 @@ public final class OOXMLBridge {
 
         let sourceData = try Data(contentsOf: sourceURL)
         let presentation = try Presentation(data: sourceData)
-        let sourceSlideCount = presentation.slides.count
+        // `presentation.slides` dựng lại mọi Slide mỗi lần gọi (O(số slide)): lấy một lần cho cả các vòng kiểm tra và áp dụng
+        // (danh sách này không đổi cho tới khi thêm/xóa slide ở cuối).
+        let sourceSlides = presentation.slides
+        let sourceSlideCount = sourceSlides.count
         for (i, operation) in operations.enumerated() {
             let name = operation["op"] as! String
             if name == "slide.add" {
@@ -461,10 +479,10 @@ public final class OOXMLBridge {
                 throw BridgeError("delta", "slides[\(i)].slide ngoài phạm vi")
             }
             if ["shape.replaceText", "shape.rename"].contains(name),
-               presentation.slides[index].shape(named: operation["shape"] as! String) == nil {
+               sourceSlides[index].shape(named: operation["shape"] as! String) == nil {
                 throw BridgeError("delta", "slides[\(i)].shape không tồn tại")
             }
-            if name == "slide.setTitle", presentation.slides[index].titleShape == nil {
+            if name == "slide.setTitle", sourceSlides[index].titleShape == nil {
                 throw BridgeError("delta", "slides[\(i)] không có placeholder tiêu đề")
             }
         }
@@ -486,7 +504,7 @@ public final class OOXMLBridge {
 
         do {
             for operation in operations where !["slide.add", "slide.delete"].contains(operation["op"] as? String ?? "") {
-                let slide = try presentation.slide(at: operation["slide"] as! Int)
+                let slide = sourceSlides[operation["slide"] as! Int] // đã kiểm phạm vi ở vòng trên
                 switch operation["op"] as! String {
                 case "shape.replaceText":
                     let shape = slide.shape(named: operation["shape"] as! String)!
@@ -512,11 +530,12 @@ public final class OOXMLBridge {
             try presentation.save(to: targetURL)
             let savedData = try Data(contentsOf: targetURL)
             let reopened = try Presentation(data: savedData)
-            guard reopened.slides.count == expectedSlides.count else {
+            let reopenedSlides = reopened.slides
+            guard reopenedSlides.count == expectedSlides.count else {
                 throw BridgeError("reopen", "số slide sau khi mở lại không khớp")
             }
             for (index, expected) in expectedSlides.enumerated() {
-                let actual = reopened.slides[index]
+                let actual = reopenedSlides[index]
                 guard actual.title == expected.0, actual.notesText == expected.1,
                       actual.allShapes.map(\.name) == expected.2, actual.text == expected.3 else {
                     throw BridgeError("reopen", "nội dung slide \(index + 1) sau khi mở lại không khớp")
