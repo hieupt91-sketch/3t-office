@@ -70,6 +70,8 @@ public final class StyleSheet {
 
     var cellXfs: [XElement] { container("cellXfs", create: false)?.children(NS.s, "xf") ?? [] }
 
+    /// Số định dạng ô (`cellXfs`): chỉ số định dạng hợp lệ là `0..<cellFormatCount`. `info(styleIndex:)` trả giá trị
+    /// mặc định cho chỉ số vượt phạm vi nên không dùng được để kiểm sự tồn tại.
     public var cellFormatCount: Int { cellXfs.count }
 
     public func numberFormatCode(id: Int) -> String {

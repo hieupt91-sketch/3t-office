@@ -167,14 +167,17 @@ final class SheetPatcherTests: XCTestCase {
 
     func testUnsupportedCasesLeavePackageUntouched() throws {
         let part = PartName("/xl/worksheets/sheet1.xml")
-        // Ô đang có công thức.
-        var wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\"><f>1+1</f><v>2</v></c><c r=\"B1\"><v>3</v></c></row>"))
+        // Ô đích thuộc công thức chia sẻ (cần bung cả nhóm).
+        var wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\"><f t=\"shared\" ref=\"A1:A2\" si=\"0\">1+1</f><v>2</v></c><c r=\"B1\"><v>3</v></c></row><row r=\"2\"><c r=\"A2\"><f t=\"shared\" si=\"0\"/><v>2</v></c></row>"))
         var before = try wb.package.data(of: part)
         var patcher = try wb.patcher(forSheetAt: 0)
         try patcher.setValue(.number(5), at: "B1")
-        try patcher.setValue(.number(5), at: "A1")
-        assertUnsupported({ try patcher.commit() }, "ô có công thức")
+        try patcher.setValue(.number(5), at: "A2")
+        assertUnsupported({ try patcher.commit() }, "ô thuộc công thức chia sẻ")
         XCTAssertEqual(try wb.package.data(of: part), before, "từ chối thì byte sheet không đổi")
+        // Công thức mảng hoặc bảng dữ liệu nằm đâu đó trong sheet.
+        wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\" t=\"str\"><f t=\"dataTable\" ref=\"A1:A2\"/><v>x</v></c></row>"))
+        assertUnsupported({ _ = try wb.patcher(forSheetAt: 0) }, "bảng dữ liệu")
         // Công thức mảng ở bất kỳ đâu trong sheet.
         wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\"><f t=\"array\" ref=\"A1:A2\">B1:B2*2</f><v>2</v></c></row>"))
         assertUnsupported({ _ = try wb.patcher(forSheetAt: 0) }, "công thức mảng")
@@ -216,5 +219,152 @@ final class SheetPatcherTests: XCTestCase {
         try again.setValue(.number(7), at: "A2")
         try again.commit()
         XCTAssertEqual(try Workbook(data: try wb.save()).worksheet(at: 0).cells.map(\.reference.a1), ["A1", "A2", "B3"])
+    }
+
+    // MARK: Công thức, định dạng, calcChain
+
+    /// Gói có calcChain để kiểm việc hủy nó.
+    private func workbookWithCalcChain(sheetXML: String) throws -> Workbook {
+        let rels = "http://schemas.openxmlformats.org/package/2006/relationships"
+        let od = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+        let package = OPCPackage()
+        package.setData(Data("<?xml version=\"1.0\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"\(od)\"><sheets><sheet name=\"S\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>".utf8),
+                        for: PartName("/xl/workbook.xml"),
+                        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml")
+        package.setData(Data(sheetXML.utf8), for: PartName("/xl/worksheets/sheet1.xml"),
+                        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml")
+        package.setData(Data("<?xml version=\"1.0\"?><calcChain xmlns=\"\(ns)\"><c r=\"A1\" i=\"1\"/></calcChain>".utf8),
+                        for: PartName("/xl/calcChain.xml"),
+                        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.calcChain+xml")
+        package.setData(Data("<?xml version=\"1.0\"?><Relationships xmlns=\"\(rels)\"><Relationship Id=\"rId1\" Type=\"\(od)/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>".utf8),
+                        for: PartName("/_rels/.rels"))
+        package.setData(Data("<?xml version=\"1.0\"?><Relationships xmlns=\"\(rels)\"><Relationship Id=\"rId1\" Type=\"\(od)/worksheet\" Target=\"worksheets/sheet1.xml\"/><Relationship Id=\"rId2\" Type=\"\(od)/calcChain\" Target=\"calcChain.xml\"/></Relationships>".utf8),
+                        for: PartName("/xl/_rels/workbook.xml.rels"))
+        return try Workbook(data: try package.save(), deferValidation: true, lazyModel: true)
+    }
+
+    func testPlainFormulaTargetIsOverwrittenAndCalcChainIsDropped() throws {
+        let body = sheet("<row r=\"1\"><c r=\"A1\"><f>1+1</f><v>2</v></c><c r=\"B1\"><v>3</v></c></row>")
+        // Ghi giá trị lên ô công thức thường: công thức bị bỏ, calcChain bị hủy (như Worksheet.setValue).
+        let wb = try workbookWithCalcChain(sheetXML: body)
+        XCTAssertTrue(wb.package.hasPart(PartName("/xl/calcChain.xml")))
+        let patcher = try wb.patcher(forSheetAt: 0)
+        try patcher.setValue(.number(5), at: "A1")
+        try patcher.commit()
+        let reopened = try Workbook(data: try wb.save())
+        XCTAssertEqual(try reopened.worksheet(at: 0).value("A1"), .number(5))
+        XCTAssertNil(try reopened.worksheet(at: 0).cell("A1")?.formula)
+        XCTAssertFalse(reopened.package.hasPart(PartName("/xl/calcChain.xml")), "calcChain phải bị hủy")
+
+        // Cùng thao tác bằng đường DOM cho cùng kết quả.
+        let dom = try Workbook(data: try workbookWithCalcChain(sheetXML: body).save())
+        try dom.worksheet(at: 0).setValue(.number(5), at: "A1")
+        let domReopened = try Workbook(data: try dom.save())
+        XCTAssertEqual(try reopened.worksheet(at: 0).cells, try domReopened.worksheet(at: 0).cells)
+        XCTAssertEqual(reopened.package.hasPart(PartName("/xl/calcChain.xml")), domReopened.package.hasPart(PartName("/xl/calcChain.xml")))
+
+        // Ghi công thức mới (kể cả lên ô trống) cũng hủy calcChain; chỉ đặt định dạng thì KHÔNG.
+        let formulaWB = try workbookWithCalcChain(sheetXML: body)
+        let fp = try formulaWB.patcher(forSheetAt: 0)
+        try fp.setFormula("=B1*2", cachedValue: .number(6), at: "C1")
+        try fp.commit()
+        let formulaReopened = try Workbook(data: try formulaWB.save())
+        XCTAssertEqual(try formulaReopened.worksheet(at: 0).cell("C1")?.formula, "B1*2")
+        XCTAssertEqual(try formulaReopened.worksheet(at: 0).value("C1"), .number(6))
+        XCTAssertFalse(formulaReopened.package.hasPart(PartName("/xl/calcChain.xml")))
+
+        let styleWB = try workbookWithCalcChain(sheetXML: body)
+        let sp = try styleWB.patcher(forSheetAt: 0)
+        try sp.setStyleIndex(3, at: "B1")
+        try sp.commit()
+        XCTAssertTrue(styleWB.package.hasPart(PartName("/xl/calcChain.xml")), "chỉ đổi định dạng không làm mất calcChain")
+        XCTAssertEqual(try Workbook(data: try styleWB.save()).worksheet(at: 0).cell("B1")?.styleIndex, 3)
+    }
+
+    func testEditsAreMergedLikeSequentialWorksheetCalls() throws {
+        let body = sheet("<row r=\"1\"><c r=\"A1\" s=\"2\"><v>1</v></c></row>")
+        let wb = try workbook(sheetXML: body)
+        let p = try wb.patcher(forSheetAt: 0)
+        try p.setStyleIndex(5, at: "A1")              // định dạng
+        try p.setFormula("A2+1", cachedValue: .number(9), at: "A1") // rồi công thức: không đổi định dạng đã đặt
+        try p.setStyleIndex(0, at: "B2")               // định dạng 0 trên ô chưa có: tạo ô không thuộc tính s
+        try p.setValue(.string("x"), at: "B2")
+        try p.commit()
+        let dom = try workbook(sheetXML: body)
+        let ws = try dom.worksheet(at: 0)
+        try ws.setStyleIndex(5, at: "A1")
+        try ws.setFormula("A2+1", at: "A1", cachedValue: .number(9))
+        try ws.setStyleIndex(0, at: "B2")
+        try ws.setValue(.string("x"), at: "B2")
+        let part = PartName("/xl/worksheets/sheet1.xml")
+        assertSameTree(try XDocument(data: try wb.package.data(of: part)).root,
+                       try XDocument(data: try dom.package.data(of: part)).root, "gộp ghi")
+        let cell = try XCTUnwrap(try Workbook(data: try wb.save()).worksheet(at: 0).cell("A1"))
+        XCTAssertEqual(cell.styleIndex, 5)
+        XCTAssertEqual(cell.formula, "A2+1")
+    }
+
+    func testFormulaAndStyleEditsMatchDOMPathOnEveryFixture() throws {
+        var supported = 0
+        for path in Self.fixtures {
+            let data = try Fixtures.data(path)
+            let probe = try Workbook(data: data)
+            let styleIndex = (probe.styles?.cellFormatCount ?? 0) > 1 ? 1 : 0
+            for (index, info) in probe.sheets.enumerated() where info.kind == .worksheet {
+                let context = "\(path) sheet \(info.name)"
+                let cells = try probe.worksheet(at: index).cells
+                let plain = cells.filter { $0.formula == nil }
+                let maxRow = cells.map(\.reference.row).max() ?? 1
+                let plainFormula = cells.first { $0.formula != nil && $0.formulaType == nil }
+                // Mỗi bước là một lệnh Worksheet tương ứng; chạy lần lượt trên cả hai đường.
+                enum Step { case value(CellValue, String), formula(String, CellValue, String), style(Int, String) }
+                var steps: [Step] = []
+                if plain.count > 0 { steps.append(.formula("1+1", .number(2), plain[0].reference.a1)) }
+                if plain.count > 1 { steps.append(.formula("=\"x\"&\"y\"", .string("xy"), plain[1].reference.a1)) }
+                if plain.count > 2 { steps.append(.formula("TRUE", .bool(true), plain[2].reference.a1)) }
+                if plain.count > 3 { steps.append(.style(styleIndex, plain[3].reference.a1)) }
+                if let f = plainFormula { steps.append(.value(.number(5), f.reference.a1)) }
+                let newCell = CellReference(column: 2, row: maxRow + 4).a1
+                steps.append(.formula("SUM(A1:A3)", .number(1), newCell))
+                steps.append(.style(styleIndex, newCell))
+                steps.append(.value(.string("giá trị — Việt"), CellReference(column: 1, row: maxRow + 6).a1))
+
+                let patched = try Workbook(data: data, deferValidation: true, lazyModel: true)
+                do {
+                    let patcher = try patched.patcher(forSheetAt: index)
+                    for step in steps {
+                        switch step {
+                        case .value(let v, let a1): try patcher.setValue(v, at: a1)
+                        case .formula(let f, let c, let a1): try patcher.setFormula(f, cachedValue: c, at: a1)
+                        case .style(let st, let a1): try patcher.setStyleIndex(st, at: a1)
+                        }
+                    }
+                    try patcher.commit()
+                } catch SheetPatchError.unsupported { continue }
+                supported += 1
+
+                let dom = try Workbook(data: data)
+                let ws = try dom.worksheet(at: index)
+                for step in steps {
+                    switch step {
+                    case .value(let v, let a1): try ws.setValue(v, at: a1)
+                    case .formula(let f, let c, let a1): try ws.setFormula(f, at: a1, cachedValue: c)
+                    case .style(let st, let a1): try ws.setStyleIndex(st, at: a1)
+                    }
+                }
+                let part = try XCTUnwrap(info.part)
+                assertSameTree(try XDocument(data: try patched.package.data(of: part)).root,
+                               try XDocument(data: try dom.package.data(of: part)).root, context)
+                let reA = try Workbook(data: try patched.save()), reB = try Workbook(data: try dom.save())
+                for (i, s) in reA.sheets.enumerated() where s.kind == .worksheet {
+                    XCTAssertEqual(try reA.worksheet(at: i).cells, try reB.worksheet(at: i).cells, "\(context) → mở lại \(s.name)")
+                }
+                for name in reA.package.partNames.map(\.description).filter({ $0.hasSuffix("calcChain.xml") }) + reB.package.partNames.map(\.description).filter({ $0.hasSuffix("calcChain.xml") }) {
+                    XCTAssertEqual(reA.package.hasPart(PartName(name)), reB.package.hasPart(PartName(name)), "\(context): calcChain")
+                }
+                XCTAssertEqual(reA.package.partNames.map(\.description).sorted(), reB.package.partNames.map(\.description).sorted(), "\(context): danh sách phần")
+            }
+        }
+        XCTAssertGreaterThanOrEqual(supported, 8, "đường vá phải áp được cho phần lớn sheet mẫu")
     }
 }
