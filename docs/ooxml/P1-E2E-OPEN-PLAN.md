@@ -1,7 +1,8 @@
 # KẾ HOẠCH P1 — ĐƯỜNG MỞ THỬ QUA OOXML-ENGINE (SAU CỜ)
 
 > **Issue:** #18 ([PLAN][perf]) — phân công tại comment `6754281389` (06:28 10/11/2026, chủ đã giao iOS-coord quyết và điều phối).
-> **Nhánh:** `muse/p1-e2e-open-1011` từ `vn-main` `e4aa5433` (sau khi #19 M7 và #20 M2b gộp).
+> **Nhánh:** `muse/p1-e2e-open-1011` từ `vn-main` `e4aa5433`; đồng bộ
+> `aebdea91` theo #27 mục 0 ngày 13/11 (merge, không rebase).
 > **Trạng thái:** lát S1 đang làm; các lát sau theo thứ tự dưới đây.
 
 ## 1. Mục tiêu (theo #18)
@@ -36,10 +37,14 @@ sau cờ `SHEET_OPEN_PAYLOAD` / tự động khi FODS > 20 MB
   qua PeakWorkingSet (Windows) / VmHWM (Linux).
 
 **Giới hạn đã biết (ghi rõ, không giấu):**
-- Lệnh bridge `open` hiện mở eager (không có tham số `lazyModel`/
-  `deferValidation` như API Swift `Workbook`); đọc `sheet.read` không giới
-  hạn vùng sẽ trả toàn bộ ô có dữ liệu. Với tệp lớn, lát S2 cần đọc theo
-  vùng nhìn thấy (viewport) hoặc phân trang — chưa làm trong S1.
+- Lệnh bridge `open` nay nhận `"lazy": true` (M-2, #27, 13/11 — trước đó
+  S1 chỉ mở eager); `sheet.readRows` đọc theo cửa sổ hàng (`from`/`count`
+  hoặc `range`, trả `cells`/`rowCount`/`lastRow`) và `sheet.setValues` ghi
+  nhiều ô, ưu tiên đường vá byte (xem `ENGINE-PROTOCOL.md` §4.1b–§4.1c).
+  Phía client: `EngineClient.open(path, lazy=False)`, `read_rows(...)`,
+  `set_values(...)`; `measure_open` báo thêm pha màn hình đầu (mở lazy +
+  `readRows` 100 hàng đầu) bên cạnh đo đọc toàn bộ. Đọc theo vùng nhìn
+  thấy (viewport) ở UI thuộc lát S2/S3.
 - Pha **dựng hình** (`render_ms`) chỉ đo được ở UI thật qua CDP trên máy
   bàn (Windows); trên VM Linux chỉ đo được 2 pha engine và ghi `render_ms`
   là NOT RUN.
@@ -101,7 +106,9 @@ viewport (thuộc M2b giai đoạn B / P3).
 - S2–S4 (sau): `main.py` (điểm móc mở), `apps/sheet/*`,
   `apps/writer/*`, `apps/slides/*` (payload + mốc render), script CDP.
 - Không đổi: `ports/ios/OOXMLKit` (giao thức bridge giữ nguyên ở S1);
-  nếu S2 cần tham số mở lười thì tách lát riêng, có plan bổ sung.
+  nếu S2 cần tham số mở lười thì tách lát riêng, có plan bổ sung. M-2
+  (#27, 13/11) chính là lát riêng đó — chỉ chạm client + tài liệu + đo,
+  không sửa bridge.
 
 ## 5. Rủi ro & rollback
 
@@ -117,6 +124,21 @@ viewport (thuộc M2b giai đoạn B / P3).
 - S1: test fake-stdio mới PASS (số thật); đo thật bằng engine release
   build từ nhánh P1 trên 3 fixture (`rich-excel.xlsx`,
   `rich-word.docx`, `rich-deck.pptx`), mỗi tệp ≥ 3 lần, ghi trung vị.
+- M-2 (#27, 13/11): test fake-stdio mới PASS (tổng 19/19 cho 2 tệp test
+  P1); đo thật bằng engine release build từ cây P1 đã gộp `aebdea91`
+  (Swift 6.0.3, VM Linux 4 CPU / 7,9 GB RAM, 3 lần/tệp, trung vị):
+  - `synth-1mb.xlsx` (1.005.816 B, 10.850 hàng, 65.100 ô): mở gói 378 ms,
+    đọc toàn bộ 2.949 ms, tổng 3.330 ms, màn hình đầu 79 ms, đỉnh RSS 215 MB.
+  - `synth-10mb.xlsx` (9.708.882 B, 104.501 hàng, 627.006 ô): mở gói
+    3.713 ms, đọc toàn bộ 30.911 ms, tổng 34.602 ms, màn hình đầu 535 ms
+    (434–580), đỉnh RSS 1,86 GB.
+  - Màn hình đầu đo riêng trên tiến trình mới: 10 MB = 514 ms / 78,5 MB —
+    khớp RAM tham chiếu của iOS-coord (0,30–0,46 s / 78 MB, đo trong
+    tiến trình qua `ooxml-bench`); thời gian của Muse cao hơn một chút do
+    qua IPC JSON Lines. `render_ms` = NOT RUN (chỉ đo ở UI qua CDP).
+  - Lưu ý trung thực: đọc toàn bộ tệp 10 MB vượt timeout mặc định 30 s
+    của CLI (phải chạy `--timeout 300`); đỉnh RSS là VmHWM tích lũy của
+    tiến trình engine (một tiến trình phục vụ cả đợt đo).
 - S2–S4: mở tệp thật qua cờ, đối chiếu nội dung với đường cũ; `npm test`
   và `swift test` liên quan trước PR; CI `ios-ooxmlkit.yml` xanh.
 - Mục chưa đo ghi NOT RUN, không suy số máy này thành số máy khác.

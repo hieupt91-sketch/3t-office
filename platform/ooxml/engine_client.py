@@ -158,8 +158,55 @@ class EngineClient:
                 self._stop_process()
                 raise
 
-    def open(self, path: str | Path) -> dict[str, Any]:
-        return self.request("open", {"path": str(path)})
+    def open(self, path: str | Path, *, lazy: bool = False) -> dict[str, Any]:
+        """Mở gói qua engine.
+
+        ``lazy=True`` hoãn kiểm tra toàn gói tới lúc lưu và không dựng bảng
+        chuỗi chia sẻ trong RAM (bridge ``open`` có ``"lazy": true``,
+        ENGINE-PROTOCOL §4.1b). Mặc định eager như trước; khóa ``lazy``
+        chỉ được gửi khi bật.
+        """
+        args: dict[str, Any] = {"path": str(path)}
+        if lazy:
+            args["lazy"] = True
+        return self.request("open", args)
+
+    def read_rows(self, handle: str, *, sheet: str | None = None,
+                  sheet_index: int = 0, range: str | None = None,
+                  from_row: int = 1, count: int = 200) -> dict[str, Any]:
+        """Đọc theo cửa sổ hàng qua ``sheet.readRows`` (ENGINE-PROTOCOL §4.1b).
+
+        ``range`` (vd "A1:H50") hoặc ``from_row`` + ``count`` (mặc định 1 và
+        200); có ``range`` thì không gửi ``from``/``count``. Trả ``cells``,
+        ``rowCount``, ``lastRow`` — cùng định dạng ô với ``sheet.read``.
+        """
+        args: dict[str, Any] = {"handle": handle}
+        if sheet is not None:
+            args["sheet"] = sheet
+        else:
+            args["sheetIndex"] = sheet_index
+        if range is not None:
+            args["range"] = range
+        else:
+            args["from"] = from_row
+            args["count"] = count
+        return self.request("sheet.readRows", args)
+
+    def set_values(self, handle: str, cells: list[dict[str, Any]], *,
+                   sheet: str | None = None, sheet_index: int = 0) -> dict[str, Any]:
+        """Ghi nhiều ô qua ``sheet.setValues`` (ENGINE-PROTOCOL §4.1c).
+
+        ``cells`` là mảng ``{"ref": "A1", "value": ...}`` (định dạng
+        ``value`` như ``sheet.setValue``). Thử đường vá byte trước, tự rơi
+        về DOM khi không đủ điều kiện. Trả
+        ``{"path": "patch" | "dom", "count": <số ô>}``.
+        """
+        args: dict[str, Any] = {"handle": handle, "cells": list(cells)}
+        if sheet is not None:
+            args["sheet"] = sheet
+        else:
+            args["sheetIndex"] = sheet_index
+        return self.request("sheet.setValues", args)
 
     def engine_peak_rss_kb(self) -> int | None:
         """VmHWM (KB) của tiến trình engine đang chạy; None khi không đọc được."""
@@ -178,6 +225,63 @@ class EngineClient:
                     return None
         return None
 
+    def _first_screen(self, path: Path) -> dict[str, Any]:
+        """Pha màn hình đầu (M-2, #27): mở lazy + ``readRows(from=1, count=100)``.
+
+        Chạy trước pha đo đọc toàn bộ; handle của pha này được đóng riêng.
+        Lỗi ở pha này không làm hỏng phép đo toàn bộ — ghi
+        ``first_screen_error`` và để ``first_screen_ms`` là None.
+        """
+        started = time.perf_counter()
+        opened = self.open(path, lazy=True)
+        package_ms = (time.perf_counter() - started) * 1000.0
+        if opened.get("ok") is not True:
+            return {
+                "first_screen_ms": None, "first_screen_package_ms": package_ms,
+                "first_screen_data_ms": None, "first_screen_counts": {},
+                "first_screen_error": str(opened.get("error", "mở lazy thất bại")),
+                "first_screen_peak_rss_kb": self.engine_peak_rss_kb(),
+            }
+        handle = str(opened.get("handle", ""))
+        data_started = time.perf_counter()
+        try:
+            rows = self.read_rows(handle, from_row=1, count=100)
+        finally:
+            if handle:
+                try:
+                    self.request("close", {"handle": handle})
+                except (OOXMLProtocolError, OOXMLUnsupportedError):
+                    pass
+        data_ms = (time.perf_counter() - data_started) * 1000.0
+        if rows.get("ok") is not True:
+            return {
+                "first_screen_ms": None, "first_screen_package_ms": package_ms,
+                "first_screen_data_ms": data_ms, "first_screen_counts": {},
+                "first_screen_error": str(rows.get("error", "readRows thất bại")),
+                "first_screen_peak_rss_kb": self.engine_peak_rss_kb(),
+            }
+        return {
+            "first_screen_ms": package_ms + data_ms,
+            "first_screen_package_ms": package_ms,
+            "first_screen_data_ms": data_ms,
+            "first_screen_counts": {
+                "cells": len(rows.get("cells") or []),
+                "row_count": rows.get("rowCount"),
+                "last_row": rows.get("lastRow"),
+            },
+            "first_screen_error": None,
+            "first_screen_peak_rss_kb": self.engine_peak_rss_kb(),
+        }
+
+    @staticmethod
+    def _no_first_screen() -> dict[str, Any]:
+        """Giá trị pha màn hình đầu khi không chạy (docx/pptx: không có sheet)."""
+        return {
+            "first_screen_ms": None, "first_screen_package_ms": None,
+            "first_screen_data_ms": None, "first_screen_counts": {},
+            "first_screen_error": None, "first_screen_peak_rss_kb": None,
+        }
+
     def measure_open(self, path: str | Path, *, kind: str | None = None) -> dict[str, Any]:
         """Đo 3 pha mở một tệp qua engine (P1, issue #18).
 
@@ -186,6 +290,8 @@ class EngineClient:
           sheet; docx: ``doc.read``; pptx: ``slide.read`` từng slide).
         - ``render_ms``: None = NOT RUN — pha dựng hình chỉ đo được ở UI
           thật qua CDP trên máy bàn (lát S4 của P1).
+        - ``first_screen_ms`` (M-2, #27; chỉ xlsx): mở lazy + ``readRows``
+          100 hàng đầu — pha màn hình đầu, báo bên cạnh đo đọc toàn bộ.
         Handle luôn được đóng sau khi đo, kể cả khi đọc lỗi.
         """
         target = Path(path)
@@ -196,7 +302,12 @@ class EngineClient:
                 "package_ms": None, "data_ms": None, "render_ms": None,
                 "engine_total_ms": None, "peak_rss_kb": None,
                 "counts": {}, "error": f"kind không hỗ trợ: {resolved_kind}",
+                **self._no_first_screen(),
             }
+        first_screen = (
+            self._first_screen(target)
+            if resolved_kind == "xlsx" else self._no_first_screen()
+        )
         started = time.perf_counter()
         opened = self.open(target)
         package_ms = (time.perf_counter() - started) * 1000.0
@@ -207,6 +318,7 @@ class EngineClient:
                 "engine_total_ms": package_ms,
                 "peak_rss_kb": self.engine_peak_rss_kb(), "counts": {},
                 **{k: v for k, v in opened.items() if k not in {"ok", "path", "kind"}},
+                **first_screen,
             }
         handle = str(opened.get("handle", ""))
         counts: dict[str, Any] = {}
@@ -221,6 +333,7 @@ class EngineClient:
                     if read.get("ok") is not True:
                         return self._measure_error(
                             target, resolved_kind, package_ms, data_started, read,
+                            first_screen,
                         )
                     cells += len(read.get("cells") or [])
                 counts = {"sheets": len(sheets), "cells": cells}
@@ -229,6 +342,7 @@ class EngineClient:
                 if read.get("ok") is not True:
                     return self._measure_error(
                         target, resolved_kind, package_ms, data_started, read,
+                        first_screen,
                     )
                 counts = {
                     "paragraphs": read.get("total"),
@@ -242,6 +356,7 @@ class EngineClient:
                     if read.get("ok") is not True:
                         return self._measure_error(
                             target, resolved_kind, package_ms, data_started, read,
+                            first_screen,
                         )
                     shapes += len(read.get("shapes") or [])
                 counts = {"slides": int(slides), "shapes": shapes}
@@ -258,10 +373,12 @@ class EngineClient:
             "engine_total_ms": package_ms + data_ms,
             "peak_rss_kb": self.engine_peak_rss_kb(), "counts": counts,
             "handle": handle,
+            **first_screen,
         }
 
     def _measure_error(self, target: Path, kind: str, package_ms: float,
-                       data_started: float, read: dict[str, Any]) -> dict[str, Any]:
+                       data_started: float, read: dict[str, Any],
+                       first_screen: dict[str, Any] | None = None) -> dict[str, Any]:
         return {
             "ok": False, "path": str(target), "kind": kind,
             "package_ms": package_ms,
@@ -270,6 +387,7 @@ class EngineClient:
             "engine_total_ms": (time.perf_counter() - data_started) * 1000.0 + package_ms,
             "peak_rss_kb": self.engine_peak_rss_kb(), "counts": {},
             **{k: v for k, v in read.items() if k not in {"ok", "path", "kind"}},
+            **(first_screen or self._no_first_screen()),
         }
 
     def read(self, handle: str, *, kind: str = "xlsx", **args: Any) -> dict[str, Any]:
