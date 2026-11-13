@@ -165,6 +165,44 @@ final class OPCPackageTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), Data("đích gốc".utf8), "lỗi mới vẫn chặn ghi và giữ nguyên tệp đích")
     }
 
+    /// Phần lớn bị ghi lại được nén ở mức nhanh: nội dung sau khi mở lại phải y nguyên, phần không đổi vẫn
+    /// giữ byte nén gốc, và tắt ngưỡng thì trở về mức mặc định. (Không so kích thước hai mức: với dữ liệu lặp
+    /// nhiều, mức nhanh của bộ nén này có khi cho tệp nhỏ hơn mức mặc định.)
+    func testLargeRewrittenPartUsesFastCompressionLosslessly() throws {
+        let source = try Fixtures.data("docx/rich-word.docx")
+        var body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><data>"
+        for i in 0..<6000 { body += "<row n=\"\(i)\">Dòng dữ liệu số \(i) — tiếng Việt lặp lại để nén được \(i % 97)</row>" }
+        body += "</data>"
+        let payload = Data(body.utf8)
+        let part = PartName("/customXml/item99.xml")
+
+        func saved(threshold: Int?) throws -> Data {
+            let pkg = try OPCPackage(data: source)
+            pkg.fastCompressionThreshold = threshold
+            pkg.setData(payload, for: part, contentType: "application/xml")
+            return try pkg.save()
+        }
+        let fast = try saved(threshold: 1024)          // payload vượt ngưỡng → mức nhanh
+        let normal = try saved(threshold: nil)         // luôn mức mặc định
+        XCTAssertNotEqual(fast, normal, "ngưỡng phải có tác dụng: hai mức nén cho byte khác nhau")
+
+        for (label, bytes) in [("nhanh", fast), ("mặc định", normal)] {
+            XCTAssertEqual(PackageValidator.validate(bytes), [], label)
+            let reopened = try OPCPackage(data: bytes)
+            XCTAssertEqual(try reopened.data(of: part), payload, "\(label): nội dung phần lớn phải y nguyên")
+            let original = try OPCPackage(data: source)
+            for p in original.partNames where p != part {
+                XCTAssertEqual(try reopened.data(of: p), try original.data(of: p), "\(label): \(p)")
+            }
+        }
+        // Phần không đổi vẫn chép nguyên byte nén dù có ngưỡng.
+        let a = try ZipArchive(data: source), b = try ZipArchive(data: fast)
+        for e in a.entries where e.name != "[Content_Types].xml" {
+            let other = try XCTUnwrap(b.entry(e.name), e.name)
+            XCTAssertEqual(try b.rawCompressedData(of: other), try a.rawCompressedData(of: e), "byte nén của \(e.name)")
+        }
+    }
+
     func testNotAnOOXMLPackage() throws {
         XCTAssertThrowsError(try OPCPackage(data: try Fixtures.data("zip/basic-deflate.zip").prefix(0))) { _ in }
         let a = try Fixtures.data("zip/unicode-names.zip")
