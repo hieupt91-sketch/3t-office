@@ -88,6 +88,32 @@ func evalFormulas(path: String, sheet: String) throws {
     FileHandle.standardOutput.write(Data(out.utf8))
 }
 
+/// Đo tính lại công thức theo cỡ: N dòng, cột B = A*2, C = tổng cộng dồn theo cửa sổ (SUM trên vùng), D1 = SUM(B1:BN).
+func formulaScale(rows n: Int, shape: String) {
+    var cells: [CellReference: FormulaCellInput] = [:]
+    for r in 1...n {
+        cells[CellReference(column: 1, row: r)] = FormulaCellInput(value: .number(Double(r)))
+        cells[CellReference(column: 2, row: r)] = FormulaCellInput(formula: "A\(r)*2")
+        if shape == "window" {
+            cells[CellReference(column: 3, row: r)] = FormulaCellInput(formula: "SUM(B\(max(1, r - 9)):B\(r))")
+        } else if shape == "chain" && r > 1 {
+            cells[CellReference(column: 3, row: r)] = FormulaCellInput(formula: "C\(r - 1)+B\(r)")
+        }
+    }
+    cells[CellReference(column: 4, row: 1)] = FormulaCellInput(formula: "SUM(B1:B\(n))")
+    let t0 = now()
+    let engine = FormulaEngine(sheets: [(name: "S", cells: cells)])
+    let tBuild = now()
+    _ = engine.recalculate()
+    let tFull = now()
+    engine.setValue(.number(5), sheet: "S", at: "A1")
+    _ = engine.recalculate()
+    let tEdit = now()
+    print(String(format: "formula-scale rows=%d shape=%@ build=%.3fs fullRecalc=%.3fs editThenRecalc=%.3fs peakRSS=%.1fMB D1=%@",
+                 n, shape, tBuild - t0, tFull - tBuild, tEdit - tFull, Double(peakRSSKB()) / 1024,
+                 "\(engine.value(sheet: "S", at: "D1"))"))
+}
+
 func run(mode: String, path: String) throws {
     let url = URL(fileURLWithPath: path)
     let size = (try FileManager.default.attributesOfItem(atPath: path)[.size] as? Int) ?? 0
@@ -225,6 +251,7 @@ let a = CommandLine.arguments
 do {
     if a.count == 4, a[1] == "gen", let n = Int(a[2]) { try generate(targetBytes: n, to: a[3]) }
     else if a.count >= 4, a[1] == "run" { try run(mode: a[2], path: a[3]) }
+    else if a.count == 4, a[1] == "formula-scale", let n = Int(a[2]) { formulaScale(rows: n, shape: a[3]) }
     else if a.count == 4, a[1] == "eval" { try evalFormulas(path: a[2], sheet: a[3]) }
     else { print("dùng: ooxml-bench gen <bytes> <out.xlsx> | run <mode> <file.xlsx> | eval <file.xlsx> <sheet>"); exit(2) }
 } catch { print("LỖI: \(error)"); exit(1) }

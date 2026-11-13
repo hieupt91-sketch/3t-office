@@ -544,4 +544,17 @@ final class FormulaFunctionsSlice2Tests: XCTestCase {
         XCTAssertEqual(e.value(sheet: "S", at: "C1"), s("15/02/2024"))
         XCTAssertEqual(e.value(sheet: "S", at: "D1"), n(31))
     }
+
+    /// E-3: định dạng số nâng cao của TEXT (giá trị khớp LibreOffice 24.2 trong bộ oracle, Excel cùng kết quả).
+    func testTextAdvancedNumberFormats() {
+        XCTAssertEqual(calc("TEXT(1234567,\"#,##0,\")"), s("1,235"), "dấu phẩy cuối chia 1000")
+        XCTAssertEqual(calc("TEXT(1234567,\"0.0,,\")"), s("1.2"), "hai dấu phẩy cuối chia 10^6")
+        XCTAssertEqual(calc("TEXT(12345.6789,\"0.00E+00\")"), s("1.23E+04"))
+        XCTAssertEqual(calc("TEXT(0.000123,\"0.0E+0\")"), s("1.2E-4"))
+        XCTAssertEqual(calc("TEXT(99999,\"0.0E+0\")"), s("1.0E+5"), "làm tròn đẩy định trị lên 10")
+        XCTAssertEqual(calc("TEXT(0.5,\"# ?/?\")"), s(" 1/2"))
+        XCTAssertEqual(calc("TEXT(1.25,\"# ?/4\")"), s("1 1/4"))
+        XCTAssertEqual(calc("TEXT(1.5,\"[h]:mm\")"), s("36:00"), "giờ tích lũy vượt 24")
+        XCTAssertEqual(calc("TEXT(2,\"[h]:mm\")"), s("48:00"))
+    }
 }

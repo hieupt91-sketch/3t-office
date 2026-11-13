@@ -20,17 +20,32 @@ public enum SheetPatchError: Error, Equatable, CustomStringConvertible {
 /// này chỉ parse những hàng bị sửa, ghi ô bằng CHÍNH các hàm của `Worksheet` (`insertNewCell`, `write`,
 /// `updateDimension`), rồi ghép kết quả vào byte gốc; mọi hàng khác giữ nguyên từng byte.
 ///
-/// Phạm vi: đặt giá trị (số/chuỗi/bool/lỗi/rỗng) cho ô KHÔNG có công thức. Những trường hợp cần hiểu biết
-/// toàn sheet thì từ chối bằng `SheetPatchError.unsupported` trước khi sửa bất cứ gì, để người gọi rơi về
-/// đường DOM: ô đang có công thức, sheet có công thức mảng/bảng dữ liệu, số hàng/ô ngầm định, hàng không
-/// tăng dần, `<sheetData/>` tự đóng, hoặc sheet đang được giữ ở dạng DOM.
+/// Phạm vi: đặt giá trị (số/chuỗi/bool/lỗi/rỗng), đặt công thức (kèm giá trị đệm) và đặt chỉ số định dạng cho ô.
+/// Những trường hợp cần hiểu biết toàn sheet thì từ chối bằng `SheetPatchError.unsupported` trước khi sửa bất cứ
+/// gì, để người gọi rơi về đường DOM: ô đích đang thuộc công thức chia sẻ (cần bung cả nhóm), sheet có công thức
+/// mảng/bảng dữ liệu, số hàng/ô ngầm định, hàng không tăng dần, `<sheetData/>` tự đóng, hoặc sheet đang được giữ
+/// ở dạng DOM. Ô đích đang có công thức THƯỜNG thì ghi đè được (như `Worksheet`), kèm hủy `calcChain`.
 public final class SheetPatcher {
     public let workbook: Workbook
     public let part: PartName
 
     private let reader: SheetRowReader
-    private var edits: [CellReference: CellValue] = [:]
+    private enum Content {
+        case value(CellValue)
+        case formula(String, cached: CellValue)
+    }
+    /// Lần ghi đã xếp cho một ô. Gộp tuần tự như gọi `Worksheet` lần lượt: nội dung lần sau thắng, chỉ số định dạng
+    /// lần sau thắng, và ghi nội dung không đụng định dạng đã đặt.
+    private struct CellEdit {
+        var content: Content?
+        var style: Int?
+    }
+    private var edits: [CellReference: CellEdit] = [:]
+    /// Vùng cần xóa nội dung (áp SAU mọi lần ghi, như delta của `xlsx.save`). Ô vẫn giữ định dạng.
+    private var clearedRanges: [CellRange] = []
     private var committed = false
+    /// Số hàng tối đa đường vá chịu đọc để xóa; vượt thì từ chối (đường DOM xử lý vùng quá lớn).
+    public static let maxClearRows = 5000
 
     init(workbook: Workbook, part: PartName) throws {
         self.workbook = workbook
@@ -42,14 +57,44 @@ public final class SheetPatcher {
         if reader.sheetDataSelfClosing { throw SheetPatchError.unsupported("sheetData tự đóng") }
         if !reader.ascending { throw SheetPatchError.unsupported("hàng không tăng dần") }
         if reader.hasImplicitRowNumbers { throw SheetPatchError.unsupported("số hàng ngầm định") }
-        if try containsArrayFormula() { throw SheetPatchError.unsupported("sheet có công thức mảng hoặc bảng dữ liệu") }
+        arrayRanges = try arrayFormulaRanges()
     }
+
+    /// Vùng của các công thức mảng/bảng dữ liệu trong sheet: ô nằm trong vùng này không vá được (cần hiểu cả nhóm);
+    /// ô ngoài vùng vá bình thường dù sheet có công thức mảng ở nơi khác.
+    private var arrayRanges: [CellRange] = []
+    private func touchesArray(_ ref: CellReference) -> Bool { arrayRanges.contains { $0.contains(ref) } }
 
     /// Xếp hàng một lần ghi giá trị (ghi đè lần xếp trước cho cùng ô). Chưa sửa gì cho tới `commit()`.
     public func setValue(_ value: CellValue, at ref: CellReference) throws {
         guard !committed else { throw SheetPatchError.alreadyCommitted }
         if case .string(let s) = value, s.count > 32_767 { throw SpreadsheetError.stringTooLong(s.count) }
-        edits[ref] = value
+        edits[ref, default: CellEdit()].content = .value(value)
+    }
+
+    /// Xếp hàng ghi công thức (có hay không có "=" ở đầu đều được) kèm giá trị đệm, như `Worksheet.setFormula`.
+    public func setFormula(_ formula: String, cachedValue: CellValue = .empty, at ref: CellReference) throws {
+        guard !committed else { throw SheetPatchError.alreadyCommitted }
+        if case .string(let s) = cachedValue, s.count > 32_767 { throw SpreadsheetError.stringTooLong(s.count) }
+        let text = formula.hasPrefix("=") ? String(formula.dropFirst()) : formula
+        edits[ref, default: CellEdit()].content = .formula(text, cached: cachedValue)
+    }
+
+    public func setFormula(_ formula: String, cachedValue: CellValue = .empty, at a1: String) throws {
+        guard let ref = CellReference(a1) else { throw SpreadsheetError.invalidReference(a1) }
+        try setFormula(formula, cachedValue: cachedValue, at: ref)
+    }
+
+    /// Xếp hàng đặt chỉ số định dạng (0 = bỏ thuộc tính), như `Worksheet.setStyleIndex`. Không kiểm chỉ số có
+    /// tồn tại trong styles hay không (đường DOM cũng không kiểm ở mức này).
+    public func setStyleIndex(_ index: Int, at ref: CellReference) throws {
+        guard !committed else { throw SheetPatchError.alreadyCommitted }
+        edits[ref, default: CellEdit()].style = index
+    }
+
+    public func setStyleIndex(_ index: Int, at a1: String) throws {
+        guard let ref = CellReference(a1) else { throw SpreadsheetError.invalidReference(a1) }
+        try setStyleIndex(index, at: ref)
     }
 
     public func setValue(_ value: CellValue, at a1: String) throws {
@@ -57,16 +102,46 @@ public final class SheetPatcher {
         try setValue(value, at: ref)
     }
 
+    /// Xếp hàng một lần xóa nội dung ô trong vùng (như `Worksheet.clear` cho từng ô có sẵn: bỏ giá trị và công
+    /// thức, giữ định dạng, ô trống không có định dạng thì bị gỡ). Áp sau mọi lần ghi khi `commit()`.
+    public func clear(range: CellRange) {
+        clearedRanges.append(range)
+    }
+
+    private func isCleared(_ ref: CellReference) -> Bool {
+        clearedRanges.contains { $0.contains(ref) }
+    }
+
     /// Áp mọi lần ghi đã xếp vào byte của sheet. Ném `unsupported` thì gói chưa bị đổi.
     public func commit() throws {
         guard !committed else { throw SheetPatchError.alreadyCommitted }
-        guard !edits.isEmpty else { committed = true; return }
+        guard !edits.isEmpty || !clearedRanges.isEmpty else { committed = true; return }
+
+        for ref in edits.keys where touchesArray(ref) {
+            throw SheetPatchError.unsupported("ô \(ref.a1) nằm trong vùng công thức mảng/bảng dữ liệu")
+        }
+        for range in clearedRanges where arrayRanges.contains(where: { $0.intersects(range) }) {
+            throw SheetPatchError.unsupported("vùng xóa \(range) chạm vùng công thức mảng/bảng dữ liệu")
+        }
+
+        // Hàng hiện có nằm trong các vùng xóa (chỉ hàng đã có trong tệp; hàng chưa có thì không có gì để xóa).
+        var clearRows = Set<Int>()
+        for range in clearedRanges {
+            var index = reader.lowerBound(range.start.row)
+            while index < reader.rowCount, reader.rowNumbers[index] <= range.end.row {
+                clearRows.insert(reader.rowNumbers[index])
+                if clearRows.count > SheetPatcher.maxClearRows {
+                    throw SheetPatchError.unsupported("vùng xóa chạm quá \(SheetPatcher.maxClearRows) hàng")
+                }
+                index += 1
+            }
+        }
 
         // Giai đoạn 1: dựng DOM nhỏ cho từng hàng bị đụng và kiểm mọi điều kiện, CHƯA sửa gì.
         var patches: [RowPatch] = []
         var appended: [Int] = [] // hàng mới lớn hơn mọi hàng hiện có
         let byRow = Dictionary(grouping: edits.keys, by: \.row)
-        for r in byRow.keys.sorted() {
+        for r in Set(byRow.keys).union(clearRows).sorted() {
             let index = reader.lowerBound(r)
             if index < reader.rowCount, reader.rowNumbers[index] == r {
                 patches.append(try existingRowPatch(index: index))
@@ -93,19 +168,29 @@ public final class SheetPatcher {
                 }
             }
         }
+        // Công thức hiện có trong ô đích: chia sẻ/mảng/bảng dữ liệu cần hiểu cả nhóm ⇒ từ chối; công thức thường
+        // thì bị ghi đè (nếu có ghi nội dung) và phải hủy calcChain như đường DOM.
+        var dropsOrAddsFormula = false
         for patch in patches {
             for (_, row) in patch.rows {
                 for c in row.children(NS.s, "c") {
                     guard let ref = c.attribute("r").flatMap(CellReference.init) else {
                         throw SheetPatchError.unsupported("ô không ghi địa chỉ")
                     }
-                    if edits[ref] != nil, c.firstChild(NS.s, "f") != nil {
-                        throw SheetPatchError.unsupported("ô \(ref.a1) đang có công thức")
+                    let cleared = isCleared(ref)
+                    guard edits[ref] != nil || cleared, let f = c.firstChild(NS.s, "f") else { continue }
+                    if let type = f.attribute("t"), type != "normal" {
+                        throw SheetPatchError.unsupported("ô \(ref.a1) thuộc công thức \(type)")
                     }
+                    if cleared || edits[ref]?.content != nil { dropsOrAddsFormula = true }
                 }
             }
         }
+        for edit in edits.values {
+            if case .formula = edit.content { dropsOrAddsFormula = true }
+        }
         let head = try patchedHead()
+        var didClear = false
 
         // Giai đoạn 2: ghi giá trị bằng các hàm dùng chung với Worksheet.
         for patch in patches {
@@ -113,10 +198,32 @@ public final class SheetPatcher {
             let q: (String) -> String = { root.qualifiedName($0, in: NS.s).name }
             for (r, row) in patch.rows {
                 for ref in (byRow[r] ?? []).sorted() {
-                    guard let value = edits[ref] else { continue }
+                    guard let edit = edits[ref] else { continue }
                     let existing = row.children(NS.s, "c").first { $0.attribute("r").flatMap(CellReference.init) == ref }
                     let c = existing ?? Worksheet.insertNewCell(ref, into: row, name: q("c"))
-                    try Worksheet.write(value, formula: nil, into: c, workbook: workbook, q: q)
+                    switch edit.content {
+                    case .value(let value)?:
+                        try Worksheet.write(value, formula: nil, into: c, workbook: workbook, q: q)
+                    case .formula(let text, let cached)?:
+                        try Worksheet.write(cached, formula: text, into: c, workbook: workbook, q: q)
+                    case nil: break
+                    }
+                    if let style = edit.style {
+                        if style == 0 { c.removeAttribute("s") } else { Worksheet.setAttributeAfterR(c, "s", String(style)) }
+                    }
+                }
+                // Xóa sau khi ghi (cùng thứ tự với đường DOM): ô trong vùng xóa mất giá trị và công thức, giữ định dạng.
+                if !clearedRanges.isEmpty {
+                    for c in row.children(NS.s, "c") {
+                        guard let ref = c.attribute("r").flatMap(CellReference.init), isCleared(ref) else { continue }
+                        try Worksheet.write(.empty, formula: nil, into: c, workbook: workbook, q: q)
+                        let style = c.attribute("s")
+                        if (style == nil || style == "0") && c.elements.isEmpty
+                            && c.attributes.allSatisfy({ $0.name == "r" || $0.name == "s" }) {
+                            c.removeFromParent()
+                        }
+                        didClear = true
+                    }
                 }
             }
         }
@@ -134,7 +241,8 @@ public final class SheetPatcher {
         out.append(slice(cursor..<reader.data.count))
 
         workbook.package.setData(out, for: part)
-        workbook.requestRecalculation()
+        if dropsOrAddsFormula { workbook.invalidateCalcChain() }
+        if didClear || edits.values.contains(where: { $0.content != nil }) { workbook.requestRecalculation() }
         committed = true
     }
 
@@ -212,16 +320,45 @@ public final class SheetPatcher {
         return XElement.serializedFragment(parsed.root.children)
     }
 
-    private func containsArrayFormula() throws -> Bool {
+    /// Quét byte của sheetData tìm thẻ `<f t="array"|"dataTable" ref="…">` và lấy vùng `ref`. Thẻ thiếu/không đọc được
+    /// `ref` ⇒ từ chối (an toàn): ném `unsupported`.
+    private func arrayFormulaRanges() throws -> [CellRange] {
         let from = reader.sheetDataOpenEnd, to = reader.sheetDataEnd
-        guard from < to else { return false }
-        return reader.data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) -> Bool in
+        guard from < to else { return [] }
+        var ranges: [CellRange] = []
+        var failure: String?
+        reader.data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
             let b = raw.bindMemory(to: UInt8.self)
             for needle in ["t=\"array\"", "t='array'", "t=\"dataTable\"", "t='dataTable'"] {
-                if SheetRowReader.find(Array(needle.utf8), in: b, from: from, to: to, boundaryAfter: false) != nil { return true }
+                let pattern = Array(needle.utf8)
+                var cursor = from
+                while cursor < to, let hit = SheetRowReader.find(pattern, in: b, from: cursor, to: to, boundaryAfter: false) {
+                    cursor = hit + pattern.count
+                    // Thẻ chứa vị trí này: từ '<' gần nhất phía trước tới '>' kế tiếp.
+                    var open = hit
+                    while open > from, b[open] != UInt8(ascii: "<") { open -= 1 }
+                    var close = hit
+                    while close < to, b[close] != UInt8(ascii: ">") { close += 1 }
+                    let tag = String(decoding: UnsafeBufferPointer(rebasing: b[open..<min(close, to)]), as: UTF8.self)
+                    guard let r = Self.attribute("ref", in: tag), let range = CellRange(r) else {
+                        failure = "công thức mảng/bảng dữ liệu không có vùng ref đọc được"
+                        return
+                    }
+                    ranges.append(range)
+                }
             }
-            return false
         }
+        if let failure { throw SheetPatchError.unsupported(failure) }
+        return ranges
+    }
+
+    private static func attribute(_ name: String, in tag: String) -> String? {
+        for quote in ["\"", "'"] {
+            guard let start = tag.range(of: " \(name)=\(quote)") else { continue }
+            let rest = tag[start.upperBound...]
+            if let end = rest.firstIndex(of: Character(quote)) { return String(rest[..<end]) }
+        }
+        return nil
     }
 
     private func slice(_ range: Range<Int>) -> Data {
