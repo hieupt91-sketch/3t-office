@@ -107,4 +107,51 @@ struct SeededRandom: RandomNumberGenerator {
         z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
         return z ^ (z >> 31)
     }
+
+    /// CRC32 slicing-by-8 phải khớp phép tra bảng từng byte ở mọi độ dài và độ lệch, và cộng dồn được qua nhiều lần gọi.
+    func testCRC32SlicedMatchesBytewiseReference() {
+        var table = [UInt32](repeating: 0, count: 256)
+        for n in 0..<256 { var c = UInt32(n); for _ in 0..<8 { c = (c & 1) != 0 ? (0xEDB8_8320 ^ (c >> 1)) : (c >> 1) }; table[n] = c }
+        func reference(_ b: [UInt8]) -> UInt32 { var c: UInt32 = ~0; for x in b { c = table[Int((c ^ UInt32(x)) & 0xFF)] ^ (c >> 8) }; return ~c }
+        var seed: UInt64 = 0x9E37_79B9_7F4A_7C15
+        func next() -> UInt8 { seed = seed &* 6364136223846793005 &+ 1442695040888963407; return UInt8(truncatingIfNeeded: seed >> 33) }
+        let data = (0..<5000).map { _ in next() }
+        for len in [0, 1, 7, 8, 9, 15, 16, 17, 63, 64, 65, 1000, 4999] {
+            for offset in [0, 1, 3] where offset + len <= data.count {
+                let slice = Array(data[offset..<(offset + len)])
+                XCTAssertEqual(CRC32.checksum(slice), reference(slice), "len \(len) offset \(offset)")
+            }
+        }
+        var crc = CRC32()
+        crc.update(data[0..<1234]); crc.update(data[1234..<5000])
+        XCTAssertEqual(crc.value, reference(data))
+    }
+
+    /// Nén song song: giải ra đúng, tất định, và luồng hợp lệ ở mọi kích thước quanh ranh giới khối.
+    func testParallelDeflateRoundTripsAndIsDeterministic() throws {
+        let chunk = Deflate.parallelChunkSize
+        var seed: UInt64 = 42
+        func make(_ n: Int) -> [UInt8] {
+            var out = [UInt8](); out.reserveCapacity(n)
+            while out.count < n {
+                seed = seed &* 6364136223846793005 &+ 1442695040888963407
+                // Xen kẽ đoạn lặp (nén được) và ngẫu nhiên (không nén được) để chạm cả khối stored và Huffman.
+                if (seed >> 40) % 3 == 0 { for _ in 0..<40 { out.append(UInt8(truncatingIfNeeded: seed >> 50)) } }
+                else { out.append(contentsOf: Array("<c r=\"A\(seed % 1000)\"><v>\(seed % 77777)</v></c>".utf8)) }
+            }
+            return Array(out.prefix(n))
+        }
+        for n in [2 * chunk, 2 * chunk + 1, 3 * chunk - 1, 3 * chunk, 5 * chunk + 12345] {
+            let input = make(n)
+            let a = Deflate.compressParallel(input, level: .fast)
+            let b = Deflate.compressParallel(input, level: .fast)
+            XCTAssertEqual(a, b, "tất định, n=\(n)")
+            XCTAssertEqual(try Inflate.decompress(Data(a)), Data(input), "giải ra đúng, n=\(n)")
+            let sequential = Deflate.compress(input, level: .fast)
+            XCTAssertLessThan(Double(a.count), Double(sequential.count) * 1.10, "ratio không tệ quá 10%, n=\(n)")
+        }
+        // Dưới hai khối: phải đúng bằng đường tuần tự.
+        let small = make(chunk)
+        XCTAssertEqual(Deflate.compressParallel(small, level: .fast), Deflate.compress(small, level: .fast))
+    }
 }
