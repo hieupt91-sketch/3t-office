@@ -15,6 +15,9 @@ protocol FormulaContext {
     /// Biểu thức đích của tên hằng/công thức (M7 lát 17). nil nếu tên không tồn tại
     /// hoặc tên đó là tên vùng (đích là ô/vùng, xem `definedNameTarget`).
     func definedNameExpr(_ name: String) -> FormulaExpr?
+    /// Biểu thức công thức đặt tại ô (M7 lát 37, toán tử tràn `#`): nil nếu ô không
+    /// chứa công thức thường (ô hằng, ô trống, ô thuộc công thức mảng CSE).
+    func formulaExpr(sheet: String, ref: CellReference) -> FormulaExpr?
 }
 
 enum FormulaErrors {
@@ -42,12 +45,20 @@ struct FormulaEvaluator {
     /// bật giao ngầm (implicit intersection) trong scalar(). Công thức thường: nil -> giữ #VALUE!.
     var position: CellReference? = nil
     var arrayOrigin: CellReference? = nil
+    /// Vị trí ô chứa công thức thường — chỉ dùng cho toán tử "@" (M7 lát 36);
+    /// engine đặt luôn (khác `position` chỉ đặt cho công thức mảng CSE).
+    var intersectAnchor: CellReference? = nil
     /// Tên hằng/công thức đang được mở (M7 lát 17): chặn vòng tên A→B→A thành #REF!.
     var nameStack: Set<String> = []
     /// Độ sâu lồng gọi lambda đang chạy (M7 lát 28): chặn đệ quy vô hạn tràn ngăn xếp.
     var lambdaDepth: Int = 0
+    /// Độ sâu lồng toán tử tràn "#" đang chạy (M7 lát 37): chuỗi tràn A1#→B1#→…
+    /// luôn hữu hạn nhờ sắp topo ở tầng engine, đây chỉ là đai an toàn.
+    var spillDepth: Int = 0
     /// Giới hạn của engine (không phải Excel): đệ quy lambda sâu hơn thì #VALUE!.
     private static let maxLambdaDepth = 512
+    /// Giới hạn chuỗi tràn lồng nhau (M7 lát 37): sâu hơn thì #VALUE!.
+    private static let maxSpillDepth = 128
 
     func evaluate(_ expr: FormulaExpr) -> CellValue {
         scalar(eval(expr))
@@ -86,16 +97,21 @@ struct FormulaEvaluator {
             guard let s = context.resolveSheet(sh) else { return .scalar(.error(FormulaErrors.ref)) }
             return .ref(sheet: s, range: r)
         case .unary(let op, let x):
-            let v = scalar(eval(x))
-            if case .error = v { return .scalar(v) }
-            if op == "+" { return .scalar(v) }
-            guard let n = number(v) else { return .scalar(.error(FormulaErrors.value)) }
-            return .scalar(.number(-n))
+            let inner = eval(x)
+            // `--(vùng="a")`, `-vùng`: dấu trừ đơn áp lên từng phần tử của mảng/vùng (như Excel).
+            if isMulti(inner), let rows = materialize(inner) {
+                return .array(rows.map { $0.map { unaryValue(op, $0) } })
+            }
+            return .scalar(unaryValue(op, scalar(inner)))
         case .percent(let x):
             let v = scalar(eval(x))
             if case .error = v { return .scalar(v) }
             guard let n = number(v) else { return .scalar(.error(FormulaErrors.value)) }
             return .scalar(.number(n / 100))
+        case .intersect(let x):
+            return .scalar(intersectValue(eval(x)))
+        case .spill(let x):
+            return spillValue(x)
         case .binary(let op, let a, let b):
             let l = eval(a), r = eval(b)
             if let arr = elementwise(op, l, r) { return arr }
@@ -111,6 +127,13 @@ struct FormulaEvaluator {
         }
     }
 
+    private func unaryValue(_ op: String, _ v: CellValue) -> CellValue {
+        if case .error = v { return v }
+        if op == "+" { return v }
+        guard let n = number(v) else { return .error(FormulaErrors.value) }
+        return .number(-n)
+    }
+
     /// Ép về giá trị đơn. Vùng 1 ô → giá trị ô. Vùng nhiều ô/hằng nhiều phần tử: giao ngầm theo vị trí
     /// ô đang tính nếu đang trong công thức mảng (position != nil), ngoài ra → #VALUE!.
     func scalar(_ v: EvalValue) -> CellValue {
@@ -124,14 +147,99 @@ struct FormulaEvaluator {
             let col = r.start.column == r.end.column ? r.start.column : pos.column
             let row = r.start.row == r.end.row ? r.start.row : pos.row
             let target = CellReference(column: col, row: row)
-            guard r.contains(target) else { return .error(FormulaErrors.value) }
-            return context.cellValue(sheet: sh, ref: target)
+            if r.contains(target) { return context.cellValue(sheet: sh, ref: target) }
+            // M7 lát 41: công thức mảng (CSE) trỏ vùng không chứa ô công thức —
+            // ánh xạ theo độ lệch so với gốc vùng mảng (như nhánh .array):
+            // =A1:B2 đặt tại D1:E2 thì D1←A1, E1←B1, D2←A2, E2←B2.
+            // Ngoài vùng sau ánh xạ → #VALUE! như trước.
+            if let origin = arrayOrigin {
+                let i = pos.row - origin.row, j = pos.column - origin.column
+                let t = CellReference(column: r.start.column + j, row: r.start.row + i)
+                if i >= 0, j >= 0, r.contains(t) { return context.cellValue(sheet: sh, ref: t) }
+            }
+            return .error(FormulaErrors.value)
         case .array(let rows):
             if rows.count == 1, rows[0].count == 1 { return rows[0][0] }
             guard let pos = position, let origin = arrayOrigin else { return .error(FormulaErrors.value) }
             let i = pos.row - origin.row, j = pos.column - origin.column
             guard rows.indices.contains(i), rows[i].indices.contains(j) else { return .error(FormulaErrors.value) }
             return rows[i][j]
+        }
+    }
+
+    /// Ép một giá trị mảng/vùng về một ô theo vị trí ô công thức (toán tử "@",
+    /// M7 lát 36, INBOX-MAC #17). Quy tắc Excel:
+    /// - scalar giữ nguyên; lambda trần → #VALUE!.
+    /// - vùng 1 ô → giá trị ô đó; vùng 1 cột → ô cùng hàng với ô công thức;
+    ///   vùng 1 hàng → ô cùng cột; vùng nhiều hàng × nhiều cột → chính ô công
+    ///   thức nếu nằm trong vùng; ngoài vùng → #VALUE!.
+    /// - mảng hằng/kết quả hàm: 1 ô → giá trị đó; nhiều ô → phần tử góc trên-trái
+    ///   (mỏ neo của mảng tràn chính là ô công thức), trừ công thức mảng CSE thì
+    ///   lấy theo vị trí từng ô như scalar().
+    /// - không có vị trí ô công thức (dùng evaluator trực tiếp): vùng/mảng
+    ///   nhiều ô → #VALUE!, như scalar().
+    func intersectValue(_ v: EvalValue) -> CellValue {
+        switch v {
+        case .scalar(let c): return c
+        case .lambda: return .error(FormulaErrors.value)
+        case .ref(let sh, let r):
+            if r.start == r.end { return context.cellValue(sheet: sh, ref: r.start) }
+            guard let anchor = intersectAnchor else { return .error(FormulaErrors.value) }
+            let target: CellReference
+            if r.start.column == r.end.column {
+                target = CellReference(column: r.start.column, row: anchor.row)
+            } else if r.start.row == r.end.row {
+                target = CellReference(column: anchor.column, row: r.start.row)
+            } else {
+                target = anchor
+            }
+            guard r.contains(target) else { return .error(FormulaErrors.value) }
+            return context.cellValue(sheet: sh, ref: target)
+        case .array(let rows):
+            if rows.count == 1, rows[0].count == 1 { return rows[0][0] }
+            if let pos = position, let origin = arrayOrigin {
+                let i = pos.row - origin.row, j = pos.column - origin.column
+                guard rows.indices.contains(i), rows[i].indices.contains(j) else { return .error(FormulaErrors.value) }
+                return rows[i][j]
+            }
+            guard intersectAnchor != nil else { return .error(FormulaErrors.value) }
+            return rows[0][0]
+        }
+    }
+
+    /// Toán tử tràn "#" (M7 lát 37, INBOX-MAC #17): `A1#` = toàn bộ vùng tràn của
+    /// công thức mảng động neo tại A1. Quy tắc Excel:
+    /// - neo phải là một ô duy nhất; vùng nhiều ô, hằng, hàm trần → #VALUE!.
+    /// - ô neo không chứa công thức thường (hằng, trống, CSE) → #VALUE!.
+    /// - công thức neo trả mảng → lưới đó (lỗi trong lưới đi qua nguyên vẹn);
+    ///   trả vùng nhiều ô (ví dụ `=B1:B3`) → lưới vùng đó; trả đơn/lỗi → #VALUE!.
+    /// - chuỗi tràn (A1# mà A1 lại chứa B1#...) tính đệ quy qua công thức neo;
+    ///   vòng (kể cả tự tham chiếu) đã bị chặn ở tầng engine (sắp topo → #REF!).
+    private func spillValue(_ x: FormulaExpr) -> EvalValue {
+        let inner = eval(x)
+        // Lỗi của chính tham chiếu neo (sheet không còn → #REF!, tên lạ → #NAME?)
+        // lan nguyên vẹn như mọi tham chiếu khác.
+        if case .scalar(let c) = inner, case .error = c { return inner }
+        guard case .ref(let sh, let r) = inner, r.start == r.end,
+              let expr = context.formulaExpr(sheet: sh, ref: r.start),
+              spillDepth < Self.maxSpillDepth else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        // Tính lại công thức neo trong phạm vi riêng: "@" bên trong lấy neo làm
+        // vị trí ô công thức; biến LET/LAMBDA ngoài không lọt vào.
+        var sub = FormulaEvaluator(context: context)
+        sub.intersectAnchor = r.start
+        sub.spillDepth = spillDepth + 1
+        switch sub.eval(expr) {
+        case .array(let rows):
+            return .array(rows)
+        case .ref(let sh2, let r2) where r2.start != r2.end:
+            guard let grid = sub.materialize(.ref(sheet: sh2, range: r2)) else {
+                return .scalar(.error(FormulaErrors.value))
+            }
+            return .array(grid)
+        default:
+            return .scalar(.error(FormulaErrors.value))
         }
     }
 
@@ -269,6 +377,14 @@ struct FormulaEvaluator {
         case "SCAN": return scanArray(args)
         case "REDUCE": return reduceArray(args)
         case "MAKEARRAY": return makeArray(args)
+        case "MMULT": return mmult(args)
+        case "MUNIT": return munit(args)
+        case "FREQUENCY": return frequency(args)
+        case "EXPAND": return expandArray(args)
+        case "GROUPBY": return groupBy(args)
+        case "PIVOTBY": return pivotBy(args)
+        case "ARRAYTOTEXT": return arrayToText(args)
+        case "VALUETOTEXT": return valueToText(args)
         default: return nil
         }
     }
@@ -320,6 +436,905 @@ struct FormulaEvaluator {
                 line.append(.number(v))
             }
             out.append(line)
+        }
+        return .array(out)
+    }
+
+    // MARK: Hàm ma trận — MMULT / MUNIT (M7 lát 34, INBOX-MAC #17)
+
+    /// MMULT(mảng1, mảng2): tích ma trận m×n · n×p = m×p. Số cột mảng1 phải
+    /// bằng số hàng mảng2, nếu không → #VALUE!; ô rỗng hoặc chuỗi (kể cả
+    /// chuỗi số) → #VALUE!; logic TRUE→1, FALSE→0; ô lỗi lan truyền nguyên
+    /// vẹn; kết quả vượt giới hạn phần tử → #CALC!, tràn số → #NUM!.
+    private func mmult(_ args: [FormulaExpr]) -> EvalValue {
+        guard args.count == 2 else { return .scalar(.error(FormulaErrors.value)) }
+        guard let a = materialize(eval(args[0])), let b = materialize(eval(args[1])),
+              !a.isEmpty, !b.isEmpty,
+              let aCols = a.first?.count, aCols > 0,
+              let bCols = b.first?.count, bCols > 0,
+              a.allSatisfy({ $0.count == aCols }), b.allSatisfy({ $0.count == bCols }) else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        let m = a.count, n = aCols, p = bCols
+        guard n == b.count else { return .scalar(.error(FormulaErrors.value)) }
+        guard m * p <= Self.maxElementwiseCells else { return .scalar(.error(FormulaErrors.calc)) }
+        // Ô lỗi lan truyền nguyên vẹn (quét theo thứ tự hàng rồi cột).
+        for grid in [a, b] {
+            for line in grid {
+                for c in line {
+                    if case .error(let e) = c { return .scalar(.error(e)) }
+                }
+            }
+        }
+        func numbers(_ grid: [[CellValue]]) -> [[Double]]? {
+            var out: [[Double]] = []
+            out.reserveCapacity(grid.count)
+            for line in grid {
+                var row: [Double] = []
+                row.reserveCapacity(line.count)
+                for c in line {
+                    switch c {
+                    case .number(let d): row.append(d)
+                    case .bool(let b): row.append(b ? 1 : 0)
+                    default: return nil
+                    }
+                }
+                out.append(row)
+            }
+            return out
+        }
+        guard let an = numbers(a), let bn = numbers(b) else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(m)
+        for i in 0..<m {
+            var line: [CellValue] = []
+            line.reserveCapacity(p)
+            for j in 0..<p {
+                var sum = 0.0
+                for k in 0..<n { sum += an[i][k] * bn[k][j] }
+                guard sum.isFinite else { return .scalar(.error(FormulaErrors.num)) }
+                line.append(.number(sum))
+            }
+            out.append(line)
+        }
+        return .array(out)
+    }
+
+    /// MUNIT(cấp): ma trận đơn vị cấp n. Cấp cắt phần lẻ về nguyên như
+    /// SEQUENCE, phải ≥ 1 nếu không → #VALUE!; đối số không phải số
+    /// → #VALUE!; lỗi trong đối số lan truyền nguyên vẹn; cấp quá lớn
+    /// (n² vượt giới hạn phần tử) → #CALC!.
+    private func munit(_ args: [FormulaExpr]) -> EvalValue {
+        guard args.count == 1 else { return .scalar(.error(FormulaErrors.value)) }
+        let v = scalar(eval(args[0]))
+        if case .error(let e) = v { return .scalar(.error(e)) }
+        guard let d = number(v), d.isFinite else { return .scalar(.error(FormulaErrors.value)) }
+        let n0 = d.rounded(.towardZero)
+        guard n0 >= 1 else { return .scalar(.error(FormulaErrors.value)) }
+        guard n0 <= Double(Self.maxElementwiseCells),
+              n0 * n0 <= Double(Self.maxElementwiseCells) else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        let n = Int(n0)
+        var out: [[CellValue]] = []
+        out.reserveCapacity(n)
+        for i in 0..<n {
+            var line: [CellValue] = Array(repeating: .number(0), count: n)
+            line[i] = .number(1)
+            out.append(line)
+        }
+        return .array(out)
+    }
+
+    /// FREQUENCY(dữ_liệu, khoảng): phân phối tần suất — mảng dọc có số
+    /// phần tử = số khoảng + 1 (phần tử cuối đếm các giá trị vượt khoảng
+    /// cao nhất). Khoảng i đếm các giá trị ≤ khoảng[i], trừ các giá trị
+    /// đã đếm ở khoảng trước (Microsoft Learn, WorksheetFunction.Frequency:
+    /// "counts ... up to and including the bin value, but excludes the
+    /// values already counted in the previous bins"); khoảng phải tăng
+    /// dần, nếu không kết quả sai lệch như Excel. Ô rỗng/chữ/logic trong
+    /// cả hai đối số bị bỏ qua (logic trong hằng mảng cũng bị bỏ qua như
+    /// họ SUMIFS — không phân biệt được nguồn sau khi trải lưới);
+    /// không có giá trị số nào trong dữ liệu → toàn 0; không có khoảng
+    /// nào → mảng 1 phần tử bằng số giá trị số trong dữ liệu. Ô lỗi lan
+    /// truyền nguyên vẹn; sai số lượng đối số hoặc vùng vượt giới hạn →
+    /// #VALUE!; kết quả vượt giới hạn phần tử → #CALC!. Đối chiếu COM
+    /// thật là việc của Windows ở cổng M1 (#11).
+    private func frequency(_ args: [FormulaExpr]) -> EvalValue {
+        guard args.count == 2 else { return .scalar(.error(FormulaErrors.value)) }
+        guard let data = materialize(eval(args[0])),
+              let binsGrid = materialize(eval(args[1])) else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        var values: [Double] = []
+        for line in data {
+            for c in line {
+                switch c {
+                case .number(let d): values.append(d)
+                case .error(let e): return .scalar(.error(e))
+                default: break
+                }
+            }
+        }
+        var bins: [Double] = []
+        for line in binsGrid {
+            for c in line {
+                switch c {
+                case .number(let d): bins.append(d)
+                case .error(let e): return .scalar(.error(e))
+                default: break
+                }
+            }
+        }
+        guard bins.count + 1 <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        values.sort()
+        var counts: [Double] = []
+        counts.reserveCapacity(bins.count + 1)
+        var prev = 0
+        for b in bins {
+            // Số giá trị ≤ b (tìm kiếm nhị phân trên mảng đã sắp).
+            var lo = 0, hi = values.count
+            while lo < hi {
+                let mid = (lo + hi) / 2
+                if values[mid] <= b { lo = mid + 1 } else { hi = mid }
+            }
+            counts.append(Double(lo - prev))
+            prev = lo
+        }
+        counts.append(Double(values.count - prev))
+        return .array(counts.map { [.number($0)] })
+    }
+
+    /// EXPAND(mảng, hàng, [cột], [đệm]): mở rộng mảng tới hàng×cột, ô mới
+    /// đệm bằng đệm (mặc định #N/A); cột bỏ trống giữ nguyên số cột gốc.
+    /// Hàng/cột phải ≥ kích thước hiện tại, nếu không → #VALUE!; cắt phần
+    /// lẻ về nguyên như SEQUENCE; đối số không phải số → #VALUE!; lỗi
+    /// trong đối số lan truyền nguyên vẹn; ô nguồn (kể cả ô lỗi, ô rỗng)
+    /// đi qua nguyên vẹn; kết quả vượt giới hạn phần tử → #CALC!.
+    private func expandArray(_ args: [FormulaExpr]) -> EvalValue {
+        guard (2...4).contains(args.count) else { return .scalar(.error(FormulaErrors.value)) }
+        guard let grid = materialize(eval(args[0])), !grid.isEmpty,
+              let srcCols = grid.first?.count, srcCols > 0,
+              grid.allSatisfy({ $0.count == srcCols }) else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        let srcRows = grid.count
+        let rv = scalar(eval(args[1]))
+        if case .error(let e) = rv { return .scalar(.error(e)) }
+        guard let rows = intFromScalar(rv), rows >= 1 else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        var cols = srcCols
+        if args.count >= 3, args[2] != .empty {
+            let cv = scalar(eval(args[2]))
+            if case .error(let e) = cv { return .scalar(.error(e)) }
+            guard let c = intFromScalar(cv), c >= 1 else {
+                return .scalar(.error(FormulaErrors.value))
+            }
+            cols = c
+        }
+        var pad: CellValue = .error(FormulaErrors.na)
+        if args.count == 4, args[3] != .empty {
+            let pv = scalar(eval(args[3]))
+            if case .error(let e) = pv { return .scalar(.error(e)) }
+            pad = pv
+        }
+        guard rows >= srcRows, cols >= srcCols else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        guard Double(rows) * Double(cols) <= Double(Self.maxElementwiseCells) else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        var out: [[CellValue]] = []
+        out.reserveCapacity(rows)
+        for i in 0..<rows {
+            var line: [CellValue] = []
+            line.reserveCapacity(cols)
+            for j in 0..<cols {
+                line.append(i < srcRows && j < srcCols ? grid[i][j] : pad)
+            }
+            out.append(line)
+        }
+        return .array(out)
+    }
+
+    // MARK: Hàm mảng động — GROUPBY (M7 lát 38, INBOX-MAC #17)
+
+    /// Hàm tổng hợp của GROUPBY: tên hàm có sẵn (eta-reduced lambda như SUM)
+    /// hoặc lambda 1 tham số nhận cột giá trị của nhóm.
+    private enum GroupAggregate {
+        case builtin(String)
+        case lambda(params: [String], body: FormulaExpr, captured: [String: EvalValue])
+    }
+
+    /// Tên hàm tổng hợp có sẵn của GROUPBY (Microsoft Support, "GROUPBY
+    /// function"): tên viết hoa → tên chuẩn. STDEV/VAR chấp nhận cả dạng rút
+    /// gọn (STDEV = STDEV.S, VAR = VAR.S).
+    private static let groupAggregates: [String: String] = [
+        "SUM": "SUM", "AVERAGE": "AVERAGE", "COUNT": "COUNT", "COUNTA": "COUNTA",
+        "MAX": "MAX", "MIN": "MIN", "PRODUCT": "PRODUCT", "MEDIAN": "MEDIAN",
+        "PERCENTOF": "PERCENTOF",
+        "STDEV": "STDEV", "STDEV.S": "STDEV", "STDEVP": "STDEVP", "STDEV.P": "STDEVP",
+        "VAR": "VAR", "VAR.S": "VAR", "VARP": "VARP", "VAR.P": "VARP",
+    ]
+
+    /// Khóa nhóm của GROUPBY: như uniqueKey nhưng chuỗi PHÂN BIỆT hoa/thường
+    /// (Excel: "Cable" và "cable" là hai nhóm khác nhau — khác UNIQUE).
+    private static func groupKey(_ v: CellValue) -> String {
+        switch v {
+        case .empty: return "E"
+        case .number(let d): return "N\(d == 0 ? 0 : d)"
+        case .string(let s): return "S\(s)"
+        case .bool(let b): return "B\(b)"
+        case .error(let e): return "X\(e)"
+        }
+    }
+
+    private static func sampleStdev(_ xs: [Double]) -> Double {
+        let mean = xs.reduce(0, +) / Double(xs.count)
+        let ss = xs.reduce(0) { $0 + ($1 - mean) * ($1 - mean) }
+        return (ss / Double(xs.count - 1)).squareRoot()
+    }
+
+    private static func populationStdev(_ xs: [Double]) -> Double {
+        let mean = xs.reduce(0, +) / Double(xs.count)
+        let ss = xs.reduce(0) { $0 + ($1 - mean) * ($1 - mean) }
+        return (ss / Double(xs.count)).squareRoot()
+    }
+
+    /// Tổng hợp một cột giá trị của GROUPBY (ngữ nghĩa như aggregate() với
+    /// đối số từ vùng: chữ/logic/rỗng bị bỏ qua, trừ COUNT/COUNTA; lỗi trong
+    /// giá trị trả về như ô lỗi để tầng trên giữ nguyên trong lưới). PERCENTOF
+    /// không xử lý ở đây (cần tổng chung, xem groupBy).
+    private static func groupAggregate(_ fn: String, _ vals: [CellValue]) -> CellValue {
+        var nums: [Double] = []
+        var nonEmpty = 0
+        var firstError: CellValue? = nil
+        for v in vals {
+            switch v {
+            case .error:
+                if firstError == nil { firstError = v }
+                nonEmpty += 1
+            case .number(let d): nums.append(d); nonEmpty += 1
+            case .bool, .string: nonEmpty += 1
+            case .empty: break
+            }
+        }
+        switch fn {
+        case "SUM":
+            if let e = firstError { return e }
+            return .number(nums.reduce(0, +))
+        case "AVERAGE":
+            if let e = firstError { return e }
+            guard !nums.isEmpty else { return .error(FormulaErrors.div0) }
+            return .number(nums.reduce(0, +) / Double(nums.count))
+        case "COUNT": return .number(Double(nums.count))
+        case "COUNTA": return .number(Double(nonEmpty))
+        case "MAX":
+            if let e = firstError { return e }
+            return .number(nums.max() ?? 0)
+        case "MIN":
+            if let e = firstError { return e }
+            return .number(nums.min() ?? 0)
+        case "PRODUCT":
+            if let e = firstError { return e }
+            return .number(nums.reduce(1, *))
+        case "MEDIAN":
+            if let e = firstError { return e }
+            guard !nums.isEmpty else { return .error(FormulaErrors.num) }
+            let s = nums.sorted()
+            let m = s.count / 2
+            return .number(s.count % 2 == 1 ? s[m] : (s[m - 1] + s[m]) / 2)
+        case "STDEV", "STDEV.S":
+            if let e = firstError { return e }
+            guard nums.count >= 2 else { return .error(FormulaErrors.div0) }
+            return .number(Self.sampleStdev(nums))
+        case "STDEVP", "STDEV.P":
+            if let e = firstError { return e }
+            guard !nums.isEmpty else { return .error(FormulaErrors.div0) }
+            return .number(Self.populationStdev(nums))
+        case "VAR", "VAR.S":
+            if let e = firstError { return e }
+            guard nums.count >= 2 else { return .error(FormulaErrors.div0) }
+            let s = Self.sampleStdev(nums); return .number(s * s)
+        case "VARP", "VAR.P":
+            if let e = firstError { return e }
+            guard !nums.isEmpty else { return .error(FormulaErrors.div0) }
+            let s = Self.populationStdev(nums); return .number(s * s)
+        default: return .error(FormulaErrors.value)
+        }
+    }
+
+    /// Tổng hợp một cột giá trị của một nhóm/tổng trên một tập hàng (dùng cho
+    /// GROUPBY). PERCENTOF tính như SUM ở bước này, chia cho tổng chung sau.
+    private func groupAggregateColumn(_ agg: GroupAggregate, _ valGrid: [[CellValue]],
+                                      _ col: Int, _ rows: [Int]) -> CellValue {
+        switch agg {
+        case .builtin(let fn):
+            let vals = rows.map { valGrid[$0][col] }
+            return Self.groupAggregate(fn == "PERCENTOF" ? "SUM" : fn, vals)
+        case .lambda(let p, let b, let c):
+            let column = rows.map { [valGrid[$0][col]] }
+            let r = applyLambdaValues(params: p, body: b, captured: c, values: [.array(column)])
+            guard let cell = singleCellValue(r) else { return .error(FormulaErrors.value) }
+            return cell
+        }
+    }
+
+    /// Phân tích đối số function của GROUPBY/PIVOTBY (M7 lát 39, INBOX-MAC #17):
+    /// tên trần, biến LET/tên định nghĩa chứa lambda, hoặc biểu thức LAMBDA.
+    /// Trả (nil, lỗi) khi lỗi cần lan truyền nguyên vẹn (tên lạ → #NAME? như
+    /// Excel, qua eval); (nil, nil) = đối số không dùng được → #VALUE!.
+    private func parseGroupAggregate(_ expr: FormulaExpr) -> (agg: GroupAggregate?, error: CellValue?) {
+        if case .name(let n) = expr {
+            let key = n.uppercased()
+            if let v = env[key] {
+                guard case .lambda(let p, let b, let c) = v else { return (nil, nil) }
+                return (.lambda(params: p, body: b, captured: c), nil)
+            } else if let canon = Self.groupAggregates[key] {
+                return (.builtin(canon), nil)
+            } else {
+                let v = eval(expr)
+                if case .scalar(let c) = v, case .error = c { return (nil, c) }
+                guard case .lambda(let p, let b, let c) = v else { return (nil, nil) }
+                return (.lambda(params: p, body: b, captured: c), nil)
+            }
+        } else {
+            let (lam, lamErr) = lambdaFromArg(expr)
+            if let e = lamErr { return (nil, e) }
+            guard let lam, lam.params.count == 1 else { return (nil, nil) }
+            return (.lambda(params: lam.params, body: lam.body, captured: lam.captured), nil)
+        }
+    }
+
+    /// GROUPBY(row_fields, values, function, [field_headers], [total_depth],
+    /// [sort_order], [filter_array], [field_relationship]) — tóm tắt dữ liệu theo
+    /// nhóm (ngữ nghĩa theo Microsoft Support "GROUPBY function" + Ablebits/
+    /// Exceljet; đối chiếu COM thật là việc của Windows ở cổng M1 #11):
+    /// - function: tên hàm tổng hợp trần (SUM, AVERAGE, COUNT, COUNTA, MAX, MIN,
+    ///   PRODUCT, MEDIAN, PERCENTOF, STDEV/STDEV.S, STDEVP/STDEV.P, VAR/VAR.S,
+    ///   VARP/VAR.P) hoặc LAMBDA 1 tham số nhận cột giá trị của nhóm. Tên lạ
+    ///   → #NAME? như Excel; vector nhiều hàm (HSTACK(SUM, AVERAGE)) → #VALUE!
+    ///   (lát sau — cần lambda sống được trong mảng).
+    /// - field_headers: bỏ trống = tự đoán (giá trị đầu là chữ và giá trị thứ
+    ///   hai là số → có tiêu đề; tiêu đề chỉ hiện khi có ≥ 2 cột khóa); 0 =
+    ///   không tiêu đề; 1 = có, không hiện; 2 = không có, sinh "Row Field i"/
+    ///   "Value j"; 3 = có, hiện.
+    /// - total_depth: bỏ trống = 1 (tổng chung cuối); 0 = không tổng; 1 = tổng
+    ///   chung cuối ("Total"); -1 = tổng chung đầu; 2/-2 = thêm tổng phụ sau/
+    ///   trước mỗi nhóm tiền tố (cần ≥ 2 cột khóa, không thì #VALUE!; cột khóa
+    ///   sâu hơn để trống). Độ sâu |n| > 2 → #VALUE! (lát sau).
+    /// - sort_order: bỏ trống = tăng dần theo các cột khóa; số = cột kết quả
+    ///   (khóa rồi giá trị), âm = giảm dần; mảng 1 chiều = sắp nhiều cột khóa.
+    /// - filter_array: mảng logic 1 chiều dài bằng số hàng của row_fields
+    ///   (kể cả hàng tiêu đề nếu có — cờ của hàng tiêu đề bị bỏ qua); rỗng =
+    ///   FALSE; lỗi lan ra; sai hình/dài → #VALUE!; lọc hết hàng → #CALC!.
+    /// - field_relationship: chỉ nhận 0/bỏ trống (Hierarchy); 1 (Table) →
+    ///   #VALUE! (lát sau).
+    /// Nhóm theo đúng giá trị khóa (chuỗi phân biệt hoa/thường); khóa lỗi giữ
+    /// nguyên ô lỗi trong kết quả; lỗi trong cột giá trị chỉ nằm ở ô tổng hợp
+    /// của nhóm đó (như MAP giữ lỗi theo ô), không phá cả công thức; lệch số
+    /// hàng giữa row_fields và values → #VALUE!.
+    private func groupBy(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard (3...8).contains(args.count) else { return bad }
+        guard let keyGrid = materialize(eval(args[0])), !keyGrid.isEmpty,
+              let keyCols = keyGrid.first?.count, keyCols > 0,
+              keyGrid.allSatisfy({ $0.count == keyCols }) else { return bad }
+        guard let valGrid = materialize(eval(args[1])), !valGrid.isEmpty,
+              let valCols = valGrid.first?.count, valCols > 0,
+              valGrid.allSatisfy({ $0.count == valCols }) else { return bad }
+        guard keyGrid.count == valGrid.count else { return bad }
+
+        // Đối số function: tên trần, biến LET/tên định nghĩa chứa lambda, hoặc LAMBDA.
+        let (aggOpt, aggErr) = parseGroupAggregate(args[2])
+        if let e = aggErr { return .scalar(e) }
+        guard let agg = aggOpt else { return bad }
+
+        // field_headers.
+        var hasHeaders = false, showHeaders = false
+        if args.count >= 4, args[3] != .empty {
+            let v = scalar(eval(args[3]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = number(v), n.isFinite, n == n.rounded(.towardZero),
+                  (0...3).contains(Int(n)) else { return bad }
+            switch Int(n) {
+            case 1: hasHeaders = true
+            case 2: showHeaders = true
+            case 3: hasHeaders = true; showHeaders = true
+            default: break
+            }
+        } else if valGrid.count >= 2, case .string = valGrid[0][0], case .number = valGrid[1][0] {
+            hasHeaders = true
+            showHeaders = keyCols >= 2
+        }
+
+        // total_depth.
+        var totalDepth = 1
+        if args.count >= 5, args[4] != .empty {
+            let v = scalar(eval(args[4]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = number(v), n.isFinite, n == n.rounded(.towardZero),
+                  [-2, -1, 0, 1, 2].contains(Int(n)) else { return bad }
+            totalDepth = Int(n)
+        }
+        if abs(totalDepth) == 2, keyCols < 2 { return bad }
+
+        // sort_order.
+        var sortKeys: [(col: Int, ascending: Bool)] = []
+        if args.count >= 6, args[5] != .empty {
+            guard let sg = materialize(eval(args[5])), !sg.isEmpty else { return bad }
+            let flat: [CellValue]
+            if sg.count == 1 { flat = sg[0] }
+            else if sg[0].count == 1 { flat = sg.map { $0[0] } }
+            else { return bad }
+            guard !flat.isEmpty else { return bad }
+            let totalCols = keyCols + valCols
+            for c in flat {
+                if case .error(let e) = c { return .scalar(.error(e)) }
+                guard let n = number(c), n.isFinite, n == n.rounded(.towardZero),
+                      n != 0, abs(n) <= Double(totalCols) else { return bad }
+                let col = Int(abs(n))
+                if flat.count > 1, col > keyCols { return bad }
+                sortKeys.append((col: col - 1, ascending: n > 0))
+            }
+        } else {
+            sortKeys = (0..<keyCols).map { ($0, true) }
+        }
+
+        // field_relationship (chỉ Hierarchy).
+        if args.count == 8, args[7] != .empty {
+            let v = scalar(eval(args[7]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = number(v), n == 0 else { return bad }
+        }
+
+        // Dữ liệu (bỏ hàng tiêu đề nếu có) + filter.
+        let dataStart = hasHeaders ? 1 : 0
+        guard keyGrid.count > dataStart else { return .scalar(.error(FormulaErrors.calc)) }
+        let dataRows = keyGrid.count - dataStart
+        var rowFlags = [Bool](repeating: true, count: dataRows)
+        if args.count >= 7, args[6] != .empty {
+            guard let fg = materialize(eval(args[6])), !fg.isEmpty else { return bad }
+            let flags: [CellValue]
+            if fg.count == 1 { flags = fg[0] }
+            else if fg[0].count == 1 { flags = fg.map { $0[0] } }
+            else { return bad }
+            guard flags.count == keyGrid.count else { return bad }
+            for i in 0..<dataRows {
+                switch flags[dataStart + i] {
+                case .bool(let b): rowFlags[i] = b
+                case .empty: rowFlags[i] = false
+                case .error(let e): return .scalar(.error(e))
+                default: return bad
+                }
+            }
+        }
+
+        // Nhóm theo khóa (giữ thứ tự xuất hiện đầu tiên).
+        var groupKeys: [[CellValue]] = []
+        var groupRows: [[Int]] = []
+        var groupIndex: [String: Int] = [:]
+        for i in 0..<dataRows where rowFlags[i] {
+            let r = dataStart + i
+            let sig = keyGrid[r].map { Self.groupKey($0) }.joined(separator: "\u{1F}")
+            if let gi = groupIndex[sig] {
+                groupRows[gi].append(r)
+            } else {
+                groupIndex[sig] = groupKeys.count
+                groupKeys.append(keyGrid[r])
+                groupRows.append([r])
+            }
+        }
+        guard !groupKeys.isEmpty else { return .scalar(.error(FormulaErrors.calc)) }
+        let allRows = groupRows.flatMap { $0 }
+
+        // Tổng hợp từng nhóm.
+        var groupOut: [[CellValue]] = []
+        groupOut.reserveCapacity(groupKeys.count)
+        for g in groupKeys.indices {
+            var line = groupKeys[g]
+            for j in 0..<valCols {
+                line.append(groupAggregateColumn(agg, valGrid, j, groupRows[g]))
+            }
+            groupOut.append(line)
+        }
+
+        // PERCENTOF: chia mỗi tổng nhóm cho tổng chung của cột đó (lỗi/tổng 0
+        // → ô lỗi trong cột, không phá cả công thức).
+        if case .builtin("PERCENTOF") = agg {
+            for j in 0..<valCols {
+                let grand = groupAggregateColumn(agg, valGrid, j, allRows)
+                if case .error(let e) = grand {
+                    for g in groupOut.indices { groupOut[g][keyCols + j] = .error(e) }
+                    continue
+                }
+                guard case .number(let total) = grand, total != 0 else {
+                    for g in groupOut.indices {
+                        groupOut[g][keyCols + j] = .error(FormulaErrors.div0)
+                    }
+                    continue
+                }
+                for g in groupOut.indices {
+                    if case .number(let s) = groupOut[g][keyCols + j] {
+                        groupOut[g][keyCols + j] = .number(s / total)
+                    }
+                }
+            }
+        }
+
+        // Sắp xếp các nhóm (ổn định); tổng/tổng phụ không tham gia sắp.
+        let order = groupOut.indices.sorted { a, b in
+            for (col, asc) in sortKeys {
+                let c = Self.compareSortKey(groupOut[a][col], groupOut[b][col], ascending: asc)
+                if c != 0 { return c < 0 }
+            }
+            return a < b
+        }
+        let sortedOut = order.map { groupOut[$0] }
+        let sortedRows = order.map { groupRows[$0] }
+
+        // Hàng tổng chung (chỉ tính khi cần).
+        var grandRow: [CellValue] = []
+        if totalDepth != 0 {
+            grandRow = [.string("Total")] + [CellValue](repeating: .empty, count: keyCols - 1)
+            for j in 0..<valCols {
+                if case .builtin("PERCENTOF") = agg {
+                    grandRow.append(.number(1))
+                } else {
+                    grandRow.append(groupAggregateColumn(agg, valGrid, j, allRows))
+                }
+            }
+        }
+
+        // Lắp kết quả: tiêu đề, tổng đầu/cuối, nhóm + tổng phụ.
+        var out: [[CellValue]] = []
+        if showHeaders {
+            if hasHeaders {
+                out.append(keyGrid[0] + valGrid[0])
+            } else {
+                out.append((1...keyCols).map { CellValue.string("Row Field \($0)") }
+                    + (1...valCols).map { CellValue.string("Value \($0)") })
+            }
+        }
+        if totalDepth < 0 { out.append(grandRow) }
+        if abs(totalDepth) == 2 {
+            // Tổng phụ sau (2) / trước (-2) mỗi khối cùng tiền tố khóa.
+            var i = 0
+            while i < sortedOut.count {
+                var k = i + 1
+                while k < sortedOut.count,
+                      sortedOut[k].prefix(keyCols - 1).map({ Self.groupKey($0) })
+                        == sortedOut[i].prefix(keyCols - 1).map({ Self.groupKey($0) }) {
+                    k += 1
+                }
+                var subRow: [CellValue] = Array(sortedOut[i].prefix(keyCols - 1))
+                subRow.append(.empty)
+                let blockRows = sortedRows[i..<k].flatMap { $0 }
+                for j in 0..<valCols {
+                    if case .builtin("PERCENTOF") = agg {
+                        var sum = 0.0
+                        var err: CellValue? = nil
+                        for row in sortedOut[i..<k] {
+                            switch row[keyCols + j] {
+                            case .number(let d): sum += d
+                            case .error(let e): if err == nil { err = .error(e) }
+                            default: break
+                            }
+                        }
+                        subRow.append(err ?? .number(sum))
+                    } else {
+                        subRow.append(groupAggregateColumn(agg, valGrid, j, blockRows))
+                    }
+                }
+                if totalDepth == -2 { out.append(subRow) }
+                out.append(contentsOf: sortedOut[i..<k])
+                if totalDepth == 2 { out.append(subRow) }
+                i = k
+            }
+        } else {
+            out.append(contentsOf: sortedOut)
+        }
+        if totalDepth > 0 { out.append(grandRow) }
+        guard out.count * (keyCols + valCols) <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
+        }
+        return .array(out)
+    }
+
+    /// PIVOTBY(row_fields, col_fields, values, [function], [field_headers],
+    /// [row_total_depth], [row_sort_order], [col_total_depth], [col_sort_order],
+    /// [filter_array], [relative_to]) — bảng tổng hợp 2 chiều (ngữ nghĩa theo
+    /// Microsoft Support "PIVOTBY function"; đối chiếu COM thật là việc của
+    /// Windows ở cổng M1 #11). Dùng chung máy tổng hợp với GROUPBY (lát 38):
+    /// cùng tập hàm (SUM…VARP, PERCENTOF, LAMBDA 1 tham số), cùng field_headers
+    /// 0/1/2/3 + tự đoán, cùng filter_array, cùng quy tắc lỗi theo ô.
+    /// - function bỏ trống = SUM. Tên lạ → #NAME? như Excel.
+    /// - row_total_depth / col_total_depth: 0 = không tổng; ±1 = tổng chung
+    ///   (cuối/đầu); ±2 = thêm tổng phụ sau/trước mỗi khối tiền tố (cần ≥ 2 cột
+    ///   khóa trên trục đó, không thì #VALUE!); |n| > 2 → #VALUE!. Mặc định 1/1.
+    /// - row_sort_order / col_sort_order: bỏ trống = tăng dần theo các cột khóa
+    ///   của trục; số = cột khóa (âm = giảm dần); mảng 1 chiều = sắp nhiều cột
+    ///   khóa; số ngoài phạm vi cột khóa → #VALUE!.
+    /// - filter_array: như GROUPBY (dài bằng số hàng của row_fields, kể cả hàng
+    ///   tiêu đề nếu có; lọc hết hàng → #CALC!).
+    /// - relative_to: chỉ có nghĩa với PERCENTOF: 0/bỏ trống = theo tổng chung,
+    ///   1 = theo tổng hàng, 2 = theo tổng cột; khác → #VALUE!; hàm khác bỏ qua.
+    /// Bố cục kết quả (tự định nghĩa, ghi rõ để đối chiếu COM sau):
+    /// - Cột: [cột khóa hàng] + [mỗi nhóm cột × mỗi cột giá trị] + [tổng phụ cột
+    ///   (nếu |col_total_depth| = 2)] + [cột tổng chung (nếu col_total_depth ≠ 0)].
+    /// - Hàng: [hàng tiêu đề (nếu hiện)] + [mỗi nhóm hàng] + [hàng tổng phụ
+    ///   (nếu |row_total_depth| = 2)] + [hàng tổng chung (nếu row_total_depth ≠ 0)].
+    /// - Hàng tiêu đề (khi hiện): colCols hàng mức khóa cột (ô góc chỉ ghi tên
+    ///   trường hàng ở hàng mức đầu, các mức sau để trống; mỗi nhóm cột ghi giá
+    ///   trị khóa mức đó ở ô giá trị đầu, các ô giá trị còn lại để trống) + 1 hàng
+    ///   tên giá trị (ô góc = tên trường hàng, mỗi nhóm cột lặp tên cột giá trị,
+    ///   cột tổng/tổng phụ = "Total").
+    /// - Hàng tổng chung: "Total" ở cột khóa hàng đầu, trống ở các cột khóa còn
+    ///   lại. Cột tổng chung: tổng theo hàng. Góc tổng chung = tổng toàn bộ.
+    /// - Lát này chưa hỗ trợ row_fields/col_fields rỗng (cần ít nhất 1 cột khóa
+    ///   mỗi trục) — trả #VALUE!.
+    private func pivotBy(_ args: [FormulaExpr]) -> EvalValue {
+        let bad = EvalValue.scalar(.error(FormulaErrors.value))
+        guard (3...11).contains(args.count) else { return bad }
+        guard args[0] != .empty, args[1] != .empty else { return bad }
+        guard let rowGrid = materialize(eval(args[0])), !rowGrid.isEmpty,
+              let rowCols = rowGrid.first?.count, rowCols > 0,
+              rowGrid.allSatisfy({ $0.count == rowCols }) else { return bad }
+        guard let colGrid = materialize(eval(args[1])), !colGrid.isEmpty,
+              let colCols = colGrid.first?.count, colCols > 0,
+              colGrid.allSatisfy({ $0.count == colCols }) else { return bad }
+        guard let valGrid = materialize(eval(args[2])), !valGrid.isEmpty,
+              let valCols = valGrid.first?.count, valCols > 0,
+              valGrid.allSatisfy({ $0.count == valCols }) else { return bad }
+        guard rowGrid.count == colGrid.count, rowGrid.count == valGrid.count else { return bad }
+
+        // function: bỏ trống = SUM.
+        let agg: GroupAggregate
+        if args.count >= 4, args[3] != .empty {
+            let (aggOpt, aggErr) = parseGroupAggregate(args[3])
+            if let e = aggErr { return .scalar(e) }
+            guard let aggOpt else { return bad }
+            agg = aggOpt
+        } else {
+            agg = .builtin("SUM")
+        }
+
+        // field_headers (như GROUPBY, tự đoán trên valGrid; chỉ hiện khi ≥ 2 cột khóa).
+        var hasHeaders = false, showHeaders = false
+        if args.count >= 5, args[4] != .empty {
+            let v = scalar(eval(args[4]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = number(v), n.isFinite, n == n.rounded(.towardZero),
+                  (0...3).contains(Int(n)) else { return bad }
+            switch Int(n) {
+            case 1: hasHeaders = true
+            case 2: showHeaders = true
+            case 3: hasHeaders = true; showHeaders = true
+            default: break
+            }
+        } else if valGrid.count >= 2, case .string = valGrid[0][0], case .number = valGrid[1][0] {
+            hasHeaders = true
+            showHeaders = rowCols >= 2 || colCols >= 2
+        }
+
+        // row_total_depth / col_total_depth (mặc định 1).
+        var rowDepth = 1
+        if args.count >= 6, args[5] != .empty {
+            let v = scalar(eval(args[5]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = number(v), n.isFinite, n == n.rounded(.towardZero),
+                  [-2, -1, 0, 1, 2].contains(Int(n)) else { return bad }
+            rowDepth = Int(n)
+        }
+        if abs(rowDepth) == 2, rowCols < 2 { return bad }
+        var colDepth = 1
+        if args.count >= 8, args[7] != .empty {
+            let v = scalar(eval(args[7]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = number(v), n.isFinite, n == n.rounded(.towardZero),
+                  [-2, -1, 0, 1, 2].contains(Int(n)) else { return bad }
+            colDepth = Int(n)
+        }
+        if abs(colDepth) == 2, colCols < 2 { return bad }
+
+        // sort_order cho một trục: số = cột khóa (âm = giảm dần), mảng 1 chiều
+        // = sắp nhiều cột khóa; bỏ trống = tăng dần theo mọi cột khóa.
+        func parseSort(_ idx: Int, _ keyCols: Int) -> (keys: [(col: Int, ascending: Bool)]?, error: CellValue?) {
+            if args.count <= idx || args[idx] == .empty {
+                return ((0..<keyCols).map { ($0, true) }, nil)
+            }
+            guard let sg = materialize(eval(args[idx])), !sg.isEmpty else { return (nil, nil) }
+            let flat: [CellValue]
+            if sg.count == 1 { flat = sg[0] }
+            else if sg[0].count == 1 { flat = sg.map { $0[0] } }
+            else { return (nil, nil) }
+            guard !flat.isEmpty else { return (nil, nil) }
+            var keys: [(col: Int, ascending: Bool)] = []
+            for c in flat {
+                if case .error(let e) = c { return (nil, .error(e)) }
+                guard let n = number(c), n.isFinite, n == n.rounded(.towardZero),
+                      n != 0, abs(n) <= Double(keyCols) else { return (nil, nil) }
+                keys.append((col: Int(abs(n)) - 1, ascending: n > 0))
+            }
+            return (keys, nil)
+        }
+        let (rowSort, rowSortErr) = parseSort(6, rowCols)
+        if let e = rowSortErr { return .scalar(e) }
+        guard let rowSort else { return bad }
+        let (colSort, colSortErr) = parseSort(8, colCols)
+        if let e = colSortErr { return .scalar(e) }
+        guard let colSort else { return bad }
+
+        // Dữ liệu (bỏ hàng tiêu đề nếu có) + filter (như GROUPBY).
+        let dataStart = hasHeaders ? 1 : 0
+        guard rowGrid.count > dataStart else { return .scalar(.error(FormulaErrors.calc)) }
+        let dataRows = rowGrid.count - dataStart
+        var rowFlags = [Bool](repeating: true, count: dataRows)
+        if args.count >= 10, args[9] != .empty {
+            guard let fg = materialize(eval(args[9])), !fg.isEmpty else { return bad }
+            let flags: [CellValue]
+            if fg.count == 1 { flags = fg[0] }
+            else if fg[0].count == 1 { flags = fg.map { $0[0] } }
+            else { return bad }
+            guard flags.count == rowGrid.count else { return bad }
+            for i in 0..<dataRows {
+                switch flags[dataStart + i] {
+                case .bool(let b): rowFlags[i] = b
+                case .empty: rowFlags[i] = false
+                case .error(let e): return .scalar(.error(e))
+                default: return bad
+                }
+            }
+        }
+
+        // relative_to (chỉ có nghĩa với PERCENTOF).
+        var relativeTo = 0
+        if args.count >= 11, args[10] != .empty {
+            let v = scalar(eval(args[10]))
+            if case .error(let e) = v { return .scalar(.error(e)) }
+            guard let n = number(v), n.isFinite, n == n.rounded(.towardZero),
+                  (0...2).contains(Int(n)) else { return bad }
+            relativeTo = Int(n)
+        }
+
+        // Nhóm theo khóa trên một trục (giữ thứ tự xuất hiện đầu tiên).
+        func groupAxis(_ grid: [[CellValue]]) -> (keys: [[CellValue]], rows: [[Int]]) {
+            var keys: [[CellValue]] = []
+            var rows: [[Int]] = []
+            var index: [String: Int] = [:]
+            for i in 0..<dataRows where rowFlags[i] {
+                let r = dataStart + i
+                let sig = grid[r].map { Self.groupKey($0) }.joined(separator: "\u{1F}")
+                if let gi = index[sig] {
+                    rows[gi].append(r)
+                } else {
+                    index[sig] = keys.count
+                    keys.append(grid[r])
+                    rows.append([r])
+                }
+            }
+            return (keys, rows)
+        }
+        let (rowKeysRaw, rowRowsRaw) = groupAxis(rowGrid)
+        let (colKeysRaw, colRowsRaw) = groupAxis(colGrid)
+        guard !rowKeysRaw.isEmpty, !colKeysRaw.isEmpty else { return .scalar(.error(FormulaErrors.calc)) }
+
+        // Sắp xếp các nhóm (ổn định).
+        func sortedGroups(_ keys: [[CellValue]], _ rows: [[Int]],
+                          _ sortKeys: [(col: Int, ascending: Bool)]) -> (keys: [[CellValue]], rows: [[Int]]) {
+            let order = keys.indices.sorted { a, b in
+                for (col, asc) in sortKeys {
+                    let c = Self.compareSortKey(keys[a][col], keys[b][col], ascending: asc)
+                    if c != 0 { return c < 0 }
+                }
+                return a < b
+            }
+            return (order.map { keys[$0] }, order.map { rows[$0] })
+        }
+        let (rowKeys, rowRows) = sortedGroups(rowKeysRaw, rowRowsRaw, rowSort)
+        let (colKeys, colRows) = sortedGroups(colKeysRaw, colRowsRaw, colSort)
+        let allRows = rowRows.flatMap { $0 }
+
+        // Đoạn hàng/cột: (nhãn, hàng nguồn, tổng phụ?, tổng chung?).
+        typealias Segment = (label: [CellValue], rows: [Int], isSubtotal: Bool, isGrand: Bool)
+        func buildSegments(_ keys: [[CellValue]], _ rows: [[Int]], _ keyCols: Int, _ depth: Int) -> [Segment] {
+            var segs: [Segment] = []
+            if abs(depth) == 2 {
+                var i = 0
+                while i < keys.count {
+                    var k = i + 1
+                    while k < keys.count,
+                          keys[k].prefix(keyCols - 1).map({ Self.groupKey($0) })
+                            == keys[i].prefix(keyCols - 1).map({ Self.groupKey($0) }) {
+                        k += 1
+                    }
+                    let blockRows = rows[i..<k].flatMap { $0 }
+                    let sub: Segment = (label: Array(keys[i].prefix(keyCols - 1)) + [.empty],
+                                        rows: blockRows, isSubtotal: true, isGrand: false)
+                    if depth == -2 { segs.append(sub) }
+                    for g in i..<k { segs.append((label: keys[g], rows: rows[g], isSubtotal: false, isGrand: false)) }
+                    if depth == 2 { segs.append(sub) }
+                    i = k
+                }
+            } else {
+                for g in keys.indices {
+                    segs.append((label: keys[g], rows: rows[g], isSubtotal: false, isGrand: false))
+                }
+            }
+            if depth != 0 {
+                let grand: Segment = (label: [.string("Total")] + [CellValue](repeating: .empty, count: keyCols - 1),
+                                      rows: rows.flatMap { $0 }, isSubtotal: false, isGrand: true)
+                if depth < 0 { segs.insert(grand, at: 0) } else { segs.append(grand) }
+            }
+            return segs
+        }
+        let rowSegs = buildSegments(rowKeys, rowRows, rowCols, rowDepth)
+        let colSegs = buildSegments(colKeys, colRows, colCols, colDepth)
+
+        // Tổng hợp một ô: giao của hàng nguồn của đoạn hàng và đoạn cột.
+        // PERCENTOF tính như SUM rồi chia cho mẫu số theo relative_to.
+        func pivotCell(_ rSeg: Segment, _ cSeg: Segment, _ j: Int) -> CellValue {
+            let cSet = Set(cSeg.rows)
+            let rows = rSeg.rows.filter { cSet.contains($0) }
+            let v = groupAggregateColumn(agg, valGrid, j, rows)
+            guard case .builtin("PERCENTOF") = agg else { return v }
+            if case .error(let e) = v { return .error(e) }
+            let denomRows: [Int]
+            switch relativeTo {
+            case 1: denomRows = rSeg.rows
+            case 2: denomRows = cSeg.rows
+            default: denomRows = allRows
+            }
+            let d = groupAggregateColumn(.builtin("SUM"), valGrid, j, denomRows)
+            if case .error(let e) = d { return .error(e) }
+            guard case .number(let total) = d, total != 0 else { return .error(FormulaErrors.div0) }
+            guard case .number(let s) = v else { return .error(FormulaErrors.div0) }
+            return .number(s / total)
+        }
+
+        let rowHeaderNames: [CellValue] = hasHeaders ? rowGrid[0]
+            : (1...rowCols).map { CellValue.string("Row Field \($0)") }
+        let valHeaderNames: [CellValue] = hasHeaders ? valGrid[0]
+            : (1...valCols).map { CellValue.string("Value \($0)") }
+
+        // Lắp kết quả.
+        var out: [[CellValue]] = []
+        if showHeaders {
+            for h in 0..<colCols {
+                var line: [CellValue] = h == 0 ? rowHeaderNames
+                    : [CellValue](repeating: .empty, count: rowCols)
+                for cSeg in colSegs {
+                    line.append(cSeg.isGrand ? .empty : cSeg.label[h])
+                    line.append(contentsOf: [CellValue](repeating: .empty, count: valCols - 1))
+                }
+                out.append(line)
+            }
+            var line: [CellValue] = rowHeaderNames
+            for cSeg in colSegs {
+                if cSeg.isGrand || cSeg.isSubtotal {
+                    line.append(contentsOf: [CellValue](repeating: .string("Total"), count: valCols))
+                } else {
+                    line.append(contentsOf: valHeaderNames)
+                }
+            }
+            out.append(line)
+        }
+        for rSeg in rowSegs {
+            var line: [CellValue] = rSeg.label
+            for cSeg in colSegs {
+                for j in 0..<valCols {
+                    line.append(pivotCell(rSeg, cSeg, j))
+                }
+            }
+            out.append(line)
+        }
+        guard out.count * (rowCols + colSegs.count * valCols) <= Self.maxElementwiseCells else {
+            return .scalar(.error(FormulaErrors.calc))
         }
         return .array(out)
     }
@@ -1067,6 +2082,73 @@ struct FormulaEvaluator {
         return .array(out)
     }
 
+    // MARK: ARRAYTOTEXT / VALUETOTEXT (M7 lát 40, INBOX-MAC #17)
+
+    /// Một ô thành văn bản theo Excel: concise (0) giữ nguyên chuỗi, strict (1)
+    /// đặt chuỗi trong dấu ngoặc kép (nhân đôi " bên trong); số theo General
+    /// 15 chữ số (lát 30), TRUE/FALSE nguyên dạng, lỗi giữ nguyên mã, ô trống
+    /// → "" ở strict và rỗng ở concise.
+    private static func textOfCell(_ v: CellValue, strict: Bool) -> String {
+        switch v {
+        case .empty: return strict ? "\"\"" : ""
+        case .string(let s):
+            return strict ? "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : s
+        case .number(let d): return generalNumberString(d)
+        case .bool(let b): return b ? "TRUE" : "FALSE"
+        case .error(let e): return e
+        }
+    }
+
+    /// Đọc đối số định_dạng (thứ 2, tùy chọn): bỏ trống → 0; phải là số hữu
+    /// hạn, cắt phần lẻ về nguyên, chỉ nhận 0/1, còn lại → #VALUE!. Lỗi
+    /// trong đối số lan truyền nguyên vẹn.
+    private func arrayTextFormat(_ args: [FormulaExpr]) -> (format: Int?, error: CellValue?) {
+        guard args.count >= 2, args[1] != .empty else { return (0, nil) }
+        let v = scalar(eval(args[1]))
+        if case .error(let e) = v { return (nil, .error(e)) }
+        guard let n = number(v), n.isFinite else { return (nil, .error(FormulaErrors.value)) }
+        let m = n.rounded(.towardZero)
+        guard m == 0 || m == 1 else { return (nil, .error(FormulaErrors.value)) }
+        return (Int(m), nil)
+    }
+
+    /// ARRAYTOTEXT(mảng, [định_dạng]): mảng thành "{1,2;3,4}" (dấu phẩy ngăn
+    /// cột, chấm phẩy ngăn hàng); mảng 1 ô trả đúng văn bản của ô đó, không
+    /// ngoặc nhọn. Lỗi scalar lan truyền; lambda trần → #VALUE!; vượt giới
+    /// hạn phần tử → #VALUE!.
+    private func arrayToText(_ args: [FormulaExpr]) -> EvalValue {
+        guard (1...2).contains(args.count) else { return .scalar(.error(FormulaErrors.value)) }
+        let raw = eval(args[0])
+        if case .scalar(let c) = raw, case .error(let e) = c { return .scalar(.error(e)) }
+        if case .lambda = raw { return .scalar(.error(FormulaErrors.value)) }
+        guard let grid = materialize(raw), !grid.isEmpty,
+              let cols = grid.first?.count, cols > 0 else {
+            return .scalar(.error(FormulaErrors.value))
+        }
+        let (format, ferr) = arrayTextFormat(args)
+        if let e = ferr { return .scalar(e) }
+        let strict = format == 1
+        if grid.count == 1, cols == 1 {
+            return .scalar(.string(Self.textOfCell(grid[0][0], strict: strict)))
+        }
+        let rows = grid.map { line in
+            line.map { Self.textOfCell($0, strict: strict) }.joined(separator: ",")
+        }
+        return .scalar(.string("{" + rows.joined(separator: ";") + "}"))
+    }
+
+    /// VALUETOTEXT(giá_trị, [định_dạng]): một giá trị thành văn bản. Dùng
+    /// scalar() như các hàm scalar khác: vùng nhiều ô ngoài công thức mảng
+    /// → #VALUE!, trong CSE giao ngầm theo vị trí.
+    private func valueToText(_ args: [FormulaExpr]) -> EvalValue {
+        guard (1...2).contains(args.count) else { return .scalar(.error(FormulaErrors.value)) }
+        let v = scalar(eval(args[0]))
+        if case .error(let e) = v { return .scalar(.error(e)) }
+        let (format, ferr) = arrayTextFormat(args)
+        if let e = ferr { return .scalar(e) }
+        return .scalar(.string(Self.textOfCell(v, strict: format == 1)))
+    }
+
     // MARK: Hàm trợ giúp LAMBDA — MAP / BYROW / BYCOL / SCAN / REDUCE / MAKEARRAY (M7 lát 29, INBOX-MAC #17)
 
     /// Lấy lambda từ một biểu thức đối số (tính bằng eval() để giữ nguyên
@@ -1327,9 +2409,44 @@ struct FormulaEvaluator {
         case .bool(let b): return b ? "TRUE" : "FALSE"
         case .error(let e): return e
         case .number(let d):
-            if d == d.rounded(), abs(d) < 1e15 { return String(Int64(d)) }
-            return String(format: "%.15g", d)
+            return FormulaEvaluator.generalNumberString(d)
         }
+    }
+
+    /// Định dạng số theo General của Excel, 15 chữ số có nghĩa (M7 lát 30,
+    /// golden-batch13/14): dạng thường nếu viết thường ≤ 20 ký tự, còn lại
+    /// dạng khoa học với "E" hoa, mũ có dấu và ít nhất 2 chữ số
+    /// ("1E+20", "9.5367431640625E-07", "1.18059162071741E+21").
+    static func generalNumberString(_ d: Double) -> String {
+        if d == 0 { return "0" }
+        if !d.isFinite { return String(d) }
+        let sign = d < 0 ? "-" : ""
+        // "%.14e" cho 15 chữ số có nghĩa đã làm tròn: "-1.234567890123457e+17".
+        let sci = String(format: "%.14e", abs(d))
+        guard let ePos = sci.firstIndex(of: "e") else { return String(d) }
+        let exp = Int(sci[sci.index(after: ePos)...]) ?? 0
+        var digits = String(sci[..<ePos]).replacingOccurrences(of: ".", with: "")
+        while digits.count > 1, digits.hasSuffix("0") { digits.removeLast() }
+        let s = digits.count
+        let plainLen: Int
+        if exp >= 0 {
+            plainLen = s <= exp + 1 ? exp + 1 : s + 1
+        } else {
+            plainLen = s - exp + 1
+        }
+        if plainLen <= 20 {
+            if exp >= 0 {
+                if s <= exp + 1 {
+                    return sign + digits + String(repeating: "0", count: exp + 1 - s)
+                }
+                let idx = digits.index(digits.startIndex, offsetBy: exp + 1)
+                return sign + digits[..<idx] + "." + digits[idx...]
+            }
+            return sign + "0." + String(repeating: "0", count: -exp - 1) + digits
+        }
+        let mantissa = s == 1 ? digits : String(digits.prefix(1)) + "." + String(digits.dropFirst())
+        let expText = (exp >= 0 ? "+" : "-") + String(format: "%02d", abs(exp))
+        return sign + mantissa + "E" + expText
     }
 
     // MARK: Toán tử
@@ -1379,13 +2496,25 @@ struct FormulaEvaluator {
         let ra = rank(a), rb = rank(b)
         if ra != rb { return ra < rb ? -1 : 1 }
         switch (a, b) {
-        case (.number(let x), .number(let y)): return x < y ? -1 : (x > y ? 1 : 0)
+        case (.number(let x), .number(let y)):
+            if numbersEqualToExcelPrecision(x, y) { return 0 }
+            return x < y ? -1 : 1
         case (.string(let x), .string(let y)):
             let o = x.compare(y, options: [.caseInsensitive])
             return o == .orderedAscending ? -1 : (o == .orderedDescending ? 1 : 0)
         case (.bool(let x), .bool(let y)): return x == y ? 0 : (!x ? -1 : 1)
         default: return 0
         }
+    }
+
+    /// Excel coi hai số bằng nhau khi chúng trùng nhau ở 15 chữ số có nghĩa: `0.1+0.2=0.3` là TRUE
+    /// dù hai vế khác nhau ở bit cuối.
+    static func numbersEqualToExcelPrecision(_ x: Double, _ y: Double) -> Bool {
+        if x == y { return true }
+        guard x.isFinite, y.isFinite else { return false }
+        // Đường nhanh: hai số làm tròn 15 chữ số về cùng giá trị thì chênh nhau tương đối < ~1e-14.
+        if abs(x - y) >= 1.1e-14 * max(abs(x), abs(y)) { return false }
+        return String(format: "%.14e", x) == String(format: "%.14e", y)
     }
 
     private static func emptyLike(_ other: CellValue) -> CellValue {
@@ -1548,6 +2677,10 @@ struct FormulaEvaluator {
             return .string(s)
         case "NA":
             return args.isEmpty ? .error(FormulaErrors.na) : bad
+        case "TRUE":
+            return args.isEmpty ? .bool(true) : bad
+        case "FALSE":
+            return args.isEmpty ? .bool(false) : bad
         default:
             return callSlice2(name, args) ?? .error(FormulaErrors.name)
         }

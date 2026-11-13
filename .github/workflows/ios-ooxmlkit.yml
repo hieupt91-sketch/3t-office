@@ -1,3 +1,7 @@
+# CỔNG BẮT BUỘC: mọi thay đổi OOXMLKit (ports/ios/**) phải XANH cả hai job `linux` và `ios`
+# của workflow này trước khi được gộp về vn-main. Đỏ hoặc chưa chạy thì không gộp.
+# (Ép buộc bằng branch protection là quyền admin repo; ở đây chỉ ghi quy ước.)
+#
 # Kiểm OOXMLKit đa nền:
 #  - job linux  (ubuntu + swift container): chứng minh engine chạy ngoài Apple bằng swift-corelibs-foundation
 #    — chính là bộ Foundation mà Windows và Android cũng dùng, nên đây là bằng chứng đa nền rẻ nhất (rẻ ~10x macOS).
@@ -40,7 +44,7 @@ jobs:
 
   ios:
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: ports/ios/OOXMLKit

@@ -7,7 +7,9 @@ import OOXMLPresentation
 
 // Dùng: ooxml-bench gen <bytes-xấp-xỉ> <đường-dẫn.xlsx>
 //       ooxml-bench run <chế-độ> <đường-dẫn.xlsx>
-// Chế độ: zip-list | open-eager | open-lazy | workbook-eager | workbook-lazy | save-eager | save-lazy
+// Chế độ: zip-list | open-eager | open-lazy | workbook-eager | workbook-lazy | workbook-lazymodel | save-eager | save-lazy | save-lazymodel
+//          | rows-window | rows-all (đọc theo cửa sổ hàng bằng SheetRowReader, không dựng DOM cả sheet)
+//          | save-patch (sửa 1 ô bằng SheetPatcher rồi lưu truyền phát)
 // Mỗi lần chạy là một tiến trình riêng để VmHWM (bộ nhớ đỉnh, Linux) không bị lẫn giữa các chế độ.
 
 func now() -> Double { Double(DispatchTime.now().uptimeNanoseconds) / 1e9 }
@@ -64,6 +66,28 @@ func generate(targetBytes: Int, to path: String) throws {
     out.removeAll()
 }
 
+/// In kết quả engine công thức cho mọi ô CÓ công thức của một sheet, dạng TSV: `ô<TAB>loại<TAB>giá trị`.
+/// Loại: n (số), s (chuỗi), b (bool), e (lỗi), empty. Dùng cho bộ đối chiếu `scripts/formula-oracle`.
+func evalFormulas(path: String, sheet: String) throws {
+    let wb = try Workbook(contentsOf: URL(fileURLWithPath: path))
+    let engine = try FormulaEngine(workbook: wb)
+    _ = engine.recalculate()
+    let ws = try wb.worksheet(named: sheet)
+    var out = ""
+    for cell in ws.cells where cell.formula != nil {
+        let line: String
+        switch engine.value(sheet: sheet, at: cell.reference.a1) {
+        case .number(let d): line = "n\t" + String(format: "%.17g", d)
+        case .string(let t): line = "s\t" + t.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\n", with: "\\n").replacingOccurrences(of: "\t", with: "\\t")
+        case .bool(let b): line = "b\t" + (b ? "1" : "0")
+        case .error(let e): line = "e\t" + e
+        case .empty: line = "empty\t"
+        }
+        out += cell.reference.a1 + "\t" + line + "\n"
+    }
+    FileHandle.standardOutput.write(Data(out.utf8))
+}
+
 func run(mode: String, path: String) throws {
     let url = URL(fileURLWithPath: path)
     let size = (try FileManager.default.attributesOfItem(atPath: path)[.size] as? Int) ?? 0
@@ -82,6 +106,19 @@ func run(mode: String, path: String) throws {
     case "workbook-eager", "workbook-lazy":
         let wb = mode.hasSuffix("lazy") ? try Workbook(contentsOf: url, deferValidation: true) : try Workbook(contentsOf: url)
         detail = "sheets=\(wb.sheetNames.count) xmlParsed=\(wb.package.loadedXMLPartCount)"
+    case "workbook-lazymodel":
+        // M2b A2: mở bằng đường lười theo mô hình (sharedStrings chỉ quét offset).
+        let wb = try Workbook(contentsOf: url, deferValidation: true, lazyModel: true)
+        detail = "sheets=\(wb.sheetNames.count) xmlParsed=\(wb.package.loadedXMLPartCount)"
+    case "save-lazymodel":
+        // M2b A2: như save-lazy nhưng đi đường lazyModel (ghi chuỗi mới vào đuôi <sst>).
+        let wb = try Workbook(contentsOf: url, deferValidation: true, lazyModel: true)
+        let tOpen = now()
+        try wb.worksheet(at: 0).setValue("bench", at: "A1")
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("bench-out-lazymodel-\(getpid()).xlsx")
+        try wb.save(to: out)
+        try? FileManager.default.removeItem(at: out)
+        detail = String(format: "open=%.3fs edit+save=%.3fs", tOpen - t0, now() - tOpen)
     case "save-eager", "save-lazy":
         let wb = mode.hasSuffix("lazy") ? try Workbook(contentsOf: url, deferValidation: true) : try Workbook(contentsOf: url)
         let tOpen = now()
@@ -90,6 +127,23 @@ func run(mode: String, path: String) throws {
         try wb.save(to: out)
         try? FileManager.default.removeItem(at: out)
         detail = String(format: "open=%.3fs edit+save=%.3fs", tOpen - t0, now() - tOpen)
+    case "save-patch", "save-patch-num":
+        // Mở lười + sửa 1 ô bằng SheetPatcher (không dựng DOM sheet) + lưu truyền phát.
+        // "-num" ghi số thay cho chuỗi để tách chi phí tra bảng chuỗi dùng chung.
+        let wb = try Workbook(contentsOf: url, deferValidation: true, lazyModel: true)
+        // OOXML_BENCH_NOFAST=1: tắt nén nhanh cho phần lớn, để so với mức nén mặc định.
+        if ProcessInfo.processInfo.environment["OOXML_BENCH_NOFAST"] == "1" { wb.package.fastCompressionThreshold = nil }
+        let tOpen = now()
+        let patcher = try wb.patcher(forSheetAt: 0)
+        let tInit = now()
+        try patcher.setValue(mode.hasSuffix("num") ? .number(42) : .string("bench"), at: "A1")
+        try patcher.commit()
+        let tPatch = now()
+        FileHandle.standardError.write(Data(String(format: "  [patch] init=%.3fs commit=%.3fs\n", tInit - tOpen, tPatch - tInit).utf8))
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("bench-out-patch-\(getpid()).xlsx")
+        try wb.saveStreaming(to: out)
+        try? FileManager.default.removeItem(at: out)
+        detail = String(format: "open=%.3fs patch=%.3fs saveStream=%.3fs xmlParsed=%d", tOpen - t0, tPatch - tOpen, now() - tPatch, wb.package.loadedXMLPartCount)
     case "save-stream":
         let wb = try Workbook(contentsOf: url, deferValidation: true)
         let tOpen = now()
@@ -103,6 +157,38 @@ func run(mode: String, path: String) throws {
         let tOpen = now()
         let v = try wb.worksheet(at: 0).value("A1")
         detail = String(format: "open=%.3fs sheetAccess=%.3fs A1=%@", tOpen - t0, now() - tOpen, "\(v)")
+    case "rows-window", "rows-all":
+        // Mở lười + đọc 100 hàng đầu (màn hình đầu tiên) hoặc toàn bộ hàng theo lô 1.000, qua SheetRowReader.
+        let wb = try Workbook(contentsOf: url, deferValidation: true, lazyModel: true)
+        let tOpen = now()
+        let reader = try wb.rowReader(forSheetAt: 0)
+        let tIndex = now()
+        var count = 0
+        if mode == "rows-window" {
+            count = try reader.cells(inRows: 1...100).count
+        } else {
+            var r = 1
+            while r <= reader.lastRowNumber {
+                count += try reader.cells(inRows: r...(r + 999)).count
+                r += 1000
+            }
+        }
+        detail = String(format: "open=%.3fs index=%.3fs read=%.3fs rows=%d cells=%d xmlParsed=%d",
+                        tOpen - t0, tIndex - tOpen, now() - tIndex, reader.rowCount, count, wb.package.loadedXMLPartCount)
+    case "deflate-part":
+        // Đo riêng bộ nén: giải nén 1 part rồi nén lại ở từng mức (đối số phụ: tên part).
+        let part = CommandLine.arguments.count > 4 ? CommandLine.arguments[4] : "xl/worksheets/sheet1.xml"
+        let z = try ZipArchive(contentsOf: url)
+        let d = try z.contents(of: part)
+        var parts: [String] = []
+        for (name, level) in [("fast", Deflate.Level.fast), ("default", .default), ("best", .best)] {
+            let t = now()
+            let c = Deflate.compress(d, level: level)
+            parts.append(String(format: "%@=%.3fs/%.2fMB", name, now() - t, Double(c.count) / 1e6))
+        }
+        let tInflate = now()
+        _ = try z.contents(of: part)
+        detail = String(format: "part=%@ raw=%.1fMB inflate=%.3fs ", part, Double(d.count) / 1e6, now() - tInflate) + parts.joined(separator: " ")
     case "parse-part":
         // Đối số phụ: tên part cần parse DOM riêng (đo trọng lượng DOM từng part).
         let part = CommandLine.arguments.count > 4 ? CommandLine.arguments[4] : "xl/worksheets/sheet1.xml"
@@ -139,5 +225,6 @@ let a = CommandLine.arguments
 do {
     if a.count == 4, a[1] == "gen", let n = Int(a[2]) { try generate(targetBytes: n, to: a[3]) }
     else if a.count >= 4, a[1] == "run" { try run(mode: a[2], path: a[3]) }
-    else { print("dùng: ooxml-bench gen <bytes> <out.xlsx> | run <mode> <file.xlsx>"); exit(2) }
+    else if a.count == 4, a[1] == "eval" { try evalFormulas(path: a[2], sheet: a[3]) }
+    else { print("dùng: ooxml-bench gen <bytes> <out.xlsx> | run <mode> <file.xlsx> | eval <file.xlsx> <sheet>"); exit(2) }
 } catch { print("LỖI: \(error)"); exit(1) }

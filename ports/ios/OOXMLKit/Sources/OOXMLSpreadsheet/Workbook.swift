@@ -34,6 +34,13 @@ public final class Workbook {
     public let workbookPart: PartName
     let document: XDocument
     public private(set) var sharedStrings: SharedStrings?
+    /// Bảng chuỗi chia sẻ LƯỜI (chỉ có khi mở bằng `lazyModel: true`):
+    /// lúc mở chỉ quét chỉ mục offset, không parse DOM `<sst>`.
+    /// Khi có nó, `sharedStrings` (eager) giữ `nil`.
+    var lazySharedStrings: LazySharedStrings?
+    private var lazySharedStringsPart: PartName?
+    /// Mở bằng đường lười (`lazyModel: true`) hay đường eager mặc định.
+    public private(set) var isLazyModel = false
     public let styles: StyleSheet?
     private final class WeakSheet { weak var sheet: Worksheet?; init(_ s: Worksheet) { sheet = s } }
     /// Cache yếu (tránh vòng tham chiếu): mọi sửa đổi nằm trong DOM của gói, nên tạo lại Worksheet luôn nhất quán.
@@ -60,14 +67,34 @@ public final class Workbook {
         try self.init(package: OPCPackage(data: data, deferValidation: deferValidation))
     }
 
-    public init(package: OPCPackage) throws {
+    /// Mở LƯỜI THEO MÔ HÌNH (opt-in, gói M2b giai đoạn A — issue #10):
+    /// bảng chuỗi chia sẻ chỉ quét chỉ mục offset, không parse DOM `<sst>`
+    /// lúc mở; chuỗi chỉ giải mã khi ô đọc tới. Mặc định eager giữ nguyên.
+    /// `deferValidation` vẫn áp dụng như đường mở lười (`init(contentsOf:deferValidation:)`).
+    public convenience init(contentsOf url: URL, deferValidation: Bool, lazyModel: Bool) throws {
+        try self.init(package: OPCPackage(contentsOf: url, deferValidation: deferValidation), lazyModel: lazyModel)
+    }
+
+    /// Như trên, mở từ dữ liệu trong bộ nhớ.
+    public convenience init(data: Data, deferValidation: Bool, lazyModel: Bool) throws {
+        try self.init(package: OPCPackage(data: data, deferValidation: deferValidation), lazyModel: lazyModel)
+    }
+
+    public init(package: OPCPackage, lazyModel: Bool = false) throws {
         self.package = package
+        self.isLazyModel = lazyModel
         guard let main = try? package.mainDocumentPart(), package.hasPart(main) else { throw SpreadsheetError.notASpreadsheet }
         workbookPart = main
         document = try package.xml(main)
         guard document.root.is(NS.s, "workbook") else { throw SpreadsheetError.notASpreadsheet }
         if let p = try package.relatedPart(from: main, .sharedStrings), package.hasPart(p) {
-            sharedStrings = try SharedStrings(package: package, part: p)
+            if lazyModel {
+                // Chỉ lấy byte thô của part, KHÔNG parse DOM `<sst>` lúc mở.
+                lazySharedStrings = try LazySharedStrings(data: package.data(of: p))
+                lazySharedStringsPart = p
+            } else {
+                sharedStrings = try SharedStrings(package: package, part: p)
+            }
         }
         if let p = try package.relatedPart(from: main, .styles), package.hasPart(p) {
             styles = try StyleSheet(package: package, part: p)
@@ -292,6 +319,110 @@ public final class Workbook {
             DefinedName(name: $0.attribute("name") ?? "", localSheetIndex: $0.attribute("localSheetId").flatMap { Int($0) },
                         formula: $0.textContent, hidden: $0.attribute("hidden") == "1")
         }
+    }
+
+    // MARK: Tên định nghĩa (M7 lát 31)
+
+    /// Thêm hoặc cập nhật một tên định nghĩa (named range) do người dùng đặt, ghi vào
+    /// `xl/workbook.xml` để `save()` giữ lại (mở lại vẫn thấy; `FormulaEngine(workbook:)` nạp để tính).
+    /// - Parameters:
+    ///   - name: tên theo quy tắc Excel (không giống địa chỉ ô, không khoảng trắng, không tiền tố `_xlnm`).
+    ///   - formula: đích của tên — vùng/ô (`Sheet!$A$1:$B$2`), hằng (`1.5`) hay biểu thức;
+    ///     dấu `=` đầu (nếu có) được bỏ. Tham chiếu tới workbook ngoài chưa hỗ trợ nên bị từ chối.
+    ///   - localSheet: tên sheet làm phạm vi cục bộ; `nil` = phạm vi workbook. Cùng tên + cùng
+    ///     phạm vi thì lần định nghĩa sau ghi đè lần trước (như Name Manager của Excel).
+    ///   - hidden: tên ẩn (không hiện trong Name Manager nhưng công thức vẫn tính được).
+    public func defineName(_ name: String, formula: String, localSheet: String? = nil, hidden: Bool = false) throws {
+        let key = try Workbook.validateDefinedName(name)
+        var text = formula.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.hasPrefix("=") { text.removeFirst() }
+        guard !text.isEmpty else {
+            throw SpreadsheetError.invalidDefinedName("công thức của tên \"\(key)\" đang trống")
+        }
+        guard let expr = try? FormulaParser.parse(text) else {
+            throw SpreadsheetError.invalidDefinedName("không phân tích được công thức \"\(text)\" của tên \"\(key)\"")
+        }
+        // M7 lát 32: tham chiếu tới workbook ngoài (`[Sách.xlsx]Sheet!A1`) chưa hỗ trợ —
+        // tên sheet Excel không chứa `[` nên mọi sheet có `[` đều là workbook ngoài.
+        // (Chỉ xét tham chiếu ô/vùng đã phân tích, không xét chuỗi hằng như "a[b".)
+        if let ext = expr.references.compactMap({ $0.sheet }).first(where: { $0.contains("[") }) {
+            throw SpreadsheetError.invalidDefinedName("tên \"\(key)\" tham chiếu tới workbook ngoài \"\(ext)\" — chưa hỗ trợ")
+        }
+        let localIndex = try localSheetIndex(for: localSheet)
+        let dns = document.root.firstChild(NS.s, "definedNames") ?? {
+            let element = XElement(name: document.root.qualifiedName("definedNames", in: NS.s).name)
+            document.root.insertChild(element, schemaOrder: Workbook.workbookOrder)
+            return element
+        }()
+        if let existing = dns.children(NS.s, "definedName").first(where: {
+            ($0.attribute("name") ?? "").caseInsensitiveCompare(key) == .orderedSame
+                && $0.attribute("localSheetId").flatMap(Int.init) == localIndex
+        }) {
+            existing.setText(text)
+            if hidden { existing.setAttribute("hidden", "1") } else { existing.removeAttribute("hidden") }
+        } else {
+            var attrs = [XAttribute(name: "name", value: key)]
+            if let li = localIndex { attrs.append(XAttribute(name: "localSheetId", value: String(li))) }
+            if hidden { attrs.append(XAttribute(name: "hidden", value: "1")) }
+            let element = XElement(name: document.root.qualifiedName("definedName", in: NS.s).name, attributes: attrs)
+            element.setText(text)
+            dns.append(element)
+        }
+        package.markModified(workbookPart)
+    }
+
+    /// Gỡ một tên định nghĩa (phạm vi workbook hoặc cục bộ `localSheet`).
+    public func removeDefinedName(_ name: String, localSheet: String? = nil) throws {
+        let key = try Workbook.validateDefinedName(name)
+        let localIndex = try localSheetIndex(for: localSheet)
+        guard let dns = document.root.firstChild(NS.s, "definedNames"),
+              let element = dns.children(NS.s, "definedName").first(where: {
+                  ($0.attribute("name") ?? "").caseInsensitiveCompare(key) == .orderedSame
+                      && $0.attribute("localSheetId").flatMap(Int.init) == localIndex
+              }) else {
+            throw SpreadsheetError.invalidDefinedName("không có tên \"\(key)\"\(localSheet.map { " trên sheet \"\($0)\"" } ?? "") để gỡ")
+        }
+        element.removeFromParent()
+        if dns.elements.isEmpty { dns.removeFromParent() }
+        package.markModified(workbookPart)
+    }
+
+    /// Chỉ số sheet của tên cục bộ (`nil` = phạm vi workbook).
+    private func localSheetIndex(for localSheet: String?) throws -> Int? {
+        guard let localSheet else { return nil }
+        guard let index = sheets.firstIndex(where: { $0.name.caseInsensitiveCompare(localSheet) == .orderedSame }) else {
+            throw SpreadsheetError.sheetNotFound(localSheet)
+        }
+        return index
+    }
+
+    /// Kiểm tra tên định nghĩa theo quy tắc Excel; trả về tên gốc khi hợp lệ.
+    public static func validateDefinedName(_ name: String) throws -> String {
+        let lower = name.lowercased()
+        guard !name.isEmpty, name.count <= 255 else {
+            throw SpreadsheetError.invalidDefinedName("tên \"\(name)\" phải dài 1–255 ký tự")
+        }
+        guard !lower.hasPrefix("_xlnm") else {
+            throw SpreadsheetError.invalidDefinedName("tên \"\(name)\" dùng tiền tố hệ thống _xlnm")
+        }
+        guard lower != "c" && lower != "r" else {
+            throw SpreadsheetError.invalidDefinedName("tên \"\(name)\" trùng với hàng/cột hiện tại (C/R)")
+        }
+        if name.range(of: "^[A-Za-z]{1,3}[0-9]+$", options: .regularExpression) != nil {
+            throw SpreadsheetError.invalidDefinedName("tên \"\(name)\" trông giống địa chỉ ô (dạng A1)")
+        }
+        if name.range(of: "^R[0-9]*C[0-9]*$", options: [.regularExpression, .caseInsensitive]) != nil {
+            throw SpreadsheetError.invalidDefinedName("tên \"\(name)\" trông giống địa chỉ ô (dạng R1C1)")
+        }
+        guard let first = name.unicodeScalars.first,
+              CharacterSet.letters.contains(first) || first == "_" || first == "\\" else {
+            throw SpreadsheetError.invalidDefinedName("tên \"\(name)\" phải bắt đầu bằng chữ, _ hoặc \\")
+        }
+        let allowed = CharacterSet.letters.union(.decimalDigits).union(CharacterSet(charactersIn: "_.\\"))
+        guard name.unicodeScalars.allSatisfy({ allowed.contains($0) }) else {
+            throw SpreadsheetError.invalidDefinedName("tên \"\(name)\" chỉ được chứa chữ, số, _ . \\")
+        }
+        return name
     }
 
     static let workbookOrder = ["fileVersion", "fileSharing", "workbookPr", "workbookProtection", "bookViews", "sheets",
@@ -519,6 +650,53 @@ public final class Workbook {
         return s
     }
 
+    // MARK: Bảng chuỗi chia sẻ — chuyển tiếp eager/lười (M2b A2)
+
+    /// Văn bản của chuỗi chia sẻ thứ `index` (`nil` ngoài phạm vi).
+    /// Đường lười chỉ giải mã mục được hỏi (cache LRU 1.024 mục).
+    func string(at index: Int) -> String? {
+        if let lazy = lazySharedStrings { return lazy[index] }
+        return sharedStrings?[index]
+    }
+
+    /// Mục thứ `index` có phải rich text không.
+    func isRichText(at index: Int) -> Bool {
+        if let lazy = lazySharedStrings { return lazy.isRichText(index) }
+        return sharedStrings?.isRichText(index) ?? false
+    }
+
+    /// Chỉ số của chuỗi thuần (dùng lại nếu đã có, ngược lại thêm mới ở
+    /// cuối). Đường lười: chuỗi mới vào đuôi chờ, ghi ra ở lần lưu sau.
+    func stringIndex(for text: String) throws -> Int {
+        if isLazyModel { return try lazySharedStringsCreatingIfNeeded().index(for: text) }
+        return try sharedStringsCreatingIfNeeded().index(for: text)
+    }
+
+    /// Tạo phần sharedStrings mới cho workbook chưa có (đường lười): ghi
+    /// trực tiếp byte `<sst>` rỗng, không parse DOM.
+    func lazySharedStringsCreatingIfNeeded() throws -> LazySharedStrings {
+        if let l = lazySharedStrings { return l }
+        let part = PartName(workbookPart.directory + "/sharedStrings.xml")
+        let data = Data("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><sst xmlns=\"\(NS.s.primaryURI)\" count=\"0\" uniqueCount=\"0\"></sst>".utf8)
+        package.setData(data, for: part, contentType: ContentType.sharedStrings)
+        _ = try package.relationships(of: workbookPart).add(.sharedStrings, to: part)
+        let l = try LazySharedStrings(data: data)
+        lazySharedStrings = l
+        lazySharedStringsPart = part
+        return l
+    }
+
+    /// Đẩy byte sharedStrings lười đã đổi vào gói trước khi lưu. Không bẩn
+    /// thì không đụng tới part (giữ nguyên byte nén gốc khi lưu không sửa).
+    private func flushLazySharedStrings() {
+        guard isLazyModel, let lazy = lazySharedStrings, let part = lazySharedStringsPart,
+              lazy.hasUnwrittenChanges else { return }
+        package.setData(lazy.serializedData(), for: part)
+    }
+
+    /// Trang tính của `part` đang được giữ ở dạng DOM (đã mở bằng `worksheet(…)` và còn sống).
+    func isWorksheetLoaded(_ part: PartName) -> Bool { loaded[part]?.sheet != nil }
+
     func invalidateCalcChain() { calcChainInvalid = true }
     func requestRecalculation() { needsRecalculation = true }
 
@@ -550,12 +728,14 @@ public final class Workbook {
 
     public func save() throws -> Data {
         try applyCalculationState()
+        flushLazySharedStrings()
         return try package.save()
     }
 
     /// Lưu an toàn (ghi tạm → kiểm tra → thay nguyên tử).
     public func save(to url: URL) throws {
         try applyCalculationState()
+        flushLazySharedStrings()
         try package.save(to: url)
     }
 
@@ -566,6 +746,7 @@ public final class Workbook {
     /// gọi tường minh hàm này mới đi đường truyền phát.
     public func saveStreaming(to url: URL) throws {
         try applyCalculationState()
+        flushLazySharedStrings()
         try package.saveStreaming(to: url)
     }
 

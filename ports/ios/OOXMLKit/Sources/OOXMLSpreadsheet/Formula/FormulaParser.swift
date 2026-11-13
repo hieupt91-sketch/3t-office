@@ -10,6 +10,8 @@ public indirect enum FormulaExpr: Equatable {
     case range(sheet: String?, range: CellRange)
     case name(String)
     case unary(String, FormulaExpr)          // "-" hoặc "+"
+    case intersect(FormulaExpr) // toán tử giao ngầm "@" (M7 lát 36): ép mảng/vùng về một ô theo vị trí ô công thức
+    case spill(FormulaExpr) // toán tử tràn "#" (M7 lát 37): vùng tràn neo tại ô, ví dụ A1#
     case percent(FormulaExpr)
     case binary(String, FormulaExpr, FormulaExpr)
     case call(String, [FormulaExpr])
@@ -24,7 +26,7 @@ public indirect enum FormulaExpr: Equatable {
         switch self {
         case .cell(let s, let r): return [(s, CellRange(r, r))]
         case .range(let s, let r): return [(s, r)]
-        case .unary(_, let e), .percent(let e): return e.references
+        case .unary(_, let e), .percent(let e), .intersect(let e), .spill(let e): return e.references
         case .binary(_, let a, let b): return a.references + b.references
         case .empty, .array: return []
         case .call(_, let args): return args.flatMap { $0.references }
@@ -72,13 +74,31 @@ public enum FormulaParser {
             return (c1, c2)
         }
 
-        /// Tại vị trí hiện tại (đang trỏ vào .number) có mẫu "<hàng>:<hàng>" hay không; nếu có trả hai số hàng.
+        /// Số hàng của một token: `.number` nguyên trong giới hạn, hoặc `.name` dạng
+        /// "$1" (tokenizer cho `$` đầu hàng thành tên vì `$` mở định danh).
+        func rowNumber(_ token: FormulaToken) -> Int? {
+            switch token {
+            case .number(let d):
+                guard d == d.rounded(), (1...Double(CellReference.maxRow)).contains(d) else { return nil }
+                return Int(d)
+            case .name(let s):
+                let digits = s.replacingOccurrences(of: "$", with: "")
+                guard !digits.isEmpty, digits.allSatisfy({ $0.isNumber }),
+                      let r = Int(digits), (1...CellReference.maxRow).contains(r) else { return nil }
+                return r
+            default:
+                return nil
+            }
+        }
+
+        /// Tại vị trí hiện tại (đang trỏ vào .number hoặc .name "$<số>") có mẫu
+        /// "<hàng>:<hàng>" hay không; nếu có trả hai số hàng.
         func wholeRowPair() -> (Int, Int)? {
             guard pos + 2 < tokens.count,
-                  case .number(let a) = tokens[pos], a == a.rounded(), (1...Double(CellReference.maxRow)).contains(a),
+                  let r1 = rowNumber(tokens[pos]),
                   case .colon = tokens[pos + 1],
-                  case .number(let b) = tokens[pos + 2], b == b.rounded(), (1...Double(CellReference.maxRow)).contains(b) else { return nil }
-            return (Int(a), Int(b))
+                  let r2 = rowNumber(tokens[pos + 2]) else { return nil }
+            return (r1, r2)
         }
 
         static func columnRange(_ c1: Int, _ c2: Int) -> CellRange {
@@ -121,11 +141,14 @@ public enum FormulaParser {
         }
         mutating func parseUnary() throws -> FormulaExpr {
             if let o = matchOp(["-", "+"]) { return .unary(o, try parseUnary()) }
+            if case .at? = peek { pos += 1; return .intersect(try parseUnary()) }
             return try parsePostfix()
         }
         mutating func parsePostfix() throws -> FormulaExpr {
             var e = try parsePrimary()
             while true {
+                // Toán tử tràn "#" (M7 lát 37): hậu tố chặt nhất, chỉ sau tham chiếu.
+                if case .spill? = peek { pos += 1; e = .spill(e); continue }
                 if case .percent? = peek { pos += 1; e = .percent(e); continue }
                 // Gọi giá trị hàm: `LAMBDA(...)(...)`, `(expr)(...)` (M7 lát 28).
                 if case .lparen? = peek {
@@ -165,6 +188,7 @@ public enum FormulaParser {
             case .error(let e): pos += 1; return .error(e)
             case .name(let n):
                 if let (c1, c2) = wholeColumnPair() { pos += 3; return .range(sheet: nil, range: Parser.columnRange(c1, c2)) }
+                if let (r1, r2) = wholeRowPair() { pos += 3; return .range(sheet: nil, range: Parser.rowRange(r1, r2)) }
                 pos += 1; return .name(n)
             case .lbrace:
                 pos += 1

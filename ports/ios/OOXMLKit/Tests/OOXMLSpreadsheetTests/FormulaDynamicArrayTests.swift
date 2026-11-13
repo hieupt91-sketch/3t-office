@@ -10,6 +10,16 @@ import XCTest
 /// M7 lát 27: TEXTSPLIT / TEXTBEFORE / TEXTAFTER (INBOX-MAC #17).
 /// M7 lát 28: LAMBDA — giá trị hàm, gọi trực tiếp, qua LET, qua tên định nghĩa (đệ quy).
 /// M7 lát 29: MAP / BYROW / BYCOL / SCAN / REDUCE / MAKEARRAY (INBOX-MAC #17).
+/// M7 lát 34: MMULT / MUNIT (INBOX-MAC #17).
+/// M7 lát 35: EXPAND (INBOX-MAC #17).
+/// M7 lát 36: toán tử giao ngầm "@" (INBOX-MAC #17).
+/// M7 lát 37: toán tử tràn "#" (INBOX-MAC #17).
+/// M7 lát 38: GROUPBY (INBOX-MAC #17).
+/// M7 lát 39: PIVOTBY (INBOX-MAC #17).
+/// M7 lát 40: ARRAYTOTEXT / VALUETOTEXT (INBOX-MAC #17).
+/// M7 lát 41: INDIRECT (INBOX-MAC #17).
+/// M7 lát 42: MAXIFS / MINIFS / AVERAGEIFS (INBOX-MAC #17).
+/// M7 lát 43: FREQUENCY (INBOX-MAC #17).
 /// Giá trị kỳ vọng theo Excel: SEQUENCE cắt phần lẻ hàng/cột về nguyên,
 /// TRANSPOSE đổi hàng ↔ cột, ô lỗi đi qua nguyên vẹn; SORT ổn định, rỗng
 /// luôn cuối; FILTER cần bao_gồm logic đúng hình; UNIQUE so trùng không
@@ -1268,6 +1278,95 @@ final class FormulaDynamicArrayTests: XCTestCase {
                        "lần 1.9 cắt về 1")
     }
 
+    // MARK: INDIRECT (M7 lát 41, INBOX-MAC #17)
+
+    func testIndirectSingleCell() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=INDIRECT(\"A1\")"), .number(1))
+        XCTAssertEqual(calc(e, "=INDIRECT(\"B2\")"), .number(4))
+        XCTAssertEqual(calc(e, "=INDIRECT(\"Data!B1\")"), .number(2))
+        XCTAssertEqual(calc(e, "=INDIRECT(\"$A$1\")"), .number(1), "dấu $ bỏ qua")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"a1\")"), .number(1), "không phân biệt hoa/thường")
+    }
+
+    func testIndirectQuotedSheet() {
+        let e = engine()
+        e.addSheet("Du lieu")
+        e.setValue(.number(7), sheet: "Du lieu", at: "A1")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"'Du lieu'!A1\")"), .number(7))
+    }
+
+    func testIndirectRangeAsFunctionArg() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=SUM(INDIRECT(\"A1:B2\"))"), .number(10))
+        XCTAssertEqual(calc(e, "=AVERAGE(INDIRECT(\"A1:A2\"))"), .number(2))
+        XCTAssertEqual(calc(e, "=INDIRECT(\"A1:B2\")"), .error("#VALUE!"),
+                       "vùng nhiều ô ở vị trí scalar → #VALUE!")
+    }
+
+    func testIndirectRangeViaCSE() {
+        XCTAssertEqual(cse(engine(), "=INDIRECT(\"A1:B2\")", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)])
+    }
+
+    func testPlainRangeCSEMapsByOffset() {
+        // Hồi quy cho sửa scalar() lát 41: vùng thường trong CSE cũng ánh xạ
+        // theo độ lệch gốc vùng mảng (trước đây trả #VALUE! ở cả 4 ô).
+        XCTAssertEqual(cse(engine(), "=A1:B2", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)])
+    }
+
+    func testIndirectR1C1Absolute() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=INDIRECT(\"R1C1\",FALSE)"), .number(1))
+        XCTAssertEqual(calc(e, "=INDIRECT(\"R2C2\",FALSE)"), .number(4))
+        XCTAssertEqual(calc(e, "=SUM(INDIRECT(\"R1C1:R2C2\",FALSE))"), .number(10))
+        XCTAssertEqual(calc(e, "=INDIRECT(\"r2c1\",FALSE)"), .number(3), "R/C không phân biệt hoa/thường")
+    }
+
+    func testIndirectR1C1Relative() {
+        let e = engine()
+        e.setValue(.number(42), sheet: "Data", at: "D4")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"R[-1]C[-1]\",FALSE)", at: "E5"), .number(42),
+                       "tương đối so với ô công thức E5 → D4")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"R1C[-4]\",FALSE)", at: "E5"), .number(1),
+                       "hàng tuyệt đối + cột tương đối → A1")
+    }
+
+    func testIndirectDefinedName() {
+        let e = engine()
+        e.defineName("Tong", sheet: "Data", range: CellRange(CellReference(column: 1, row: 1), CellReference(column: 1, row: 2)))
+        e.defineName("Gia", sheet: "Data", range: CellRange(CellReference(column: 2, row: 1), CellReference(column: 2, row: 1)))
+        XCTAssertEqual(calc(e, "=SUM(INDIRECT(\"Tong\"))"), .number(4))
+        XCTAssertEqual(calc(e, "=INDIRECT(\"Gia\")"), .number(2), "tên trỏ một ô → giá trị ô")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"tong\")"), .error("#VALUE!"),
+                       "tên vùng nhiều ô ở vị trí scalar → #VALUE!")
+    }
+
+    func testIndirectInvalid() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=INDIRECT(\"Xyz\")"), .error("#REF!"), "tên không tồn tại")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"1+1\")"), .error("#REF!"), "không phải tham chiếu")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"SUM(A1)\")"), .error("#REF!"), "không tính biểu thức")
+        XCTAssertEqual(calc(e, "=INDIRECT(123)"), .error("#REF!"), "số → chuỗi không phải tham chiếu")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"\")"), .error("#REF!"), "chuỗi rỗng")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"NoSheet!A1\")"), .error("#REF!"), "sheet không tồn tại")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"A1\",FALSE)"), .error("#REF!"), "\"A1\" không phải R1C1")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"R0C1\",FALSE)"), .error("#REF!"), "hàng 0")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"R1C99999\",FALSE)"), .error("#REF!"), "cột vượt XFD")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"B:B\")"), .error("#VALUE!"), "cả cột ở vị trí scalar")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"2:2\")"), .error("#VALUE!"), "cả hàng ở vị trí scalar")
+    }
+
+    func testIndirectErrorPropagationAndBadArgs() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=INDIRECT(1/0)"), .error("#DIV/0!"))
+        XCTAssertEqual(calc(e, "=INDIRECT(\"A1\",\"x\")"), .error("#VALUE!"), "a1 không ép được bool")
+        XCTAssertEqual(calc(e, "=INDIRECT()"), .error("#VALUE!"), "thiếu đối số")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"A1\",TRUE,1)"), .error("#VALUE!"), "thừa đối số")
+        XCTAssertEqual(calc(e, "=INDIRECT(\"A1\",0)"), .error("#REF!"), "a1=0 → kiểu R1C1, \"A1\" sai")
+    }
+
     // MARK: TEXTSPLIT (M7 lát 27, INBOX-MAC #17)
 
     func testTextSplitBasicColumns() {
@@ -1756,6 +1855,402 @@ final class FormulaDynamicArrayTests: XCTestCase {
                        "4.000.000 ô vượt giới hạn 1.000.000 phần tử")
     }
 
+    // MARK: MMULT / MUNIT (lát 34)
+
+    func testMmultSquareViaCSE() {
+        let e = engine()
+        e.setValue(.number(5), sheet: "Data", at: "C1")
+        e.setValue(.number(6), sheet: "Data", at: "D1")
+        e.setValue(.number(7), sheet: "Data", at: "C2")
+        e.setValue(.number(8), sheet: "Data", at: "D2")
+        XCTAssertEqual(cse(e, "=MMULT(A1:B2,C1:D2)", "F1:G2"),
+                       [.number(19), .number(22), .number(43), .number(50)],
+                       "1*5+2*7=19, 1*6+2*8=22, 3*5+4*7=43, 3*6+4*8=50")
+    }
+
+    func testMmultRectangularViaCSE() {
+        XCTAssertEqual(cse(engine(), "=MMULT({1,2,3;4,5,6},{7,8;9,10;11,12})", "D1:E2"),
+                       [.number(58), .number(64), .number(139), .number(154)],
+                       "2x3 · 3x2 = 2x2")
+    }
+
+    func testMmultVectorAndScalar() {
+        XCTAssertEqual(calc(engine(), "=MMULT({1,2,3},{4;5;6})"), .number(32),
+                       "1*4+2*5+3*6=32, tích vô hướng ra 1x1")
+        XCTAssertEqual(calc(engine(), "=MMULT(2,3)"), .number(6), "vô hướng coi như 1x1")
+    }
+
+    func testMmultInSum() {
+        let e = engine()
+        e.setValue(.number(5), sheet: "Data", at: "C1")
+        e.setValue(.number(6), sheet: "Data", at: "D1")
+        e.setValue(.number(7), sheet: "Data", at: "C2")
+        e.setValue(.number(8), sheet: "Data", at: "D2")
+        XCTAssertEqual(calc(e, "=SUM(MMULT(A1:B2,C1:D2))"), .number(134), "19+22+43+50")
+    }
+
+    func testMmultDimensionMismatchAndArgCount() {
+        XCTAssertEqual(calc(engine(), "=MMULT(A1:B2,A1:C1)"), .error("#VALUE!"),
+                       "2 cột ≠ 1 hàng")
+        XCTAssertEqual(calc(engine(), "=MMULT(A1:B2)"), .error("#VALUE!"), "thiếu đối số")
+        XCTAssertEqual(calc(engine(), "=MMULT(A1:B2,C1:D2,A1)"), .error("#VALUE!"), "thừa đối số")
+        XCTAssertEqual(calc(engine(), "=MMULT({1e308,1e308},{1e308;1e308})"), .error("#NUM!"),
+                       "tràn số → #NUM!")
+    }
+
+    func testMmultTextAndEmptyAreValueError() {
+        let e = engine()
+        e.setValue(.string("x"), sheet: "Data", at: "C1")
+        e.setValue(.number(6), sheet: "Data", at: "D1")
+        e.setValue(.number(7), sheet: "Data", at: "C2")
+        e.setValue(.number(8), sheet: "Data", at: "D2")
+        XCTAssertEqual(calc(e, "=MMULT(A1:B2,C1:D2)"), .error("#VALUE!"), "ô chữ → #VALUE!")
+        XCTAssertEqual(calc(engine(), "=MMULT(A1:B2,A1:C2)"), .error("#VALUE!"),
+                       "C1:C2 rỗng → #VALUE! (2x2 · 2x3, khớp chiều nhưng có ô rỗng)")
+        let e3 = engine()
+        e3.setValue(.string("3"), sheet: "Data", at: "C1")
+        e3.setValue(.number(6), sheet: "Data", at: "D1")
+        e3.setValue(.number(7), sheet: "Data", at: "C2")
+        e3.setValue(.number(8), sheet: "Data", at: "D2")
+        XCTAssertEqual(calc(e3, "=MMULT(A1:B2,C1:D2)"), .error("#VALUE!"),
+                       "chuỗi số vẫn là chuỗi → #VALUE!")
+    }
+
+    func testMmultBoolCoercedAndErrorPropagates() {
+        let e = engine()
+        e.setValue(.bool(true), sheet: "Data", at: "C1")
+        e.setValue(.number(2), sheet: "Data", at: "D1")
+        e.setValue(.number(3), sheet: "Data", at: "C2")
+        e.setValue(.number(4), sheet: "Data", at: "C3")
+        XCTAssertEqual(calc(e, "=MMULT(C1:D1,C2:C3)"), .number(11),
+                       "TRUE→1: 1*3+2*4=11")
+        let e2 = engine()
+        e2.setFormula("=1/0", sheet: "Data", at: "C1")
+        e2.setValue(.number(6), sheet: "Data", at: "D1")
+        e2.setValue(.number(7), sheet: "Data", at: "C2")
+        e2.setValue(.number(8), sheet: "Data", at: "D2")
+        XCTAssertEqual(calc(e2, "=MMULT(A1:B2,C1:D2)"), .error("#DIV/0!"),
+                       "ô lỗi trong mảng → lan nguyên vẹn")
+    }
+
+    func testMunitBasic() {
+        XCTAssertEqual(cse(engine(), "=MUNIT(2)", "D1:E2"),
+                       [.number(1), .number(0), .number(0), .number(1)])
+        XCTAssertEqual(cse(engine(), "=MUNIT(3)", "D1:F3"),
+                       [.number(1), .number(0), .number(0),
+                        .number(0), .number(1), .number(0),
+                        .number(0), .number(0), .number(1)])
+        XCTAssertEqual(calc(engine(), "=MUNIT(1)"), .number(1), "cấp 1 ra 1x1")
+    }
+
+    func testMunitTruncatesAndRejects() {
+        XCTAssertEqual(cse(engine(), "=MUNIT(2.7)", "D1:E2"),
+                       [.number(1), .number(0), .number(0), .number(1)],
+                       "2.7 cắt về 2 như SEQUENCE")
+        XCTAssertEqual(calc(engine(), "=MUNIT(0)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(engine(), "=MUNIT(-2)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(engine(), "=MUNIT(\"x\")"), .error("#VALUE!"))
+        XCTAssertEqual(calc(engine(), "=MUNIT()"), .error("#VALUE!"))
+        XCTAssertEqual(calc(engine(), "=MUNIT(2,2)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(engine(), "=MUNIT(1/0)"), .error("#DIV/0!"), "lỗi lan nguyên vẹn")
+    }
+
+    func testMunitOversizeIsCalcError() {
+        XCTAssertEqual(calc(engine(), "=MUNIT(2000)"), .error("#CALC!"),
+                       "2000² = 4.000.000 ô vượt giới hạn 1.000.000 phần tử")
+    }
+
+    func testMmultIdentityProperty() {
+        XCTAssertEqual(cse(engine(), "=MMULT(MUNIT(2),A1:B2)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)],
+                       "đơn vị nhân vào giữ nguyên ma trận")
+        XCTAssertEqual(calc(engine(), "=SUM(MMULT(A1:B2,MUNIT(2)))"), .number(10),
+                       "nhân phải cũng giữ nguyên: 1+2+3+4")
+    }
+
+    // MARK: EXPAND (lát 35)
+
+    func testExpandBasicViaCSE() {
+        XCTAssertEqual(cse(engine(), "=EXPAND(A1:B2,3,3)", "D1:F3"),
+                       [.number(1), .number(2), .error("#N/A"),
+                        .number(3), .number(4), .error("#N/A"),
+                        .error("#N/A"), .error("#N/A"), .error("#N/A")],
+                       "2x2 mở thành 3x3, ô mới đệm #N/A mặc định")
+    }
+
+    func testExpandWithPadValue() {
+        XCTAssertEqual(cse(engine(), "=EXPAND(A1:B2,3,3,0)", "D1:F3"),
+                       [.number(1), .number(2), .number(0),
+                        .number(3), .number(4), .number(0),
+                        .number(0), .number(0), .number(0)],
+                       "đệm 0 thay cho #N/A")
+        XCTAssertEqual(cse(engine(), "=EXPAND(A1:B2,2,3,\"x\")", "D1:F2"),
+                       [.number(1), .number(2), .string("x"),
+                        .number(3), .number(4), .string("x")],
+                       "đệm chuỗi cũng được")
+    }
+
+    func testExpandRowsOnlyKeepsColumns() {
+        XCTAssertEqual(cse(engine(), "=EXPAND(A1:B2,4)", "D1:E4"),
+                       [.number(1), .number(2),
+                        .number(3), .number(4),
+                        .error("#N/A"), .error("#N/A"),
+                        .error("#N/A"), .error("#N/A")],
+                       "chỉ cho hàng: giữ nguyên 2 cột")
+        XCTAssertEqual(cse(engine(), "=EXPAND(A1:B2,2,2)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)],
+                       "cùng kích thước giữ nguyên mảng")
+    }
+
+    func testExpandTruncatesAndRejects() {
+        XCTAssertEqual(cse(engine(), "=EXPAND(A1:B2,2.7,2.9)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)],
+                       "2.7/2.9 cắt về 2 như SEQUENCE")
+        XCTAssertEqual(calc(engine(), "=EXPAND(A1:B2,1,2)"), .error("#VALUE!"),
+                       "hàng nhỏ hơn gốc")
+        XCTAssertEqual(calc(engine(), "=EXPAND(A1:B2,2,1)"), .error("#VALUE!"),
+                       "cột nhỏ hơn gốc")
+        XCTAssertEqual(calc(engine(), "=EXPAND(A1:B2,0,2)"), .error("#VALUE!"),
+                       "hàng 0")
+        XCTAssertEqual(calc(engine(), "=EXPAND(A1:B2,\"x\",2)"), .error("#VALUE!"),
+                       "hàng không phải số")
+        XCTAssertEqual(calc(engine(), "=EXPAND(A1:B2)"), .error("#VALUE!"),
+                       "thiếu đối số")
+        XCTAssertEqual(calc(engine(), "=EXPAND(A1:B2,3,3,0,0)"), .error("#VALUE!"),
+                       "thừa đối số")
+    }
+
+    func testExpandErrorPropagatesAndSourcePassesThrough() {
+        XCTAssertEqual(calc(engine(), "=EXPAND(A1:B2,1/0,2)"), .error("#DIV/0!"),
+                       "lỗi trong đối số hàng lan nguyên vẹn")
+        XCTAssertEqual(calc(engine(), "=EXPAND(A1:B2,3,3,1/0)"), .error("#DIV/0!"),
+                       "lỗi trong đối số đệm lan nguyên vẹn")
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "C1")
+        e.setValue(.number(6), sheet: "Data", at: "D1")
+        XCTAssertEqual(cse(e, "=EXPAND(C1:D1,2,2)", "F1:G2"),
+                       [.error("#DIV/0!"), .number(6),
+                        .error("#N/A"), .error("#N/A")],
+                       "ô lỗi trong mảng nguồn đi qua nguyên vẹn")
+    }
+
+    func testExpandOversizeIsCalcError() {
+        XCTAssertEqual(calc(engine(), "=EXPAND(A1,2000,2000)"), .error("#CALC!"),
+                       "2000x2000 = 4.000.000 ô vượt giới hạn 1.000.000 phần tử")
+    }
+
+    func testExpandCombined() {
+        XCTAssertEqual(calc(engine(), "=SUM(EXPAND(A1:B2,3,3,0))"), .number(10),
+                       "1+2+3+4, đệm 0 không đổi tổng")
+        XCTAssertEqual(cse(engine(), "=EXPAND(SEQUENCE(2,2),3,3,9)", "D1:F3"),
+                       [.number(1), .number(2), .number(9),
+                        .number(3), .number(4), .number(9),
+                        .number(9), .number(9), .number(9)],
+                       "SEQUENCE {1,2;3,4} mở thành 3x3 đệm 9")
+    }
+
+    // MARK: Toán tử giao ngầm "@" (M7 lát 36, INBOX-MAC #17)
+    /// Quy tắc Excel: vùng 1 cột lấy ô cùng hàng, vùng 1 hàng lấy ô cùng cột,
+    /// vùng nhiều hàng × nhiều cột lấy chính ô công thức (phải nằm trong vùng),
+    /// mảng tràn lấy phần tử góc trên-trái; ngoài vùng → #VALUE!;
+    /// giao nhau tại chính ô công thức → tham chiếu vòng → #REF!.
+
+    func testAtSingleColumnRangePicksRow() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=@A1:A2", at: "B2"), .number(3), "cột A, hàng 2 → A2 = 3")
+        XCTAssertEqual(calc(e, "=@A1:A2", at: "B1"), .number(1), "cột A, hàng 1 → A1 = 1")
+        XCTAssertEqual(calc(e, "=@A1:A2", at: "B5"), .error("#VALUE!"), "hàng 5 ngoài vùng")
+    }
+
+    func testAtSingleRowRangePicksColumn() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=@A1:B1", at: "B2"), .number(2), "hàng 1, cột B → B1 = 2")
+        XCTAssertEqual(calc(e, "=@A1:B1", at: "A2"), .number(1), "hàng 1, cột A → A1 = 1")
+        XCTAssertEqual(calc(e, "=@A1:B1", at: "C1"), .error("#VALUE!"), "cột C ngoài vùng")
+    }
+
+    func testAtRectangularRangeSelfIntersectIsCircular() {
+        XCTAssertEqual(calc(engine(), "=@A1:B2", at: "B2"), .error("#REF!"),
+                       "giao nhau tại chính ô công thức B2 → tham chiếu vòng")
+        XCTAssertEqual(calc(engine(), "=@A1:B2", at: "A1"), .error("#REF!"),
+                       "A1 cũng tự tham chiếu")
+        XCTAssertEqual(calc(engine(), "=@A1:B2", at: "A3"), .error("#VALUE!"), "hàng 3 ngoài vùng")
+        XCTAssertEqual(calc(engine(), "=@A1:B2", at: "C2"), .error("#VALUE!"), "cột C ngoài vùng")
+    }
+
+    func testAtSingleCellScalarAndDouble() {
+        XCTAssertEqual(calc(engine(), "=@A1"), .number(1), "vùng 1 ô → chính nó")
+        XCTAssertEqual(calc(engine(), "=@5"), .number(5), "scalar giữ nguyên")
+        XCTAssertEqual(calc(engine(), "=@@A1"), .number(1), "@ kép vô hại")
+        XCTAssertEqual(calc(engine(), "=@"), .error("#NAME?"), "@ trơ trọi → lỗi cú pháp")
+    }
+
+    func testAtSpilledFunctionReturnsTopLeft() {
+        XCTAssertEqual(calc(engine(), "=@SEQUENCE(3)"), .number(1), "mảng tràn: mỏ neo là ô công thức → phần tử đầu")
+        XCTAssertEqual(calc(engine(), "=@SORT({3;1;2})"), .number(1), "SORT {1;2;3} → góc trên-trái = 1")
+        XCTAssertEqual(calc(engine(), "=@{10,20;30,40}"), .number(10), "hằng mảng 2x2 → 10")
+    }
+
+    func testAtWholeColumnAndRow() {
+        let e = engine()
+        e.setValue(.number(9), sheet: "Data", at: "A3")
+        XCTAssertEqual(calc(e, "=@A:A", at: "B3"), .number(9), "cả cột A, hàng 3 → A3 = 9")
+        XCTAssertEqual(calc(e, "=@1:1", at: "B2"), .number(2), "cả hàng 1, cột B → B1 = 2")
+    }
+
+    func testAtCrossSheet() {
+        let e = engine()
+        e.addSheet("Other")
+        e.setFormula("=@Data!A1:B2", sheet: "Other", at: "B2")
+        e.recalculate()
+        XCTAssertEqual(e.value(sheet: "Other", at: "B2"), .number(4),
+                       "giao ngầm dùng hàng/cột ô công thức dù vùng ở sheet khác")
+    }
+
+    func testAtPropagatesErrorCell() {
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=@A1:A2", at: "B1"), .error("#DIV/0!"), "ô giao nhau bị lỗi lan nguyên vẹn")
+    }
+
+    func testAtInsideFunctionAndBinary() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=SUM(@A1:A2)", at: "B2"), .number(3), "@ trong đối số hàm → SUM(3)")
+        XCTAssertEqual(calc(e, "=@A1:A2+10", at: "B1"), .number(11), "1 + 10")
+        XCTAssertEqual(calc(e, "=@A1:A2+1", at: "Z99"), .error("#VALUE!"), "không giao nhau → lỗi lan qua phép +")
+    }
+
+    func testAtRecalculatesOnDependencyChange() {
+        let e = engine()
+        e.setFormula("=6*7", sheet: "Data", at: "B2")
+        XCTAssertEqual(calc(e, "=@B1:B3", at: "A2"), .number(42),
+                       "B2 là ô công thức xếp sau A2: chỉ tính đúng khi cạnh phụ thuộc @ được theo dõi")
+        e.setFormula("=6*8", sheet: "Data", at: "B2")
+        e.recalculate()
+        XCTAssertEqual(e.value(sheet: "Data", at: "A2"), .number(48), "đổi B2 → @B1:B3 tại A2 tính lại")
+    }
+
+    func testAtInsideCSE() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=@A1:A2", "D1:D2"), [.number(1), .number(3)],
+                       "CSE: mỗi ô lấy hàng của chính nó trong cột A")
+        XCTAssertEqual(cse(e, "=@SEQUENCE(2,2)", "D1:E2"),
+                       [.number(1), .number(2), .number(3), .number(4)],
+                       "CSE: @ trên mảng lấy theo vị trí từng ô")
+    }
+
+    // MARK: Toán tử tràn "#" (M7 lát 37)
+
+    func testSpillSumSequence() {
+        let e = engine()
+        e.setFormula("=SEQUENCE(3)", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=SUM(A1#)"), .number(6), "SEQUENCE(3) = 1+2+3")
+        XCTAssertEqual(calc(e, "=COUNT(A1#)"), .number(3))
+        XCTAssertEqual(calc(e, "=SUM(A1#*2)"), .number(12), "tràn * 2 theo từng phần tử")
+    }
+
+    func testSpillMatrixAndRow() {
+        let e = engine()
+        e.setFormula("=SEQUENCE(2,2)", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=SUM(A1#)"), .number(10), "1+2+3+4")
+        e.setFormula("=TRANSPOSE({1,2,3})", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=SUM(A1#)"), .number(6), "hàng tràn 1x3")
+    }
+
+    func testSpillSingleCellResult() {
+        let e = engine()
+        e.setFormula("=SEQUENCE(1)", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=A1#"), .number(1), "tràn 1 ô → chính giá trị đó")
+        XCTAssertEqual(calc(e, "=SUM(A1#)"), .number(1))
+    }
+
+    func testSpillBareFormulaIsValueError() {
+        let e = engine()
+        e.setFormula("=SEQUENCE(3)", sheet: "Data", at: "A1")
+        // Engine chưa tràn giá trị sang ô kề (như SEQUENCE trần): A1# đứng một
+        // mình cũng vậy — mảng nhiều ô không ép được về một ô.
+        XCTAssertEqual(calc(e, "=A1#"), .error("#VALUE!"))
+    }
+
+    func testSpillAnchorNotFormula() {
+        let e = engine()
+        XCTAssertEqual(calc(e, "=SUM(A1#)"), .error("#VALUE!"), "A1 là hằng 1, không tràn")
+        XCTAssertEqual(calc(e, "=SUM(C9#)"), .error("#VALUE!"), "ô trống không tràn")
+        e.setFormula("=6*7", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=SUM(A1#)"), .error("#VALUE!"), "công thức scalar không tràn")
+        e.setFormula("=1/0", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=SUM(A1#)"), .error("#VALUE!"), "công thức lỗi không tràn")
+    }
+
+    func testSpillAnchorRangeFormula() {
+        let e = engine()
+        e.setValue(.number(6), sheet: "Data", at: "B3")
+        e.setFormula("=B1:B3", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=SUM(A1#)"), .number(12), "B1:B3 = 2+4+6")
+    }
+
+    func testSpillInvalidAnchors() {
+        XCTAssertEqual(calc(engine(), "=SUM(A1:B2#)"), .error("#VALUE!"), "neo phải là một ô")
+        XCTAssertEqual(calc(engine(), "=SUM(SEQUENCE(3)#)"), .error("#VALUE!"), "hàm trần không phải tham chiếu")
+        XCTAssertEqual(calc(engine(), "=SUM({1,2}#)"), .error("#VALUE!"), "hằng mảng không phải tham chiếu")
+        XCTAssertEqual(calc(engine(), "=SUM(NoSheet!A1#)"), .error("#REF!"), "sheet không còn → #REF!")
+        XCTAssertEqual(calc(engine(), "=SUM(BadName#)"), .error("#NAME?"), "tên lạ → #NAME?")
+    }
+
+    func testSpillCrossSheetAndCase() {
+        let e = engine()
+        e.addSheet("Other")
+        e.setFormula("=SEQUENCE(3)", sheet: "Data", at: "A1")
+        e.setFormula("=SUM(Data!A1#)", sheet: "Other", at: "B2")
+        e.recalculate()
+        XCTAssertEqual(e.value(sheet: "Other", at: "B2"), .number(6))
+        XCTAssertEqual(calc(e, "=SUM(a1#)"), .number(6), "chữ thường vẫn nhận")
+        XCTAssertEqual(calc(e, "=SUM($A$1#)"), .number(6), "$ tuyệt đối vẫn nhận")
+    }
+
+    func testSpillChain() {
+        let e = engine()
+        e.setFormula("=SEQUENCE(3)", sheet: "Data", at: "A1")
+        e.setFormula("=A1#", sheet: "Data", at: "B1")
+        XCTAssertEqual(calc(e, "=SUM(B1#)"), .number(6), "chuỗi tràn B1# → A1# → SEQUENCE")
+    }
+
+    func testSpillCircularIsRef() {
+        let e = engine()
+        e.setFormula("=A1#", sheet: "Data", at: "A1")
+        e.recalculate()
+        XCTAssertEqual(e.value(sheet: "Data", at: "A1"), .error("#REF!"), "tự tham chiếu tràn → vòng")
+        e.setFormula("=SUM(B1#)", sheet: "Data", at: "A1")
+        e.setFormula("=SUM(A1#)", sheet: "Data", at: "B1")
+        e.recalculate()
+        XCTAssertEqual(e.value(sheet: "Data", at: "A1"), .error("#REF!"), "vòng chéo qua tràn")
+        XCTAssertEqual(e.value(sheet: "Data", at: "B1"), .error("#REF!"))
+    }
+
+    func testSpillCSEAnchorIsValueError() {
+        let e = engine()
+        XCTAssertEqual(cse(e, "=TRANSPOSE(A1:B2)", "D1:E2"),
+                       [.number(1), .number(3), .number(2), .number(4)])
+        XCTAssertEqual(calc(e, "=SUM(D1#)"), .error("#VALUE!"), "CSE không tràn")
+    }
+
+    func testSpillWithAtAndNamedRange() {
+        let e = engine()
+        e.setFormula("=SEQUENCE(3)", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=@A1#"), .number(1), "@ trên tràn → góc trên-trái")
+        e.defineName("SpillSrc", sheet: "Data", range: CellRange("A1:A1")!)
+        XCTAssertEqual(calc(e, "=SUM(SpillSrc#)"), .number(6), "tên vùng 1 ô neo tràn")
+    }
+
+    func testSpillRecalculatesOnDependencyChange() {
+        let e = engine()
+        e.setFormula("=SEQUENCE(B1)", sheet: "Data", at: "A1")
+        XCTAssertEqual(calc(e, "=SUM(A1#)"), .number(3), "SEQUENCE(2) = 1+2")
+        e.setValue(.number(3), sheet: "Data", at: "B1")
+        e.recalculate()
+        XCTAssertEqual(e.value(sheet: "Data", at: "Z99"), .number(6), "đổi B1 → SEQUENCE(3) → SUM 6")
+    }
+
     // MARK: Kết hợp (lát 29)
 
     func testLambdaHelpersCombined() {
@@ -1769,5 +2264,748 @@ final class FormulaDynamicArrayTests: XCTestCase {
         XCTAssertEqual(cse(e, "=MAP(MAKEARRAY(2,2,LAMBDA(r,c,r+c)), LAMBDA(x, x*10))", "D1:E2"),
                        [.number(20), .number(30), .number(30), .number(40)],
                        "MAKEARRAY {2,3;3,4} → MAP x10")
+    }
+
+    // MARK: GROUPBY (M7 lát 38, INBOX-MAC #17)
+
+    /// Dữ liệu nhóm: A = mặt hàng, B = khu vực, C = doanh số.
+    /// Cable = 30+20+25 = 75; Hub = 40+10 = 50; Stand = 50; tổng chung 175.
+    private func groupEngine() -> FormulaEngine {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        e.setValue(.string("Item"), sheet: "Data", at: "A1")
+        e.setValue(.string("Region"), sheet: "Data", at: "B1")
+        e.setValue(.string("Amount"), sheet: "Data", at: "C1")
+        let keys = ["Cable", "Hub", "Cable", "Stand", "Hub", "Cable"]
+        let regions = ["North", "North", "South", "North", "South", "South"]
+        let amounts = [30.0, 40.0, 20.0, 50.0, 10.0, 25.0]
+        for i in 0..<6 {
+            e.setValue(.string(keys[i]), sheet: "Data", at: "A\(i + 2)")
+            e.setValue(.string(regions[i]), sheet: "Data", at: "B\(i + 2)")
+            e.setValue(.number(amounts[i]), sheet: "Data", at: "C\(i + 2)")
+        }
+        return e
+    }
+
+    func testGroupBySumDefault() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,0)", "D1:E3"),
+                       [.string("Cable"), .number(75), .string("Hub"), .number(50),
+                        .string("Stand"), .number(50)],
+                       "SUM theo mặt hàng, mặc định sắp tăng dần theo khóa")
+    }
+
+    func testGroupBySumGrandTotalDefault() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,SUM,0)", "D1:E4"),
+                       [.string("Cable"), .number(75), .string("Hub"), .number(50),
+                        .string("Stand"), .number(50), .string("Total"), .number(175)],
+                       "total_depth bỏ trống = 1: tổng chung cuối")
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,SUM)", "D1:E4"),
+                       [.string("Cable"), .number(75), .string("Hub"), .number(50),
+                        .string("Stand"), .number(50), .string("Total"), .number(175)],
+                       "mọi đối số tùy chọn bỏ trống vẫn có tổng chung")
+    }
+
+    func testGroupByGrandTotalTop() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,-1)", "D1:E4"),
+                       [.string("Total"), .number(175), .string("Cable"), .number(75),
+                        .string("Hub"), .number(50), .string("Stand"), .number(50)],
+                       "total_depth -1: tổng chung đầu")
+    }
+
+    func testGroupByHeadersShow() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A1:A7,C1:C7,SUM,3,0)", "D1:E4"),
+                       [.string("Item"), .string("Amount"),
+                        .string("Cable"), .number(75), .string("Hub"), .number(50),
+                        .string("Stand"), .number(50)],
+                       "field_headers 3: hiện tiêu đề nguồn")
+    }
+
+    func testGroupByHeadersHidden() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A1:A7,C1:C7,SUM,1,0)", "D1:E3"),
+                       [.string("Cable"), .number(75), .string("Hub"), .number(50),
+                        .string("Stand"), .number(50)],
+                       "field_headers 1: có tiêu đề nhưng không hiện, hàng 1 không thành nhóm")
+    }
+
+    func testGroupByHeadersGenerated() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,SUM,2,0)", "D1:E4"),
+                       [.string("Row Field 1"), .string("Value 1"),
+                        .string("Cable"), .number(75), .string("Hub"), .number(50),
+                        .string("Stand"), .number(50)],
+                       "field_headers 2: sinh tiêu đề chung")
+    }
+
+    func testGroupByHeadersAuto() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A1:A7,C1:C7,SUM,,0)", "D1:E3"),
+                       [.string("Cable"), .number(75), .string("Hub"), .number(50),
+                        .string("Stand"), .number(50)],
+                       "tự đoán: C1 chữ + C2 số → có tiêu đề nhưng 1 cột khóa nên không hiện")
+        XCTAssertEqual(cse(e, "=GROUPBY(A1:B7,C1:C7,SUM,,0)", "D1:F6"),
+                       [.string("Item"), .string("Region"), .string("Amount"),
+                        .string("Cable"), .string("North"), .number(30),
+                        .string("Cable"), .string("South"), .number(45),
+                        .string("Hub"), .string("North"), .number(40),
+                        .string("Hub"), .string("South"), .number(10),
+                        .string("Stand"), .string("North"), .number(50)],
+                       "tự đoán + 2 cột khóa → hiện tiêu đề nguồn")
+    }
+
+    func testGroupByMultiKey() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:B7,C2:C7,SUM,0,0)", "D1:F5"),
+                       [.string("Cable"), .string("North"), .number(30),
+                        .string("Cable"), .string("South"), .number(45),
+                        .string("Hub"), .string("North"), .number(40),
+                        .string("Hub"), .string("South"), .number(10),
+                        .string("Stand"), .string("North"), .number(50)],
+                       "nhóm 2 cột khóa, sắp theo khóa 1 rồi khóa 2")
+    }
+
+    func testGroupBySubtotals() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:B7,C2:C7,SUM,0,2)", "D1:F9"),
+                       [.string("Cable"), .string("North"), .number(30),
+                        .string("Cable"), .string("South"), .number(45),
+                        .string("Cable"), .empty, .number(75),
+                        .string("Hub"), .string("North"), .number(40),
+                        .string("Hub"), .string("South"), .number(10),
+                        .string("Hub"), .empty, .number(50),
+                        .string("Stand"), .string("North"), .number(50),
+                        .string("Stand"), .empty, .number(50),
+                        .string("Total"), .empty, .number(175)],
+                       "total_depth 2: tổng phụ sau mỗi nhóm tiền tố, cột khóa sâu để trống")
+    }
+
+    func testGroupBySubtotalsTop() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:B7,C2:C7,SUM,0,-2)", "D1:F9"),
+                       [.string("Total"), .empty, .number(175),
+                        .string("Cable"), .empty, .number(75),
+                        .string("Cable"), .string("North"), .number(30),
+                        .string("Cable"), .string("South"), .number(45),
+                        .string("Hub"), .empty, .number(50),
+                        .string("Hub"), .string("North"), .number(40),
+                        .string("Hub"), .string("South"), .number(10),
+                        .string("Stand"), .empty, .number(50),
+                        .string("Stand"), .string("North"), .number(50)],
+                       "total_depth -2: tổng chung đầu, tổng phụ trước mỗi khối")
+    }
+
+    func testGroupByAverageCount() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,AVERAGE,0,0)", "D1:E3"),
+                       [.string("Cable"), .number(25), .string("Hub"), .number(25),
+                        .string("Stand"), .number(50)],
+                       "AVERAGE: Cable (30+20+25)/3 = 25")
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,COUNT,0,0)", "D1:E3"),
+                       [.string("Cable"), .number(3), .string("Hub"), .number(2),
+                        .string("Stand"), .number(1)],
+                       "COUNT đếm số")
+    }
+
+    func testGroupByCountaTextValues() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(B2:B7,A2:A7,COUNTA,0,0)", "D1:E2"),
+                       [.string("North"), .number(3), .string("South"), .number(3)],
+                       "COUNTA đếm cả chữ")
+    }
+
+    func testGroupByMedianMax() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,MEDIAN,0,0)", "D1:E3"),
+                       [.string("Cable"), .number(25), .string("Hub"), .number(25),
+                        .string("Stand"), .number(50)],
+                       "MEDIAN: Cable {20,25,30} → 25; Hub {10,40} → 25")
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,MAX,0,0)", "D1:E3"),
+                       [.string("Cable"), .number(30), .string("Hub"), .number(40),
+                        .string("Stand"), .number(50)])
+    }
+
+    func testGroupByStdevPerCellError() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,STDEV,0,0)", "D1:E3"),
+                       [.string("Cable"), .number(5),
+                        .string("Hub"), .number(450.0.squareRoot()),
+                        .string("Stand"), .error("#DIV/0!")],
+                       "STDEV mẫu: Cable 5; Hub √450; Stand 1 giá trị → #DIV/0! chỉ ở ô đó")
+    }
+
+    func testGroupByPercentOf() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,PERCENTOF,0,0)", "D1:E3"),
+                       [.string("Cable"), .number(75.0 / 175.0),
+                        .string("Hub"), .number(50.0 / 175.0),
+                        .string("Stand"), .number(50.0 / 175.0)],
+                       "PERCENTOF: tỉ lệ trên tổng chung 175")
+    }
+
+    func testGroupBySortByValueDesc() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,0,-2)", "D1:E3"),
+                       [.string("Cable"), .number(75), .string("Hub"), .number(50),
+                        .string("Stand"), .number(50)],
+                       "sort_order -2: giảm dần theo cột giá trị; hòa 50 giữ thứ tự xuất hiện")
+    }
+
+    func testGroupBySortVector() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:B7,C2:C7,SUM,0,0,{-1,2})", "D1:F5"),
+                       [.string("Stand"), .string("North"), .number(50),
+                        .string("Hub"), .string("North"), .number(40),
+                        .string("Hub"), .string("South"), .number(10),
+                        .string("Cable"), .string("North"), .number(30),
+                        .string("Cable"), .string("South"), .number(45)],
+                       "sort vector {-1,2}: khóa 1 giảm dần, khóa 2 tăng dần")
+    }
+
+    func testGroupByFilter() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,0,,B2:B7=\"North\")", "D1:E3"),
+                       [.string("Cable"), .number(30), .string("Hub"), .number(40),
+                        .string("Stand"), .number(50)],
+                       "filter chỉ giữ hàng North")
+    }
+
+    func testGroupByLambda() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,LAMBDA(x,SUM(x)*2),0,0)", "D1:E3"),
+                       [.string("Cable"), .number(150), .string("Hub"), .number(100),
+                        .string("Stand"), .number(100)],
+                       "lambda nhận cột giá trị của nhóm")
+    }
+
+    func testGroupByLambdaDefinedName() throws {
+        let e = groupEngine()
+        e.defineNameExpression("DOUBLE_SUM", expr: try FormulaParser.parse("LAMBDA(x, SUM(x)*2)"))
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,DOUBLE_SUM,0,0)", "D1:E3"),
+                       [.string("Cable"), .number(150), .string("Hub"), .number(100),
+                        .string("Stand"), .number(100)],
+                       "tên định nghĩa chứa lambda dùng làm hàm tổng hợp")
+    }
+
+    func testGroupByCaseSensitiveKeys() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        for (i, k) in ["Apple", "apple", "Apple"].enumerated() {
+            e.setValue(.string(k), sheet: "Data", at: "A\(i + 2)")
+            e.setValue(.number(Double(i + 1)), sheet: "Data", at: "B\(i + 2)")
+        }
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A4,B2:B4,SUM,0,0)", "D1:E2"),
+                       [.string("Apple"), .number(4), .string("apple"), .number(2)],
+                       "GROUPBY phân biệt hoa/thường: Apple ≠ apple (khác UNIQUE)")
+    }
+
+    func testGroupByValueErrorPerCell() {
+        let e = groupEngine()
+        e.setFormula("=1/0", sheet: "Data", at: "C4")
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,0)", "D1:E3"),
+                       [.string("Cable"), .error("#DIV/0!"), .string("Hub"), .number(50),
+                        .string("Stand"), .number(50)],
+                       "lỗi trong giá trị chỉ nằm ở ô tổng hợp của nhóm đó")
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,COUNT,0,0)", "D1:E3"),
+                       [.string("Cable"), .number(2), .string("Hub"), .number(2),
+                        .string("Stand"), .number(1)],
+                       "COUNT bỏ qua ô lỗi")
+        XCTAssertEqual(cse(e, "=GROUPBY(A2:A7,C2:C7,COUNTA,0,0)", "D1:E3"),
+                       [.string("Cable"), .number(3), .string("Hub"), .number(2),
+                        .string("Stand"), .number(1)],
+                       "COUNTA đếm cả ô lỗi")
+    }
+
+    func testGroupByErrors() {
+        let e = groupEngine()
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7)"), .error("#VALUE!"), "thiếu function")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,0,0,0,0,0)"), .error("#VALUE!"),
+                       "thừa đối số")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A6,C2:C7,SUM)"), .error("#VALUE!"),
+                       "lệch số hàng row_fields/values")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7,FOO)"), .error("#NAME?"),
+                       "tên hàm lạ → #NAME? như Excel")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7,SUM,9)"), .error("#VALUE!"),
+                       "field_headers ngoài 0-3")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,3)"), .error("#VALUE!"),
+                       "total_depth |n| > 2")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,2)"), .error("#VALUE!"),
+                       "total_depth 2 với 1 cột khóa → #VALUE!")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,0,5)"), .error("#VALUE!"),
+                       "sort_order vượt số cột kết quả")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,0,0,B2:B6=\"North\")"),
+                       .error("#VALUE!"), "filter sai dài")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,0,0,0,1)"), .error("#VALUE!"),
+                       "field_relationship 1 (Table) chưa hỗ trợ")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7,LAMBDA(x,y,x),0,0)"), .error("#VALUE!"),
+                       "lambda tổng hợp phải nhận đúng 1 tham số")
+        XCTAssertEqual(calc(e, "=GROUPBY(A2:A7,C2:C7,SUM,0,0,,B2:B7=\"West\")"),
+                       .error("#CALC!"), "không hàng nào khớp → #CALC!")
+    }
+
+    // MARK: PIVOTBY (M7 lát 39, INBOX-MAC #17)
+
+    /// Fixture PIVOTBY: A = mặt hàng, B = vùng, C = số tiền, D = năm.
+    private func pivotEngine() -> FormulaEngine {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        for (col, name) in ["A": "Item", "B": "Region", "C": "Amount", "D": "Year"] {
+            e.setValue(.string(name), sheet: "Data", at: "\(col)1")
+        }
+        let keys = ["Cable", "Hub", "Cable", "Stand", "Hub", "Cable"]
+        let regions = ["North", "North", "South", "North", "South", "South"]
+        let amounts = [30.0, 40.0, 20.0, 50.0, 10.0, 25.0]
+        let years = [2024.0, 2024.0, 2025.0, 2024.0, 2025.0, 2025.0]
+        for i in 0..<6 {
+            e.setValue(.string(keys[i]), sheet: "Data", at: "A\(i + 2)")
+            e.setValue(.string(regions[i]), sheet: "Data", at: "B\(i + 2)")
+            e.setValue(.number(amounts[i]), sheet: "Data", at: "C\(i + 2)")
+            e.setValue(.number(years[i]), sheet: "Data", at: "D\(i + 2)")
+        }
+        return e
+    }
+
+    /// Fixture PIVOTBY 2 cột khóa cột: A = mặt hàng, B = vùng, C = năm, D = số tiền.
+    private func pivotEngine2() -> FormulaEngine {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        for (col, name) in ["A": "Item", "B": "Region", "C": "Year", "D": "Amount"] {
+            e.setValue(.string(name), sheet: "Data", at: "\(col)1")
+        }
+        let keys = ["Cable", "Hub", "Cable", "Stand", "Hub", "Cable"]
+        let regions = ["North", "North", "South", "North", "South", "South"]
+        let years = [2024.0, 2024.0, 2025.0, 2024.0, 2025.0, 2025.0]
+        let amounts = [30.0, 40.0, 20.0, 50.0, 10.0, 25.0]
+        for i in 0..<6 {
+            e.setValue(.string(keys[i]), sheet: "Data", at: "A\(i + 2)")
+            e.setValue(.string(regions[i]), sheet: "Data", at: "B\(i + 2)")
+            e.setValue(.number(years[i]), sheet: "Data", at: "C\(i + 2)")
+            e.setValue(.number(amounts[i]), sheet: "Data", at: "D\(i + 2)")
+        }
+        return e
+    }
+
+    func testPivotBySumDefault() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM)", "D1:G4"),
+                       [.string("Cable"), .number(30), .number(45), .number(75),
+                        .string("Hub"), .number(40), .number(10), .number(50),
+                        .string("Stand"), .number(50), .number(0), .number(50),
+                        .string("Total"), .number(120), .number(55), .number(175)],
+                       "mặc định: function SUM, tổng chung cả 2 trục; ô giao rỗng = 0")
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7)", "D1:G4"),
+                       [.string("Cable"), .number(30), .number(45), .number(75),
+                        .string("Hub"), .number(40), .number(10), .number(50),
+                        .string("Stand"), .number(50), .number(0), .number(50),
+                        .string("Total"), .number(120), .number(55), .number(175)],
+                       "function bỏ trống = SUM")
+    }
+
+    func testPivotByNoTotals() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,0,,0)", "D1:F3"),
+                       [.string("Cable"), .number(30), .number(45),
+                        .string("Hub"), .number(40), .number(10),
+                        .string("Stand"), .number(50), .number(0)],
+                       "row_total_depth 0 + col_total_depth 0: không hàng/cột tổng")
+    }
+
+    func testPivotByRowTotalTop() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,-1)", "D1:G4"),
+                       [.string("Total"), .number(120), .number(55), .number(175),
+                        .string("Cable"), .number(30), .number(45), .number(75),
+                        .string("Hub"), .number(40), .number(10), .number(50),
+                        .string("Stand"), .number(50), .number(0), .number(50)],
+                       "row_total_depth -1: hàng tổng chung lên đầu")
+    }
+
+    func testPivotByHeadersShow() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A1:A7,B1:B7,C1:C7,SUM,3,0,,0)", "D1:F5"),
+                       [.string("Item"), .string("North"), .string("South"),
+                        .string("Item"), .string("Amount"), .string("Amount"),
+                        .string("Cable"), .number(30), .number(45),
+                        .string("Hub"), .number(40), .number(10),
+                        .string("Stand"), .number(50), .number(0)],
+                       "field_headers 3: hàng mức khóa cột + hàng tên giá trị")
+    }
+
+    func testPivotByHeadersGenerated() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,2,0,,0)", "D1:F5"),
+                       [.string("Row Field 1"), .string("North"), .string("South"),
+                        .string("Row Field 1"), .string("Value 1"), .string("Value 1"),
+                        .string("Cable"), .number(30), .number(45),
+                        .string("Hub"), .number(40), .number(10),
+                        .string("Stand"), .number(50), .number(0)],
+                       "field_headers 2: sinh \"Row Field 1\"/\"Value 1\"")
+    }
+
+    func testPivotByHeadersAuto() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A1:A7,B1:B7,C1:C7,SUM,,0,,0)", "D1:F3"),
+                       [.string("Cable"), .number(30), .number(45),
+                        .string("Hub"), .number(40), .number(10),
+                        .string("Stand"), .number(50), .number(0)],
+                       "tự đoán: 1 cột khóa mỗi trục → có tiêu đề nhưng không hiện")
+        let e2 = pivotEngine()
+        XCTAssertEqual(cse(e2, "=PIVOTBY(A1:B7,D1:D7,C1:C7,SUM)", "F1:J8"),
+                       [.string("Item"), .string("Region"), .number(2024), .number(2025), .empty,
+                        .string("Item"), .string("Region"), .string("Amount"), .string("Amount"), .string("Total"),
+                        .string("Cable"), .string("North"), .number(30), .number(0), .number(30),
+                        .string("Cable"), .string("South"), .number(0), .number(45), .number(45),
+                        .string("Hub"), .string("North"), .number(40), .number(0), .number(40),
+                        .string("Hub"), .string("South"), .number(0), .number(10), .number(10),
+                        .string("Stand"), .string("North"), .number(50), .number(0), .number(50),
+                        .string("Total"), .empty, .number(120), .number(55), .number(175)],
+                       "tự đoán: 2 cột khóa hàng → hiện tiêu đề, cột tổng ghi \"Total\"")
+    }
+
+    func testPivotByMultiKeyRows() {
+        let e = pivotEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:B7,D2:D7,C2:C7,SUM,0)", "F1:J6"),
+                       [.string("Cable"), .string("North"), .number(30), .number(0), .number(30),
+                        .string("Cable"), .string("South"), .number(0), .number(45), .number(45),
+                        .string("Hub"), .string("North"), .number(40), .number(0), .number(40),
+                        .string("Hub"), .string("South"), .number(0), .number(10), .number(10),
+                        .string("Stand"), .string("North"), .number(50), .number(0), .number(50),
+                        .string("Total"), .empty, .number(120), .number(55), .number(175)],
+                       "2 cột khóa hàng (Item, Region) × cột khóa năm")
+    }
+
+    func testPivotBySubtotalsRow() {
+        let e = pivotEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:B7,D2:D7,C2:C7,SUM,0,2)", "F1:J9"),
+                       [.string("Cable"), .string("North"), .number(30), .number(0), .number(30),
+                        .string("Cable"), .string("South"), .number(0), .number(45), .number(45),
+                        .string("Cable"), .empty, .number(30), .number(45), .number(75),
+                        .string("Hub"), .string("North"), .number(40), .number(0), .number(40),
+                        .string("Hub"), .string("South"), .number(0), .number(10), .number(10),
+                        .string("Hub"), .empty, .number(40), .number(10), .number(50),
+                        .string("Stand"), .string("North"), .number(50), .number(0), .number(50),
+                        .string("Stand"), .empty, .number(50), .number(0), .number(50),
+                        .string("Total"), .empty, .number(120), .number(55), .number(175)],
+                       "row_total_depth 2: tổng phụ sau mỗi khối tiền tố (cột khóa sâu để trống)")
+    }
+
+    func testPivotBySubtotalsCol() {
+        let e = pivotEngine2()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:C7,D2:D7,SUM,0,0,,2)", "F1:K3"),
+                       [.string("Cable"), .number(30), .number(30), .number(45), .number(45), .number(75),
+                        .string("Hub"), .number(40), .number(40), .number(10), .number(10), .number(50),
+                        .string("Stand"), .number(50), .number(50), .number(0), .number(0), .number(50)],
+                       "col_total_depth 2: chỉ nhóm cột quan sát được ((North,2024), (South,2025)) mới thành cột; cột tổng phụ sau mỗi khối tiền tố vùng + cột tổng chung")
+    }
+
+    func testPivotByAverageCount() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,AVERAGE,0,0,,0)", "D1:F3"),
+                       [.string("Cable"), .number(30), .number(22.5),
+                        .string("Hub"), .number(40), .number(10),
+                        .string("Stand"), .number(50), .error("#DIV/0!")],
+                       "AVERAGE: giao rỗng → #DIV/0! chỉ ở ô đó")
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,COUNT,0,0,,0)", "D1:F3"),
+                       [.string("Cable"), .number(1), .number(2),
+                        .string("Hub"), .number(1), .number(1),
+                        .string("Stand"), .number(1), .number(0)],
+                       "COUNT: giao rỗng = 0")
+    }
+
+    func testPivotByPercentOfGrand() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,PERCENTOF,0,0)", "D1:G3"),
+                       [.string("Cable"), .number(30.0 / 175.0), .number(45.0 / 175.0), .number(75.0 / 175.0),
+                        .string("Hub"), .number(40.0 / 175.0), .number(10.0 / 175.0), .number(50.0 / 175.0),
+                        .string("Stand"), .number(50.0 / 175.0), .number(0), .number(50.0 / 175.0)],
+                       "PERCENTOF mặc định (relative_to 0): tỉ lệ trên tổng chung 175; row_depth 0 nên không có hàng Total")
+    }
+
+    func testPivotByPercentOfRow() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,PERCENTOF,0,0,,,,,1)", "D1:G3"),
+                       [.string("Cable"), .number(30.0 / 75.0), .number(45.0 / 75.0), .number(1),
+                        .string("Hub"), .number(40.0 / 50.0), .number(10.0 / 50.0), .number(1),
+                        .string("Stand"), .number(1), .number(0), .number(1)],
+                       "PERCENTOF relative_to 1: tỉ lệ trên tổng hàng; row_depth 0 nên không có hàng Total")
+    }
+
+    func testPivotByPercentOfCol() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,PERCENTOF,0,0,,,,,2)", "D1:G3"),
+                       [.string("Cable"), .number(30.0 / 120.0), .number(45.0 / 55.0), .number(75.0 / 175.0),
+                        .string("Hub"), .number(40.0 / 120.0), .number(10.0 / 55.0), .number(50.0 / 175.0),
+                        .string("Stand"), .number(50.0 / 120.0), .number(0), .number(50.0 / 175.0)],
+                       "PERCENTOF relative_to 2: tỉ lệ trên tổng cột; row_depth 0 nên không có hàng Total")
+    }
+
+    func testPivotBySortOrders() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,,,,-1)", "D1:G4"),
+                       [.string("Cable"), .number(45), .number(30), .number(75),
+                        .string("Hub"), .number(10), .number(40), .number(50),
+                        .string("Stand"), .number(0), .number(50), .number(50),
+                        .string("Total"), .number(55), .number(120), .number(175)],
+                       "col_sort_order -1: cột South trước North")
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,,-1)", "D1:G4"),
+                       [.string("Stand"), .number(50), .number(0), .number(50),
+                        .string("Hub"), .number(40), .number(10), .number(50),
+                        .string("Cable"), .number(30), .number(45), .number(75),
+                        .string("Total"), .number(120), .number(55), .number(175)],
+                       "row_sort_order -1: hàng Stand, Hub, Cable")
+    }
+
+    func testPivotByFilter() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,0,,,,B2:B7=\"North\")", "D1:F3"),
+                       [.string("Cable"), .number(30), .number(30),
+                        .string("Hub"), .number(40), .number(40),
+                        .string("Stand"), .number(50), .number(50)],
+                       "filter chỉ giữ hàng North: nhóm cột South biến mất; row_depth 0 nên không có hàng Total")
+    }
+
+    func testPivotByLambda() {
+        let e = groupEngine()
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,LAMBDA(x,SUM(x)*2),0,0,,0)", "D1:F3"),
+                       [.string("Cable"), .number(60), .number(90),
+                        .string("Hub"), .number(80), .number(20),
+                        .string("Stand"), .number(100), .number(0)],
+                       "lambda nhận cột giá trị của từng ô giao")
+    }
+
+    func testPivotByLambdaDefinedName() throws {
+        let e = groupEngine()
+        e.defineNameExpression("DOUBLE_SUM", expr: try FormulaParser.parse("LAMBDA(x, SUM(x)*2)"))
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,DOUBLE_SUM,0,0,,0)", "D1:F3"),
+                       [.string("Cable"), .number(60), .number(90),
+                        .string("Hub"), .number(80), .number(20),
+                        .string("Stand"), .number(100), .number(0)],
+                       "tên định nghĩa chứa lambda dùng làm hàm tổng hợp")
+    }
+
+    func testPivotByCaseSensitiveKeys() {
+        let e = FormulaEngine()
+        e.addSheet("Data")
+        for (i, k) in ["Apple", "apple", "Apple"].enumerated() {
+            e.setValue(.string(k), sheet: "Data", at: "A\(i + 2)")
+            e.setValue(.string("North"), sheet: "Data", at: "B\(i + 2)")
+            e.setValue(.number(Double(i + 1)), sheet: "Data", at: "C\(i + 2)")
+        }
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A4,B2:B4,C2:C4,SUM,0,0)", "D1:F2"),
+                       [.string("Apple"), .number(4), .number(4),
+                        .string("apple"), .number(2), .number(2)],
+                       "PIVOTBY phân biệt hoa/thường: Apple ≠ apple (như GROUPBY); row_depth 0 nên không có hàng Total")
+    }
+
+    func testPivotByValueErrorPerCell() {
+        let e = groupEngine()
+        e.setFormula("=1/0", sheet: "Data", at: "C4")
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,0,,0)", "D1:F3"),
+                       [.string("Cable"), .number(30), .error("#DIV/0!"),
+                        .string("Hub"), .number(40), .number(10),
+                        .string("Stand"), .number(50), .number(0)],
+                       "lỗi trong giá trị chỉ nằm ở ô giao của nhóm đó")
+        XCTAssertEqual(cse(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM)", "D1:G4"),
+                       [.string("Cable"), .number(30), .error("#DIV/0!"), .error("#DIV/0!"),
+                        .string("Hub"), .number(40), .number(10), .number(50),
+                        .string("Stand"), .number(50), .number(0), .number(50),
+                        .string("Total"), .number(120), .error("#DIV/0!"), .error("#DIV/0!")],
+                       "lỗi lan sang cột tổng của hàng đó và hàng tổng của cột đó, không phá cả bảng")
+    }
+
+    func testPivotByErrors() {
+        let e = groupEngine()
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7)"), .error("#VALUE!"), "thiếu values")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,0,0,0,0,0,0,0)"), .error("#VALUE!"),
+                       "thừa đối số (12)")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A6,B2:B7,C2:C7,SUM)"), .error("#VALUE!"),
+                       "lệch số hàng row_fields/values")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,FOO)"), .error("#NAME?"),
+                       "tên hàm lạ → #NAME? như Excel")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,9)"), .error("#VALUE!"),
+                       "field_headers ngoài 0-3")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,3)"), .error("#VALUE!"),
+                       "row_total_depth |n| > 2")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,2)"), .error("#VALUE!"),
+                       "row_total_depth 2 với 1 cột khóa hàng → #VALUE!")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,0,,2)"), .error("#VALUE!"),
+                       "col_total_depth 2 với 1 cột khóa cột → #VALUE!")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,0,5)"), .error("#VALUE!"),
+                       "row_sort_order vượt số cột khóa hàng")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,0,,,,B2:B6=\"North\")"),
+                       .error("#VALUE!"), "filter sai dài")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,PERCENTOF,0,0,,,,,3)"),
+                       .error("#VALUE!"), "relative_to ngoài 0-2")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,LAMBDA(x,y,x),0,0)"), .error("#VALUE!"),
+                       "lambda tổng hợp phải nhận đúng 1 tham số")
+        XCTAssertEqual(calc(e, "=PIVOTBY(,B2:B7,C2:C7,SUM)"), .error("#VALUE!"),
+                       "row_fields rỗng chưa hỗ trợ")
+        XCTAssertEqual(calc(e, "=PIVOTBY(A2:A7,B2:B7,C2:C7,SUM,0,0,,,,B2:B7=\"West\")"),
+                       .error("#CALC!"), "không hàng nào khớp → #CALC!")
+    }
+
+    // MARK: ARRAYTOTEXT / VALUETOTEXT (M7 lát 40)
+
+    func testValueToTextNumber() {
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(42)"), .string("42"))
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(1.5)"), .string("1.5"))
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(0)"), .string("0"))
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(-7)"), .string("-7"))
+    }
+
+    func testValueToTextGeneral15Digits() {
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(123456789012345)"), .string("123456789012345"),
+                       "15 chữ số giữ dạng thường")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(1234567890123456)"), .string("1234567890123450"),
+                       "16 chữ số: tokenizer cắt về 15 chữ số đầu rồi đệm 0, KHÔNG làm tròn lên (lát 30)")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(100000000000000000000)"), .string("1E+20"),
+                       "vượt 20 ký tự dạng thường → khoa học")
+    }
+
+    func testValueToTextString() {
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(\"abc\")"), .string("abc"), "concise giữ nguyên chuỗi")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(\"abc\",1)"), .string("\"abc\""), "strict đặt trong ngoặc kép")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(\"a\"\"b\",1)"), .string("\"a\"\"b\""),
+                       "strict nhân đôi dấu ngoặc kép bên trong")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(\"abc\",0)"), .string("abc"))
+    }
+
+    func testValueToTextBoolAndError() {
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(TRUE)"), .string("TRUE"))
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(FALSE,1)"), .string("FALSE"))
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(1/0)"), .error("#DIV/0!"), "lỗi lan truyền nguyên vẹn")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(1,1/0)"), .error("#DIV/0!"), "lỗi ở định_dạng lan truyền")
+    }
+
+    func testValueToTextEmptyAndRange() {
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(Z1)"), .string(""), "ô trống → chuỗi rỗng")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(Z1,1)"), .string("\"\""), "ô trống ở strict → \"\"")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(A1)"), .string("1"), "vùng 1 ô")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(A1:B2)"), .error("#VALUE!"),
+                       "vùng nhiều ô ngoài CSE → #VALUE!")
+    }
+
+    func testValueToTextBadFormat() {
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(1,2)"), .error("#VALUE!"), "định_dạng chỉ nhận 0/1")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(1,-1)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(1,\"x\")"), .error("#VALUE!"), "định_dạng không phải số")
+        XCTAssertEqual(calc(engine(), "=VALUETOTEXT(1,TRUE)"), .string("1"),
+                       "TRUE ép về 1 → strict; số không thêm ngoặc kép ở strict")
+    }
+
+    func testArrayToTextNumbers() {
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(A1:B2)"), .string("{1,2;3,4}"),
+                       "phẩy ngăn cột, chấm phẩy ngăn hàng")
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(A1:B2,1)"), .string("{1,2;3,4}"), "số không đổi ở strict")
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT({1,2,3})"), .string("{1,2,3}"), "1 hàng")
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT({1;2;3})"), .string("{1;2;3}"), "1 cột")
+    }
+
+    func testArrayToTextStrings() {
+        let e = engine()
+        e.setValue(.string("a"), sheet: "Data", at: "C1")
+        e.setValue(.string("b"), sheet: "Data", at: "C2")
+        XCTAssertEqual(calc(e, "=ARRAYTOTEXT(A1:C2)"), .string("{1,2,a;3,4,b}"))
+        XCTAssertEqual(calc(e, "=ARRAYTOTEXT(A1:C2,1)"), .string("{1,2,\"a\";3,4,\"b\"}"))
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT({\"a\",\"b\";\"c\",1})"), .string("{a,b;c,1}"))
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT({\"a\",\"b\";\"c\",1},1)"), .string("{\"a\",\"b\";\"c\",1}"))
+    }
+
+    func testArrayToTextSingle() {
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(5)"), .string("5"), "1 ô không ngoặc nhọn")
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(\"x\",1)"), .string("\"x\""))
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT({9})"), .string("9"))
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(A1)"), .string("1"))
+    }
+
+    func testArrayToTextEmptyCells() {
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(A1:C1)"), .string("{1,2,}"),
+                       "ô trống concise → rỗng giữa hai dấu phẩy")
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(A1:C1,1)"), .string("{1,2,\"\"}"),
+                       "ô trống strict → \"\"")
+    }
+
+    func testArrayToTextBoolAndError() {
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT({TRUE,FALSE})"), .string("{TRUE,FALSE}"))
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "C1")
+        XCTAssertEqual(calc(e, "=ARRAYTOTEXT(A1:C1)"), .string("{1,2,#DIV/0!}"),
+                       "ô lỗi trong mảng giữ nguyên mã")
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(1/0)"), .error("#DIV/0!"), "lỗi scalar lan truyền")
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(LAMBDA(x,x+1))"), .error("#VALUE!"), "lambda trần")
+    }
+
+    func testArrayToTextBadFormat() {
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(A1:B2,2)"), .error("#VALUE!"))
+        XCTAssertEqual(calc(engine(), "=ARRAYTOTEXT(A1:B2,\"x\")"), .error("#VALUE!"))
+    }
+
+    // MARK: FREQUENCY (M7 lát 43)
+
+    func testFrequencyBasic() {
+        XCTAssertEqual(cse(engine(), "=FREQUENCY({1,2,3,4,5,6,7,8,9,10},{3,6,9})", "D1:D4"),
+                       [.number(3), .number(3), .number(3), .number(1)],
+                       "≤3: 1,2,3; (3,6]: 4,5,6; (6,9]: 7,8,9; >9: 10")
+    }
+
+    func testFrequencyRange() {
+        XCTAssertEqual(cse(engine(), "=FREQUENCY(A1:B2,{2,3})", "D1:D3"),
+                       [.number(2), .number(1), .number(1)],
+                       "≤2: 1,2; (2,3]: 3; >3: 4")
+    }
+
+    func testFrequencyIgnoresTextBlankBool() {
+        let e = engine()
+        e.setValue(.string("x"), sheet: "Data", at: "A3")
+        e.setValue(.bool(true), sheet: "Data", at: "B3")
+        e.setValue(.number(5), sheet: "Data", at: "A4")
+        e.setValue(.number(6), sheet: "Data", at: "B4")
+        // A1:B4 = 1,2,3,4,"x",TRUE,5,6 — chữ/logic bị bỏ qua; cột C trống cũng vậy.
+        XCTAssertEqual(cse(e, "=FREQUENCY(A1:B4,{4,5})", "D1:D3"),
+                       [.number(4), .number(1), .number(1)],
+                       "≤4: 1,2,3,4; (4,5]: 5; >5: 6")
+        XCTAssertEqual(cse(e, "=FREQUENCY(A1:C4,{4,5})", "D1:D3"),
+                       [.number(4), .number(1), .number(1)], "ô trống trong vùng bị bỏ qua")
+    }
+
+    func testFrequencyEmptyBins() {
+        // Không có khoảng nào → mảng 1 phần tử = số giá trị số trong dữ liệu.
+        XCTAssertEqual(calc(engine(), "=FREQUENCY(A1:B2,D10)"), .number(4))
+    }
+
+    func testFrequencyEmptyData() {
+        // Không có giá trị số nào → toàn 0.
+        XCTAssertEqual(cse(engine(), "=FREQUENCY(D10,{1,2})", "D1:D3"),
+                       [.number(0), .number(0), .number(0)])
+    }
+
+    func testFrequencyBinBoundaryInclusive() {
+        // Giá trị đúng bằng giới hạn khoảng thuộc về khoảng đó.
+        XCTAssertEqual(cse(engine(), "=FREQUENCY({5,10,15},{5,10,15})", "D1:D4"),
+                       [.number(1), .number(1), .number(1), .number(0)])
+    }
+
+    func testFrequencyErrorPropagates() {
+        let e = engine()
+        e.setFormula("=1/0", sheet: "Data", at: "A3")
+        XCTAssertEqual(calc(e, "=FREQUENCY(A1:A3,{2})"), .error("#DIV/0!"), "lỗi trong dữ liệu lan truyền")
+        let e2 = engine()
+        e2.setFormula("=1/0", sheet: "Data", at: "C1")
+        XCTAssertEqual(calc(e2, "=FREQUENCY(A1:B2,C1)"), .error("#DIV/0!"), "lỗi trong khoảng lan truyền")
+    }
+
+    func testFrequencyWrongArgCount() {
+        XCTAssertEqual(calc(engine(), "=FREQUENCY(A1:B2)"), .error("#VALUE!"), "thiếu đối số")
+        XCTAssertEqual(calc(engine(), "=FREQUENCY(A1:B2,{1},2)"), .error("#VALUE!"), "thừa đối số")
+    }
+
+    func testFrequencyThroughScalarConsumer() {
+        XCTAssertEqual(calc(engine(), "=SUM(FREQUENCY({1,2,3,4,5},{2,4}))"), .number(5),
+                       "2+2+1 qua SUM")
+        XCTAssertEqual(calc(engine(), "=FREQUENCY({1,2,3},{2})"), .error("#VALUE!"),
+                       "mảng nhiều phần tử ở ô đơn, như SEQUENCE(2,2)")
     }
 }

@@ -25,6 +25,8 @@ public final class OOXMLBridge {
 
     private var docs: [String: Doc] = [:]
     private var counter = 0
+    /// Bộ đọc theo cửa sổ hàng đã lập chỉ mục, theo "handle\u{0}part" (chỉ dùng lại khi sheet chưa bị sửa).
+    private var rowReaders: [String: SheetRowReader] = [:]
 
     public init() {}
 
@@ -79,7 +81,11 @@ public final class OOXMLBridge {
         switch op {
         case "open": return try open(args)
         case "info": return try info(args)
-        case "close": docs[try args.string("handle")] = nil; return [:]
+        case "close":
+            let handle = try args.string("handle")
+            docs[handle] = nil
+            rowReaders = rowReaders.filter { !$0.key.hasPrefix(handle + "\u{0}") }
+            return [:]
         case "exportBytes": return ["base64": try exportBytes(args).base64EncodedString()]
         case "save": return try save(args)
         case "xlsx.save": return try xlsxSaveDelta(args)
@@ -87,7 +93,9 @@ public final class OOXMLBridge {
         case "pptx.save": return try pptxSaveDelta(args)
 
         case "sheet.read": return try sheetRead(args)
+        case "sheet.readRows": return try sheetReadRows(args)
         case "sheet.setValue": return try sheetSetValue(args)
+        case "sheet.setValues": return try sheetSetValues(args)
         case "sheet.setFormula": return try sheetSetFormula(args)
         case "sheet.clear": try worksheet(args).clear(try args.string("ref")); return [:]
         case "sheet.rewriteLegacyConcat": return ["changed": try worksheet(args).rewriteLegacyConcat()]
@@ -217,7 +225,10 @@ public final class OOXMLBridge {
         counter += 1
         let handle = "h\(counter)"
         // Nhận diện loại theo phần tài liệu chính.
-        if let wb = try? Workbook(data: data) {
+        // `lazy: true` (tùy chọn): mở bảng tính bằng đường lười — hoãn kiểm tra toàn gói tới lúc lưu và không
+        // dựng bảng chuỗi trong RAM. Dùng với `sheet.readRows` để hiện màn hình đầu của tệp lớn thật nhanh.
+        let lazy = args.optBool("lazy") ?? false
+        if let wb = try? (lazy ? Workbook(data: data, deferValidation: true, lazyModel: true) : Workbook(data: data)) {
             docs[handle] = .workbook(wb)
         } else if let doc = try? WordDocument(data: data) {
             docs[handle] = .word(doc)
@@ -812,25 +823,104 @@ public final class OOXMLBridge {
 
     // MARK: Sheet
 
+    private func cellJSON(_ c: Cell, styles: StyleSheet?) -> [String: Any] {
+        var o: [String: Any] = ["ref": c.reference.a1, "value": BridgeValue.json(c.value), "style": c.styleIndex]
+        if let f = c.formula { o["formula"] = f }
+        if let info = styles?.info(styleIndex: c.styleIndex) {
+            o["numberFormat"] = info.numberFormatCode
+            if info.isDate { o["isDate"] = true }
+        }
+        return o
+    }
+
+    /// Đọc ô theo cửa sổ hàng, KHÔNG dựng DOM cả sheet (xem `SheetRowReader`).
+    /// args: handle, sheet | sheetIndex, và `range` ("A1:H50") hoặc `from` (hàng đầu, mặc định 1) + `count` (mặc định 200).
+    /// result: cells (cùng định dạng với `sheet.read`), rowCount (số hàng có trong tệp), lastRow (số hàng lớn nhất).
+    private func sheetReadRows(_ args: Args) throws -> [String: Any] {
+        let handle = try args.string("handle")
+        let wb = try workbook(args)
+        let info: SheetInfo
+        if let name = args.optString("sheet") {
+            guard let found = wb.sheets.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
+                throw SpreadsheetError.sheetNotFound(name)
+            }
+            info = found
+        } else {
+            let index = args.optInt("sheetIndex") ?? 0
+            guard wb.sheets.indices.contains(index) else { throw SpreadsheetError.sheetNotFound("#\(index)") }
+            info = wb.sheets[index]
+        }
+        guard info.kind == .worksheet, let part = info.part else { throw SpreadsheetError.notAWorksheet(info.name) }
+        // Chỉ mục hàng chỉ dùng lại khi sheet chưa bị sửa trong phiên; đã sửa thì lập ảnh chụp mới mỗi lần đọc.
+        let key = handle + "\u{0}" + part.description
+        let reader: SheetRowReader
+        if wb.package.isModified(part) {
+            rowReaders[key] = nil
+            reader = try wb.rowReader(forSheetNamed: info.name)
+        } else if let cached = rowReaders[key] {
+            reader = cached
+        } else {
+            reader = try wb.rowReader(forSheetNamed: info.name)
+            rowReaders[key] = reader
+        }
+        let cells: [Cell]
+        if let r = args.optString("range") {
+            guard let range = CellRange(r) else { throw SpreadsheetError.invalidReference(r) }
+            cells = try reader.cells(in: range)
+        } else {
+            let from = max(1, args.optInt("from") ?? 1)
+            let count = max(1, args.optInt("count") ?? 200)
+            cells = try reader.cells(inRows: from...(from + count - 1))
+        }
+        let styles = wb.styles
+        return ["cells": cells.map { cellJSON($0, styles: styles) }, "rowCount": reader.rowCount, "lastRow": reader.lastRowNumber]
+    }
+
     private func sheetRead(_ args: Args) throws -> [String: Any] {
         let ws = try worksheet(args)
         let styles = ws.workbook.styles
-        func cellJSON(_ c: Cell) -> [String: Any] {
-            var o: [String: Any] = ["ref": c.reference.a1, "value": BridgeValue.json(c.value), "style": c.styleIndex]
-            if let f = c.formula { o["formula"] = f }
-            if let info = styles?.info(styleIndex: c.styleIndex) {
-                o["numberFormat"] = info.numberFormatCode
-                if info.isDate { o["isDate"] = true }
-            }
-            return o
-        }
         let cells: [Cell]
         if let r = args.optString("range"), let range = CellRange(r) {
             cells = ws.cells.filter { range.contains($0.reference) }
         } else {
             cells = ws.cells
         }
-        return ["cells": cells.map(cellJSON), "used": ws.usedRange?.description ?? ""]
+        return ["cells": cells.map { cellJSON($0, styles: styles) }, "used": ws.usedRange?.description ?? ""]
+    }
+
+    /// Ghi nhiều giá trị một lượt. Thử đường vá (`SheetPatcher`, không dựng DOM cả sheet) trước; nếu sheet
+    /// thuộc trường hợp đường vá từ chối thì ghi bằng đường DOM như `sheet.setValue`.
+    /// args: handle, sheet | sheetIndex, cells: [{ref, value}]. result: {path: "patch" | "dom", count}.
+    private func sheetSetValues(_ args: Args) throws -> [String: Any] {
+        let handle = try args.string("handle")
+        let wb = try workbook(args)
+        guard let list = args.raw["cells"] as? [[String: Any]], !list.isEmpty else {
+            throw BridgeError("args", "thiếu tham số cells")
+        }
+        var edits: [(ref: String, value: CellValue)] = []
+        for item in list {
+            guard let ref = item["ref"] as? String, CellReference(ref) != nil else {
+                throw SpreadsheetError.invalidReference("\(item["ref"] ?? "")")
+            }
+            edits.append((ref, try BridgeValue.cellValue(from: item["value"])))
+        }
+        do {
+            let patcher: SheetPatcher
+            if let name = args.optString("sheet") {
+                patcher = try wb.patcher(forSheetNamed: name)
+            } else {
+                patcher = try wb.patcher(forSheetAt: args.optInt("sheetIndex") ?? 0)
+            }
+            for e in edits { try patcher.setValue(e.value, at: e.ref) }
+            try patcher.commit()
+            // Byte sheet đã đổi: bỏ chỉ mục hàng cũ của sheet này.
+            rowReaders[handle + "\u{0}" + patcher.part.description] = nil
+            return ["path": "patch", "count": edits.count]
+        } catch SheetPatchError.unsupported {
+            let ws = try worksheet(args)
+            for e in edits { try ws.setValue(e.value, at: e.ref) }
+            return ["path": "dom", "count": edits.count]
+        }
     }
 
     private func sheetSetValue(_ args: Args) throws -> [String: Any] {

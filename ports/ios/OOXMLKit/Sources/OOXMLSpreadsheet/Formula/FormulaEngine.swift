@@ -263,7 +263,7 @@ public final class FormulaEngine {
         switch e {
         case .cell(let s, let r): return [(s, CellRange(r, r))]
         case .range(let s, let r): return [(s, r)]
-        case .unary(_, let x), .percent(let x):
+        case .unary(_, let x), .percent(let x), .intersect(let x), .spill(let x):
             return expandedReferences(x, currentSheet: currentSheet, bound: bound, expanding: expanding)
         case .binary(_, let a, let b):
             return expandedReferences(a, currentSheet: currentSheet, bound: bound, expanding: expanding)
@@ -333,6 +333,7 @@ public final class FormulaEngine {
     private func evaluate(_ addr: CellAddress, node: Node) -> CellValue {
         guard let expr = node.expr else { return .error(FormulaErrors.name) }
         var ev = FormulaEvaluator(context: Context(engine: self, current: addr.sheet))
+        ev.intersectAnchor = addr.ref // M7 lát 36: toán tử "@" dùng vị trí ô công thức
         if let arr = arrayMembership[addr] { ev.position = addr.ref; ev.arrayOrigin = arr.start }
         return ev.evaluate(expr)
     }
@@ -357,6 +358,13 @@ public final class FormulaEngine {
         }
         func definedNameExpr(_ name: String) -> FormulaExpr? {
             engine.resolveDefinedNameExpr(name, currentSheet: current)
+        }
+        func formulaExpr(sheet: String, ref: CellReference) -> FormulaExpr? {
+            // Ô thuộc công thức mảng CSE không tràn (M7 lát 37).
+            guard engine.arrayMembership[CellAddress(sheet: sheet, ref: ref)] == nil,
+                  let f = engine.inputs[sheet]?[ref]?.formula,
+                  let expr = try? FormulaParser.parse(f) else { return nil }
+            return expr
         }
         func nonEmptyValues(sheet: String, range: CellRange) -> [CellValue] {
             let cells = engine.inputs[sheet] ?? [:]

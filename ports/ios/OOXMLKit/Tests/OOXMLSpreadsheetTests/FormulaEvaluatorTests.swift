@@ -384,6 +384,33 @@ final class FormulaEvaluatorTests: XCTestCase {
         XCTAssertEqual(calc("sum(1,2)"), .number(3), "tên hàm không phân biệt hoa thường")
     }
 
+    func testWholeColumnAndRowRanges() {
+        // M7 lát 33: vùng cả cột / cả hàng — parser đã có wholeColumnPair/wholeRowPair,
+        // SUM/AVERAGE/MIN/MAX/COUNT đi qua nonEmptyValues (chỉ duyệt ô không rỗng).
+        let col: [String: CellValue] = [
+            "B1": .number(10), "B2": .number(20), "B3": .number(30),
+            "B4": .string("chữ"), "B5": .empty,
+        ]
+        XCTAssertEqual(calc("SUM(B:B)", col), .number(60))
+        XCTAssertEqual(calc("SUM($B:$B)", col), .number(60))
+        XCTAssertEqual(calc("SUM(Sheet1!B:B)", col), .number(60), "vùng cả cột có tên sheet")
+        XCTAssertEqual(calc("AVERAGE(B:B)", col), .number(20))
+        XCTAssertEqual(calc("COUNT(B:B)", col), .number(3), "chuỗi/rỗng không đếm")
+        XCTAssertEqual(calc("MIN(B:B)", col), .number(10))
+        XCTAssertEqual(calc("MAX(B:B)", col), .number(30))
+        XCTAssertEqual(calc("COUNTA(B:B)", col), .number(4), "chuỗi vẫn đếm, rỗng không")
+        let row: [String: CellValue] = [
+            "A1": .number(1), "B1": .number(10), "A2": .number(2), "B2": .number(20),
+        ]
+        XCTAssertEqual(calc("SUM(1:1)", row), .number(11))
+        XCTAssertEqual(calc("SUM($1:$1)", row), .number(11), "'$' trước số hàng cũng là vùng cả hàng")
+        XCTAssertEqual(calc("SUM(2:2)", row), .number(22))
+        XCTAssertEqual(calc("AVERAGE(1:1)", row), .number(5.5))
+        XCTAssertEqual(calc("COUNT(1:1)", row), .number(2))
+        XCTAssertEqual(calc("SUM(Sheet1!1:1)", row), .number(11), "vùng cả hàng có tên sheet")
+        XCTAssertEqual(calc("SUM(Sheet1!$1:$1)", row), .number(11), "vùng cả hàng có tên sheet + '$'")
+    }
+
     func testAverageMinMax() {
         XCTAssertEqual(calc("AVERAGE(A1:A3)", data), .number(2))
         XCTAssertEqual(calc("AVERAGE(A1:A6)", data), .number(2))
@@ -489,7 +516,8 @@ final class FormulaEvaluatorTests: XCTestCase {
 
     func testRoundHelperFallbackAndFormat() {
         XCTAssertEqual(FormulaEvaluator.round(1e20, digits: 0), 1e20)
-        XCTAssertEqual(FormulaEvaluator.text(.number(1e20)), "1e+20")
+        // M7 lát 30: Excel General viết "1E+20" (E hoa, mũ có dấu) — golden-batch14.
+        XCTAssertEqual(FormulaEvaluator.text(.number(1e20)), "1E+20")
         XCTAssertEqual(FormulaEvaluator.text(.number(-3)), "-3")
         XCTAssertEqual(FormulaEvaluator.text(.empty), "")
         XCTAssertEqual(FormulaEvaluator.text(.error("#N/A")), "#N/A")

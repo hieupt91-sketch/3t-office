@@ -71,9 +71,32 @@ enum ExcelDate {
 
     // MARK: Phân tích chuỗi
 
-    /// "yyyy-m-d" hoặc "yyyy/m/d", tùy chọn " hh:mm[:ss]" / "Thh:mm[:ss]" → serial (có phần thập phân).
+    /// "yyyy-m-d" / "yyyy/m/d" / "d/m/yyyy" (dự phòng "m/d/yyyy") / "d Month yyyy" /
+    /// "Month d, yyyy", tùy chọn " hh:mm[:ss]" / "Thh:mm[:ss]" → serial (có phần thập phân).
+    /// Toàn chuỗi là giờ ("6:30 PM", "25:00") → phần ngày.
+    /// Thứ tự ngày/tháng theo golden Excel 2016 + engine JS của repo (d/m/yyyy).
     static func parse(_ text: String) -> Double? {
         let t = text.trimmingCharacters(in: .whitespaces)
+        if let tf = parseTime(t) { return tf }
+        // "5 March 2024" / "March 5, 2024", tùy chọn " hh:mm[:ss]" phía sau.
+        // Làm trước khi tách datePart/timePart vì tên tháng chứa khoảng trắng.
+        let wp = t.split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init)
+        if wp.count >= 3, let y = Int(wp[2]), wp[2].count == 4, y >= 1900 {
+            var ds: Double? = nil
+            if let d = Int(wp[0]), let m = monthNumber(wp[1]), d >= 1, d <= daysInMonth(y, m),
+               let s = serial(year: y, month: m, day: d) {
+                ds = Double(s)
+            } else if let m = monthNumber(wp[0]), let d = Int(wp[1]), d >= 1, d <= daysInMonth(y, m),
+                      let s = serial(year: y, month: m, day: d) {
+                ds = Double(s)
+            }
+            if let ds = ds {
+                if wp.count == 3 { return ds }
+                let rest = wp[3...].joined(separator: " ")
+                guard let tf = parseTime(rest) else { return nil }
+                return ds + tf
+            }
+        }
         var datePart = t, timePart: String? = nil
         if let i = t.firstIndex(where: { $0 == " " || $0 == "T" }) {
             datePart = String(t[..<i]); timePart = String(t[t.index(after: i)...])
@@ -85,7 +108,16 @@ enum ExcelDate {
            let s = serial(year: y, month: m, day: d) {
             dateSerial = Double(s)
         }
-        if dateSerial == nil && timePart == nil, let tf = parseTime(datePart) { return tf }
+        if dateSerial == nil, dp.count == 3, dp[2].count == 4, let y = Int(dp[2]), y >= 1900 {
+            // d/m/yyyy; nếu số đầu > 12 thì đọc m/d/yyyy.
+            if let d = Int(dp[0]), let m = Int(dp[1]), (1...12).contains(m), d >= 1, d <= daysInMonth(y, m),
+               let s = serial(year: y, month: m, day: d) {
+                dateSerial = Double(s)
+            } else if let m = Int(dp[0]), let d = Int(dp[1]), (1...12).contains(m), d >= 1, d <= daysInMonth(y, m),
+                      let s = serial(year: y, month: m, day: d) {
+                dateSerial = Double(s)
+            }
+        }
         guard var result = dateSerial else { return nil }
         if let tp = timePart {
             guard let tf = parseTime(tp) else { return nil }
@@ -94,13 +126,48 @@ enum ExcelDate {
         return result
     }
 
-    /// "hh:mm" hoặc "hh:mm:ss" → phần ngày [0,1).
+    /// Tên tháng tiếng Anh (đầy đủ / viết tắt 3 chữ) → 1...12.
+    private static func monthNumber(_ name: String) -> Int? {
+        switch name.lowercased() {
+        case "january", "jan": return 1
+        case "february", "feb": return 2
+        case "march", "mar": return 3
+        case "april", "apr": return 4
+        case "may": return 5
+        case "june", "jun": return 6
+        case "july", "jul": return 7
+        case "august", "aug": return 8
+        case "september", "sep", "sept": return 9
+        case "october", "oct": return 10
+        case "november", "nov": return 11
+        case "december", "dec": return 12
+        default: return nil
+        }
+    }
+
+    /// "hh:mm" / "hh:mm:ss", tùy chọn hậu tố AM/PM → phần ngày [0,1).
+    /// Giờ 0...9999 và giây 60 được cuộn theo ngày (TIMEVALUE("25:00") = 1/24,
+    /// TIMEVALUE("23:59:60") = 0 — theo golden Excel 2016); giờ ≥ 10000 → nil.
+    /// Với AM/PM giờ phải 1...12 ("12:00 AM" = 0, "6:30 PM" = 18:30).
     static func parseTime(_ text: String) -> Double? {
-        let p = text.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
-        guard p.count == 2 || p.count == 3, let h = Int(p[0]), let m = Int(p[1]) else { return nil }
+        var t = text.trimmingCharacters(in: .whitespaces)
+        var pm: Bool? = nil
+        let upper = t.uppercased()
+        if upper.hasSuffix("PM") { pm = true; t = String(t.dropLast(2)).trimmingCharacters(in: .whitespaces) }
+        else if upper.hasSuffix("AM") { pm = false; t = String(t.dropLast(2)).trimmingCharacters(in: .whitespaces) }
+        let p = t.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+        guard p.count == 2 || p.count == 3, let h0 = Int(p[0]), let m = Int(p[1]) else { return nil }
         let sec = p.count == 3 ? Int(p[2]) : 0
-        guard let s = sec, (0...23).contains(h), (0...59).contains(m), (0...59).contains(s) else { return nil }
-        return Double(h * 3600 + m * 60 + s) / 86400
+        guard let s = sec, (0...59).contains(m), (0...60).contains(s) else { return nil }
+        var h = h0
+        if let pm = pm {
+            guard (1...12).contains(h) else { return nil }
+            if pm && h != 12 { h += 12 }
+            if !pm && h == 12 { h = 0 }
+        } else {
+            guard (0...9999).contains(h) else { return nil }
+        }
+        return Double((h * 3600 + m * 60 + s) % 86400) / 86400
     }
 
     // MARK: Cộng tháng

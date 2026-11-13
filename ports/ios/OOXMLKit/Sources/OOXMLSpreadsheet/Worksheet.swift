@@ -220,6 +220,7 @@ public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
     case cannotDeleteLastVisibleSheet
     case invalidRowOperation(String)
     case invalidSetting(String)
+    case invalidDefinedName(String)
 
     public var description: String {
         switch self {
@@ -235,6 +236,7 @@ public enum SpreadsheetError: Error, Equatable, CustomStringConvertible {
         case .cannotDeleteLastVisibleSheet: return "Sổ tính phải còn ít nhất một sheet hiển thị"
         case .invalidRowOperation(let m): return "Không chèn/xóa hàng được: \(m)"
         case .invalidSetting(let m): return "Thiết lập bảng tính không hợp lệ: \(m)"
+        case .invalidDefinedName(let m): return "Tên định nghĩa không hợp lệ: \(m)"
         }
     }
 }
@@ -954,15 +956,22 @@ public final class Worksheet {
     }
 
     private func makeCell(_ ref: CellReference, _ c: XElement) -> Cell {
+        Worksheet.decodeCell(ref, c, workbook: workbook) { self.sharedMasters[$0] }
+    }
+
+    /// Giải mã một phần tử `<c>` thành `Cell`. Dùng chung cho đường DOM (`Worksheet`) và
+    /// đường đọc theo cửa sổ hàng (`SheetRowReader`) để hai đường luôn cho cùng kết quả.
+    static func decodeCell(_ ref: CellReference, _ c: XElement, workbook: Workbook,
+                           sharedMaster: (String) -> (ref: CellReference, formula: String)?) -> Cell {
         let t = c.attribute("t")
         let vText = c.firstChild(NS.s, "v")?.textContent
         var rich = false
         let value: CellValue
         switch t {
         case "s":
-            if let i = vText.flatMap({ Int($0.trimmingCharacters(in: .whitespaces)) }), let s = workbook.sharedStrings?[i] {
+            if let i = vText.flatMap({ Int($0.trimmingCharacters(in: .whitespaces)) }), let s = workbook.string(at: i) {
                 value = .string(s)
-                rich = workbook.sharedStrings?.isRichText(i) ?? false
+                rich = workbook.isRichText(at: i)
             } else {
                 value = .empty
             }
@@ -986,7 +995,7 @@ public final class Worksheet {
             let text = f.textContent
             if !text.isEmpty {
                 formula = text
-            } else if ftype == "shared", let si = f.attribute("si"), let m = sharedMasters[si] {
+            } else if ftype == "shared", let si = f.attribute("si"), let m = sharedMaster(si) {
                 formula = FormulaRewriter.shift(m.formula, rows: ref.row - m.ref.row, columns: ref.column - m.ref.column)
             }
         }
@@ -1214,6 +1223,10 @@ public final class Worksheet {
     }
 
     private func setAttributeAfterR(_ e: XElement, _ name: String, _ value: String) {
+        Worksheet.setAttributeAfterR(e, name, value)
+    }
+
+    static func setAttributeAfterR(_ e: XElement, _ name: String, _ value: String) {
         if e.attribute(name) != nil { e.setAttribute(name, value); return }
         let i = (e.attributes.firstIndex { $0.name == "r" }).map { $0 + 1 } ?? 0
         e.attributes.insert(XAttribute(name: name, value: value), at: i)
@@ -1279,7 +1292,15 @@ public final class Worksheet {
     private func cellElement(_ ref: CellReference) -> XElement {
         if let c = cellElements[ref] { return c }
         let row = rowElement(ref.row)
-        let c = XElement(name: q("c"), attributes: [XAttribute(name: "r", value: ref.a1)])
+        let c = Worksheet.insertNewCell(ref, into: row, name: q("c"))
+        cellElements[ref] = c
+        return c
+    }
+
+    /// Tạo `<c r=…>` mới trong `row` đúng vị trí cột và nới `spans` của hàng. Dùng chung cho đường DOM
+    /// và `SheetPatcher`.
+    static func insertNewCell(_ ref: CellReference, into row: XElement, name: String) -> XElement {
+        let c = XElement(name: name, attributes: [XAttribute(name: "r", value: ref.a1)])
         var inserted = false
         for (i, node) in row.children.enumerated() {
             guard let e = node.element else { continue }
@@ -1295,7 +1316,6 @@ public final class Worksheet {
             }
         }
         if !inserted { row.append(c) }
-        cellElements[ref] = c
         if let spans = row.attribute("spans") {
             let p = spans.split(separator: ":").compactMap { Int($0) }
             if p.count == 2 { row.setAttribute("spans", "\(min(p[0], ref.column)):\(max(p[1], ref.column))") }
@@ -1304,6 +1324,12 @@ public final class Worksheet {
     }
 
     private func write(_ value: CellValue, formula: String?, into c: XElement) throws {
+        try Worksheet.write(value, formula: formula, into: c, workbook: workbook) { self.q($0) }
+    }
+
+    /// Ghi giá trị/công thức vào phần tử `<c>`. Dùng chung cho đường DOM và `SheetPatcher`.
+    static func write(_ value: CellValue, formula: String?, into c: XElement, workbook: Workbook,
+                      q: (String) -> String) throws {
         c.removeChildren { node in
             guard let e = node.element else { return false }
             return e.is(NS.s, "f") || e.is(NS.s, "v") || e.is(NS.s, "is")
@@ -1338,9 +1364,8 @@ public final class Worksheet {
                 setAttributeAfterR(c, "t", "str")
                 newChildren.append(v(SharedStrings.escape(s)))
             } else {
-                let sst = try workbook.sharedStringsCreatingIfNeeded()
                 setAttributeAfterR(c, "t", "s")
-                newChildren.append(v(String(sst.index(for: s))))
+                newChildren.append(v(String(try workbook.stringIndex(for: s))))
             }
         case .bool(let b):
             setAttributeAfterR(c, "t", "b")
@@ -1365,9 +1390,16 @@ public final class Worksheet {
     }
 
     private func updateDimension(_ ref: CellReference) {
-        let dim = document.root.firstChild(NS.s, "dimension") ?? {
-            let e = XElement(name: q("dimension"), attributes: [XAttribute(name: "ref", value: ref.a1)])
-            document.root.insertChild(e, schemaOrder: Worksheet.worksheetOrder)
+        Worksheet.updateDimension(root: document.root, ref)
+    }
+
+    /// Nới `<dimension>` của sheet cho chứa `ref` (tạo phần tử nếu chưa có). Dùng chung cho đường DOM
+    /// và `SheetPatcher`.
+    static func updateDimension(root: XElement, _ ref: CellReference) {
+        let dim = root.firstChild(NS.s, "dimension") ?? {
+            let e = XElement(name: root.qualifiedName("dimension", in: NS.s).name,
+                             attributes: [XAttribute(name: "ref", value: ref.a1)])
+            root.insertChild(e, schemaOrder: Worksheet.worksheetOrder)
             return e
         }()
         let current = dim.attribute("ref").flatMap(CellRange.init) ?? CellRange(ref, ref)

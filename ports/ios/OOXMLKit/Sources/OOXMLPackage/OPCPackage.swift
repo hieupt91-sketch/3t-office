@@ -38,6 +38,10 @@ public final class OPCPackage {
     /// Gói mở bằng `deferValidation`: baseline kiểm tra tính khi cần (lúc `save(to:)`), không tốn lúc mở.
     private var baselineDeferred = false
     public var compression: ZipCompression = .deflate
+    /// Phần bị ghi lại có kích thước thô từ ngưỡng này trở lên được nén ở mức NHANH thay cho mức mặc định
+    /// (chỉ áp dụng khi `compression` đang là mức mặc định). Sheet 23 MB: nén 0,5 giây thay vì 1,3 giây, tệp
+    /// lớn hơn khoảng 3,5%. Đặt `nil` để luôn dùng đúng `compression`.
+    public var fastCompressionThreshold: Int? = 4 << 20
 
     /// Số phần XML đã parse thành DOM (để kiểm chứng/benchmark tính lười).
     public var loadedXMLPartCount: Int { xmlCache.count }
@@ -145,6 +149,9 @@ public final class OPCPackage {
         xmlCache[part] = doc
         return doc
     }
+
+    /// Phần này đã được parse thành DOM và đang nằm trong bộ đệm.
+    public func isXMLLoaded(_ part: PartName) -> Bool { xmlCache[part] != nil }
 
     public func markModified(_ part: PartName) {
         modifiedXML.insert(part)
@@ -376,7 +383,11 @@ public final class OPCPackage {
            e.crc32 == CRC32.checksum(data), (try? archive.contents(of: e)) == data {
             return
         }
-        archive.setContents(data, for: name, compression: compression)
+        var effective = compression
+        if case .deflate(.default) = compression, let limit = fastCompressionThreshold, data.count >= limit {
+            effective = .deflate(.fast)
+        }
+        archive.setContents(data, for: name, compression: effective)
         zipNameByKey[OPCPackage.key(part)] = name
     }
 

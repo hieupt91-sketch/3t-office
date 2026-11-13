@@ -28,7 +28,40 @@ final class FormulaSyntaxTests: XCTestCase {
         XCTAssertThrowsError(try tok("'Sheet A1"))
         XCTAssertThrowsError(try tok("'Sheet'A1"))
         XCTAssertThrowsError(try tok("#FOO!"))
-        XCTAssertThrowsError(try tok("1 @ 2"))
+        // "1 @ 2" KHÔNG lỗi ở tầng tokenize (tokenizer chưa từng kiểm vị trí
+        // của "@") — lỗi chỉ lộ ở tầng parse (token thừa); xem testParseSpillOperator
+        // và testAtSingleCellScalarAndDouble. (Sửa kỳ vọng sai có sẵn từ lát 36.)
+        XCTAssertEqual(try tok("1 @ 2"), [.number(1), .at, .number(2)])
+        XCTAssertThrowsError(try FormulaParser.parse("1 @ 2"))
+    }
+
+    func testTokenizeSpillOperator() throws {
+        XCTAssertEqual(try tok("A1#"), [.cell("A1"), .spill])
+        XCTAssertEqual(try tok("$A$1#"), [.cell("$A$1"), .spill])
+        XCTAssertEqual(try tok("SUM(A1#)"), [.function("SUM"), .lparen, .cell("A1"), .spill, .rparen])
+        XCTAssertEqual(try tok("Data!A1#"), [.sheet("Data"), .cell("A1"), .spill])
+        // Hằng lỗi vẫn ưu tiên: "#VALUE!" không thành spill; "A1#VALUE!" giữ
+        // token cũ (parser sẽ báo lỗi cú pháp vì thiếu toán tử).
+        XCTAssertEqual(try tok("A1#VALUE!"), [.cell("A1"), .error("#VALUE!")])
+        XCTAssertEqual(try tok("#DIV/0!"), [.error("#DIV/0!")])
+    }
+
+    func testParseSpillOperator() throws {
+        XCTAssertEqual(try FormulaParser.parse("A1#"),
+                       .spill(.cell(sheet: nil, ref: "A1")))
+        XCTAssertEqual(try FormulaParser.parse("SUM(A1#)"),
+                       .call("SUM", [.spill(.cell(sheet: nil, ref: "A1"))]))
+        XCTAssertEqual(try FormulaParser.parse("Data!A1#"),
+                       .spill(.cell(sheet: "Data", ref: "A1")))
+        // Vùng nhiều ô + # → parse được, evaluator trả #VALUE!.
+        XCTAssertEqual(try FormulaParser.parse("A1:B2#"),
+                       .spill(.range(sheet: nil, range: CellRange("A1:B2")!)))
+        // references của spill phục vụ sắp topo (phụ thuộc vào ô neo).
+        let e = try FormulaParser.parse("SUM(A1#,B1#)")
+        XCTAssertEqual(e.references.count, 2)
+        XCTAssertThrowsError(try FormulaParser.parse("A1#VALUE!"), "hằng lỗi sau ô không có toán tử")
+        XCTAssertThrowsError(try FormulaParser.parse("#"), "# trơ trọi")
+        XCTAssertThrowsError(try FormulaParser.parse("1#"), "# sau số")
     }
 
     func testParsePrecedence() throws {
@@ -75,5 +108,51 @@ final class FormulaSyntaxTests: XCTestCase {
                        .array([[.number(-1), .string("a"), .bool(true), .error("#N/A")]]), "hằng hỗn hợp")
         XCTAssertThrowsError(try FormulaParser.parse("{1,2;3}"), "mảng không chữ nhật phải lỗi")
         XCTAssertThrowsError(try FormulaParser.parse("{1,A1}"), "tham chiếu trong hằng mảng phải lỗi")
+    }
+
+    // MARK: Tiền tố lưu trữ của Excel (_xlfn., _xlfn._xlws., _xlpm.)
+
+    /// Trong tệp XLSX, Excel ghi hàm ra đời sau bản 2007 kèm `_xlfn.` và hàm mảng động kèm `_xlfn._xlws.`.
+    /// Engine phải coi đó là cùng một hàm; trước đây trả #NAME? cho mọi hàm như vậy.
+    func testStoragePrefixesAreStrippedFromFunctionNames() throws {
+        XCTAssertEqual(FormulaTokenizer.canonicalFunctionName("_xlfn.STDEV.S"), "STDEV.S")
+        XCTAssertEqual(FormulaTokenizer.canonicalFunctionName("_xlfn._xlws.FILTER"), "FILTER")
+        XCTAssertEqual(FormulaTokenizer.canonicalFunctionName("_XLFN.ifs"), "IFS")
+        XCTAssertEqual(FormulaTokenizer.canonicalFunctionName("sum"), "SUM")
+
+        let engine = FormulaEngine()
+        engine.addSheet("S")
+        for (i, v) in [10.0, 20.0, 30.0, 40.0].enumerated() { engine.setValue(.number(v), sheet: "S", at: "A\(i + 1)") }
+        engine.setFormula("_xlfn.STDEV.S(A1:A4)", sheet: "S", at: "B1")
+        engine.setFormula("STDEV.S(A1:A4)", sheet: "S", at: "B2")
+        engine.setFormula("_xlfn.IFS(A1>100,\"a\",A1>5,\"b\")", sheet: "S", at: "B3")
+        engine.setFormula("_xlfn.TEXTJOIN(\"-\",TRUE,A1:A2)", sheet: "S", at: "B4")
+        engine.setFormula("SUM(_xlfn._xlws.FILTER(A1:A4,A1:A4>15))", sheet: "S", at: "B5")
+        engine.setFormula("_xlfn.XLOOKUP(30,A1:A4,A1:A4)", sheet: "S", at: "B6")
+        engine.setFormula("SUM(_xlfn.MAP(A1:A4,_xlfn.LAMBDA(_xlpm.x,_xlpm.x*2)))", sheet: "S", at: "B7")
+        engine.setFormula("_xlfn.NOSUCHFUNCTION(1)", sheet: "S", at: "B8")
+        _ = engine.recalculate()
+        XCTAssertEqual(engine.value(sheet: "S", at: "B1"), engine.value(sheet: "S", at: "B2"))
+        guard case .number = engine.value(sheet: "S", at: "B1") else { return XCTFail("STDEV.S có tiền tố phải ra số") }
+        XCTAssertEqual(engine.value(sheet: "S", at: "B3"), .string("b"))
+        XCTAssertEqual(engine.value(sheet: "S", at: "B4"), .string("10-20"))
+        XCTAssertEqual(engine.value(sheet: "S", at: "B5"), .number(90))
+        XCTAssertEqual(engine.value(sheet: "S", at: "B6"), .number(30))
+        XCTAssertEqual(engine.value(sheet: "S", at: "B7"), .number(200))
+        XCTAssertEqual(engine.value(sheet: "S", at: "B8"), .error("#NAME?"), "hàm không tồn tại vẫn phải là #NAME?")
+    }
+
+    func testTrueFalseFunctionForms() throws {
+        let engine = FormulaEngine()
+        engine.addSheet("S")
+        engine.setFormula("TRUE()", sheet: "S", at: "A1")
+        engine.setFormula("FALSE()", sheet: "S", at: "A2")
+        engine.setFormula("IF(TRUE(),1,2)+IF(FALSE(),10,20)", sheet: "S", at: "A3")
+        engine.setFormula("TRUE(1)", sheet: "S", at: "A4")
+        _ = engine.recalculate()
+        XCTAssertEqual(engine.value(sheet: "S", at: "A1"), .bool(true))
+        XCTAssertEqual(engine.value(sheet: "S", at: "A2"), .bool(false))
+        XCTAssertEqual(engine.value(sheet: "S", at: "A3"), .number(21))
+        guard case .error = engine.value(sheet: "S", at: "A4") else { return XCTFail("TRUE(1) phải là lỗi") }
     }
 }

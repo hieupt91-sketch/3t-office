@@ -67,6 +67,73 @@ final class OOXMLBridgeTests: XCTestCase {
         XCTAssertEqual(g2["formula"] as? String, "C2*2")
     }
 
+    func testSheetReadRowsMatchesSheetReadAndTracksEdits() throws {
+        let b64 = try Fixtures.data("xlsx/rich-excel.xlsx").base64EncodedString()
+        // Mở lười: hoãn kiểm tra gói + không dựng bảng chuỗi; đọc theo cửa sổ hàng không dựng DOM cả sheet.
+        let h = try call("open", ["base64": b64, "lazy": true])["handle"] as! String
+        let eager = try openFixture("xlsx/rich-excel.xlsx")
+
+        func refs(_ r: [String: Any]) -> [String] { (r["cells"] as! [[String: Any]]).map { $0["ref"] as! String }.sorted() }
+        func json(_ r: [String: Any]) throws -> String {
+            let cells = (r["cells"] as! [[String: Any]]).sorted { ($0["ref"] as! String) < ($1["ref"] as! String) }
+            return String(decoding: try JSONSerialization.data(withJSONObject: cells, options: [.sortedKeys]), as: UTF8.self)
+        }
+        let window = try call("sheet.readRows", ["handle": h, "sheet": "Dữ liệu", "range": "A1:E2"])
+        let full = try call("sheet.read", ["handle": eager, "sheet": "Dữ liệu", "range": "A1:E2"])
+        XCTAssertEqual(try json(window), try json(full), "sheet.readRows phải trả đúng như sheet.read")
+        XCTAssertGreaterThan(window["rowCount"] as? Int ?? 0, 1)
+        XCTAssertEqual(window["lastRow"] as? Int, (try call("sheet.readRows", ["handle": h, "sheet": "Dữ liệu"]))["lastRow"] as? Int)
+
+        // from/count: chỉ trả ô của đúng các hàng được hỏi.
+        let rows = try call("sheet.readRows", ["handle": h, "sheet": "Dữ liệu", "from": 2, "count": 1])
+        XCTAssertFalse(refs(rows).isEmpty)
+        XCTAssertTrue(refs(rows).allSatisfy { $0.hasSuffix("2") && !$0.hasSuffix("12") }, "\(refs(rows))")
+
+        // Sửa ô rồi đọc lại: bộ đọc phải thấy thay đổi chưa lưu (không dùng chỉ mục cũ).
+        try call("sheet.setValue", ["handle": h, "sheet": "Dữ liệu", "ref": "C3", "value": ["t": "n", "v": 777]])
+        let after = try call("sheet.readRows", ["handle": h, "sheet": "Dữ liệu", "range": "C3:C3"])
+        let c3 = (after["cells"] as! [[String: Any]]).first { $0["ref"] as? String == "C3" }!
+        XCTAssertEqual((c3["value"] as! [String: Any])["v"] as? Double, 777)
+
+        // Sai tên sheet / sai vùng → lỗi có mã, không sập.
+        XCTAssertFalse(try callExpectingError("sheet.readRows", ["handle": h, "sheet": "Không có"]).isEmpty)
+        XCTAssertFalse(try callExpectingError("sheet.readRows", ["handle": h, "sheet": "Dữ liệu", "range": "???"]).isEmpty)
+        try call("close", ["handle": h])
+        XCTAssertEqual(try callExpectingError("sheet.readRows", ["handle": h, "sheet": "Dữ liệu"])["code"] as? String, "handle")
+    }
+
+    func testSheetSetValuesUsesPatchPathAndFallsBackToDOM() throws {
+        let b64 = try Fixtures.data("real/sample-sheet.xlsx").base64EncodedString()
+        let h = try call("open", ["base64": b64, "lazy": true])["handle"] as! String
+        // Đọc trước để có chỉ mục hàng trong bộ đệm, rồi ghi: lần đọc sau phải thấy giá trị mới.
+        let before = try call("sheet.readRows", ["handle": h, "from": 1, "count": 3])
+        XCTAssertFalse((before["cells"] as! [[String: Any]]).isEmpty)
+        let lastRow = before["lastRow"] as! Int
+        let cells: [[String: Any]] = [
+            ["ref": "A\(lastRow + 3)", "value": ["t": "s", "v": "vá qua bridge"]],
+            ["ref": "B\(lastRow + 3)", "value": ["t": "n", "v": 12.5]],
+        ]
+        let r = try call("sheet.setValues", ["handle": h, "cells": cells])
+        XCTAssertEqual(r["path"] as? String, "patch")
+        XCTAssertEqual(r["count"] as? Int, 2)
+        let after = try call("sheet.readRows", ["handle": h, "from": lastRow + 3, "count": 1])
+        let got = (after["cells"] as! [[String: Any]])
+        XCTAssertEqual((got.first { $0["ref"] as? String == "A\(lastRow + 3)" }?["value"] as? [String: Any])?["v"] as? String, "vá qua bridge")
+        XCTAssertEqual(after["lastRow"] as? Int, lastRow + 3)
+        // Xuất → mở lại bằng đường thường: tệp hợp lệ và giữ giá trị.
+        let out = try call("exportBytes", ["handle": h])["base64"] as! String
+        let h2 = try call("open", ["base64": out])["handle"] as! String
+        let re = try call("sheet.read", ["handle": h2, "range": "B\(lastRow + 3):B\(lastRow + 3)"])
+        XCTAssertEqual(((re["cells"] as! [[String: Any]]).first?["value"] as? [String: Any])?["v"] as? Double, 12.5)
+
+        // Sheet đang ở dạng DOM (đã sheet.read) → đường vá từ chối, bridge tự ghi bằng DOM.
+        let r2 = try call("sheet.setValues", ["handle": h2, "cells": [["ref": "C1", "value": ["t": "n", "v": 5]]]])
+        XCTAssertEqual(r2["path"] as? String, "dom")
+        let c1 = try call("sheet.read", ["handle": h2, "range": "C1:C1"])
+        XCTAssertEqual(((c1["cells"] as! [[String: Any]]).first?["value"] as? [String: Any])?["v"] as? Double, 5)
+        XCTAssertFalse(try callExpectingError("sheet.setValues", ["handle": h, "cells": [["ref": "??", "value": 1]]]).isEmpty)
+    }
+
     func testXlsxSaveDeltaWritesReopensAndPreservesUntouchedParts() throws {
         let dir = try Fixtures.scratchDirectory("xlsx-save-delta")
         let source = dir.appendingPathComponent("source.xlsx")

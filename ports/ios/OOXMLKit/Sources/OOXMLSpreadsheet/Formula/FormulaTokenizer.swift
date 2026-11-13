@@ -18,12 +18,25 @@ public enum FormulaToken: Equatable {
     case function(String)     // tên hàm (viết hoa), đứng trước "("
     case op(String)           // + - * / ^ & = <> < > <= >=
     case percent
+    case at // toán tử giao ngầm "@" (M7 lát 36)
+    case spill // toán tử tràn "#" (M7 lát 37): A1# = toàn bộ vùng tràn neo tại A1
     case lparen, rparen, comma, colon, lbrace, rbrace, semicolon
 }
 
 /// Cắt chuỗi công thức (không gồm "=" đầu) thành token.
 public enum FormulaTokenizer {
     static let errorLiterals = ["#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A"]
+
+    /// Tên hàm chuẩn (viết hoa, bỏ tiền tố lưu trữ). Trong tệp, Excel ghi hàm ra đời sau bản 2007 kèm tiền
+    /// tố `_xlfn.` (vd. `_xlfn.STDEV.S`, `_xlfn.IFS`), hàm mảng động kèm `_xlfn._xlws.` (vd. `_xlfn._xlws.FILTER`).
+    /// Tiền tố chỉ là quy ước lưu trữ, không thuộc tên hàm.
+    static func canonicalFunctionName(_ raw: String) -> String {
+        var name = raw.uppercased()
+        for prefix in ["_XLFN.", "_XLWS."] {
+            while name.hasPrefix(prefix) { name = String(name.dropFirst(prefix.count)) }
+        }
+        return name
+    }
 
     public static func tokenize(_ text: String) throws -> [FormulaToken] {
         let s = Array(text)
@@ -52,7 +65,7 @@ public enum FormulaTokenizer {
                         i = j
                     }
                 }
-                guard let d = Double(String(s[start..<i])) else {
+                guard let d = Double(truncateLiteralTo15SignificantDigits(String(s[start..<i]))) else {
                     throw FormulaSyntaxError(message: "số không hợp lệ", position: start)
                 }
                 out.append(.number(d))
@@ -100,15 +113,29 @@ public enum FormulaTokenizer {
                 if let e = errorLiterals.first(where: { rest.hasPrefix($0) }) {
                     out.append(.error(e)); i += e.count; continue
                 }
+                // Toán tử tràn "#" (M7 lát 37): hậu tố sau một tham chiếu hoặc
+                // biểu thức trả tham chiếu/mảng (A1#, $A$1#, Data!A1#, Tên#, (A1)#,
+                // SEQUENCE(3)#, {1,2}# — các dạng sau vẫn parse, evaluator trả
+                // #VALUE! khi neo không phải ô duy nhất chứa công thức mảng động).
+                // "#FOO!" vẫn lỗi như cũ; hằng lỗi sau ô (A1#VALUE!) vẫn giữ
+                // hành vi cũ (lỗi cú pháp ở parser).
+                switch out.last {
+                case .cell, .rparen, .rbrace, .name:
+                    out.append(.spill); i += 1; continue
+                default:
+                    break
+                }
                 throw FormulaSyntaxError(message: "hằng lỗi không hợp lệ", position: i)
             }
 
             if isIdentStart(c) {
                 let start = i
                 while i < s.count, isIdentPart(s[i]) { i += 1 }
-                let word = String(s[start..<i])
+                var word = String(s[start..<i])
                 if i < s.count, s[i] == "!" { i += 1; out.append(.sheet(word)); continue }
-                if i < s.count, s[i] == "(" { out.append(.function(word.uppercased())); continue }
+                if i < s.count, s[i] == "(" { out.append(.function(FormulaTokenizer.canonicalFunctionName(word))); continue }
+                // Tham số LAMBDA/LET trong tệp mang tiền tố _xlpm. (vd. _xlpm.x): bỏ tiền tố để khớp tên khai báo.
+                if word.lowercased().hasPrefix("_xlpm.") { word = String(word.dropFirst(6)) }
                 let upper = word.uppercased()
                 if upper == "TRUE" { out.append(.bool(true)) }
                 else if upper == "FALSE" { out.append(.bool(false)) }
@@ -126,6 +153,7 @@ public enum FormulaTokenizer {
             case "}": out.append(.rbrace)
             case ";": out.append(.semicolon)
             case "%": out.append(.percent)
+            case "@": out.append(.at)
             case "+", "-", "*", "/", "^", "&", "=":
                 out.append(.op(String(c)))
             case "<":
@@ -141,5 +169,27 @@ public enum FormulaTokenizer {
             i += 1
         }
         return out
+    }
+
+    /// Cắt literal số về tối đa 15 chữ số có nghĩa, KHÔNG làm tròn lên (M7 lát 30,
+    /// golden-batch13/14): Excel giữ 15 chữ số đầu rồi đệm 0 —
+    /// `123456789012345678` → 123456789012345000, `0.9999999999999999` → 0.999999999999999.
+    /// Áp dụng cho literal trong công thức; giá trị ô đọc từ tệp không qua đây.
+    static func truncateLiteralTo15SignificantDigits(_ text: String) -> String {
+        var mantissa = text
+        var exp = 0
+        if let ePos = text.firstIndex(where: { $0 == "e" || $0 == "E" }) {
+            mantissa = String(text[..<ePos])
+            exp = Int(text[text.index(after: ePos)...]) ?? 0
+        }
+        let parts = mantissa.split(separator: ".", omittingEmptySubsequences: false)
+        let intPart = parts.first.map(String.init) ?? ""
+        let fracPart = parts.count > 1 ? String(parts[1]) : ""
+        let digits = intPart + fracPart
+        guard let firstNZ = digits.firstIndex(where: { $0 != "0" }) else { return "0" }
+        let offset = digits.distance(from: digits.startIndex, to: firstNZ)
+        let kept = String(digits[firstNZ...].prefix(15))
+        let newExp = exp - fracPart.count + (digits.count - offset - kept.count)
+        return "\(kept)e\(newExp)"
     }
 }
