@@ -60,7 +60,7 @@ public final class StyleSheet {
 
     private var root: XElement { document.root }
 
-    private func container(_ local: String, create: Bool) -> XElement? {
+    func container(_ local: String, create: Bool) -> XElement? {
         if let e = root.firstChild(NS.s, local) { return e }
         guard create else { return nil }
         let e = XElement(name: root.qualifiedName(local, in: NS.s).name, attributes: [XAttribute(name: "count", value: "0")])
@@ -109,7 +109,7 @@ public final class StyleSheet {
         }
     }
 
-    private func element(_ containerName: String, _ local: String, index: Int) -> XElement? {
+    func element(_ containerName: String, _ local: String, index: Int) -> XElement? {
         let list = container(containerName, create: false)?.children(NS.s, local) ?? []
         return list.indices.contains(index) ? list[index] : nil
     }
