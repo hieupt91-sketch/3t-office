@@ -401,6 +401,63 @@ final class OOXMLBridgeTests: XCTestCase {
         XCTAssertEqual(saved.paragraphs.map(\.text), direct.paragraphs.map(\.text))
     }
 
+    /// Bộ nhớ đệm danh sách slide: đọc lại phải thấy trạng thái mới sau sửa tại chỗ, nhân đôi, di chuyển và xóa.
+    func testSlideListCacheStaysCoherentAfterStructuralOps() throws {
+        let data = try Fixtures.data("pptx/rich-deck.pptx")
+        let h = try call("open", ["base64": data.base64EncodedString()])["handle"] as! String
+        func title(_ i: Int) throws -> String? { try call("slide.read", ["handle": h, "index": i])["title"] as? String }
+        let count = try Presentation(data: data).slides.count
+        XCTAssertGreaterThanOrEqual(count, 2)
+        let first = try title(0), second = try title(1)
+        _ = try call("slide.setTitle", ["handle": h, "index": 0, "text": "Tiêu đề mới"])
+        XCTAssertEqual(try title(0), "Tiêu đề mới")
+        _ = try call("slide.duplicate", ["handle": h, "index": 0])           // nhân đôi: thêm một slide ngay sau slide 0
+        XCTAssertEqual(try title(1), "Tiêu đề mới")
+        XCTAssertEqual(try title(2), second)
+        _ = try call("slide.move", ["handle": h, "from": 2, "to": 0])
+        XCTAssertEqual(try title(0), second)
+        _ = try call("slide.delete", ["handle": h, "index": 0])
+        XCTAssertEqual(try title(0), "Tiêu đề mới")
+        XCTAssertNotEqual(try title(0), first)
+    }
+
+    /// Bộ nhớ đệm danh sách đoạn/bảng của handle: sau mọi lệnh sửa, đọc lại phải thấy trạng thái mới (sửa tại chỗ, chèn,
+    /// thêm cuối, xóa cả tài liệu thay thế) và đọc cửa sổ phải đúng như đọc toàn bộ.
+    func testDocReadCacheStaysCoherentAfterEdits() throws {
+        let data = try Fixtures.data("docx/rich-word.docx")
+        let h = try call("open", ["base64": data.base64EncodedString()])["handle"] as! String
+        func texts(_ args: [String: Any] = [:]) throws -> [String] {
+            var a = args; a["handle"] = h
+            return (try call("doc.read", a)["paragraphs"] as! [[String: Any]]).map { $0["text"] as! String }
+        }
+        let all0 = try texts()
+        XCTAssertGreaterThan(all0.count, 2)
+        // Cửa sổ khớp cắt từ toàn bộ (kể cả cửa sổ chạm đầu/cuối và from âm).
+        XCTAssertEqual(try texts(["from": 1, "count": 2]), Array(all0[1..<3]))
+        XCTAssertEqual(try texts(["from": all0.count - 1, "count": 5]), [all0.last!])
+        XCTAssertEqual(try texts(["from": all0.count + 3, "count": 5]), [])
+        XCTAssertEqual(try texts(["from": -1, "count": 2]), [all0[0]])
+
+        _ = try call("doc.setText", ["handle": h, "index": 1, "text": "đã đổi tại chỗ"])
+        XCTAssertEqual(try texts()[1], "đã đổi tại chỗ")
+
+        _ = try call("doc.insertParagraph", ["handle": h, "afterIndex": 0, "text": "mới chèn"])
+        let afterInsert = try texts()
+        XCTAssertEqual(afterInsert.count, all0.count + 1)
+        XCTAssertEqual(afterInsert[1], "mới chèn")
+        XCTAssertEqual(afterInsert[2], "đã đổi tại chỗ")
+        // Sửa theo chỉ số MỚI sau khi chèn (cache phải được dựng lại).
+        _ = try call("doc.setText", ["handle": h, "index": 1, "text": "mới chèn, đã sửa"])
+        XCTAssertEqual(try texts()[1], "mới chèn, đã sửa")
+
+        _ = try call("doc.appendParagraph", ["handle": h, "text": "cuối cùng"])
+        XCTAssertEqual(try texts().last, "cuối cùng")
+        XCTAssertEqual(try texts().count, all0.count + 2)
+
+        _ = try call("doc.replace", ["handle": h, "find": "cuối cùng", "replace": "đã thay"])
+        XCTAssertEqual(try texts().last, "đã thay")
+    }
+
     func testDocxSaveDeltaUnsupportedDoesNotWriteTarget() throws {
         let dir = try Fixtures.scratchDirectory("docx-save-unsupported")
         let source = dir.appendingPathComponent("source.docx")
