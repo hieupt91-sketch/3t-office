@@ -628,13 +628,12 @@ public final class OOXMLBridge {
             return ["ok": false, "changedParts": [String](), "unsupported": unsupported.sorted()]
         }
 
-        // Đường nhanh: delta chỉ gồm ghi GIÁ TRỊ ô (không công thức, không định dạng, không xóa ô, không thao tác
-        // cấu trúc) thì vá thẳng byte của sheet, lưu truyền phát và kiểm lại bằng đọc theo cửa sổ hàng — không dựng
-        // DOM cả sheet, không đọc cả tệp vào RAM nhiều lần. Trường hợp đường vá từ chối thì rơi về đường DOM bên dưới
+        // Đường nhanh: delta chỉ gồm ghi Ô (giá trị, công thức, chỉ số định dạng) — không xóa ô, không thao tác cấu
+        // trúc — thì vá thẳng byte của sheet, lưu truyền phát và kiểm lại bằng đọc theo cửa sổ hàng: không dựng DOM
+        // cả sheet, không đọc cả tệp vào RAM nhiều lần. Trường hợp đường vá từ chối thì rơi về đường DOM bên dưới
         // (chưa có gì được ghi ra đĩa).
         if structuralOps.isEmpty, clearedCells.isEmpty, !cells.isEmpty,
-           cells.allSatisfy({ $0["formula"] == nil && $0["styleIndex"] == nil }),
-           let fast = try xlsxSaveValuesFast(sourceURL: sourceURL, targetURL: targetURL, cells: cells) {
+           let fast = try xlsxSaveCellsFast(sourceURL: sourceURL, targetURL: targetURL, cells: cells) {
             return fast
         }
 
@@ -642,7 +641,7 @@ public final class OOXMLBridge {
         let workbook = try Workbook(data: sourceData)
         for (index, cell) in cells.enumerated() {
             guard let style = cell["styleIndex"] as? Int else { continue }
-            if style > 0 && workbook.styles?.info(styleIndex: style) == nil {
+            if style > 0 && style >= (workbook.styles?.cellFormatCount ?? 0) {
                 unsupported.append("cells[\(index)].styleIndex: không tồn tại style \(style)")
             }
         }
@@ -735,22 +734,52 @@ public final class OOXMLBridge {
         }
     }
 
-    /// Đường nhanh của `xlsx.save` cho delta chỉ gồm ghi giá trị ô. Trả `nil` (chưa ghi gì ra đĩa) khi đường vá
-    /// từ chối — người gọi rơi về đường DOM. Kiểm tra sau khi lưu: mở lại tệp đích bằng đường lười, so danh sách
-    /// sheet và từng ô đã ghi (giá trị cuối cùng của mỗi ô); sai thì xóa tệp đích.
-    private func xlsxSaveValuesFast(sourceURL: URL, targetURL: URL, cells: [[String: Any]]) throws -> [String: Any]? {
-        struct Edit { let sheet: String; let ref: CellReference; let value: CellValue }
+    /// Đường nhanh của `xlsx.save` cho delta chỉ gồm ghi ô (giá trị, công thức, chỉ số định dạng). Trả `nil`
+    /// (chưa ghi gì ra đĩa) khi đường vá từ chối — người gọi rơi về đường DOM. Kiểm tra sau khi lưu: mở lại tệp
+    /// đích bằng đường lười, so danh sách sheet và từng ô đã ghi (nội dung và định dạng cuối cùng của mỗi ô, như
+    /// đường DOM); sai thì xóa tệp đích.
+    private func xlsxSaveCellsFast(sourceURL: URL, targetURL: URL, cells: [[String: Any]]) throws -> [String: Any]? {
+        struct Edit {
+            let sheet: String
+            let ref: CellReference
+            let value: CellValue?   // ghi giá trị (khi không có công thức)
+            let formula: String?    // công thức đã bỏ "=" đầu
+            let cached: CellValue
+            let style: Int?
+        }
         var edits: [Edit] = []
         for (index, cell) in cells.enumerated() {
             guard let sheetName = cell["sheet"] as? String, let reference = cell["ref"] as? String,
                   let ref = CellReference(reference) else {
                 throw BridgeError("delta", "cells[\(index)] cần sheet và ref hợp lệ")
             }
-            edits.append(Edit(sheet: sheetName, ref: ref,
-                              value: try deltaCellValue(cell["value"], type: cell["type"] as? String ?? "empty")))
+            let style = cell["styleIndex"] as? Int
+            if let formula = cell["formula"] as? String {
+                let cachedValue = cell["cached"]
+                let cachedType = cell["cachedType"] as? String ?? (cachedValue is String ? "string" : "number")
+                let cached = try deltaCellValue(cachedValue, type: cachedValue == nil ? "empty" : cachedType)
+                edits.append(Edit(sheet: sheetName, ref: ref, value: nil,
+                                  formula: formula.hasPrefix("=") ? String(formula.dropFirst()) : formula,
+                                  cached: cached, style: style))
+            } else {
+                edits.append(Edit(sheet: sheetName, ref: ref,
+                                  value: try deltaCellValue(cell["value"], type: cell["type"] as? String ?? "empty"),
+                                  formula: nil, cached: .empty, style: style))
+            }
         }
 
         let workbook = try Workbook(contentsOf: sourceURL, deferValidation: true, lazyModel: true)
+        // Chỉ số định dạng phải tồn tại (như đường DOM): thiếu thì báo không hỗ trợ, không ghi gì.
+        var missingStyles: [String] = []
+        for (index, e) in edits.enumerated() {
+            if let style = e.style, style > 0, style >= (workbook.styles?.cellFormatCount ?? 0) {
+                missingStyles.append("cells[\(index)].styleIndex: không tồn tại style \(style)")
+            }
+        }
+        guard missingStyles.isEmpty else {
+            return ["ok": false, "changedParts": [String](), "unsupported": missingStyles.sorted()]
+        }
+
         var order: [String] = []
         var bySheet: [String: [Edit]] = [:]
         for e in edits {
@@ -762,7 +791,14 @@ public final class OOXMLBridge {
             for key in order {
                 let list = bySheet[key] ?? []
                 let patcher = try workbook.patcher(forSheetNamed: list[0].sheet)
-                for e in list { try patcher.setValue(e.value, at: e.ref) }
+                for e in list {
+                    if let formula = e.formula {
+                        try patcher.setFormula(formula, cachedValue: e.cached, at: e.ref)
+                    } else if let value = e.value {
+                        try patcher.setValue(value, at: e.ref)
+                    }
+                    if let style = e.style { try patcher.setStyleIndex(style, at: e.ref) }
+                }
                 try patcher.commit()
             }
         } catch SheetPatchError.unsupported {
@@ -775,21 +811,44 @@ public final class OOXMLBridge {
             guard reopened.sheets.map(\.name) == workbook.sheets.map(\.name) else {
                 throw BridgeError("reopen", "danh sách sheet sau khi mở lại không khớp")
             }
-            // Mỗi ô chỉ kiểm giá trị CUỐI CÙNG được ghi (delta có thể ghi cùng một ô nhiều lần).
-            var last: [String: Edit] = [:]
-            for e in edits { last["\(e.sheet.lowercased())\u{0}\(e.ref.a1)"] = e }
+            // Mỗi ô chỉ kiểm trạng thái CUỐI: nội dung của lần ghi nội dung cuối, định dạng của lần đặt định dạng cuối
+            // (delta có thể nhắc cùng một ô nhiều lần; ghi nội dung không đổi định dạng đã đặt).
+            struct Expected { var value: CellValue?; var formula: String?; var style: Int?; var sheet: String; var ref: CellReference }
+            var expected: [String: Expected] = [:]
+            var keys: [String] = []
+            for e in edits {
+                let key = "\(e.sheet.lowercased())\u{0}\(e.ref.a1)"
+                var x = expected[key] ?? Expected(value: nil, formula: nil, style: nil, sheet: e.sheet, ref: e.ref)
+                if expected[key] == nil { keys.append(key) }
+                if e.formula != nil { x.formula = e.formula; x.value = nil } else if let v = e.value { x.value = v; x.formula = nil }
+                if let style = e.style { x.style = style }
+                expected[key] = x
+            }
             var readers: [String: SheetRowReader] = [:]
-            for e in edits where last["\(e.sheet.lowercased())\u{0}\(e.ref.a1)"].map({ $0.value == e.value }) ?? false {
-                let key = e.sheet.lowercased()
+            for key in keys {
+                guard let x = expected[key] else { continue }
+                let sheetKey = x.sheet.lowercased()
                 let reader: SheetRowReader
-                if let cached = readers[key] {
+                if let cached = readers[sheetKey] {
                     reader = cached
                 } else {
-                    reader = try reopened.rowReader(forSheetNamed: e.sheet)
-                    readers[key] = reader
+                    reader = try reopened.rowReader(forSheetNamed: x.sheet)
+                    readers[sheetKey] = reader
                 }
-                guard (try reader.cell(e.ref))?.value ?? .empty == e.value else {
-                    throw BridgeError("reopen", "giá trị \(e.ref.a1) không khớp sau khi mở lại")
+                let actual = try reader.cell(x.ref)
+                if let formula = x.formula {
+                    guard actual?.formula == formula else {
+                        throw BridgeError("reopen", "công thức \(x.ref.a1) không khớp sau khi mở lại")
+                    }
+                } else if let value = x.value {
+                    guard (actual?.value ?? .empty) == value else {
+                        throw BridgeError("reopen", "giá trị \(x.ref.a1) không khớp sau khi mở lại")
+                    }
+                }
+                if let style = x.style {
+                    guard (actual?.styleIndex ?? 0) == style else {
+                        throw BridgeError("reopen", "định dạng \(x.ref.a1) không khớp sau khi mở lại")
+                    }
                 }
             }
             let changedParts = try Self.changedZipParts(beforeURL: sourceURL, afterURL: targetURL)

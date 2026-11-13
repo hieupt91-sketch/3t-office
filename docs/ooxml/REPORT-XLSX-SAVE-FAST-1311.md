@@ -41,3 +41,16 @@ Ngưỡng RAM dưới 300 MB của #10 và #18 đạt trên đường mà ứng 
 - Đường nhanh kiểm tệp đích nhẹ hơn đường DOM: không parse DOM các phần lớn (ngưỡng 4 MiB) khi kiểm gói, thay bằng kiểm cấu trúc quan hệ cùng giá trị các ô đã ghi. Phần byte do bộ vá tạo ra đã được so cấu trúc với đường DOM trên 12 fixture; chưa có kiểm tra tính hợp lệ XML toàn phần của sheet lớn.
 - Chưa mở bằng Excel thật để kiểm "repair" (#11).
 - Chưa đo trên Windows, macOS, iPhone, iPad thật.
+
+## Cập nhật E-1b (13/11): đường nhanh nhận cả công thức và định dạng
+Ô công thức do người dùng sửa là loại sửa rất phổ biến, nên đường nhanh nay nhận thêm `formula` (+ `cached`) và `styleIndex`.
+- `SheetPatcher` thêm `setFormula(_:cachedValue:at:)` và `setStyleIndex(_:at:)`; các lần ghi cho cùng một ô gộp tuần tự như gọi `Worksheet` lần lượt (nội dung lần sau thắng, định dạng lần sau thắng, ghi nội dung không đổi định dạng đã đặt).
+- Ô đích đang có công thức **thường** nay ghi đè được (như `Worksheet`); ô thuộc công thức chia sẻ, mảng, bảng dữ liệu vẫn bị từ chối (cần hiểu cả nhóm). Ghi công thức hoặc ghi đè công thức thường hủy `calcChain`; chỉ đổi định dạng thì không.
+- Bước kiểm lại sau khi lưu so thêm công thức và định dạng cuối cùng của từng ô.
+- **Sửa lỗi có sẵn:** phép kiểm "style phải tồn tại" của `xlsx.save` dùng `info(styleIndex:) == nil`, nhưng hàm đó luôn trả giá trị mặc định cho chỉ số vượt phạm vi, nên chỉ số rác bị chấp nhận và ghi `s="9999"` vào ô (tệp mà Excel phải sửa lại). Nay so với `cellFormatCount`, ở cả hai đường.
+
+Số đo (qua `ooxml-engine`, XLSX 9,7 MB, 3 lần chạy): delta có công thức và định dạng `patch` **2,1–2,2 s, 154 MB**; delta có `cleared_cells` vẫn `dom` 17,6–18,0 s, 1.033 MB. (Thời gian đường `dom` dao động 17,6–25,3 s giữa các lượt đo do tải máy; RAM đỉnh ổn định 1.033 MB.)
+
+Kiểm thử thêm: `SheetPatcherTests` (công thức/định dạng so cấu trúc XML và ô với đường DOM trên 12 fixture; calcChain bị hủy đúng lúc; gộp ghi tuần tự; công thức chia sẻ và bảng dữ liệu bị từ chối), `XlsxSaveFastPathTests` (công thức/định dạng đi `patch` và bằng kết quả đường DOM; chỉ số định dạng vượt phạm vi bị từ chối ở cả hai đường; xóa ô và thao tác cấu trúc vẫn `dom`). `swift test -c release`: 654/654 (build sạch).
+
+Còn lại ở đường `dom`: `cleared_cells`, `structural_ops`, công thức chia sẻ/mảng, sheet có công thức mảng. Hai việc có thể làm tiếp: hỗ trợ `cleared_cells` bằng đường vá, và bung công thức chia sẻ theo nhóm mà vẫn không dựng DOM cả sheet.
