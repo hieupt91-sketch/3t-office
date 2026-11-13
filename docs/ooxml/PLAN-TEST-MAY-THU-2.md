@@ -25,3 +25,5 @@ Không đạt mục nào thì ghi FAIL kèm số, không đổi tiêu chí.
 
 ## Không làm trong buổi này
 Không sửa tệp nguồn của anh; không gửi nội dung tệp ra ngoài; không đổi mặc định đường mở của ứng dụng (vẫn sau cờ).
+
+<!-- thử cổng CI: PR chỉ đổi tài liệu, hai job nặng phải bị skipped -->
