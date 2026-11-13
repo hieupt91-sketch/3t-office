@@ -20,16 +20,27 @@ public enum SheetPatchError: Error, Equatable, CustomStringConvertible {
 /// này chỉ parse những hàng bị sửa, ghi ô bằng CHÍNH các hàm của `Worksheet` (`insertNewCell`, `write`,
 /// `updateDimension`), rồi ghép kết quả vào byte gốc; mọi hàng khác giữ nguyên từng byte.
 ///
-/// Phạm vi: đặt giá trị (số/chuỗi/bool/lỗi/rỗng) cho ô KHÔNG có công thức. Những trường hợp cần hiểu biết
-/// toàn sheet thì từ chối bằng `SheetPatchError.unsupported` trước khi sửa bất cứ gì, để người gọi rơi về
-/// đường DOM: ô đang có công thức, sheet có công thức mảng/bảng dữ liệu, số hàng/ô ngầm định, hàng không
-/// tăng dần, `<sheetData/>` tự đóng, hoặc sheet đang được giữ ở dạng DOM.
+/// Phạm vi: đặt giá trị (số/chuỗi/bool/lỗi/rỗng), đặt công thức (kèm giá trị đệm) và đặt chỉ số định dạng cho ô.
+/// Những trường hợp cần hiểu biết toàn sheet thì từ chối bằng `SheetPatchError.unsupported` trước khi sửa bất cứ
+/// gì, để người gọi rơi về đường DOM: ô đích đang thuộc công thức chia sẻ (cần bung cả nhóm), sheet có công thức
+/// mảng/bảng dữ liệu, số hàng/ô ngầm định, hàng không tăng dần, `<sheetData/>` tự đóng, hoặc sheet đang được giữ
+/// ở dạng DOM. Ô đích đang có công thức THƯỜNG thì ghi đè được (như `Worksheet`), kèm hủy `calcChain`.
 public final class SheetPatcher {
     public let workbook: Workbook
     public let part: PartName
 
     private let reader: SheetRowReader
-    private var edits: [CellReference: CellValue] = [:]
+    private enum Content {
+        case value(CellValue)
+        case formula(String, cached: CellValue)
+    }
+    /// Lần ghi đã xếp cho một ô. Gộp tuần tự như gọi `Worksheet` lần lượt: nội dung lần sau thắng, chỉ số định dạng
+    /// lần sau thắng, và ghi nội dung không đụng định dạng đã đặt.
+    private struct CellEdit {
+        var content: Content?
+        var style: Int?
+    }
+    private var edits: [CellReference: CellEdit] = [:]
     private var committed = false
 
     init(workbook: Workbook, part: PartName) throws {
@@ -49,7 +60,32 @@ public final class SheetPatcher {
     public func setValue(_ value: CellValue, at ref: CellReference) throws {
         guard !committed else { throw SheetPatchError.alreadyCommitted }
         if case .string(let s) = value, s.count > 32_767 { throw SpreadsheetError.stringTooLong(s.count) }
-        edits[ref] = value
+        edits[ref, default: CellEdit()].content = .value(value)
+    }
+
+    /// Xếp hàng ghi công thức (có hay không có "=" ở đầu đều được) kèm giá trị đệm, như `Worksheet.setFormula`.
+    public func setFormula(_ formula: String, cachedValue: CellValue = .empty, at ref: CellReference) throws {
+        guard !committed else { throw SheetPatchError.alreadyCommitted }
+        if case .string(let s) = cachedValue, s.count > 32_767 { throw SpreadsheetError.stringTooLong(s.count) }
+        let text = formula.hasPrefix("=") ? String(formula.dropFirst()) : formula
+        edits[ref, default: CellEdit()].content = .formula(text, cached: cachedValue)
+    }
+
+    public func setFormula(_ formula: String, cachedValue: CellValue = .empty, at a1: String) throws {
+        guard let ref = CellReference(a1) else { throw SpreadsheetError.invalidReference(a1) }
+        try setFormula(formula, cachedValue: cachedValue, at: ref)
+    }
+
+    /// Xếp hàng đặt chỉ số định dạng (0 = bỏ thuộc tính), như `Worksheet.setStyleIndex`. Không kiểm chỉ số có
+    /// tồn tại trong styles hay không (đường DOM cũng không kiểm ở mức này).
+    public func setStyleIndex(_ index: Int, at ref: CellReference) throws {
+        guard !committed else { throw SheetPatchError.alreadyCommitted }
+        edits[ref, default: CellEdit()].style = index
+    }
+
+    public func setStyleIndex(_ index: Int, at a1: String) throws {
+        guard let ref = CellReference(a1) else { throw SpreadsheetError.invalidReference(a1) }
+        try setStyleIndex(index, at: ref)
     }
 
     public func setValue(_ value: CellValue, at a1: String) throws {
@@ -93,17 +129,25 @@ public final class SheetPatcher {
                 }
             }
         }
+        // Công thức hiện có trong ô đích: chia sẻ/mảng/bảng dữ liệu cần hiểu cả nhóm ⇒ từ chối; công thức thường
+        // thì bị ghi đè (nếu có ghi nội dung) và phải hủy calcChain như đường DOM.
+        var dropsOrAddsFormula = false
         for patch in patches {
             for (_, row) in patch.rows {
                 for c in row.children(NS.s, "c") {
                     guard let ref = c.attribute("r").flatMap(CellReference.init) else {
                         throw SheetPatchError.unsupported("ô không ghi địa chỉ")
                     }
-                    if edits[ref] != nil, c.firstChild(NS.s, "f") != nil {
-                        throw SheetPatchError.unsupported("ô \(ref.a1) đang có công thức")
+                    guard let edit = edits[ref], let f = c.firstChild(NS.s, "f") else { continue }
+                    if let type = f.attribute("t"), type != "normal" {
+                        throw SheetPatchError.unsupported("ô \(ref.a1) thuộc công thức \(type)")
                     }
+                    if edit.content != nil { dropsOrAddsFormula = true }
                 }
             }
+        }
+        for edit in edits.values {
+            if case .formula = edit.content { dropsOrAddsFormula = true }
         }
         let head = try patchedHead()
 
@@ -113,10 +157,19 @@ public final class SheetPatcher {
             let q: (String) -> String = { root.qualifiedName($0, in: NS.s).name }
             for (r, row) in patch.rows {
                 for ref in (byRow[r] ?? []).sorted() {
-                    guard let value = edits[ref] else { continue }
+                    guard let edit = edits[ref] else { continue }
                     let existing = row.children(NS.s, "c").first { $0.attribute("r").flatMap(CellReference.init) == ref }
                     let c = existing ?? Worksheet.insertNewCell(ref, into: row, name: q("c"))
-                    try Worksheet.write(value, formula: nil, into: c, workbook: workbook, q: q)
+                    switch edit.content {
+                    case .value(let value)?:
+                        try Worksheet.write(value, formula: nil, into: c, workbook: workbook, q: q)
+                    case .formula(let text, let cached)?:
+                        try Worksheet.write(cached, formula: text, into: c, workbook: workbook, q: q)
+                    case nil: break
+                    }
+                    if let style = edit.style {
+                        if style == 0 { c.removeAttribute("s") } else { Worksheet.setAttributeAfterR(c, "s", String(style)) }
+                    }
                 }
             }
         }
@@ -134,7 +187,8 @@ public final class SheetPatcher {
         out.append(slice(cursor..<reader.data.count))
 
         workbook.package.setData(out, for: part)
-        workbook.requestRecalculation()
+        if dropsOrAddsFormula { workbook.invalidateCalcChain() }
+        if edits.values.contains(where: { $0.content != nil }) { workbook.requestRecalculation() }
         committed = true
     }
 
