@@ -23,7 +23,21 @@ public struct FormulaCellInput: Equatable, Sendable {
 public final class FormulaEngine {
     private var sheetNames: [String] = []
     private var canonical: [String: String] = [:]         // lowercase → tên chuẩn
-    private var inputs: [String: [CellReference: FormulaCellInput]] = [:]
+    private var inputs: [String: [CellReference: FormulaCellInput]] = [:] {
+        didSet { columnIndexCache = [:] }
+    }
+    /// Chỉ mục (sheet → cột → hàng đã sắp xếp) của MỌI ô đầu vào, dựng lười và hủy khi đầu vào đổi. Đọc một vùng
+    /// bằng tìm nhị phân thay vì quét mọi ô của sheet (trước đây mỗi lần đọc vùng tốn O(số ô) ⇒ O(F²) khi tính lại).
+    private var columnIndexCache: [String: [Int: [Int]]] = [:]
+
+    fileprivate func columnIndex(for sheet: String) -> [Int: [Int]] {
+        if let cached = columnIndexCache[sheet] { return cached }
+        var cols: [Int: [Int]] = [:]
+        for ref in (inputs[sheet] ?? [:]).keys { cols[ref.column, default: []].append(ref.row) }
+        for c in cols.keys { cols[c]!.sort() }
+        columnIndexCache[sheet] = cols
+        return cols
+    }
     private var computed: [CellAddress: CellValue] = [:]  // giá trị của ô công thức
     private var arrayMembership: [CellAddress: CellRange] = [:] // ô -> vùng công thức mảng của nó
     /// Tên vùng M7: khóa (phạm vi cục bộ — tên chuẩn của sheet, hoặc nil = workbook, tên viết hoa).
@@ -210,13 +224,31 @@ public final class FormulaEngine {
         }
 
         // Cạnh phụ thuộc: ô công thức nằm trong vùng được tham chiếu (kể cả qua tên vùng M7).
+        // Chỉ mục ô công thức theo (sheet, cột) → danh sách hàng đã sắp xếp: tìm ô công thức trong một vùng bằng
+        // tìm nhị phân thay vì quét mọi ô công thức của sheet cho từng công thức (trước đây O(F²) trên sheet lớn).
+        var columnIndex: [String: [Int: [Int]]] = [:]
+        for (sheet, refs) in formulaCells {
+            var cols: [Int: [Int]] = [:]
+            for r in refs { cols[r.column, default: []].append(r.row) }
+            for c in cols.keys { cols[c]!.sort() }
+            columnIndex[sheet] = cols
+        }
         for (addr, node) in nodes {
             guard let e = node.expr else { continue }
             var deps: Set<CellAddress> = []
             for (shName, range) in expandedReferences(e, currentSheet: addr.sheet, bound: []) {
                 guard let sh = shName == nil ? addr.sheet : canonicalName(shName!) else { continue }
-                let candidates = formulaCells[sh] ?? []
-                for c in candidates where range.contains(c) { deps.insert(CellAddress(sheet: sh, ref: c)) }
+                guard let cols = columnIndex[sh] else { continue }
+                for (column, rows) in cols where column >= range.start.column && column <= range.end.column {
+                    // Hàng đầu tiên >= range.start.row.
+                    var lo = 0, hi = rows.count
+                    while lo < hi { let mid = (lo + hi) / 2; if rows[mid] < range.start.row { lo = mid + 1 } else { hi = mid } }
+                    var k = lo
+                    while k < rows.count, rows[k] <= range.end.row {
+                        deps.insert(CellAddress(sheet: sh, ref: CellReference(column: column, row: rows[k])))
+                        k += 1
+                    }
+                }
             }
             nodes[addr]!.deps = deps
         }
@@ -359,9 +391,18 @@ public final class FormulaEngine {
             engine.resolveDefinedNameExpr(name, currentSheet: current)
         }
         func nonEmptyValues(sheet: String, range: CellRange) -> [CellValue] {
-            let cells = engine.inputs[sheet] ?? [:]
+            var refs: [CellReference] = []
+            for (column, rows) in engine.columnIndex(for: sheet) where column >= range.start.column && column <= range.end.column {
+                var lo = 0, hi = rows.count
+                while lo < hi { let mid = (lo + hi) / 2; if rows[mid] < range.start.row { lo = mid + 1 } else { hi = mid } }
+                var k = lo
+                while k < rows.count, rows[k] <= range.end.row {
+                    refs.append(CellReference(column: column, row: rows[k]))
+                    k += 1
+                }
+            }
             var out: [CellValue] = []
-            for ref in cells.keys.filter({ range.contains($0) }).sorted() {
+            for ref in refs.sorted() {
                 let v = engine.currentValue(CellAddress(sheet: sheet, ref: ref))
                 if case .empty = v { continue }
                 out.append(v)
