@@ -201,7 +201,7 @@ public final class ZipArchive {
             compressed = data
             method = ZipEntry.methodStored
         case .deflate(let level):
-            let d = Deflate.compress(data, level: level)
+            let d = data.count >= 4 << 20 ? Deflate.compressParallel(data, level: level) : Deflate.compress(data, level: level)
             // Như zlib: nếu nén không có lợi thì lưu thẳng.
             if d.count >= data.count && !data.isEmpty {
                 compressed = data
