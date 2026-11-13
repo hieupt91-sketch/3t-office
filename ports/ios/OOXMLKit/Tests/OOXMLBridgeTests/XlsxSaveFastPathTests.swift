@@ -243,26 +243,68 @@ final class XlsxSaveFastPathTests: XCTestCase {
 
     // MARK: Rơi về đường DOM
 
-    func testClearAndStructuralDeltasFallBackToDOMWithCorrectResult() throws {
+    func testStructuralDeltasFallBackToDOMWithCorrectResult() throws {
         let fixture = "xlsx/rich-excel.xlsx"
-        let probe = try Workbook(data: try Fixtures.data(fixture))
-        let name = probe.sheetNames[1] // sheet vá được: đường DOM ở đây là do loại delta, không phải do sheet
+        let name = try Workbook(data: try Fixtures.data(fixture)).sheetNames[1]
         let value = Edit(sheet: name, ref: "Z70", type: "string", value: "giá trị")
-        let victim = try XCTUnwrap(try probe.worksheet(at: 1).cells.first { $0.formula == nil }, "sheet phải có ô để xóa").reference.a1
-
-        let (cleared, clearedTarget, _) = try save(fixture, delta: ["cells": [value.json],
-                                                                      "cleared_cells": [["sheet": name, "range": victim]]], label: "dom-clear")
-        XCTAssertEqual(cleared["path"] as? String, "dom")
-        let wb1 = try Workbook(data: try Data(contentsOf: clearedTarget))
-        XCTAssertEqual(try wb1.worksheet(at: 1).value("Z70"), .string("giá trị"))
-        XCTAssertNil(try wb1.worksheet(at: 1).cell(victim))
-
         let (structural, structuralTarget, _) = try save(fixture, delta: [
             "cells": [value.json],
             "structural_ops": [["op": "sheet.freezePanes", "args": ["sheet": name, "rows": 1, "cols": 0]]],
         ], label: "dom-structural")
         XCTAssertEqual(structural["path"] as? String, "dom")
         XCTAssertEqual(try Workbook(data: try Data(contentsOf: structuralTarget)).worksheet(at: 1).value("Z70"), .string("giá trị"))
+    }
+
+    /// Xóa ô (kèm ghi ô) đi đường vá và cho cùng kết quả với đường DOM trên mọi sheet mẫu. Đường DOM được ép bằng
+    /// một thao tác cấu trúc vô hại (đặt freeze panes) rồi so từng ô; xóa áp SAU mọi lần ghi ở cả hai đường.
+    func testClearedCellsUsePatchPathAndMatchDOMOnEveryFixture() throws {
+        var patchCount = 0
+        for fixture in Self.fixtures {
+            let sourceData = try Fixtures.data(fixture)
+            let probe = try Workbook(data: sourceData)
+            for (index, info) in probe.sheets.enumerated() where info.kind == .worksheet {
+                let ws = try probe.worksheet(at: index)
+                let cells = ws.cells
+                guard cells.count >= 2 else { continue }
+                let list = edits(for: ws, sheet: info.name)
+                let lastRow = cells.map(\.reference.row).max() ?? 1
+                // Vùng xóa: một ô có sẵn, và một vùng chữ nhật phủ cả ô vừa ghi (xóa thắng ghi).
+                let ranges = [cells[0].reference.a1, "A1:C\(max(2, lastRow / 2))", "A\(lastRow + 3):B\(lastRow + 3)"]
+                let cleared = ranges.map { ["sheet": info.name, "range": $0] }
+                let label = "clear-\(fixture.replacingOccurrences(of: "/", with: "_"))-\(index)"
+                let delta: [String: Any] = ["cells": list.map(\.json), "cleared_cells": cleared]
+                let (result, target, _) = try save(fixture, delta: delta, label: label)
+                let path = result["path"] as? String
+                XCTAssertTrue(path == "patch" || path == "dom", label)
+                if path == "patch" { patchCount += 1 }
+
+                let (domResult, domTarget, _) = try save(fixture, delta: delta.merging([
+                    "structural_ops": [["op": "sheet.freezePanes", "args": ["sheet": info.name, "rows": 0, "cols": 1]]]
+                ]) { $1 }, label: label + "-dom")
+                XCTAssertEqual(domResult["path"] as? String, "dom", label)
+                let a = try Workbook(data: try Data(contentsOf: target))
+                let b = try Workbook(data: try Data(contentsOf: domTarget))
+                for (i, sh) in a.sheets.enumerated() where sh.kind == .worksheet {
+                    XCTAssertEqual(try a.worksheet(at: i).cells, try b.worksheet(at: i).cells, "\(label): sheet \(sh.name)")
+                }
+                let saved = try Data(contentsOf: target)
+                XCTAssertEqual(PackageValidator.validate(saved), PackageValidator.validate(sourceData), label)
+            }
+        }
+        XCTAssertGreaterThanOrEqual(patchCount, 8, "xóa ô phải đi đường vá ở phần lớn sheet mẫu (patch=\(patchCount))")
+    }
+
+    /// Chỉ có `cleared_cells` (không ghi ô nào) cũng đi đường vá; vùng chạm quá nhiều hàng thì rơi về DOM.
+    func testClearOnlyDeltaAndOversizedRangeFallback() throws {
+        let fixture = "xlsx/rich-excel.xlsx"
+        let probe = try Workbook(data: try Fixtures.data(fixture))
+        let name = probe.sheetNames[1]
+        let victim = try XCTUnwrap(try probe.worksheet(at: 1).cells.first { $0.formula == nil }).reference.a1
+        let (result, target, _) = try save(fixture, delta: ["cleared_cells": [["sheet": name, "range": victim]]], label: "clear-only")
+        XCTAssertEqual(result["path"] as? String, "patch")
+        XCTAssertEqual(try Workbook(data: try Data(contentsOf: target)).worksheet(named: name).value(victim), .empty)
+        XCTAssertEqual(result["changedParts"] as? [String] != nil, true)
+
     }
 
     /// Một sheet vá được, một sheet đường vá từ chối (sheet "Dữ liệu" có công thức mảng) → cả delta rơi về DOM

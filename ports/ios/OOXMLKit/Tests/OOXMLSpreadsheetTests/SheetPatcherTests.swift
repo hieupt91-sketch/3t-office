@@ -367,4 +367,51 @@ final class SheetPatcherTests: XCTestCase {
         }
         XCTAssertGreaterThanOrEqual(supported, 8, "đường vá phải áp được cho phần lớn sheet mẫu")
     }
+
+    // MARK: Xóa vùng
+
+    func testClearRangeKeepsOtherRowsStyleAndAppliesAfterWrites() throws {
+        let row1 = "<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"
+        let row4 = "<row r=\"4\"><c r=\"A4\" t=\"inlineStr\"><is><t>giữ</t></is></c></row>"
+        let body = row1
+            + "<row r=\"2\"><c r=\"A2\" s=\"3\"><v>7</v></c><c r=\"B2\"><f>A1+1</f><v>2</v></c><c r=\"C2\"><v>9</v></c></row>"
+            + "<row r=\"3\"><c r=\"A3\"><v>8</v></c></row>" + row4
+        let wb = try workbookWithCalcChain(sheetXML: sheet(body))
+        let patcher = try wb.patcher(forSheetAt: 0)
+        try patcher.setValue(.string("mới"), at: "A3")          // bị xóa sau
+        try patcher.setValue(.number(5), at: "E9")              // ngoài vùng xóa, giữ lại
+        patcher.clear(range: CellRange("A2:C3")!)
+        try patcher.commit()
+        let part = PartName("/xl/worksheets/sheet1.xml")
+        let text = String(decoding: try wb.package.data(of: part), as: UTF8.self)
+        XCTAssertTrue(text.contains(row1), "hàng ngoài vùng xóa giữ nguyên byte")
+        XCTAssertTrue(text.contains(row4), "hàng ngoài vùng xóa giữ nguyên byte")
+        let ws = try Workbook(data: try wb.save()).worksheet(at: 0)
+        XCTAssertEqual(try ws.value("A2"), .empty, "xóa giá trị")
+        XCTAssertEqual(try ws.cell("A2")?.styleIndex, 3, "ô có định dạng vẫn còn, chỉ mất giá trị")
+        XCTAssertNil(try ws.cell("C2"), "ô trống không định dạng bị gỡ")
+        XCTAssertNil(try ws.cell("B2")?.formula, "công thức bị xóa")
+        XCTAssertEqual(try ws.value("A3"), .empty, "xóa thắng ghi")
+        XCTAssertEqual(try ws.value("E9"), .number(5))
+        XCTAssertEqual(try ws.value("A4"), .string("giữ"))
+        XCTAssertFalse(try Workbook(data: try wb.save()).package.hasPart(PartName("/xl/calcChain.xml")), "xóa công thức hủy calcChain")
+    }
+
+    func testClearRangeRejectsSharedFormulaAndOversizedRanges() throws {
+        let part = PartName("/xl/worksheets/sheet1.xml")
+        var wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\"><f t=\"shared\" ref=\"A1:A2\" si=\"0\">1+1</f><v>2</v></c></row><row r=\"2\"><c r=\"A2\"><f t=\"shared\" si=\"0\"/><v>2</v></c></row>"))
+        var before = try wb.package.data(of: part)
+        var patcher = try wb.patcher(forSheetAt: 0)
+        patcher.clear(range: CellRange("A2")!)
+        assertUnsupported({ try patcher.commit() }, "xóa ô thuộc công thức chia sẻ")
+        XCTAssertEqual(try wb.package.data(of: part), before, "từ chối thì gói chưa bị đổi")
+
+        let rows = (1...(SheetPatcher.maxClearRows + 1)).map { "<row r=\"\($0)\"><c r=\"A\($0)\"><v>\($0)</v></c></row>" }.joined()
+        wb = try workbook(sheetXML: sheet(rows))
+        before = try wb.package.data(of: part)
+        patcher = try wb.patcher(forSheetAt: 0)
+        patcher.clear(range: CellRange("A1:A1048576")!)
+        assertUnsupported({ try patcher.commit() }, "vùng xóa chạm quá nhiều hàng")
+        XCTAssertEqual(try wb.package.data(of: part), before)
+    }
 }
