@@ -182,6 +182,15 @@ enum FormulaTextFormat {
             guard x >= 0 else { return nil }
             return symbol + (formatDate(x, cleaned, locale: locale) ?? "")
         }
+        if let sci = scientificSplit(cleaned) {
+            guard let body = formatScientific(value, mantissa: sci.mantissa, signAlways: sci.signAlways,
+                                              expDigits: sci.expDigits, locale: locale) else { return nil }
+            return autoMinus ? "-" + symbol + body : symbol + body
+        }
+        if let fr = fractionSplit(cleaned) {
+            let body = formatFraction(value, fr)
+            return autoMinus ? "-" + symbol + body : symbol + body
+        }
         guard let body = formatNumber(value, cleaned, locale: locale) else { return nil }
         return autoMinus ? "-" + symbol + body : symbol + body
     }
@@ -207,6 +216,109 @@ enum FormulaTextFormat {
             if "ymdhsYMDHS".contains(ch) { return true }
         }
         return false
+    }
+
+    // MARK: Ký hiệu khoa học
+
+    /// Tách `0.00E+00` thành (mẫu phần định trị, luôn in dấu, số chữ số mũ). nil nếu không phải dạng khoa học.
+    private static func scientificSplit(_ f: String) -> (mantissa: String, signAlways: Bool, expDigits: Int)? {
+        let c = Array(f)
+        var i = 0, inQ = false
+        while i < c.count {
+            if c[i] == "\\" { i += 2; continue }
+            if c[i] == "\"" { inQ.toggle(); i += 1; continue }
+            if !inQ, c[i] == "E" || c[i] == "e", i + 1 < c.count, c[i + 1] == "+" || c[i + 1] == "-" {
+                let digits = c[(i + 2)...].prefix { "0#?".contains($0) }.count
+                let mantissa = String(c[..<i])
+                // Phần định trị phải có chỗ chứa chữ số; mẫu như "1E+0" vẫn là #VALUE!.
+                if digits == 0 || !mantissa.contains(where: { "0#?".contains($0) }) { return nil }
+                return (mantissa, c[i + 1] == "+", digits)
+            }
+            i += 1
+        }
+        return nil
+    }
+
+    private static func formatScientific(_ v: Double, mantissa: String, signAlways: Bool, expDigits: Int,
+                                         locale: FmtLocale) -> String? {
+        let intDigits = max(1, mantissa.prefix { $0 != "." }.filter { "0#?".contains($0) }.count)
+        var exp = 0
+        var m = v
+        if v != 0 {
+            exp = Int(floor(log10(v))) - (intDigits - 1)
+            m = v / pow(10, Double(exp))
+        }
+        let fracDigits = mantissa.contains(".") ? mantissa.split(separator: ".", omittingEmptySubsequences: false).last!.filter { "0#?".contains($0) }.count : 0
+        // Làm tròn có thể đẩy phần định trị lên 10^intDigits (9.99 → 10.0): chuẩn hóa lại.
+        if FormulaEvaluator.round(m, digits: fracDigits) >= pow(10, Double(intDigits)) { exp += 1; m = v / pow(10, Double(exp)) }
+        guard let body = formatNumber(m, mantissa, locale: locale) else { return nil }
+        let mag = String(abs(exp))
+        let padded = String(repeating: "0", count: max(0, expDigits - mag.count)) + mag
+        let sign = exp < 0 ? "-" : (signAlways ? "+" : "")
+        return body + "E" + sign + padded
+    }
+
+    // MARK: Phân số
+
+    private struct FractionSpec { var hasWhole: Bool; var numWidth: Int; var fixedDen: Int?; var denWidth: Int; var prefix: String; var suffix: String }
+
+    /// Nhận `# ?/?`, `# ??/??`, `?/?`, `# ?/4`. nil nếu không có dấu `/` nằm giữa hai nhóm chỗ chứa chữ số.
+    private static func fractionSplit(_ f: String) -> FractionSpec? {
+        let c = Array(f)
+        guard let slash = c.firstIndex(of: "/"), !f.contains("\""), !f.contains("\\") else { return nil }
+        var a = slash - 1
+        var numWidth = 0
+        while a >= 0, "?#0".contains(c[a]) { numWidth += 1; a -= 1 }
+        guard numWidth > 0 else { return nil }
+        var b = slash + 1
+        var denText = ""
+        while b < c.count, "?#0123456789".contains(c[b]) { denText.append(c[b]); b += 1 }
+        guard !denText.isEmpty else { return nil }
+        let fixed = Int(denText)
+        let denWidth = fixed == nil ? denText.count : denText.count
+        // Phần trước nhóm tử số: có mẫu số nguyên "# " không?
+        let head = String(c[..<(a + 1)])
+        let hasWhole = head.contains("#") || head.contains("0")
+        let prefix = head.filter { !"#0 ".contains($0) }
+        return FractionSpec(hasWhole: hasWhole, numWidth: numWidth, fixedDen: fixed, denWidth: denWidth,
+                            prefix: prefix, suffix: String(c[b...]))
+    }
+
+    private static func formatFraction(_ v: Double, _ spec: FractionSpec) -> String {
+        var whole = spec.hasWhole ? floor(v) : 0
+        let rest = spec.hasWhole ? v - whole : v
+        var num = 0, den = 1
+        if let d = spec.fixedDen, d > 0 {
+            den = d
+            num = Int((rest * Double(d)).rounded())
+        } else {
+            let maxDen = Int(pow(10, Double(spec.denWidth))) - 1
+            var best = (n: 0, d: 1, err: Double.infinity)
+            for d in 1...max(1, maxDen) {
+                let n = Int((rest * Double(d)).rounded())
+                let err = abs(rest - Double(n) / Double(d))
+                if err < best.err - 1e-12 { best = (n, d, err) }
+            }
+            num = best.n; den = best.d
+            // Rút gọn.
+            var g = 1; for k in stride(from: min(num, den), through: 1, by: -1) where num % k == 0 && den % k == 0 { g = k; break }
+            if num != 0 { num /= g; den /= g }
+        }
+        if spec.hasWhole, num >= den { whole += 1; num -= den }
+        func pad(_ s: String, _ w: Int, left: Bool) -> String {
+            let sp = String(repeating: " ", count: max(0, w - s.count))
+            return left ? sp + s : s + sp
+        }
+        let wholeStr: String
+        if spec.hasWhole { wholeStr = whole == 0 && num != 0 ? "" : String(Int(whole)) } else { wholeStr = "" }
+        var out = spec.prefix + wholeStr
+        if spec.hasWhole { out += " " }
+        if num == 0 && spec.hasWhole {
+            out += String(repeating: " ", count: spec.numWidth + 1 + spec.denWidth)
+        } else {
+            out += pad(String(num), spec.numWidth, left: true) + "/" + pad(String(den), spec.denWidth, left: false)
+        }
+        return out + spec.suffix
     }
 
     // MARK: Số
@@ -271,6 +383,9 @@ enum FormulaTextFormat {
             }
         }
         var scaled = v
+        var trailingCommas = 0
+        for p in parts[(last + 1)...] { if case .comma = p { trailingCommas += 1 } }
+        for _ in 0..<trailingCommas { scaled /= 1000 }
         for _ in 0..<percents { scaled *= 100 }
         let r = FormulaEvaluator.round(scaled, digits: fracPat.count)
         var str = String(format: "%.\(fracPat.count)f", abs(r))
@@ -297,7 +412,7 @@ enum FormulaTextFormat {
     // MARK: Ngày giờ
 
     private enum DT {
-        case y4, y2, mmmm, mmm, mm, m, dddd, ddd, dd, d, hh, h, nn, n, ss, s, ampm, lit(String)
+        case y4, y2, mmmm, mmm, mm, m, dddd, ddd, dd, d, hh, h, nn, n, ss, s, ampm, lit(String), elapsedH(Int), elapsedM(Int), elapsedS(Int)
     }
 
     private static func tokenizeDate(_ f: String) -> [DT] {
@@ -320,6 +435,14 @@ enum FormulaTextFormat {
             case "\\":
                 if i + 1 < c.count { out.append(.lit(String(c[i + 1]))) }
                 i += 2
+            case "[":
+                var j = i + 1
+                while j < c.count, c[j] != "]" { j += 1 }
+                let inner = j < c.count ? String(c[(i + 1)..<j]).lowercased() : ""
+                if let k = inner.first, "hms".contains(k), inner.allSatisfy({ $0 == k }) {
+                    out.append(k == "h" ? .elapsedH(inner.count) : k == "m" ? .elapsedM(inner.count) : .elapsedS(inner.count))
+                    i = j + 1
+                } else { out.append(.lit("[")); i += 1 }
             case "a":
                 let rest = String(c[i...]).uppercased()
                 if rest.hasPrefix("AM/PM") { out.append(.ampm); i += 5 }
@@ -342,6 +465,7 @@ enum FormulaTextFormat {
             if case .lit = t[j] { j -= 1; continue }
             if case .h = t[j] { return true }
             if case .hh = t[j] { return true }
+            if case .elapsedH = t[j] { return true }
             break
         }
         j = k + 1
@@ -362,6 +486,7 @@ enum FormulaTextFormat {
         let toks = tokenizeDate(f)
         let hasAmPm = toks.contains { if case .ampm = $0 { return true }; return false }
         let hour = secs / 3600, minute = (secs % 3600) / 60, second = secs % 60
+        let totalSecs = Int((x * 86400).rounded())
         func p2(_ n: Int) -> String { n < 10 ? "0\(n)" : "\(n)" }
         var out = ""
         for t in toks {
@@ -382,6 +507,9 @@ enum FormulaTextFormat {
             case .n: out += String(minute)
             case .ss: out += p2(second)
             case .s: out += String(second)
+            case .elapsedH(let w): out += String(repeating: "0", count: max(0, w - String(totalSecs / 3600).count)) + String(totalSecs / 3600)
+            case .elapsedM(let w): out += String(repeating: "0", count: max(0, w - String(totalSecs / 60).count)) + String(totalSecs / 60)
+            case .elapsedS(let w): out += String(repeating: "0", count: max(0, w - String(totalSecs).count)) + String(totalSecs)
             case .ampm: out += locale == .vi ? (hour < 12 ? "SA" : "CH") : (hour < 12 ? "AM" : "PM")
             case .lit(let s): out += s
             }
