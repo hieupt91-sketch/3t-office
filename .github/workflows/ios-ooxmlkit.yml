@@ -15,8 +15,11 @@
 #   pin được Windows SDK hợp lệ, hoặc để team dựng trên máy Windows thật.
 name: iOS OOXMLKit
 
+# `push` chỉ trên vn-main (kiểm sau khi gộp); nhánh khác chạy theo `pull_request`. Tránh chạy hai lần cho mỗi nhánh có PR
+# và tránh hai check cùng tên (linux/ios) trên cùng một commit khi dùng làm điều kiện bắt buộc.
 on:
   push:
+    branches: [vn-main]
   pull_request:
   workflow_dispatch:
 
