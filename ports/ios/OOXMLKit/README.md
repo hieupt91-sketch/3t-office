@@ -77,13 +77,13 @@ xóa slide (dọn ghi chú, bình luận, ảnh/biểu đồ chỉ slide đó d�
 
 ## Chưa làm (giữ nguyên khi lưu, nhưng chưa có API sửa)
 
-- XLSX: **không tính công thức** (ghi `cachedValue` nếu có, đặt `fullCalcOnLoad` để Excel tính lại); chèn/xóa cột cắt ngang bảng (bị từ chối an toàn);
+- XLSX: ghi/lưu **không tính lại công thức** (ghi `cachedValue` do bên gọi cấp, đặt `fullCalcOnLoad` để Excel tính lại). Có engine tính công thức riêng (`FormulaEngine`, thư mục `Sources/OOXMLSpreadsheet/Formula`, đối chiếu LibreOffice bằng `scripts/formula-oracle`) nhưng **chưa nối vào bridge**; chèn/xóa cột cắt ngang bảng (bị từ chối an toàn);
   sửa định dạng có điều kiện, xác thực dữ liệu, bình luận, bảng (table), pivot, biểu đồ. Sheet/part mới trong tệp Strict dùng namespace Transitional.
 - DOCX: theo dõi thay đổi có ở `setText(_:revision:)`, `appendParagraph(_:revision:)` (+ chấp nhận/từ chối tất cả), các thao tác khác (thay chữ, định dạng, chèn ảnh) chưa ghi thành theo dõi; `setText` bỏ liên kết/trường trong đoạn đó;
   chưa tạo bảng/danh sách/section/bình luận mới.
 - PPTX: nhân bản không chép ghi chú/bình luận. (Thay ảnh: `Shape.replaceImage`.)
 - Không hỗ trợ tệp có mật khẩu (thực chất là OLE/CFB, không phải ZIP), DOC/XLS/PPT nhị phân.
-- Mô hình DOM nạp cả phần XML vào bộ nhớ: sheet 300.000 ô mở ~1,6 s (Linux x86, release) — cần đo trên iPhone thật.
+- Mô hình DOM nạp cả phần XML vào bộ nhớ: sheet 300.000 ô mở ~1,6 s (Linux x86, release) — cần đo trên iPhone thật. XLSX có đường mở lười (`Workbook(contentsOf:deferValidation:lazyModel:)` + `SheetRowReader`) và đường vá byte (`SheetPatcher`) không dựng DOM cả sheet; DOCX/PPTX vẫn nạp DOM (DOCX 120.000 đoạn mở ~3,5 s). Số đo: `docs/ooxml/REPORT-*.md` (Linux, tệp tổng hợp).
 
 ## Chạy test
 
