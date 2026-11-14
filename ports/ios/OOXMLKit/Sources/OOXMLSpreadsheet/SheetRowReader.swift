@@ -300,12 +300,10 @@ public final class SheetRowReader {
     }
 
     private static func indexOf(_ byte: UInt8, in b: UnsafeBufferPointer<UInt8>, from: Int, to: Int) -> Int? {
-        var i = from
-        while i < to {
-            if b[i] == byte { return i }
-            i += 1
-        }
-        return nil
+        guard from < to, let base = b.baseAddress else { return nil }
+        // memchr của thư viện C (SIMD) nhanh hơn nhiều so với vòng lặp từng byte.
+        guard let hit = memchr(base + from, Int32(byte), to - from) else { return nil }
+        return base.distance(to: hit.assumingMemoryBound(to: UInt8.self))
     }
 
     /// Vị trí `>` kết thúc thẻ bắt đầu tại `from` (bỏ qua `>` nằm trong giá trị thuộc tính).
@@ -330,6 +328,22 @@ public final class SheetRowReader {
                              boundaryAfter: Bool) -> Int? {
         let m = needle.count
         guard m > 0, to - from >= m else { return nil }
+        #if canImport(Darwin) || canImport(Glibc)
+        // memmem (SIMD) nhảy thẳng tới mẫu: XML dày ký tự '<' nên quét theo byte đầu dừng ở mọi thẻ. Nền tảng khác
+        // (ví dụ Windows) dùng vòng lặp dự phòng bên dưới.
+        if let base = b.baseAddress {
+            var i = from
+            return needle.withUnsafeBufferPointer { np -> Int? in
+                while to - i >= m {
+                    guard let hit = memmem(base + i, to - i, np.baseAddress!, m) else { return nil }
+                    let pos = base.distance(to: hit.assumingMemoryBound(to: UInt8.self))
+                    if !boundaryAfter || pos + m >= to || isDelimiter(b[pos + m]) { return pos }
+                    i = pos + 1
+                }
+                return nil
+            }
+        }
+        #endif
         let first = needle[0]
         var i = from
         let last = to - m

@@ -28,3 +28,13 @@ Baseline lỗi sẵn có của NGUỒN (kiểm gói nguồn, giải nén mọi p
 ## Còn lại / giới hạn
 - 38 MB vẫn ~5 s và 557 MB: vá 2,1 s (chỉ mục hàng + quét mảng + ghép), nén+CRC 1,4 s, kiểm kết quả ~1,0 s (giải nén lại phần đã ghi để bắt lỗi ghi — giữ vì đường nén song song mới).
 - Số đo Linux, tệp tổng hợp. Tệp thật khác (chuỗi dùng chung nhiều, nhiều sheet) — đo thứ Hai 16/11.
+
+## Cập nhật: quét byte bằng `memchr`/`memmem`
+Dựng chỉ mục hàng (`SheetRowReader`) và quét công thức mảng dùng vòng lặp từng byte, dừng ở mọi ký tự `<` (XML dày thẻ): ~140 MB/s. Thay `indexOf`/`find` bằng `memchr`/`memmem` của thư viện C (Darwin/Glibc); nền tảng khác (ví dụ Windows) giữ vòng lặp cũ. Kết quả giống hệt (676/676 test từ build sạch; so sánh ngẫu nhiên 150 vòng/sheet: 2.815 chuỗi, 0 lệch).
+| | Trước | Sau |
+|---|---|---|
+| dựng chỉ mục hàng, 38 MB | 0,68 s | 0,47 s |
+| dựng chỉ mục hàng, 9,7 MB | ~0,12 s | ~0,12 s |
+| `save-patch` tổng, 38 MB | 5,1 s | 4,2 s |
+| `xlsx.save` qua engine, 38 MB | ~7,8 s (lần đo trước) | 6,5 s |
+Phần còn lại của chỉ mục là vòng lặp theo hàng (tìm hết thẻ, đọc số hàng, thêm vào mảng; 407.365 hàng ở 38 MB). Chưa chạy Windows (dùng vòng lặp dự phòng, chưa đo).
