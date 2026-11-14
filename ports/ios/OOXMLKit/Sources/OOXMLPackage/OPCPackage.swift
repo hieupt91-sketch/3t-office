@@ -430,8 +430,11 @@ public final class OPCPackage {
     /// kiểm chứng → thay nguyên tử; kiểm chứng hỏng thì tệp gốc nguyên vẹn.
     /// Mặc định KHÔNG đổi: caller phải gọi tường minh hàm này.
     public func saveStreaming(to url: URL, verify: Bool = true) throws {
-        // Baseline phải tính TRƯỚC khi flush (flush sửa archive).
-        let known = verify ? lightSourceIssues() : []
+        // Baseline lỗi sẵn có của NGUỒN chỉ cần khi kết quả có lỗi cần lọc; kiểm gói nguồn giải nén toàn bộ các phần
+        // (tệp 38 MB: ~0,9 s) nên tính LƯỜI. Chụp trước các thứ cần để tính sau (flush sửa archive).
+        let cachedBaseline: Set<String>? = verify ? (sourceValidationIssues ?? lightSourceIssuesCache) : []
+        let snapshot = (verify && cachedBaseline == nil && baselineDeferred) ? archive.sourceData : Data()
+        let snapshotLimits = archive.limits
         flushChanges()
         let fm = FileManager.default
         let tmp = url.deletingLastPathComponent()
@@ -455,7 +458,21 @@ public final class OPCPackage {
             let issues: [String]
             do {
                 let check = try OPCPackage(contentsOf: tmp, deferValidation: true)
-                issues = PackageValidator.validateLight(check).filter { !known.contains($0) }
+                let found = PackageValidator.validateLight(check)
+                if found.isEmpty {
+                    issues = []
+                } else {
+                    let known: Set<String>
+                    if let cachedBaseline {
+                        known = cachedBaseline
+                    } else if !snapshot.isEmpty,
+                              let src = try? OPCPackage(archive: ZipArchive(data: snapshot, limits: snapshotLimits), deferValidation: true) {
+                        known = Set(PackageValidator.validateLight(src))
+                    } else {
+                        known = []
+                    }
+                    issues = found.filter { !known.contains($0) }
+                }
             } catch {
                 issues = ["Không mở được gói sau khi lưu: \(error)"]
             }
