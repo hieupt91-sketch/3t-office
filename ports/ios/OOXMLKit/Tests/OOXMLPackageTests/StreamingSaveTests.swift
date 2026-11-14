@@ -120,4 +120,29 @@ final class StreamingSaveTests: XCTestCase {
         XCTAssertEqual(try back.contents(of: "media/random.bin"), random)
         XCTAssertEqual(try back.contents(of: "xl/worksheets/sheet1.xml"), repetitive)
     }
+
+    /// Baseline lỗi sẵn có của NGUỒN được tính lười (chỉ khi kết quả có lỗi): nguồn có lỗi sẵn vẫn lưu được và giữ nguyên lỗi;
+    /// lỗi MỚI vẫn chặn ghi và giữ nguyên tệp đích — cả khi gói mở lười (`deferValidation`).
+    func testStreamingSaveFiltersSourceIssuesLazilyAndStillRejectsNewOnes() throws {
+        let original = try Fixtures.data("real/sample-slides-smartart.pptx")
+        let sourceIssues = PackageValidator.validate(try OPCPackage(data: original))
+        XCTAssertFalse(sourceIssues.isEmpty, "fixture phải có lỗi sẵn có để kiểm đường lọc")
+        let dir = try Fixtures.scratchDirectory("streaming-source-issues")
+
+        let ok = try OPCPackage(data: original, deferValidation: true)
+        let main = try ok.mainDocumentPart()
+        let doc = try ok.xml(main)
+        doc.root.setAttribute("streamProbe", "1")
+        ok.markModified(main)
+        let target = dir.appendingPathComponent("ok.pptx")
+        try ok.saveStreaming(to: target)
+        XCTAssertEqual(PackageValidator.validate(try Data(contentsOf: target)), sourceIssues, "lỗi nguồn giữ nguyên, không thêm lỗi")
+
+        let bad = try OPCPackage(data: original, deferValidation: true)
+        try bad.relationships(of: try bad.mainDocumentPart()).add(.slideLayout, to: PartName("/ppt/slideLayouts/newly-broken.xml"))
+        let guarded = dir.appendingPathComponent("guarded.pptx")
+        try Data("đích gốc".utf8).write(to: guarded)
+        XCTAssertThrowsError(try bad.saveStreaming(to: guarded))
+        XCTAssertEqual(try Data(contentsOf: guarded), Data("đích gốc".utf8), "lỗi mới chặn ghi, tệp đích giữ nguyên")
+    }
 }
