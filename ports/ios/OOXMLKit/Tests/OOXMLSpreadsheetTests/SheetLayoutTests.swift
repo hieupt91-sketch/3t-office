@@ -93,4 +93,23 @@ final class SheetLayoutTests: XCTestCase {
         XCTAssertEqual(Workbook.defaultIndexed.count, 64)
         XCTAssertEqual(Workbook.defaultIndexed[2], "FF0000")
     }
+
+    /// `unsupportedViewFeatures`: tính năng giao diện màn hình đầu không vẽ được, để rơi về đường đầy đủ.
+    func testUnsupportedViewFeaturesAreDetectedPerSheet() throws {
+        let expected: [String: Set<String>] = [
+            "real/sample-sheet-charts.xlsx": ["drawing"],
+            "real/sample-sheet-pivot.xlsx": ["tableParts"],
+            "real/sample-sheet-validation.xlsx": ["conditionalFormatting", "dataValidations"],
+            "real/ton-kho-3t.xlsx": ["tableParts"],
+            "xlsx/rich-excel.xlsx": ["conditionalFormatting", "dataValidations", "drawing", "legacyDrawing", "tableParts"],
+            "real/sample-sheet.xlsx": [], "real/sample-sheet-formulas.xlsx": [],
+            "real/sample-sheet-hidden-autofilter.xlsx": [], "xlsx/implicit-refs.xlsx": [],
+            "xlsx/office-quirks.xlsx": [], "xlsx/prefixed-x.xlsx": [], "xlsx/strict.xlsx": [],
+        ]
+        for (path, features) in expected {
+            let wb = try Workbook(data: try Fixtures.data(path), deferValidation: true, lazyModel: true)
+            let layout = try wb.rowReader(forSheetAt: 0).layout()
+            XCTAssertEqual(Set(layout.unsupportedViewFeatures), features, path)
+        }
+    }
 }
