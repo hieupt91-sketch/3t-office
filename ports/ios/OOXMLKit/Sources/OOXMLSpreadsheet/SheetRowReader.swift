@@ -419,6 +419,11 @@ public struct SheetLayout: Equatable, Sendable {
     public var autoFilter: CellRange?
     /// Chỉ các hàng TRONG cửa sổ yêu cầu có thuộc tính khác mặc định (chiều cao, ẩn, định dạng hàng).
     public var rows: [Row]
+    /// Tính năng của sheet mà màn hình đầu dựng từ `readRows` + `layout` + `workbook.styles` KHÔNG vẽ được, nên giao
+    /// diện nên rơi về đường đầy đủ (LibreOffice/FODS) khi khác rỗng. Tên: `conditionalFormatting`, `dataValidations`,
+    /// `drawing` (hình/biểu đồ), `legacyDrawing` (ghi chú/điều khiển cũ), `tableParts` (bảng Excel), `sparklines` (cả
+    /// định dạng có điều kiện/validation kiểu x14 nằm trong `extLst`).
+    public var unsupportedViewFeatures: [String]
 }
 
 extension SheetRowReader {
@@ -451,7 +456,21 @@ extension SheetRowReader {
 
         var layout = SheetLayout(dimension: root.firstChild(NS.s, "dimension")?.attribute("ref").flatMap(CellRange.init),
                                  defaultColumnWidth: nil, defaultRowHeight: nil, showGridLines: true,
-                                 columns: [], merges: [], frozenRows: 0, frozenColumns: 0, autoFilter: nil, rows: [])
+                                 columns: [], merges: [], frozenRows: 0, frozenColumns: 0, autoFilter: nil, rows: [],
+                                 unsupportedViewFeatures: [])
+        for name in ["conditionalFormatting", "dataValidations", "drawing", "legacyDrawing", "tableParts"]
+        where root.firstChild(NS.s, name) != nil {
+            layout.unsupportedViewFeatures.append(name)
+        }
+        if let ext = root.firstChild(NS.s, "extLst") {
+            // extLst chứa cả thứ vô hại (x14ac…); chỉ báo khi có định dạng có điều kiện / validation / sparkline kiểu x14.
+            let text = ext.elements.map { $0.localName }.joined(separator: ",") + "|"
+                + ext.elements.flatMap { $0.elements.map { $0.localName } }.joined(separator: ",")
+            for (needle, flag) in [("conditionalFormatting", "conditionalFormatting"), ("dataValidation", "dataValidations"),
+                                   ("sparkline", "sparklines")] where text.contains(needle) && !layout.unsupportedViewFeatures.contains(flag) {
+                layout.unsupportedViewFeatures.append(flag)
+            }
+        }
         if let fmt = root.firstChild(NS.s, "sheetFormatPr") {
             layout.defaultColumnWidth = fmt.attribute("defaultColWidth").flatMap { Double($0) }
             layout.defaultRowHeight = fmt.attribute("defaultRowHeight").flatMap { Double($0) }

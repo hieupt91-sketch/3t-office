@@ -1140,6 +1140,7 @@ public final class OOXMLBridge {
                 return o
             },
             "rowCount": reader.rowCount, "lastRow": reader.lastRowNumber,
+            "unsupportedViewFeatures": l.unsupportedViewFeatures,
         ]
         if let d = l.dimension { out["dimension"] = d.description }
         if let w = l.defaultColumnWidth { out["defaultColumnWidth"] = w }
