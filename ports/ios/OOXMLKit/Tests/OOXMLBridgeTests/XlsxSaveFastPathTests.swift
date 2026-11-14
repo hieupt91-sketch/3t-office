@@ -350,6 +350,39 @@ final class XlsxSaveFastPathTests: XCTestCase {
         XCTAssertEqual(try Workbook(data: try Data(contentsOf: fastTarget)).worksheet(named: names[0]).value("Z91"), .string("ngoài vùng mảng"))
     }
 
+    /// Sửa ô CON của nhóm công thức chia sẻ đi đường vá và cho cùng ô kết quả với đường DOM; sửa ô CHỦ rơi về DOM.
+    func testSharedFormulaChildEditsUsePatchAndMasterEditsFallBack() throws {
+        let fixture = "xlsx/rich-excel.xlsx"
+        let base = try Workbook(data: try Fixtures.data(fixture))
+        let name = base.sheetNames[1]
+        let ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+        var rows = "<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f t=\"shared\" ref=\"B1:B8\" si=\"0\">A1*2</f><v>2</v></c></row>"
+        for r in 2...8 {
+            rows += "<row r=\"\(r)\"><c r=\"A\(r)\"><v>\(r)</v></c><c r=\"B\(r)\"><f t=\"shared\" si=\"0\"/><v>\(r * 2)</v></c></row>"
+        }
+        base.package.setData(Data("<?xml version=\"1.0\"?><worksheet xmlns=\"\(ns)\"><sheetData>\(rows)</sheetData></worksheet>".utf8),
+                             for: PartName("/xl/worksheets/sheet2.xml"))
+        let sourceData = try base.package.save()
+        let dir = try Fixtures.scratchDirectory("xlsx-fast-shared")
+        let source = dir.appendingPathComponent("source.xlsx")
+        try sourceData.write(to: source)
+
+        for (ref, expectedPath) in [("B4", "patch"), ("B1", "dom")] {
+            let target = dir.appendingPathComponent("staging-\(ref).xlsx")
+            let edit = Edit(sheet: name, ref: ref, type: "number", value: 777)
+            let response = try request(["source_document_path": source.path, "target_path": target.path,
+                                        "delta": ["cells": [edit.json]]])
+            XCTAssertEqual(response["ok"] as? Bool, true, "\(response)")
+            XCTAssertEqual((response["result"] as? [String: Any])?["path"] as? String, expectedPath, ref)
+            let dom = try Workbook(data: sourceData)
+            try dom.worksheet(named: name).setValue(.number(777), at: ref)
+            func semantic(_ wb: Workbook) throws -> [String] {
+                try wb.worksheet(named: name).cells.map { "\($0.reference.a1)|\($0.value)|\($0.formula ?? "-")|\($0.styleIndex)" }
+            }
+            XCTAssertEqual(try semantic(try Workbook(data: try Data(contentsOf: target))), try semantic(try Workbook(data: try dom.save())), ref)
+        }
+    }
+
     // MARK: Lỗi
 
     func testBadInputFailsWithoutLeavingATarget() throws {
