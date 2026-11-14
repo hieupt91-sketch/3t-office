@@ -22,7 +22,7 @@ public enum SheetPatchError: Error, Equatable, CustomStringConvertible {
 ///
 /// Phạm vi: đặt giá trị (số/chuỗi/bool/lỗi/rỗng), đặt công thức (kèm giá trị đệm) và đặt chỉ số định dạng cho ô.
 /// Những trường hợp cần hiểu biết toàn sheet thì từ chối bằng `SheetPatchError.unsupported` trước khi sửa bất cứ
-/// gì, để người gọi rơi về đường DOM: ô đích đang thuộc công thức chia sẻ (cần bung cả nhóm), sheet có công thức
+/// gì, để người gọi rơi về đường DOM: ô đích là ô CHỦ của công thức chia sẻ (ô con thì vá được), sheet có công thức
 /// mảng/bảng dữ liệu, số hàng/ô ngầm định, hàng không tăng dần, `<sheetData/>` tự đóng, hoặc sheet đang được giữ
 /// ở dạng DOM. Ô đích đang có công thức THƯỜNG thì ghi đè được (như `Worksheet`), kèm hủy `calcChain`.
 public final class SheetPatcher {
@@ -180,7 +180,15 @@ public final class SheetPatcher {
                     let cleared = isCleared(ref)
                     guard edits[ref] != nil || cleared, let f = c.firstChild(NS.s, "f") else { continue }
                     if let type = f.attribute("t"), type != "normal" {
-                        throw SheetPatchError.unsupported("ô \(ref.a1) thuộc công thức \(type)")
+                        // Ô CON của nhóm công thức chia sẻ (`<f t="shared" si="N"/>`, không `ref`, không chữ): ghi đè hoặc xóa
+                        // nó chỉ cần bỏ `<f>` của chính ô đó — ô chủ và các ô con khác không đổi, Excel vẫn đọc nhóm bình
+                        // thường (kết quả ô giống đường DOM, vốn bung cả nhóm thành công thức thường). Ô CHỦ (có `ref`/chữ)
+                        // cần chọn ô chủ mới và dịch lại công thức ⇒ để đường DOM.
+                        let isSharedChild = type == "shared" && f.attribute("ref") == nil
+                            && f.textContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        guard isSharedChild else {
+                            throw SheetPatchError.unsupported("ô \(ref.a1) thuộc công thức \(type)")
+                        }
                     }
                     if cleared || edits[ref]?.content != nil { dropsOrAddsFormula = true }
                 }

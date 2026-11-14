@@ -172,8 +172,8 @@ final class SheetPatcherTests: XCTestCase {
         var before = try wb.package.data(of: part)
         var patcher = try wb.patcher(forSheetAt: 0)
         try patcher.setValue(.number(5), at: "B1")
-        try patcher.setValue(.number(5), at: "A2")
-        assertUnsupported({ try patcher.commit() }, "ô thuộc công thức chia sẻ")
+        try patcher.setValue(.number(5), at: "A1") // ô CHỦ của nhóm chia sẻ
+        assertUnsupported({ try patcher.commit() }, "ô chủ của công thức chia sẻ")
         XCTAssertEqual(try wb.package.data(of: part), before, "từ chối thì byte sheet không đổi")
         // Ô nằm trong vùng công thức mảng/bảng dữ liệu: từ chối khi commit (ô ngoài vùng thì vá được, xem test riêng).
         for (formula, label) in [("<f t=\"dataTable\" ref=\"A1:A2\"/>", "bảng dữ liệu"), ("<f t=\"array\" ref=\"A1:A2\">B1:B2*2</f>", "công thức mảng")] {
@@ -408,8 +408,8 @@ final class SheetPatcherTests: XCTestCase {
         var wb = try workbook(sheetXML: sheet("<row r=\"1\"><c r=\"A1\"><f t=\"shared\" ref=\"A1:A2\" si=\"0\">1+1</f><v>2</v></c></row><row r=\"2\"><c r=\"A2\"><f t=\"shared\" si=\"0\"/><v>2</v></c></row>"))
         var before = try wb.package.data(of: part)
         var patcher = try wb.patcher(forSheetAt: 0)
-        patcher.clear(range: CellRange("A2")!)
-        assertUnsupported({ try patcher.commit() }, "xóa ô thuộc công thức chia sẻ")
+        patcher.clear(range: CellRange("A1")!) // ô chủ
+        assertUnsupported({ try patcher.commit() }, "xóa ô chủ của công thức chia sẻ")
         XCTAssertEqual(try wb.package.data(of: part), before, "từ chối thì gói chưa bị đổi")
 
         let rows = (1...(SheetPatcher.maxClearRows + 1)).map { "<row r=\"\($0)\"><c r=\"A\($0)\"><v>\($0)</v></c></row>" }.joined()
@@ -441,5 +441,48 @@ final class SheetPatcherTests: XCTestCase {
         let p2 = try wb2.patcher(forSheetAt: 0)
         p2.clear(range: CellRange("A4:B5")!)
         assertUnsupported({ try p2.commit() }, "xóa chạm vùng mảng")
+    }
+
+    /// Ô CON của nhóm công thức chia sẻ vá được: ô chủ và các ô con khác giữ nguyên byte; kết quả từng ô (đã bung công thức)
+    /// giống đường DOM, vốn bung cả nhóm thành công thức thường.
+    func testSharedFormulaChildrenArePatchedAndMatchDOM() throws {
+        func rows() -> String {
+            var out = "<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f t=\"shared\" ref=\"B1:B6\" si=\"0\">A1*2</f><v>2</v></c></row>"
+            for r in 2...6 {
+                out += "<row r=\"\(r)\"><c r=\"A\(r)\"><v>\(r)</v></c><c r=\"B\(r)\"><f t=\"shared\" si=\"0\"/><v>\(r * 2)</v></c></row>"
+            }
+            return out
+        }
+        let xml = sheet(rows())
+        for (label, setup) in [
+            ("giá trị", { (p: SheetPatcher) in try p.setValue(.number(99), at: "B3") }),
+            ("công thức", { (p: SheetPatcher) in try p.setFormula("A3+100", cachedValue: .number(103), at: "B3") }),
+            ("xóa", { (p: SheetPatcher) in p.clear(range: CellRange("B3:B4")!) }),
+        ] as [(String, (SheetPatcher) throws -> Void)] {
+            let wb = try workbook(sheetXML: xml)
+            let patcher = try wb.patcher(forSheetAt: 0)
+            try setup(patcher)
+            try patcher.commit()
+            let text = String(decoding: try wb.package.data(of: PartName("/xl/worksheets/sheet1.xml")), as: UTF8.self)
+            XCTAssertTrue(text.contains("<f t=\"shared\" ref=\"B1:B6\" si=\"0\">A1*2</f>"), "\(label): ô chủ giữ nguyên")
+            XCTAssertTrue(text.contains("<row r=\"5\"><c r=\"A5\"><v>5</v></c><c r=\"B5\"><f t=\"shared\" si=\"0\"/><v>10</v></c></row>"),
+                          "\(label): ô con khác giữ nguyên byte")
+            // Đường DOM làm cùng việc.
+            let dom = try workbook(sheetXML: xml)
+            let ws = try dom.worksheet(at: 0)
+            switch label {
+            case "giá trị": try ws.setValue(.number(99), at: "B3")
+            case "công thức": try ws.setFormula("A3+100", at: "B3", cachedValue: .number(103))
+            default: try ws.clear("B3"); try ws.clear("B4")
+            }
+            // So phần ngữ nghĩa: đường DOM bung nhóm thành công thức thường (`formulaType` nil), đường vá giữ nhóm
+            // (`formulaType` "shared" cho ô chủ/ô con còn lại); địa chỉ, giá trị, công thức đã bung và định dạng phải trùng.
+            func semantic(_ cells: [Cell]) -> [String] {
+                cells.map { "\($0.reference.a1)|\($0.value)|\($0.formula ?? "-")|\($0.styleIndex)" }
+            }
+            let a = semantic(try Workbook(data: try wb.save()).worksheet(at: 0).cells)
+            let b = semantic(try Workbook(data: try dom.save()).worksheet(at: 0).cells)
+            XCTAssertEqual(a, b, "\(label): ô đã bung công thức phải giống đường DOM")
+        }
     }
 }
