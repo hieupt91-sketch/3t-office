@@ -15,3 +15,12 @@ Chạy `xlsx.save` thật qua `ooxml-engine` với delta ngẫu nhiên rồi m�
 - Hai bộ kiểm chạy trên fixture của kho và tệp tổng hợp; chưa chạy trên tệp thật của người dùng (36 tệp, thứ Hai 16/11).
 - Chưa kiểm bằng Microsoft Excel (cần #11). Bộ đọc độc lập là openpyxl và LibreOffice, không phải Excel.
 - Bộ so sánh ngẫu nhiên kiểm SheetPatcher ở mức thư viện; đường `xlsx.save` thêm bước kiểm lại riêng (đã có test).
+
+## 3. Kiểm chéo `docx.save` / `pptx.save` (`scripts/crosscheck_docx_pptx_save.py`)
+Sau khi đổi cách kiểm chứng của hai đường lưu này (lưu truyền phát + kiểm nhẹ, nhớ danh sách đoạn/slide — #43, #44), thêm kiểm chéo bằng bộ đọc ĐỘC LẬP. Mô hình mong đợi tính bằng Python (không dùng thư viện Swift để tự chấm); kết quả mở bằng python-docx / python-pptx, và LibreOffice chuyển PDF.
+- DOCX: setText, replaceText, insert, delete, append (chỉ số theo trạng thái hiện tại như `docx.save`) → so toàn bộ văn bản các đoạn thân.
+- PPTX: `slide.setTitle` (tiêu đề theo loại placeholder), `shape.rename`.
+- Kết quả: **100 lần lưu, 0 lỗi** trên các fixture `docx/`, `pptx/` và `real/`, LibreOffice mở và chuyển PDF cả 100.
+- Bỏ qua có lý do: `rich-word.docx`, `sample-writer(-tables).docx` (engine đếm cả đoạn trong bảng, python-docx chỉ đếm đoạn thân: khác cách đếm, không so được), `sample-slides-comments.pptx` (không sinh được thao tác hợp lệ).
+- Ghi nhận ngữ nghĩa có sẵn (không đổi): `docx.save` kiểm mọi chỉ số theo số đoạn của tệp GỐC trước khi áp, trong khi từng thao tác áp theo trạng thái hiện tại; `pptx.save` gọi shape theo tên nên shape tên rỗng không nhắm tới được. Bên gọi cần biết hai điều này khi sinh delta.
+- Giới hạn: chưa có tệp DOCX/PPTX thật của người dùng; chưa kiểm bằng Word/PowerPoint thật; PPTX chưa kiểm `slide.add/delete` và ghi chú (cần notes master).
